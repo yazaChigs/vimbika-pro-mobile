@@ -1,0 +1,400 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:search_choices/search_choices.dart';
+import 'package:vimbika_pos_app/src/constants/app_routes.dart';
+import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
+import 'package:vimbika_pos_app/src/features/sale/controller/cart_controller.dart';
+import 'package:vimbika_pos_app/src/features/sale/widget/custom_dropdown_widget.dart';
+import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart';
+import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
+
+class CheckoutScreen extends StatelessWidget {
+  final CartController cartController = Get.find();
+  final InactivityController inactivityController = Get.find();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: inactivityController.resetInactivityTimer,
+      onPanDown: (_) => inactivityController.resetInactivityTimer(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('Checkout'),
+        ),
+        body: Form(
+          key: cartController.formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey, width: 1.5), // Border color and width
+                      borderRadius: BorderRadius.circular(8), // Rounded corners
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                     // height: 60,
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            // Get.toNamed(AppRoutes.CUSTOMER_FORM);
+                            getCustomerForm();
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 8.0, right: 20),
+                            child: Icon(
+                              Icons.person_add, // Change this to the icon you want
+                              color: Colors.black, // Set icon color
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Obx(() {
+                            return SearchChoices.single(
+                             padding: 0,
+                              items: cartController.allCustomers.map((
+                                  CustomerModel customer) {
+                                return DropdownMenuItem<CustomerModel>(
+                                  value: customer,
+                                  child: Text(customer.name ?? ''),
+                                );
+                              }).toList(),
+                              value: cartController.selectedCustomer.value,
+                              // initial selected value if needed
+                              hint: "Select Customer",
+                              searchHint: "Search Customer",
+                              searchFn: (String searchTerm, List<DropdownMenuItem> items) {
+                                // Filter by customer name, returning the indices of matching items
+                                List<int> matches = [];
+                                for (int i = 0; i < items.length; i++) {
+                                  CustomerModel customer = items[i].value as CustomerModel;
+                                  if (customer.name != null && customer.name!.toLowerCase().contains(searchTerm.toLowerCase())) {
+                                    matches.add(i);
+                                  }
+                                }
+                                return matches;
+                              },
+                              validator: (value) {
+                                if (cartController.isCustomerSelected.isFalse) {
+                                  return 'Please select a customer';
+                                }
+                                return null;
+                              },
+                              onChanged: (CustomerModel selected) {
+                                cartController.onCustomerChange(selected);
+                              },
+                              underline: SizedBox.shrink(),
+                              style: TextStyle(fontSize: 15, color: Colors.black87),
+                              isExpanded: true,
+                            );
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Obx(() {
+                    return CustomDropdownWidget<UserModel>(
+                      items: cartController.userList,
+                      selectedItem: cartController.user.value,
+                      hint: "Select Agent",
+                      isSelected: cartController.isUserSelected,
+                      selectedValue: cartController.user,
+                      icon: Icons.person,
+                      onChanged: (UserModel? newValue) {
+                        //cartController.onCurrencyChange(newValue!);
+                        cartController.user.value = newValue;
+                      },
+                      validator: (value) {
+                        if (cartController.isUserSelected.isFalse) {
+                          return 'Please Select Agent';
+                        }
+                        return null;
+                      },
+                      itemBuilder: (UserModel value) => Text(value.firstName! + " "+ value.lastName!),
+                    );
+                  }),
+                ),
+
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Obx(() {
+                    return CustomDropdownWidget<CurrencyModel>(
+                      items: cartController.currencyList,
+                      selectedItem: cartController.selectedCurrency.value,
+                      hint: "Select Currency",
+                      isSelected: cartController.isCurrencySelected,
+                      selectedValue: cartController.selectedCurrency,
+                      icon: Icons.currency_exchange,
+                      onChanged: (CurrencyModel? newValue) {
+                        cartController.onCurrencyChange(newValue!);
+                      },
+                      validator: (value) {
+                        if (cartController.isCurrencySelected.isFalse) {
+                          return 'Please select a currency';
+                        }
+                        return null;
+                      },
+                      itemBuilder: (CurrencyModel value) => Text(value.name! + " (" + value.rate!.toString() + ")"),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Obx(() {
+                    return CustomDropdownWidget<PaymentTypeModel>(
+                      items: cartController.filteredPaymentTypesList,
+                      selectedItem: cartController.selectedPaymentType.value,
+                      hint: "Select Payment Type",
+                      isSelected: cartController.isPaymentTypeSelected,
+                      selectedValue: cartController.selectedPaymentType,
+                      icon: Icons.payments,
+                      onChanged: (PaymentTypeModel? newValue) {
+                       cartController.onChangePaymentType(newValue!);
+                      },
+                      validator: (value) {
+                        if (cartController.isPaymentTypeSelected.isFalse) {
+                          return 'Please select a payment type';
+                        }
+                        return null;
+                      },
+                      itemBuilder: (PaymentTypeModel value) =>
+                          Text(value.name!),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: TextFormField(
+                    controller:
+                    cartController.amountPaidTextEditingController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    inputFormatters: <TextInputFormatter>[
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d+\.?\d{0,2}')),
+                    ],
+                    decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.money),
+                        labelText: "Amount",
+                        hintText: "Amount"),
+                    onChanged: (String val) {
+                      if (val.isNotEmpty) {
+                        cartController.amountPaidChange(val);
+                      }
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter an amount';
+                      }
+                      double enteredAmount;
+                      try {
+                        enteredAmount = double.parse(value);
+                      } catch (e) {
+                        return 'Please enter a valid amount';
+                      }
+
+                      if (enteredAmount <
+                          cartController.totalCostInSelectedCurrency.value) {
+                        return 'Amount paid cannot be less than the total amount';
+                      }
+                      return null;
+                    },
+                    onSaved: (value) {
+                      cartController.amountPaid.value = double.parse(value!);
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Obx(() {
+                        return Text(
+                          'Base Amount : ${cartController.baseCurrency
+                              .value!.symbol} ${cartController
+                              .totalCostInBaseCurrency}',
+                          style: const TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold),
+                        );
+                      }),
+                      Obx(() {
+                        return Text(
+                          'Total : ${cartController.selectedCurrency.value!
+                              .symbol} ${cartController
+                              .totalCostInSelectedCurrency}',
+                          style: const TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold),
+                        );
+                      }),
+                      Obx(() {
+                        return Text(
+                          'Change : ${cartController.selectedCurrency.value!
+                              .symbol} ${cartController.change.value.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        );
+                      }),
+                      SizedBox(height: 5),
+                      Obx(() =>
+                          CheckboxListTile(
+                            title: Text('Print Receipt'),
+                            value: cartController.isPrintEnabled.value,
+                            onChanged: (bool? value) {
+                              cartController.isPrintEnabled.value =
+                                  value ?? false;
+                            },
+                          )),
+                      SizedBox(height: 5),
+                      Obx(() {
+                        if (cartController.fiscalizeReceipt.value) {
+                          return CheckboxListTile(
+                            title: Text('Fiscalize Receipt'),
+                            value: cartController.isFiscaliseReceiptEnabled
+                                .value,
+                            onChanged: (bool? value) {
+                              cartController.isFiscaliseReceiptEnabled.value =
+                                  value ?? false;
+                              cartController.zimraFiscalizeReceipt.value = value!;
+                            },
+                          );
+                        } else {
+                          return Container(); // Empty container when email is not valid
+                        }
+                      }),
+                      SizedBox(height: 5),
+                      Obx(() {
+                        if (cartController.isCustomerEmailValid.value) {
+                          return CheckboxListTile(
+                            title: Text('Email Receipt'),
+                            value: cartController.emailReceipt.value,
+                            onChanged: (bool? value) {
+                              cartController.emailReceipt.value =
+                                  value ?? false;
+                            },
+                          );
+                        } else {
+                          return Container(); // Empty container when email is not valid
+                        }
+                      }),
+                      SizedBox(height: 10),
+                      ElevatedButton(
+                        onPressed: () {
+                          if (cartController.formKey.currentState!
+                              .validate()) {
+                            cartController.formKey.currentState!
+                                .save(); // Save the form fields
+                            cartController.showConfirmDialogChargeSale();
+                          }
+                        },
+                        child: Text('Charge'),
+                      ),
+                      SizedBox(height: 10),
+                      ElevatedButton(
+                        onPressed: () {
+                          cartController.cancelSale();
+                        },
+                        child: Text('Cancel Sale'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  getCustomerForm() {
+    Get.dialog(
+      AlertDialog(
+        title: Text("Add New Customer"),
+        content: SingleChildScrollView(
+          child: Form(
+            key: cartController.formKeyAddCustomer, // Add a GlobalKey to the form
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: cartController.nameController,
+                  decoration: InputDecoration(labelText: "Name"),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Name is required';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 8.0),
+                TextFormField(
+                  controller: cartController.phoneController,
+                  decoration: InputDecoration(labelText: "Phone"),
+                  keyboardType: TextInputType.phone,
+                ),
+                SizedBox(height: 8.0),
+                TextFormField(
+                  controller: cartController.emailController,
+                  decoration: InputDecoration(labelText: "Email"),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                SizedBox(height: 8.0),
+                TextFormField(
+                  controller: cartController.tinEditingController,
+                  decoration: InputDecoration(labelText: "TIN"),
+                ),
+                SizedBox(height: 8.0),
+                TextFormField(
+                  controller: cartController.vatEditingController,
+                  decoration: InputDecoration(labelText: "VAT"),
+                ),
+                SizedBox(height: 8.0),
+                TextFormField(
+                  controller: cartController.addressEditingController,
+                  decoration: InputDecoration(labelText: "Address"),
+                ),
+                SizedBox(height: 8.0),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              // Close dialog without adding a customer
+              Get.back();
+            },
+            child: Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              // Validate the form before adding a new customer
+              if (cartController.formKeyAddCustomer.currentState!.validate()) {
+                cartController.addNewCustomer();
+                Get.back(); // Close the dialog after adding
+              }
+            },
+            child: Text("Add"),
+          ),
+        ],
+      ),
+    );
+  }
+
+}

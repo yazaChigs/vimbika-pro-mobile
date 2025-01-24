@@ -1,0 +1,929 @@
+import 'dart:convert';
+import 'dart:developer';
+import 'dart:io';
+
+import 'package:bluetooth_print/bluetooth_print.dart';
+import 'package:bluetooth_print/bluetooth_print_model.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
+import 'package:flutter_pos_printer_platform_image_3/flutter_pos_printer_platform_image_3.dart';
+import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:sunmi_printer_plus/enums.dart';
+import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
+import 'package:telpo_m8/telpo_m8.dart';
+import 'package:vimbika_pos_app/src/features/printers/model/available_printer_model.dart';
+import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
+import 'package:vimbika_pos_app/src/features/sale/model/sale_model.dart';
+import 'package:vimbika_pos_app/src/features/shift/model/currency_amount.dart';
+import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
+import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
+import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
+import 'package:image/image.dart' as img;
+
+class PrinterService extends GetxService {
+  Future<void> printCurrentSale(SaleInfoModel saleInfo, GetStorage box,  LocalStorageService _localStorageService) async {
+    print("sale qr code ..");
+    print(saleInfo.sale!.taxInvoice);
+    print(saleInfo.sale!.fiscalized);
+    print(saleInfo.sale!.receiptQrCode);
+    AvailablePrinterModel? prin = _localStorageService.findActivePrinter(box);
+        if (prin != null) {
+          if(prin.type == 'SUNMI_INBUILT_PRINTER') {
+            await printSunmiSaleReceipt(saleInfo.sale!);
+          }
+          if(prin.type == 'TELPO_INBUILT_PRINTER') {
+            await printTelpoSaleReceipt(saleInfo.sale!);
+          }
+          if (prin.type == 'bluetooth') {
+            await generateBluetoothReceipt(saleInfo.sale!, prin);
+          }
+          if (prin.type == 'usb') {
+            await generateUSBReceipt(saleInfo.sale!, prin);
+          }
+        } else {
+          Get.snackbar('Error', 'Default Printer Not Found. Please add printer.',
+              snackPosition: SnackPosition.BOTTOM);
+          print("Default Printer Not Found. Please add printer.");
+        }
+
+
+
+  }
+
+  generateBluetoothReceipt(SaleModel sale, AvailablePrinterModel printer) async {
+    BluetoothPrint bluetoothPrint = await BluetoothPrint.instance;
+    await bluetoothPrint.disconnect();
+    Uint8List imageBytes = await readLocalFileBytes();
+
+    // Encode the image to base64 string
+    String logoBase64 = base64Encode(imageBytes);
+    BluetoothDevice bt = BluetoothDevice();
+    bt.name = printer.name;
+    bt.address = printer.address;
+    await bluetoothPrint.connect(bt);
+    await Future.delayed(Duration(seconds: 3));
+    List<LineText> receiptData = [];
+    CurrencyModel? cur = sale.currency;
+    receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n\n', weight: 1, align: LineText.ALIGN_CENTER,linefeed: 1));
+
+    // Header
+
+   // Add the logo to the receipt
+    print("print logo ..");
+    receiptData.add(LineText(
+      type: LineText.TYPE_IMAGE,
+      content: logoBase64,
+      height: 200,
+      width: 200,
+      align: LineText.ALIGN_CENTER,
+      linefeed: 1,
+    ));
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'RECEIPT',
+      size: 2,
+      align: LineText.ALIGN_CENTER,
+      weight: 2, // Bold
+      linefeed: 1,
+    ));
+
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'Cashier: ${sale.cashierFullName}',
+      align: LineText.ALIGN_LEFT,
+      linefeed: 1,
+    ));
+
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'Date: ${sale.timeIniated}',
+      align: LineText.ALIGN_LEFT,
+      linefeed: 1,
+    ));
+
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'Reference: ${sale.referenceNumber}',
+      align: LineText.ALIGN_LEFT,
+      linefeed: 1,
+    ));
+
+    // Customer Information (if any)
+    if (sale.customer != null) {
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: 'Customer: ${sale.customer!.name}',
+        align: LineText.ALIGN_LEFT,
+        linefeed: 1,
+      ));
+    }
+
+    // Separator
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: '--------------------------------',
+      align: LineText.ALIGN_CENTER,
+      linefeed: 1,
+    ));
+
+    // Items
+    for (var item in sale.items!) {
+      String itemName = item.inventoryItem?.name ?? 'Item';
+      double quantity = item.quantity ?? 0;
+      double price = item.sellingPrice ?? 0;
+      double total = item.total ?? 0;
+      total = total * cur!.rate!;
+      price = price * cur!.rate!;
+
+      // Product Name in Bold and Large Text
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: itemName,
+        align: LineText.ALIGN_LEFT,
+        weight: 2, // Bold
+        size: 1,   // Larger text size
+        linefeed: 1,
+      ));
+
+      // Quantity and Price on the same line
+      String qtyPriceLine = 'Qty: ${quantity}    Price: ${cur!.symbol} ${price.toStringAsFixed(2)}';
+
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: qtyPriceLine,
+        align: LineText.ALIGN_LEFT,
+        linefeed: 1,
+      ));
+
+      // Total
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: 'Total: ${cur!.symbol} ${total.toStringAsFixed(2)}',
+        align: LineText.ALIGN_LEFT,
+        linefeed: 1,
+      ));
+
+      // Underline below each item
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: '--------------------------------',
+        align: LineText.ALIGN_CENTER,
+        linefeed: 1,
+      ));
+    }
+
+    // Totals
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'Subtotal: ${cur!.symbol} ${sale.amountPaid?.toStringAsFixed(2)}',
+      align: LineText.ALIGN_RIGHT,
+      linefeed: 1,
+    ));
+
+
+
+    // Payment
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'Amount Paid: ${cur.symbol} ${sale.customerAmountPaid?.toStringAsFixed(2)}',
+      align: LineText.ALIGN_RIGHT,
+      linefeed: 1,
+    ));
+
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'Change: ${cur.symbol} ${sale.change?.toStringAsFixed(2)}\n\n',
+      align: LineText.ALIGN_RIGHT,
+      linefeed: 1,
+    ));
+
+    // QR Code
+    if(sale.receiptQrCode != null) {
+
+      print("Printing qr code..");
+      // receiptData.add(LineText(
+      //   type: LineText.TYPE_QRCODE,
+      //   //content: sale.receiptQrCode!, // The URL to be encoded in the QR code
+      //   content: "https://example.com",
+      //   linefeed: 1,
+      // ));
+      Uint8List imageBytes = await generateBlueToothQR(sale.receiptQrCode!);
+      String qrCode = base64Encode(imageBytes);
+      receiptData.add(LineText(
+        type: LineText.TYPE_IMAGE,
+        content: qrCode,
+        align: LineText.ALIGN_CENTER,
+        width: 200,
+        height: 200
+      ));
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: sale.receiptQrData!,
+        align: LineText.ALIGN_CENTER,
+        linefeed: 1,
+      ));
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: 'You can verify this receipt manually at',
+        align: LineText.ALIGN_CENTER,
+        linefeed: 1,
+      ));
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: sale.receiptQrCode!,
+        align: LineText.ALIGN_CENTER,
+        linefeed: 1,
+      ));
+    }
+
+    // Footer
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'Thank you for your purchase!',
+      align: LineText.ALIGN_CENTER,
+      linefeed: 1,
+      weight: 1,
+    ));
+    receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n\n\n\n', weight: 1, align: LineText.ALIGN_CENTER,linefeed: 1));
+
+    receiptData.add(LineText(linefeed: 1));
+    Map<String, dynamic> config = Map();
+    await bluetoothPrint.printReceipt(config, receiptData);
+  }
+
+    generateUSBReceipt(SaleModel sale,  AvailablePrinterModel printer) async {
+     final profile = await CapabilityProfile.load();
+     final generator = Generator(PaperSize.mm80, profile);
+
+     List<int> receiptData = [];
+
+     CurrencyModel? cur = sale.currency;
+
+     // Header
+     receiptData += generator.text('RECEIPT',
+         styles: PosStyles(
+           align: PosAlign.center,
+           bold: true,
+           height: PosTextSize.size2,
+           width: PosTextSize.size2,
+         ));
+     receiptData += generator.text('Date: ${sale.timeIniated}',
+         styles: PosStyles(align: PosAlign.left));
+     receiptData += generator.text('Reference: ${sale.referenceNumber}',
+         styles: PosStyles(align: PosAlign.left));
+
+     // Customer Information (if any)
+     if (sale.customer != null) {
+       receiptData += generator.text('Customer: ${sale.customer!.name}',
+           styles: PosStyles(align: PosAlign.left));
+     }
+
+     // Separator
+     receiptData += generator.text('--------------------------------',
+         styles: PosStyles(align: PosAlign.center));
+
+     // Items
+     for (var item in sale.items!) {
+       String itemName = item.inventoryItem?.name ?? 'Item';
+       double quantity = item.quantity ?? 0;
+       double price = item.sellingPrice ?? 0;
+       double total = item.total ?? 0;
+
+       // Product Name in Bold
+       receiptData += generator.text(itemName,
+           styles: PosStyles(align: PosAlign.left, bold: true));
+
+       // Quantity and Price on the same line
+       String qtyPriceLine = 'Qty: ${quantity}    Price: ${price.toStringAsFixed(2)}';
+       receiptData += generator.text(qtyPriceLine, styles: PosStyles(align: PosAlign.left));
+
+       // Total
+       receiptData += generator.text('Total: ${total.toStringAsFixed(2)}',
+           styles: PosStyles(align: PosAlign.left));
+
+       // Separator for each item
+       receiptData += generator.text('--------------------------------',
+           styles: PosStyles(align: PosAlign.center));
+     }
+
+     // Subtotal
+     receiptData += generator.text('Subtotal: ${cur?.symbol} ${sale.amountPaid?.toStringAsFixed(2)}',
+         styles: PosStyles(align: PosAlign.right));
+
+     // Payment
+     receiptData += generator.text('Amount Paid: ${cur?.symbol} ${sale.customerAmountPaid?.toStringAsFixed(2)}',
+         styles: PosStyles(align: PosAlign.right));
+
+     // Change
+     receiptData += generator.text('Change: ${cur?.symbol} ${sale.change?.toStringAsFixed(2)}',
+         styles: PosStyles(align: PosAlign.right));
+
+     // Footer
+     receiptData += generator.text('Thank you for your purchase!',
+         styles: PosStyles(align: PosAlign.center));
+     receiptData += generator.feed(2); // Feed lines for spacing
+     receiptData += generator.cut(); // Cut the paper
+     var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
+     await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
+     await PrinterManager.instance.send(
+       bytes: receiptData, // Data to be printed
+       type: PrinterType.usb,
+     );
+   }
+
+   PrinterType? parsePrinterType(String value) {
+     switch (value.toLowerCase()) {
+       case "bluetooth":
+         return PrinterType.bluetooth;
+       case "usb":
+         return PrinterType.usb;
+       case "network":
+         return PrinterType.network;
+       default:
+         return null;
+     }
+   }
+
+    printShiftDetailsBluetooth(ShiftModel shift,  AvailablePrinterModel printer,  List<Map<String, dynamic>> totalAmountsByCurrency) async {
+     BluetoothPrint bluetoothPrint = await BluetoothPrint.instance;
+     BluetoothDevice bt = BluetoothDevice();
+     bt.name = printer.name;
+     bt.address = printer.address;
+     await bluetoothPrint.connect(bt);
+     await Future.delayed(Duration(seconds: 3));
+     List<LineText> list = [];
+
+     // Adding shift details
+     list.add(LineText(type: LineText.TYPE_TEXT, content: 'Shift Details\n', weight: 2, align: LineText.ALIGN_CENTER, linefeed: 1));
+
+     list.add(LineText(type: LineText.TYPE_TEXT, content: 'User: ${shift.userFullName ?? ''}\n', linefeed: 1));
+     list.add(LineText(type: LineText.TYPE_TEXT, content: 'OT: ${shift.openingTime ?? ''}\n', linefeed: 1));
+     list.add(LineText(type: LineText.TYPE_TEXT, content: 'CT: ${shift.closingTime ?? ''}\n', linefeed: 1));
+
+     // Adding currency amounts
+     if (shift.shiftCurrencyAmounts != null && shift.shiftCurrencyAmounts!.isNotEmpty) {
+       list.add(LineText(type: LineText.TYPE_TEXT, content: '\nTransactions:\n', weight: 2, align: LineText.ALIGN_LEFT, linefeed: 1));
+
+       shift.shiftCurrencyAmounts!.forEach((currencyAmount) {
+         list.add(LineText(
+           type: LineText.TYPE_TEXT,
+           content: 'Ref: ${currencyAmount.ref}\nTime: ${currencyAmount.timeCreated}\nCurrency: ${currencyAmount.currency.name}\nAmount: ${currencyAmount.amount.toString()}\nType: ${currencyAmount.amountType ?? ''}\n\n',
+           linefeed: 1,
+         ));
+       });
+     } else {
+       list.add(LineText(type: LineText.TYPE_TEXT, content: 'No transactions available.\n', linefeed: 1));
+     }
+
+     if (totalAmountsByCurrency.isNotEmpty) {
+       list.add(LineText(type: LineText.TYPE_TEXT,
+           content: '\nAmounts by Currency:\n',
+           weight: 2,
+           align: LineText.ALIGN_LEFT,
+           linefeed: 1));
+       totalAmountsByCurrency.forEach((total) {
+         list.add(LineText(
+           type: LineText.TYPE_TEXT,
+           content: 'Currency: ${total['currencyName']}\nAmount: ${total['totalAmount']}\n\n',
+           linefeed: 1,
+         ));
+       });
+     }
+
+     // Final message
+     list.add(LineText(type: LineText.TYPE_TEXT, content: '***Thank you!!***\n\n\n', weight: 1, align: LineText.ALIGN_CENTER, linefeed: 1));
+     list.add(LineText(type: LineText.TYPE_TEXT, content: '\n\n\n\n', weight: 1, align: LineText.ALIGN_CENTER,linefeed: 1));
+
+     // Config for the printer (if needed)
+     Map<String, dynamic> config = Map();
+
+     // Sending the data to the printer
+     await bluetoothPrint.printReceipt(config, list);
+   }
+
+    printShiftDetailsUsb(ShiftModel shift, AvailablePrinterModel printer, List<Map<String, dynamic>> totalAmountsByCurrency) async {
+
+
+
+     // Load the printer profile
+     final profile = await CapabilityProfile.load();
+     final generator = Generator(PaperSize.mm80, profile);
+      List<int> receiptData = [];
+     // Adding shift details
+     receiptData += generator.text('Shift Details', styles: PosStyles(bold: true, align: PosAlign.center));
+     receiptData += generator.text('User: ${shift.userFullName ?? ''}', styles: PosStyles(align: PosAlign.left));
+     receiptData += generator.text('OT: ${shift.openingTime ?? ''}', styles: PosStyles(align: PosAlign.left));
+     receiptData += generator.text('CT: ${shift.closingTime ?? ''}', styles: PosStyles(align: PosAlign.left));
+
+     // Adding currency amounts
+     if (shift.shiftCurrencyAmounts != null && shift.shiftCurrencyAmounts!.isNotEmpty) {
+       receiptData += generator.text('Transactions:', styles: PosStyles(bold: true, align: PosAlign.left));
+       shift.shiftCurrencyAmounts!.forEach((currencyAmount) {
+         receiptData += generator.text('Ref: ${currencyAmount.ref}', styles: PosStyles(align: PosAlign.left));
+         receiptData += generator.text('Time: ${currencyAmount.timeCreated}', styles: PosStyles(align: PosAlign.left));
+         receiptData += generator.text('Currency: ${currencyAmount.currency.name}', styles: PosStyles(align: PosAlign.left));
+         receiptData += generator.text('Amount: ${currencyAmount.amount.toString()}', styles: PosStyles(align: PosAlign.left));
+         receiptData += generator.text('Type: ${currencyAmount.amountType}', styles: PosStyles(align: PosAlign.left));
+       });
+     } else {
+       receiptData += generator.text('No transactions available.', styles: PosStyles(align: PosAlign.left));
+     }
+
+     // Adding amounts by currency
+     if (totalAmountsByCurrency.isNotEmpty) {
+       receiptData += generator.text('Amounts by Currency:', styles: PosStyles(bold: true, align: PosAlign.left));
+       totalAmountsByCurrency.forEach((total) {
+         receiptData += generator.text('Currency: ${total['currencyName']}', styles: PosStyles(align: PosAlign.left));
+         receiptData += generator.text('Amount: ${total['totalAmount']}', styles: PosStyles(align: PosAlign.left));
+       });
+     }
+
+     // Final message
+     receiptData += generator.text('***Thank you!!***', styles: PosStyles(bold: true, align: PosAlign.center));
+
+     // Adding feed and cut commands
+     receiptData += generator.feed(2);
+     receiptData += generator.cut();
+     var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
+     await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
+     await PrinterManager.instance.send(
+       bytes: receiptData, // Data to be printed
+       type: PrinterType.usb,
+     );
+
+   }
+   // Print Sale Receipt
+   Future<void> printSunmiSaleReceipt(SaleModel sale) async {
+     CurrencyModel? cur = sale.currency;
+
+     Uint8List imageBytes = await readLocalFileBytes();
+     //print(imageBytes);
+
+     await SunmiPrinter.initPrinter();
+     await SunmiPrinter.startTransactionPrint(true);
+
+
+
+     // Header
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.printImage(imageBytes); // Directly print the image bytes
+
+     await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+     await SunmiPrinter.printText("\n");
+     await SunmiPrinter.printText("RECEIPT\n");
+     await SunmiPrinter.resetFontSize();
+
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+     await SunmiPrinter.printText("Cashier: ${sale.cashierFullName}\n");
+     await SunmiPrinter.printText("Date: ${sale.timeIniated}\n");
+     await SunmiPrinter.printText("Reference: ${sale.referenceNumber}\n");
+
+     // Customer Information
+     if (sale.customer != null) {
+       await SunmiPrinter.printText("Customer: ${sale.customer!.name}\n");
+     }
+
+     // Separator
+     await SunmiPrinter.printText("--------------------------------\n");
+
+     // Items
+     for (var item in sale.items!) {
+       String itemName = item.inventoryItem?.name ?? "Item";
+       double quantity = item.quantity ?? 0;
+       double price = item.sellingPrice ?? 0;
+       double total = item.total ?? 0;
+       total = total * cur!.rate!;
+       price = price * cur!.rate!;
+       await SunmiPrinter.printText("$itemName\n");
+       await SunmiPrinter.printText("Qty: $quantity  Price: ${cur?.symbol ?? ''} ${price.toStringAsFixed(2)}\n");
+       await SunmiPrinter.printText("Total: ${cur?.symbol ?? ''} ${total.toStringAsFixed(2)}\n");
+       await SunmiPrinter.printText("--------------------------------\n");
+     }
+
+     // Totals
+     await SunmiPrinter.printText("Subtotal: ${cur?.symbol ?? ''} ${sale.amountPaid?.toStringAsFixed(2)}\n");
+     await SunmiPrinter.printText("Amount Paid: ${cur?.symbol ?? ''} ${sale.customerAmountPaid?.toStringAsFixed(2)}\n");
+     await SunmiPrinter.printText("Change: ${cur?.symbol ?? ''} ${sale.change?.toStringAsFixed(2)}\n");
+
+     //qr code
+
+     if(sale.receiptQrCode != null){
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+       await SunmiPrinter.printQRCode(sale.receiptQrCode!);
+       await SunmiPrinter.printText("Scan the QR Code above\n");
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+       await SunmiPrinter.printText(sale.receiptQrData! + "\n");
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+       await SunmiPrinter.printText("You can verify this receipt manually at \n");
+       await SunmiPrinter.printText(sale.receiptQrCode! + "\n");
+     }
+
+     // Footer
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.printText("*** Thank you for your purchase! ***\n");
+     await SunmiPrinter.printText("\n\n\n");
+     await SunmiPrinter.submitTransactionPrint();
+     await SunmiPrinter.exitTransactionPrint(true);
+   }
+
+// Read the image from local storage
+  Future<Uint8List> readLocalFileBytes() async {
+    final directory = await getApplicationDocumentsDirectory();
+    final path = '${directory.path}/company_logo.png';
+    try {
+      final file = File(path);
+      if (await file.exists()) {
+        Uint8List log =  await file.readAsBytes(); // Read and return the image bytes
+
+        // Decode the image
+        print("Printing log");
+        print(log);
+        img.Image? image = img.decodeImage(log);
+        if (image == null) {
+          throw Exception("Could not decode the image");
+        }
+
+        // Resize the image to the desired width and height
+        img.Image resizedImage = img.copyResize(image, width: 300, height: 300);
+
+
+        // Convert the resized image back to Uint8List (in PNG format)
+        Uint8List resizedImageBytes = await Uint8List.fromList(img.encodePng(resizedImage));
+        return resizedImageBytes;
+
+      } else {
+        throw Exception("File does not exist");
+      }
+    } catch (e) {
+      print("Error reading file: $e");
+      rethrow;
+    }
+  }
+  Future<void> printTelpoSaleReceipt(SaleModel sale) async {
+    try {
+      CurrencyModel? cur = sale.currency;
+
+      // Consolidate receipt content into a single string
+      StringBuffer receiptBuffer = StringBuffer();
+
+      // Header
+      receiptBuffer.writeln("********** RECEIPT **********");
+      await SunmiPrinter.printText("Cashier: ${sale.cashierFullName}\n");
+      receiptBuffer.writeln("Date: ${sale.timeIniated}");
+      receiptBuffer.writeln("Reference: ${sale.referenceNumber}");
+
+      // Customer Information
+      if (sale.customer != null) {
+        receiptBuffer.writeln("Customer: ${sale.customer!.name}");
+      }
+
+      // Separator
+      receiptBuffer.writeln("--------------------------------");
+
+      // Items
+      for (var item in sale.items!) {
+        String itemName = item.inventoryItem?.name ?? "Item";
+        double quantity = item.quantity ?? 0;
+        double price = item.sellingPrice ?? 0;
+        double total = item.total ?? 0;
+
+        receiptBuffer.writeln("$itemName");
+        receiptBuffer.writeln("Qty: $quantity | Price: ${price.toStringAsFixed(2)} | Total: ${total.toStringAsFixed(2)}");
+        receiptBuffer.writeln("--------------------------------");
+      }
+
+      // Totals
+      receiptBuffer.writeln("Subtotal: ${cur?.symbol ?? ''} ${sale.amountPaid?.toStringAsFixed(2)}");
+      receiptBuffer.writeln("Amount Paid: ${cur?.symbol ?? ''} ${sale.customerAmountPaid?.toStringAsFixed(2)}");
+      receiptBuffer.writeln("Change: ${cur?.symbol ?? ''} ${sale.change?.toStringAsFixed(2)}");
+
+      // Print consolidated text
+      await TelpoM8().printWithThermalPrinter(receiptBuffer.toString());
+
+      if (sale.receiptQrCode != null) {
+        final qrValidationResult = QrValidator.validate(
+          data: sale.receiptQrCode!,
+          version: QrVersions.auto,
+          errorCorrectionLevel: QrErrorCorrectLevel.L,
+        );
+
+        if (qrValidationResult.status == QrValidationStatus.error) {
+          throw Exception('QR Code generation failed');
+        }
+
+        final qrCode = qrValidationResult.qrCode!;
+        final painter = QrPainter.withQr(
+          qr: qrCode,
+          color: const Color(0xFF000000),
+          emptyColor: const Color(0xFFFFFFFF),
+          gapless: true,
+        );
+
+        final picData = await painter.toImageData(200); // Adjust size if needed
+        final img.Image baseSizeImage = img.decodeImage(picData!.buffer.asUint8List())!;
+        final img.Image grayscaleImage = img.grayscale(baseSizeImage);
+        final Uint8List qrImageBytes = Uint8List.fromList(img.encodePng(grayscaleImage));
+
+        // Print QR Code Image
+        await TelpoM8().printImageWithThermalPrinter(qrImageBytes);
+
+        // Print QR Code Information
+        await TelpoM8().printWithThermalPrinter(
+            "Scan the QR Code above\n"
+                "${sale.receiptQrData!}\n"
+                "Verify this receipt at:\n"
+                "${sale.receiptQrCode!}\n"
+        );
+      }
+
+      // Footer
+
+
+    } catch (e) {
+      debugPrint('Error printing Telpo receipt: $e');
+    }
+  }
+
+  Future<Uint8List> generateBlueToothQR(String qrContent) async{
+    // Generate QR Code using qr_flutter
+    final qrValidationResult = QrValidator.validate(
+      data: qrContent,
+      version: QrVersions.auto,
+      errorCorrectionLevel: QrErrorCorrectLevel.L,
+    );
+    if (qrValidationResult.status != QrValidationStatus.valid) {
+      throw Exception("Invalid QR code content");
+    }
+    final qrCodeImage = qrValidationResult.qrCode;
+   // final qrImage = img.Image(width: 300, height: 300); // 300x300 QR code image size
+    final painter = QrPainter.withQr(
+      qr: qrCodeImage!,
+      color: const Color(0xFF000000),
+      emptyColor: const Color(0xFFFFFFFF),
+      gapless: true,
+    );
+
+    // Convert QR code to Uint8List
+    // ByteData? byteData = await painter.toImageData(300);
+    // Uint8List imageBytes = byteData!.buffer.asUint8List();
+    final picData = await painter.toImageData(200); // Adjust size if needed
+    final img.Image baseSizeImage = img.decodeImage(picData!.buffer.asUint8List())!;
+    final img.Image grayscaleImage = img.grayscale(baseSizeImage);
+    final Uint8List qrImageBytes = Uint8List.fromList(img.encodePng(grayscaleImage));
+    return qrImageBytes;
+  }
+
+
+
+
+  // Print Shift Details
+   Future<void> printShiftDetails(ShiftModel shift, List<Map<String, dynamic>> totalAmountsByCurrency) async {
+     await SunmiPrinter.initPrinter();
+     await SunmiPrinter.startTransactionPrint(true);
+
+     // Header
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.setFontSize(SunmiFontSize.LG);
+     await SunmiPrinter.printText("SHIFT DETAILS\n");
+     await SunmiPrinter.resetFontSize();
+
+     // Shift Details
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+     await SunmiPrinter.printText("User: ${shift.userFullName ?? ''}\n");
+     await SunmiPrinter.printText("OT: ${shift.openingTime ?? ''}\n");
+     await SunmiPrinter.printText("CT: ${shift.closingTime ?? ''}\n");
+
+     // Transactions
+     if (shift.shiftCurrencyAmounts != null && shift.shiftCurrencyAmounts!.isNotEmpty) {
+       await SunmiPrinter.printText("\nTransactions:\n");
+       for (var currencyAmount in shift.shiftCurrencyAmounts!) {
+         await SunmiPrinter.printText("Ref: ${currencyAmount.ref}\n");
+         await SunmiPrinter.printText("Time: ${currencyAmount.timeCreated}\n");
+         await SunmiPrinter.printText("Currency: ${currencyAmount.currency.name}\n");
+         await SunmiPrinter.printText("Amount: ${currencyAmount.amount.toString()}\n");
+         await SunmiPrinter.printText("Type: ${currencyAmount.amountType ?? ''}\n");
+         await SunmiPrinter.printText("--------------------------------\n");
+       }
+     } else {
+       await SunmiPrinter.printText("No transactions available.\n");
+     }
+
+     // Amounts by Currency
+     if (totalAmountsByCurrency.isNotEmpty) {
+       await SunmiPrinter.printText("\nAmounts by Currency:\n");
+       for (var total in totalAmountsByCurrency) {
+         await SunmiPrinter.printText("Currency: ${total['currencyName']}\n");
+         await SunmiPrinter.printText("Amount: ${total['totalAmount']}\n");
+         await SunmiPrinter.printText("--------------------------------\n");
+       }
+     }
+
+
+
+     // Footer
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.printText("*** Thank you! ***\n");
+
+     await SunmiPrinter.submitTransactionPrint();
+     await SunmiPrinter.exitTransactionPrint(true);
+   }
+
+
+   Future<void> testPrinter() async {
+     try {
+       await SunmiPrinter.initPrinter();
+       // Start a transaction
+       await SunmiPrinter.startTransactionPrint(true);
+
+       // Test Alignments
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+       await SunmiPrinter.printText("Test Align Left\n");
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+       await SunmiPrinter.printText("Test Align Center\n");
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.RIGHT);
+       await SunmiPrinter.printText("Test Align Right\n");
+
+       // Test Font Sizes
+       await SunmiPrinter.setFontSize(SunmiFontSize.SM);
+       await SunmiPrinter.printText("Small Font Size\n");
+       await SunmiPrinter.setFontSize(SunmiFontSize.MD);
+       await SunmiPrinter.printText("Medium Font Size\n");
+       await SunmiPrinter.setFontSize(SunmiFontSize.LG);
+       await SunmiPrinter.printText("Large Font Size\n");
+       await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+       await SunmiPrinter.printText("Extra Large Font Size\n");
+       await SunmiPrinter.resetFontSize();
+
+       // Test Line Wraps
+       await SunmiPrinter.printText("Line Wrap Test Below:\n");
+       await SunmiPrinter.lineWrap(2);
+
+       // Test QR Code
+       await SunmiPrinter.printQRCode("https://example.com");
+       await SunmiPrinter.printText("QR Code Printed Above\n");
+
+       // Test Barcode
+       await SunmiPrinter.printBarCode(
+         "123456789012",
+         barcodeType: SunmiBarcodeType.CODE128,
+         textPosition: SunmiBarcodeTextPos.TEXT_UNDER,
+         height: 100,
+       );
+       await SunmiPrinter.printText("Barcode Printed Above\n");
+
+       // Separator Line
+       await SunmiPrinter.printText("--------------------------------\n");
+
+       // Test Custom Font Size
+       await SunmiPrinter.setCustomFontSize(12);
+       await SunmiPrinter.printText("Custom Font Size Test\n");
+       await SunmiPrinter.resetFontSize();
+
+       // Footer
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+       await SunmiPrinter.printText("*** End of Test ***\n");
+
+       // Submit Transaction
+       await SunmiPrinter.submitTransactionPrint();
+
+       // Exit Transaction
+       await SunmiPrinter.exitTransactionPrint(true);
+
+       print("Test Print Completed Successfully");
+     } catch (e) {
+       print("Test Print Failed: $e");
+     }
+   }
+
+  Future<void> printTestWithQRCode() async {
+    try {
+      const dummyUrl = 'https://example.com'; // Dummy URL for the QR Code
+
+      // Step 1: Generate QR Code
+      final qrValidationResult = QrValidator.validate(
+        data: dummyUrl,
+        version: QrVersions.auto,
+        errorCorrectionLevel: QrErrorCorrectLevel.L,
+      );
+
+      if (qrValidationResult.status == QrValidationStatus.error) {
+        throw Exception('QR Code generation failed');
+      }
+
+      final qrCode = qrValidationResult.qrCode!;
+
+      // Create an image from the QR code
+      final painter = QrPainter.withQr(
+        qr: qrCode,
+        color: const Color(0xFF000000),
+        emptyColor: const Color(0xFFFFFFFF),
+        gapless: true,
+      );
+
+      final picData = await painter.toImageData(200); // Adjust size as needed
+      final img.Image baseSizeImage = img.decodeImage(picData!.buffer.asUint8List())!;
+      final img.Image grayscaleImage = img.grayscale(baseSizeImage);
+      final Uint8List qrImageBytes = Uint8List.fromList(img.encodePng(grayscaleImage));
+
+      // Step 2: Print Header
+      await TelpoM8().printWithThermalPrinter(
+          "********** TEST PRINT **********\n"
+              "Company Name: Demo Corp\n"
+              "Address: 123 Test Street\n"
+              "Contact: +1-800-555-5555\n\n"
+      );
+
+      // Step 3: Print QR Code
+      await TelpoM8().printImageWithThermalPrinter(qrImageBytes);
+
+      // Step 4: Print Dummy Transaction Info
+      await TelpoM8().printWithThermalPrinter(
+          "\nTransaction Details\n"
+              "----------------------------\n"
+              "Date: 2024-01-01 12:34 PM\n"
+              "Transaction ID: TX1234567890\n"
+              "Amount: \$100.00\n"
+              "Payment Method: Cash\n"
+              "----------------------------\n\n"
+              "Scan the QR Code above to visit our website!\n"
+              "********** END OF TEST **********\n\n"
+      );
+
+      // Step 5: Finalize Print
+      await TelpoM8().printWithThermalPrinter("Thank you!\n");
+    } catch (e) {
+      debugPrint('Error during test print: $e');
+    }
+  }
+
+  Future<void> printSunmiCashSubmitReceipt(String transactionType, List<CurrencyAmount> curAmounts) async {
+    // Initialize the printer
+    await SunmiPrinter.initPrinter();
+    await SunmiPrinter.startTransactionPrint(true);
+
+    // Header
+    await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+    await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+    await SunmiPrinter.printText("RECEIPT\n");
+    await SunmiPrinter.resetFontSize();
+
+    // Transaction Type
+    await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+    await SunmiPrinter.printText("Transaction Type: $transactionType\n");
+    for (CurrencyAmount element in curAmounts) {
+      await SunmiPrinter.printText("Currency: ${element.currency.name?? 'N/A'}\n");
+      await SunmiPrinter.printText("Amount: ${element.amount}\n");
+    }
+    // Separator
+    await SunmiPrinter.printText("--------------------------------\n");
+
+    // Footer
+    await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+    await SunmiPrinter.printText("*** Thank you for using our service! ***\n");
+
+    // End the transaction
+    await SunmiPrinter.submitTransactionPrint();
+    await SunmiPrinter.exitTransactionPrint(true);
+  }
+  Future<void> printSunmiCashManagementReceipt(String transactionType, CurrencyModel selectedCurrency, double amount, String comments) async {
+
+    // Initialize the printer
+    await SunmiPrinter.initPrinter();
+    await SunmiPrinter.startTransactionPrint(true);
+
+    // Header
+    await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+    await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+    await SunmiPrinter.printText("RECEIPT\n");
+    await SunmiPrinter.resetFontSize();
+
+    // Transaction Type
+    await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+    await SunmiPrinter.printText("Transaction Type: $transactionType\n");
+
+    // Currency and Amount
+    await SunmiPrinter.printText("Currency: ${selectedCurrency.name ?? 'N/A'}\n");
+    await SunmiPrinter.printText("Amount: ${amount}\n");
+
+    // Comments
+    await SunmiPrinter.printText("Comments: ${comments}\n");
+
+    // Separator
+    await SunmiPrinter.printText("--------------------------------\n");
+
+    // Footer
+    await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+    await SunmiPrinter.printText("*** Thank you for using our service! ***\n");
+
+    // End the transaction
+    await SunmiPrinter.submitTransactionPrint();
+    await SunmiPrinter.exitTransactionPrint(true);
+  }
+
+
+
+}
