@@ -4,6 +4,7 @@ import 'package:vimbika_pos_app/src/features/sale/model/product_image_model.dart
 import 'package:vimbika_pos_app/src/features/sale/model/inventory_item_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_item_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_received_model.dart';
@@ -86,7 +87,7 @@ class SaleModel {
   PaymentTypeModel? paymentType;
   List<SaleItemModel>? items;
   List<PaymentReceivedModel>? paymentTypes;
-  BaseNameModel? branch;
+  BranchModel? branch;
   double? amountAfterDiscount;
   double? totalDiscount;
   double? zeroRatedTotal;
@@ -126,7 +127,7 @@ class SaleModel {
     items: json["items"] != null ? List<SaleItemModel>.from(json["items"].map((x) => SaleItemModel.fromMap(x))) : [],
     paymentTypes: json["paymentTypes"] != null ? List<PaymentReceivedModel>.from(json["paymentTypes"].map((x) => PaymentReceivedModel.fromMap(x))) : [],
 
-    branch: json["branch"] != null ? BaseNameModel.fromMap(json["branch"]) : null,
+    branch: json["branch"] != null ? BranchModel.fromMap(json["branch"]) : null,
     amountAfterDiscount: json["amountAfterDiscount"],
     receiptQrCode: json["receiptQrCode"],
     receiptQrData: json["receiptQrData"],

@@ -32,6 +32,7 @@ import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/bank_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_received_model.dart';
@@ -47,7 +48,7 @@ class CartController extends GetxController {
   Rx<CurrencyModel?> selectedCurrency = CurrencyModel().obs;
   Rx<CurrencyModel?> baseCurrency = CurrencyModel().obs;
 
-  Rx<BaseNameModel?> branch = BaseNameModel().obs;
+  Rx<BranchModel?> branch = BranchModel().obs;
   RxList<CurrencyModel> currencyList = <CurrencyModel>[].obs;
   RxList<UserModel> userList = <UserModel>[].obs;
   var isCurrencySelected = false.obs;
@@ -118,7 +119,7 @@ class CartController extends GetxController {
     }
 
     var branchModel = box.read(AppConstants.SELECTED_BRANCH) ?? {};
-    branch.value = BaseNameModel.fromMap(Map<String, dynamic>.from(branchModel));
+    branch.value = BranchModel.fromMap(Map<String, dynamic>.from(branchModel));
     List<UserModel> tempUserList = loadUsers(box);
     userList.value = tempUserList;
     List<ShiftModel> tempShiftList = loadShifts(box);

@@ -17,8 +17,8 @@ class AppHelper {
       var message = error.message;
       showErroDialog(description: message);
     } else if (error is ApiNotRespondingException) {
-      showErroDialog(
-          description: 'Oops! It took longer to respond.');
+      // showErroDialog(
+      //     description: 'Oops! It took longer to respond.');
     }
   }
 

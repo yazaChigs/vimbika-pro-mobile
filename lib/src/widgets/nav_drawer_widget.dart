@@ -61,11 +61,18 @@ class NavDrawer extends StatelessWidget {
                 onTap: () => navigate(3)
             ),
             buildDrawerItem(
+                text: "Requisition",
+                icon: Icons.fire_truck,
+                tileColor: Get.currentRoute == "" ? Colors.blue : null,
+                textIconColor: Get.currentRoute == "" ? Colors.white : Colors.black,
+                onTap: () => navigate(4)
+            ),
+            buildDrawerItem(
                 text: "Settings",
                 icon: Icons.settings,
                 tileColor: Get.currentRoute == "" ? Colors.blue : null,
                 textIconColor: Get.currentRoute == "" ? Colors.white : Colors.black,
-                onTap: () => navigate(4)
+                onTap: () => navigate(5)
             ),
 
 
@@ -75,7 +82,7 @@ class NavDrawer extends StatelessWidget {
                 icon: Icons.logout,
                 tileColor: Get.currentRoute == "" ? Colors.blue : null,
                 textIconColor: Get.currentRoute == "" ? Colors.white : Colors.black,
-                onTap: () => navigate(5)
+                onTap: () => navigate(6)
             ),
 
           ],
@@ -185,11 +192,13 @@ class NavDrawer extends StatelessWidget {
         break;
       case 3:
         Get.toNamed(AppRoutes.CUSTOMER_LIST);
-        break;
       case 4:
+        Get.toNamed(AppRoutes.STOCK_REQUESTS_MENU);
+        break;
+      case 5:
         Get.toNamed(AppRoutes.SETTINGS_SCREEN);
         break;
-      case 5 :
+      case 6 :
         GetStorage box = GetStorage();
         box.remove(AppConstants.CACHED_ACCESS_TOKEN);
         box.write(AppConstants.IS_AUTHENTICATED, false);

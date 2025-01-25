@@ -1,7 +1,9 @@
 import 'package:get_storage/get_storage.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/features/printers/model/available_printer_model.dart';
+import 'package:vimbika_pos_app/src/features/sale/model/product_full_info_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 
 class LocalStorageService {
@@ -93,6 +95,45 @@ class LocalStorageService {
       print("Shift with reference ${newShift.shiftReference} not found.");
     }
     return shiftList;
+  }
+  List<ProductFullInfoModel> getProductList(GetStorage box, bool leastOnTop) {
+    // Read the data as a List<dynamic>
+    List<dynamic>? itemsListDynamic = box.read<List<dynamic>>(AppConstants.BRANCH_PRODUCTS);
+
+    // Check if the read data is not null
+    if (itemsListDynamic != null) {
+      // Convert the List<dynamic> to List<Map<String, dynamic>>
+      List<Map<String, dynamic>> itemsListMap = itemsListDynamic.map((item) {
+        return item as Map<String, dynamic>;
+      }).toList();
+
+      // Convert List<Map<String, dynamic>> to List<ProductFullInfoModel>
+      List<ProductFullInfoModel> items =  List<ProductFullInfoModel>.from(itemsListMap.map((map) => ProductFullInfoModel.fromMap(map)));
+      if(leastOnTop){
+        items.sort((a, b) => a.stock!.compareTo(b.stock!));
+      } else{
+        items.sort((a, b) => b.stock!.compareTo(a.stock!));
+      }
+
+      return items;
+    } else {
+      return [];
+    }
+  }
+
+  List<RequisitionModel> getRequisitions(GetStorage box){
+    List<dynamic>? itemsListDynamic = box.read<List<dynamic>>(AppConstants.REQUISITION_LIST);
+    if(itemsListDynamic != null) {
+      List<Map<String, dynamic>> itemsListMap = itemsListDynamic.map((item) {
+        return item as Map<String, dynamic>;
+      }).toList();
+      List<RequisitionModel> infos = List<RequisitionModel>.from(
+          itemsListMap.map((map) => RequisitionModel.fromMap(map)));
+      return infos;
+    } else{
+      List<RequisitionModel> itemsList = <RequisitionModel>[];
+      return itemsList;
+    }
   }
 
 

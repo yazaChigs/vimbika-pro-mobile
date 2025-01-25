@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:vimbika_pos_app/src/features/sale/model/product_image_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/inventory_item_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 
 SaleItemModel saleItemModelFromJson(String str) => SaleItemModel.fromJson(json.decode(str));
@@ -34,7 +35,7 @@ class SaleItemModel {
   double? taxAmount;
   double? baseTaxAmount;
   InventoryItemModel? inventoryItem;
-  BaseNameModel? branch;
+  BranchModel? branch;
 
 
   factory SaleItemModel.fromJson(Map<String, dynamic> json) => SaleItemModel.fromMap(json);
@@ -51,7 +52,7 @@ class SaleItemModel {
     taxAmount: json["taxAmount"],
     baseTaxAmount: json["baseTaxAmount"],
     inventoryItem: json["inventoryItem"] != null ? InventoryItemModel.fromMap(json["inventoryItem"]) : null,
-    branch: json["branch"] != null ? BaseNameModel.fromMap(json["branch"]) : null,
+    branch: json["branch"] != null ? BranchModel.fromMap(json["branch"]) : null,
 
 
   );

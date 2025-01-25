@@ -11,6 +11,8 @@ import 'package:vimbika_pos_app/src/features/sale/model/sale_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_response_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_response_model.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_model.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_response_model.dart';
 import 'package:vimbika_pos_app/src/features/ticket/model/ticket_model.dart';
 import 'package:vimbika_pos_app/src/features/ticket/model/ticket_response_model.dart';
 import 'package:vimbika_pos_app/src/services/app_exceptions.dart';
@@ -110,6 +112,34 @@ class SyncService {
     if(response != null){
       SaleItemResponseModel saleResponseModel = SaleItemResponseModel.fromJson(response);
       return saleResponseModel.item;
+
+
+    } else{
+      //failed to save sale
+      return null;
+    }
+  }
+
+  static Future<RequisitionModel?> saveStockRequest(RequisitionModel stockRequest, UserModel user, GetStorage box) async{
+    String jsonSaleItems = stockRequest.toJson();
+    var response = await BaseHttpClient().postAuthWithCompanyHeader("/requisition/save", jsonSaleItems, user.companyId!).catchError((onError){
+      //AppHelper.hideLoading();
+      if (onError is BadRequestException) {
+        var apiError = json.decode(onError.message!);
+        print(apiError);
+        AppHelper.showErroDialog(description: apiError["reason"]);
+      } else if (onError is UnAuthorizedException) {
+        AppHelper.showErroDialog(title: "Error", description: "Unauthorized access");
+      }
+      else {
+        print(onError);
+        AppHelper.handleError(onError);
+      }
+    });
+    // AppHelper.hideLoading();
+    if(response != null){
+      RequisitionResponseModel responseModel = RequisitionResponseModel.fromJson(response);
+      return responseModel.item;
 
 
     } else{

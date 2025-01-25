@@ -17,6 +17,7 @@ import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/bank_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
@@ -29,11 +30,12 @@ import 'package:http/http.dart' as http;
 class OfflineDataController extends GetxController {
   final ConnectivityService _connectivityService = ConnectivityService();
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
-  Rx<BaseNameModel?> selectedBranch = BaseNameModel().obs;
-  var isBranchSelected = false.obs;
+  Rx<BranchModel?> selectedBranch = BranchModel().obs;
+
   Rx<CompanyModel?> selectedCompany = CompanyModel(fiscalisationEnabled: false).obs;
   var isCompanySelected = false.obs;
-  RxList<BaseNameModel> branchList = <BaseNameModel>[].obs;
+  var isBranchSelected = false.obs;
+  RxList<BranchModel> branchList = <BranchModel>[].obs;
   RxList<CompanyModel> companyList = <CompanyModel>[].obs;
   RxList<CurrencyModel> currencyList = <CurrencyModel>[].obs;
   RxList<CustomerModel> customerList = <CustomerModel>[].obs;
@@ -72,10 +74,10 @@ class OfflineDataController extends GetxController {
       showSnackBar("Message", "Offline Branch Selected");
       var selectedBranch = box.read(AppConstants.SELECTED_BRANCH);
       if(selectedBranch != null){
-        BaseNameModel branch = BaseNameModel.fromMap(selectedBranch);
+        BranchModel branch = BranchModel.fromMap(selectedBranch);
         branchList.add(branch);
       } else{
-        List<BaseNameModel> storageBranchList = getBranchList(box);
+        List<BranchModel> storageBranchList = getBranchList(box);
         branchList.value = storageBranchList;
       }
     }
@@ -88,7 +90,7 @@ class OfflineDataController extends GetxController {
   Future<void> onCompanyChange(CompanyModel company) async{
       branchList.value = [];
       isBranchSelected.value = false;
-      selectedBranch.value = BaseNameModel();
+      selectedBranch.value = BranchModel();
      getBranches(user, box, company.id!);
   }
 
@@ -103,7 +105,7 @@ class OfflineDataController extends GetxController {
     });
     if(response != null) {
       List<dynamic> list = jsonDecode(response);
-      List<BaseNameModel> itemsList = List<BaseNameModel>.from(list.map((i) => BaseNameModel.fromMap(i)));
+      List<BranchModel> itemsList = List<BranchModel>.from(list.map((i) => BranchModel.fromMap(i)));
       branchList.value = itemsList;
 
       branchList.refresh();
@@ -371,7 +373,7 @@ class OfflineDataController extends GetxController {
     return null;
   }
 
-  List<BaseNameModel> getBranchList(GetStorage box) {
+  List<BranchModel> getBranchList(GetStorage box) {
     // Read the data as a List<dynamic>
     List<dynamic>? itemsListDynamic = box.read<List<dynamic>>(AppConstants.BRANCH_LIST);
     // Check if the read data is not null
@@ -380,7 +382,7 @@ class OfflineDataController extends GetxController {
       List<Map<String, dynamic>> itemsListMap = itemsListDynamic.map((item) {
         return item as Map<String, dynamic>;
       }).toList();
-      return List<BaseNameModel>.from(itemsListMap.map((map) => BaseNameModel.fromMap(map)));
+      return List<BranchModel>.from(itemsListMap.map((map) => BranchModel.fromMap(map)));
     } else {
       return [];
     }

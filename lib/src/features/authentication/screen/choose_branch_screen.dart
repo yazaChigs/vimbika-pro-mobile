@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:vimbika_pos_app/src/constants/sizes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/controller/offline_data_controller.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 
 class ChooseBranchScreen extends StatelessWidget {
@@ -74,7 +75,7 @@ class ChooseBranchScreen extends StatelessWidget {
                 ),
                 child: DropdownButtonHideUnderline(
                   child: Obx(() {
-                    return DropdownButton<BaseNameModel>(
+                    return DropdownButton<BranchModel>(
                       hint: const Text("Select Branch"),
                       value: offlineDataController.isBranchSelected.isTrue
                           ? offlineDataController.selectedBranch.value
@@ -82,15 +83,15 @@ class ChooseBranchScreen extends StatelessWidget {
                       icon: const Icon(Icons.location_on),
                       elevation: 16,
                       style: const TextStyle(color: Colors.deepPurple),
-                      onChanged: (BaseNameModel? newValue) {
+                      onChanged: (BranchModel? newValue) {
                         // Update your state here
                         offlineDataController.isBranchSelected.value = true;
                         offlineDataController.selectedBranch.value = newValue;
                         offlineDataController.onChangeBranch(newValue?.id);
                       },
                       items: offlineDataController.branchList.map<DropdownMenuItem<
-                          BaseNameModel>>((BaseNameModel value) {
-                        return DropdownMenuItem<BaseNameModel>(
+                          BranchModel>>((BranchModel value) {
+                        return DropdownMenuItem<BranchModel>(
                           value: value,
                           child: Text(value.name!),
                         );

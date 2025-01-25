@@ -1,45 +1,57 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:intl/intl.dart';
-import 'package:meta/meta.dart';
+import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/controller/cart_controller.dart';
 import 'package:vimbika_pos_app/src/features/sale/controller/sale_controller.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/cart_item_model.dart';
+import 'package:vimbika_pos_app/src/features/sale/model/inventory_item_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/product_full_info_model.dart';
-import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
-import 'package:vimbika_pos_app/src/features/sale/model/sale_item_model.dart';
-import 'package:vimbika_pos_app/src/features/sale/model/sale_model.dart';
-import 'package:vimbika_pos_app/src/features/ticket/model/ticket_item_response_model.dart';
-import 'package:vimbika_pos_app/src/features/ticket/model/ticket_model.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_item_model.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_model.dart';
 import 'package:vimbika_pos_app/src/services/app_exceptions.dart';
 import 'package:vimbika_pos_app/src/services/base_http_client.dart';
+
 import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
-import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/dynamic_query_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
-import '../../../constants/app_constants.dart';
 
 class StockRequestController extends GetxController {
-  final SaleController saleController = Get.find();
-  final CartController cartController = Get.find();
+  RxList<ProductFullInfoModel> allProducts = <ProductFullInfoModel>[].obs;
+  RxList<ProductFullInfoModel> filteredProducts = <ProductFullInfoModel>[].obs;
+  RxList<BaseNameModel> brands = <BaseNameModel>[].obs;
+  RxList<BaseNameModel> categories = <BaseNameModel>[].obs;
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
   final ConnectivityService _connectivityService = ConnectivityService();
   Rx<String> searchQuery = "".obs;
+  var isSearching = false.obs;
   var isInternetAccess = false.obs;
   late GetStorage box;
   final LocalStorageService _localStorageService = LocalStorageService();
-  Rx<BaseNameModel?> branch = BaseNameModel().obs;
+  Rx<BranchModel?> branch = BranchModel().obs;
   Rx<CompanyModel?> company = CompanyModel().obs;
+  var isBrandSelected = false.obs;
+  var isCatSelected = false.obs;
+  Rx<BaseNameModel?> selectedBrand = BaseNameModel().obs;
+  Rx<BaseNameModel?> selectedCategory = BaseNameModel(id: "All Items", name: "All Items").obs;
+  final TextEditingController searchTextEditingController = TextEditingController(text: "");
+  var cartItems = <CartItemModel>[].obs;
+  var isBranchSelected = false.obs;
+  RxList<BranchModel> branchList = <BranchModel>[].obs;
+  Rx<BranchModel?> selectedBranch = BranchModel().obs;
+
 
   @override
   Future<void> onInit() async {
@@ -50,9 +62,19 @@ class StockRequestController extends GetxController {
     isInternetAccess.value =  await _connectivityService.checkServerConnection();
 
     var branchModel = box.read(AppConstants.SELECTED_BRANCH) ?? {};
-    branch.value = BaseNameModel.fromMap(Map<String, dynamic>.from(branchModel));
+    branch.value = BranchModel.fromMap(Map<String, dynamic>.from(branchModel));
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
+
+    List<BranchModel> branchListItems = loadItemsBranch(box, AppConstants.BRANCH_LIST);
+    branchList.value = branchListItems;
+    List<BaseNameModel> brandList = loadItems(box, AppConstants.BRAND_LIST);
+    brands.value = brandList;
+    List<BaseNameModel> catList = loadItems(box, AppConstants.CATEGORY_LIST);
+    catList.insert(0, BaseNameModel(id: "All Items", name: "All Items"));
+    selectedCategory.value = catList[0];
+    categories.value = catList;
+    getBranchStock(box);
 
   }
 
@@ -60,7 +82,79 @@ class StockRequestController extends GetxController {
   void onClose() {
     super.onClose();
   }
+  List<BaseNameModel> loadItems( GetStorage box, String itemType) {
+    List<BaseNameModel> list = _localStorageService.getOfflineList<BaseNameModel>(
+        itemType,
+            (map) => BaseNameModel.fromMap(map),
+        box);
+    return list;
+  }
+  List<BranchModel> loadItemsBranch( GetStorage box, String itemType) {
+    List<BranchModel> list = _localStorageService.getOfflineList<BranchModel>(
+        itemType,
+            (map) => BranchModel.fromMap(map),
+        box);
+    return list;
+  }
 
+  Future<void> getBranchStock(GetStorage box) async{
+
+
+    if(branch.value != null) {
+
+        DynamicQueryModel dynamicQueryModel = DynamicQueryModel();
+        dynamicQueryModel.branch = branch.value;
+        var branchData = dynamicQueryModel.toJson();
+        isInternetAccess.value =  await _connectivityService.checkServerConnection();
+        if (isInternetAccess.value) {
+
+          getOfflineProducts(box);
+          var response = await BaseHttpClient()
+              .postAuthWithCompanyHeader(
+              "/inventory/branch-stock-by-branch-mini", branchData, user.companyId!)
+              .catchError((onError) {
+            print("INSIDE FETCH..");
+            AppHelper.hideLoading();
+            print(onError);
+            if (onError is BadRequestException) {
+              var apiError = json.decode(onError.message!);
+              AppHelper.showErroDialog(description: apiError["reason"]);
+            } else {
+              AppHelper.handleError(onError);
+            }
+          });
+          if (response != null) {
+
+            List<dynamic> list = jsonDecode(response);
+            List<ProductFullInfoModel> itemsList = List<ProductFullInfoModel>.from(list.map((i) => ProductFullInfoModel.fromMap(i)));
+            print("ALL ITEMS..");
+            print(itemsList.length);
+            itemsList.sort((a, b) => a.stock!.compareTo(b.stock!));
+
+
+            allProducts.value = itemsList;
+            filteredProducts.value = itemsList;
+            List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
+                item.toMap()).toList();
+            box.write(AppConstants.BRANCH_PRODUCTS, itemsListMap);
+          } else {
+            // AppHelper.hideLoading();
+            print("Failed to retrieve products");
+          }
+        } else {
+          getOfflineProducts(box);
+        }
+
+
+    } else{
+      Get.offNamed(AppRoutes.CHOOSE_BRANCH);
+    }
+  }
+  getOfflineProducts(GetStorage box){
+    List<ProductFullInfoModel> storageProductList =_localStorageService.getProductList(box, true);
+    allProducts.value = storageProductList;
+    filteredProducts.value = storageProductList;
+  }
 
 
 
@@ -74,6 +168,118 @@ class StockRequestController extends GetxController {
     } else{
       return [];
     }
+  }
+  void filterProducts({String query = '', String? category}) {
+    searchQuery.value = query.trim().toLowerCase();
+    final lowerCategory = category?.toLowerCase();
+
+    // Case 1: All items and no query (reset filter)
+    if (lowerCategory == 'all items' && searchQuery.value.isEmpty) {
+      filteredProducts.value = allProducts.value;
+      return;
+    }
+
+    // Case 2: Category only (no query)
+    if (lowerCategory != 'all items' && searchQuery.value.isEmpty) {
+      filteredProducts.value = allProducts.value.where((product) {
+        final categoryName = product.item?.category?.id?.toLowerCase() ?? '';
+        print(categoryName + ' VS '+ lowerCategory!);
+
+        // return categoryName == lowerCategory;
+        return categoryName.contains(lowerCategory);
+      }).toList();
+      return;
+    }
+
+    // Case 3: Query only (no category filter)
+    if (lowerCategory == 'all items' && searchQuery.value.isNotEmpty) {
+      filteredProducts.value = allProducts.value.where((product) {
+        final productName = product.item?.name?.toLowerCase() ?? '';
+        final brandName = product.item?.brand?.name?.toLowerCase() ?? '';
+        final categoryName = product.item?.category?.name?.toLowerCase() ?? '';
+        return productName.contains(searchQuery.value) || brandName.contains(searchQuery.value) || categoryName.contains(searchQuery.value);
+      }).toList();
+      return;
+    }
+
+    // Case 4: Both category and query filters
+    filteredProducts.value = allProducts.value.where((product) {
+      final productName = product.item?.name?.toLowerCase() ?? '';
+      final brandName = product.item?.brand?.name?.toLowerCase() ?? '';
+      final categoryName = product.item?.category?.name?.toLowerCase() ?? '';
+
+      final matchesCategory = categoryName == lowerCategory;
+      final matchesSearch = productName.contains(searchQuery.value) || brandName.contains(searchQuery.value) || categoryName.contains(searchQuery.value);
+
+      return matchesCategory && matchesSearch;
+    }).toList();
+  }
+
+  void addToCart(ProductFullInfoModel product) {
+    var index = cartItems.indexWhere((item) => item.product.id == product.id);
+    if (index != -1) {
+      cartItems[index].quantity++;
+    } else {
+      cartItems.add(CartItemModel(product: product, quantity: 1));
+    }
+    //calculateTotalAmounts(cartItems);
+  }
+
+  void removeFromCart(CartItemModel cartItem) {
+    cartItems.remove(cartItem);
+    //calculateTotalAmounts(cartItems);
+  }
+
+  void incrementQuantity(CartItemModel cartItem) {
+    cartItem.quantity++;
+    //calculateTotalAmounts(cartItems);
+    cartItems.refresh();
+  }
+
+  void decrementQuantity(CartItemModel cartItem) {
+    if (cartItem.quantity > 1) {
+      cartItem.quantity--;
+    } else {
+      removeFromCart(cartItem);
+    }
+    //calculateTotalAmounts(cartItems);
+    cartItems.refresh();
+  }
+
+  saveRequest() async{
+    AppHelper.showLoading("Saving New Requisition..");
+    bool connectionAvailable = await _connectivityService.checkServerConnection();
+    List<RequisitionItemModel> requisitionItems = [];
+    double quantities = 0;
+    for (var cartItem in cartItems) {
+      quantities = quantities + cartItem.quantity;
+      InventoryItemModel productItem = cartItem.product.item!;
+      RequisitionItemModel item = RequisitionItemModel(name: "", whQtyRequest: 0, allocated: 0, quantity: cartItem.quantity, status: "REQUESTED", inventoryItem: productItem, branchQty: cartItem.product.stock, warehouseQty: 0);
+      requisitionItems.add(item);
+    }
+    RequisitionModel requisition = RequisitionModel(referenceNumber: "", requisitionStatus: "REQUESTED", branch: branch.value, warehouse: selectedBranch.value, requisitionItems: requisitionItems, quantities: quantities, syncStatus: false);
+    log(requisition.toJson());
+    List<RequisitionModel> existingReqs = _localStorageService.getRequisitions(box);
+    if(connectionAvailable){
+
+      RequisitionModel? responseMo = await SyncService.saveStockRequest(requisition, user, box);
+      print("Response from server ..");
+
+      if(responseMo != null){
+        log(responseMo.toJson());
+        requisition = responseMo;
+        requisition.syncStatus = true;
+      }
+    }
+    existingReqs.add(requisition);
+    List<Map<String, dynamic>> itemsListMap = existingReqs.map((item) =>
+        item.toMap()).toList();
+    box.write(AppConstants.REQUISITION_LIST, itemsListMap);
+    cartItems.value = [];
+    cartItems.refresh();
+    AppHelper.hideLoading();
+    Get.snackbar("Requisition Status", "Requisition saved successfully", snackPosition: SnackPosition.BOTTOM);
+    Get.offNamed(AppRoutes.NEW_STOCK_REQUEST);
   }
 
 

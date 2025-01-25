@@ -20,5 +20,8 @@ class AppRoutes {
   static const SETTINGS_SCREEN = "/settings";
   static const DEFAULT_CURRENCY_SCREEN = "/default_currency";
   static const DEFAULT_PAYMENT_METHOD_SCREEN = "/default_payment_method_screen";
-  static const DEFAULT_FISCAL_SETTINGS= "/fiscal_settings";
+  static const DEFAULT_FISCAL_SETTINGS = "/fiscal_settings";
+  static const STOCK_REQUESTS_MENU = "/stock_request_menu";
+  static const NEW_STOCK_REQUEST = "/new_stock_request";
+  static const NEW_STOCK_REQUEST_CART= "/new_stock_request_cart";
 }

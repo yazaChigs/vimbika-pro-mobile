@@ -15,6 +15,7 @@ import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/dynamic_query_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
@@ -29,10 +30,11 @@ class SaleController extends GetxController {
   Rx<int> itemCount = 0.obs;
   Rx<double> price = 0.0.obs;
   Rx<String> searchQuery = "".obs;
+  var isSearching = false.obs;
   var isServerReachable = false.obs;
   var isBrandSelected = false.obs;
   var isCatSelected = false.obs;
-  var isSearching = false.obs;
+
   final ConnectivityService _connectivityService = ConnectivityService();
   final LocalStorageService _localStorageService = LocalStorageService();
   Rx<BaseNameModel?> selectedBrand = BaseNameModel().obs;
@@ -143,7 +145,7 @@ class SaleController extends GetxController {
     var selectedBranch = box.read(AppConstants.SELECTED_BRANCH) ?? null;
     //print(selectedBranch);
     if(selectedBranch != null) {
-      BaseNameModel branch = BaseNameModel.fromMap(selectedBranch);
+      BranchModel branch = BranchModel.fromMap(selectedBranch);
       if(branch.id != null){
         DynamicQueryModel dynamicQueryModel = DynamicQueryModel();
         dynamicQueryModel.branch = branch;
@@ -203,30 +205,12 @@ class SaleController extends GetxController {
     }
   }
   getOfflineProducts(GetStorage box){
-    List<ProductFullInfoModel> storageProductList = getProductList(box);
+    List<ProductFullInfoModel> storageProductList = _localStorageService.getProductList(box, false);
     allProducts.value = storageProductList;
     filteredProducts.value = storageProductList;
   }
 
-  List<ProductFullInfoModel> getProductList(GetStorage box) {
-    // Read the data as a List<dynamic>
-    List<dynamic>? itemsListDynamic = box.read<List<dynamic>>(AppConstants.BRANCH_PRODUCTS);
 
-    // Check if the read data is not null
-    if (itemsListDynamic != null) {
-      // Convert the List<dynamic> to List<Map<String, dynamic>>
-      List<Map<String, dynamic>> itemsListMap = itemsListDynamic.map((item) {
-        return item as Map<String, dynamic>;
-      }).toList();
-
-      // Convert List<Map<String, dynamic>> to List<ProductFullInfoModel>
-      List<ProductFullInfoModel> items =  List<ProductFullInfoModel>.from(itemsListMap.map((map) => ProductFullInfoModel.fromMap(map)));
-      items.sort((a, b) => b.stock!.compareTo(a.stock!));
-      return items;
-    } else {
-      return [];
-    }
-  }
 
   void filterProducts({String query = '', String? category}) {
     searchQuery.value = query.trim().toLowerCase();

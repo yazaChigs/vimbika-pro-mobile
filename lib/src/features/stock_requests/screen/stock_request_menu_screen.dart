@@ -12,7 +12,7 @@ class StockRequestMenuScreen extends StatelessWidget {
     AppWidgets appWidgets = AppWidgets();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('STOCK REQUESTS'),
+        title: const Text('REQUISITION'),
         centerTitle: true,
       ),
       body: Padding(
@@ -24,7 +24,7 @@ class StockRequestMenuScreen extends StatelessWidget {
               context,
               title: 'New Stock Request',
               icon: Icons.fire_truck,
-              onTap: () => Get.toNamed(AppRoutes.PRINTER_SETTINGS),
+              onTap: () => Get.toNamed(AppRoutes.NEW_STOCK_REQUEST),
             ),
             const SizedBox(height: 20),
             appWidgets.buildSettingButton(

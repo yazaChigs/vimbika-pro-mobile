@@ -14,15 +14,11 @@ import 'package:vimbika_pos_app/src/features/sale/model/cart_item_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/product_full_info_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_item_model.dart';
-import 'package:vimbika_pos_app/src/features/sale/model/sale_model.dart';
-import 'package:vimbika_pos_app/src/features/ticket/model/ticket_item_response_model.dart';
-import 'package:vimbika_pos_app/src/features/ticket/model/ticket_model.dart';
-import 'package:vimbika_pos_app/src/services/app_exceptions.dart';
-import 'package:vimbika_pos_app/src/services/base_http_client.dart';
 import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
@@ -46,7 +42,7 @@ class TicketController extends GetxController {
   var ticketComment = "".obs;
   GlobalKey<FormState> ticketFormKeyForm = GlobalKey<FormState>();
   Rx<CurrencyModel?> selectedCurrency = CurrencyModel().obs;
-  Rx<BaseNameModel?> branch = BaseNameModel().obs;
+  Rx<BranchModel?> branch = BranchModel().obs;
   Rx<CompanyModel?> company = CompanyModel().obs;
   RxInt openedTicketsCount = 0.obs;
   Timer? _syncTimer; // Add a timer variable
@@ -60,12 +56,12 @@ class TicketController extends GetxController {
     isInternetAccess.value =  await _connectivityService.checkServerConnection();
 
     var branchModel = box.read(AppConstants.SELECTED_BRANCH) ?? {};
-    branch.value = BaseNameModel.fromMap(Map<String, dynamic>.from(branchModel));
+    branch.value = BranchModel.fromMap(Map<String, dynamic>.from(branchModel));
     getTickets();
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
     // Start a periodic timer to sync tickets every 5 seconds
-    _syncTimer = Timer.periodic(Duration(seconds: 5), (timer) async {
+    _syncTimer = Timer.periodic(Duration(seconds: 9), (timer) async {
       getTickets();
     });
   }
