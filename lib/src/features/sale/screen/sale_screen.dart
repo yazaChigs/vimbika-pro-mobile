@@ -154,6 +154,7 @@ class SaleScreen extends GetView {
                     child: Obx(() {
                       return ElevatedButton(
                         onPressed: () {
+                          ticketController.getTickets();
                           ticketController.ticketActionButton(cartController.selectedCurrency.value!, cartController.cartItems.length);
                         },
                         style: ElevatedButton.styleFrom(

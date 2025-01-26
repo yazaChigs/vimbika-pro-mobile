@@ -24,4 +24,6 @@ class AppRoutes {
   static const STOCK_REQUESTS_MENU = "/stock_request_menu";
   static const NEW_STOCK_REQUEST = "/new_stock_request";
   static const NEW_STOCK_REQUEST_CART= "/new_stock_request_cart";
+  static const TRANSFER_HISTORY_SCREEN= "/transfer_history_screen";
+  static const REQUISITION_LIST_SCREEN= "/requisition_list_screen";
 }

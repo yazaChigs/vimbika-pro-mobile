@@ -23,8 +23,10 @@ import 'package:vimbika_pos_app/src/features/shift/screen/open_shift_screen.dart
 import 'package:vimbika_pos_app/src/features/shift/screen/submit_cash_screen.dart';
 import 'package:vimbika_pos_app/src/features/shift/screen/view_shift_screen.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/screen/new_stock_request_screen.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/screen/requisition_list_screen.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/screen/stock_request_cart_screen.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/screen/stock_request_menu_screen.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/screen/transfer_history_screen.dart';
 import 'package:vimbika_pos_app/src/features/ticket/screen/ticket_form_screen.dart';
 import 'package:vimbika_pos_app/src/features/ticket/screen/ticket_list_screen.dart';
 
@@ -54,6 +56,8 @@ class AppPages {
     GetPage(name: AppRoutes.DEFAULT_FISCAL_SETTINGS, page: ()=>  FiscalSettingsScreen(),  transition: Transition.zoom ),
     GetPage(name: AppRoutes.STOCK_REQUESTS_MENU, page: ()=>  StockRequestMenuScreen(),  transition: Transition.zoom ),
     GetPage(name: AppRoutes.NEW_STOCK_REQUEST, page: ()=>  NewStockRequestScreen(),  transition: Transition.zoom ),
-    GetPage(name: AppRoutes.NEW_STOCK_REQUEST_CART, page: ()=>  StockRequestCartScreen(),  transition: Transition.zoom )
+    GetPage(name: AppRoutes.NEW_STOCK_REQUEST_CART, page: ()=>  StockRequestCartScreen(),  transition: Transition.zoom ),
+    GetPage(name: AppRoutes.TRANSFER_HISTORY_SCREEN, page: ()=>  TransferHistoryScreen(),  transition: Transition.zoom ),
+    GetPage(name: AppRoutes.REQUISITION_LIST_SCREEN, page: ()=>  RequisitionListScreen(),  transition: Transition.zoom )
   ];
 }

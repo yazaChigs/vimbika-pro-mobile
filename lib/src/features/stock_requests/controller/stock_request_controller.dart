@@ -15,6 +15,7 @@ import 'package:vimbika_pos_app/src/features/sale/model/inventory_item_model.dar
 import 'package:vimbika_pos_app/src/features/sale/model/product_full_info_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_item_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_model.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_history_model.dart';
 import 'package:vimbika_pos_app/src/services/app_exceptions.dart';
 import 'package:vimbika_pos_app/src/services/base_http_client.dart';
 
@@ -26,6 +27,7 @@ import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/dynamic_query_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
+import 'package:uuid/uuid.dart';
 
 
 class StockRequestController extends GetxController {
@@ -52,6 +54,15 @@ class StockRequestController extends GetxController {
   RxList<BranchModel> branchList = <BranchModel>[].obs;
   Rx<BranchModel?> selectedBranch = BranchModel().obs;
 
+  Rx<RequisitionModel?> selectedReq = RequisitionModel().obs;
+  RxList<TransferHistoryModel> allTransferHistory = <TransferHistoryModel>[].obs;
+  RxList<TransferHistoryModel> filteredTransferHistory = <TransferHistoryModel>[].obs;
+  // Rx<String> searchQueryTransferHistory = "".obs;
+
+  RxList<RequisitionModel> allRequisitions = <RequisitionModel>[].obs;
+  RxList<RequisitionModel> filteredRequisitions = <RequisitionModel>[].obs;
+  // Rx<String> searchQueryRequisitions = "".obs;
+
 
   @override
   Future<void> onInit() async {
@@ -75,6 +86,8 @@ class StockRequestController extends GetxController {
     selectedCategory.value = catList[0];
     categories.value = catList;
     getBranchStock(box);
+    getTransferHistory();
+    getRequisitions();
 
   }
 
@@ -111,7 +124,7 @@ class StockRequestController extends GetxController {
           getOfflineProducts(box);
           var response = await BaseHttpClient()
               .postAuthWithCompanyHeader(
-              "/inventory/branch-stock-by-branch-mini", branchData, user.companyId!)
+              "/inventory/branch-stock-by-branch-mini", branchData, user.companyId!, "POST")
               .catchError((onError) {
             print("INSIDE FETCH..");
             AppHelper.hideLoading();
@@ -247,7 +260,27 @@ class StockRequestController extends GetxController {
   }
 
   saveRequest() async{
+    BranchModel br = selectedBranch.value!;
+    if(br.id == null){
+      Get.snackbar("Select Branch", "Branch is required!", snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
     AppHelper.showLoading("Saving New Requisition..");
+    RequisitionModel val = selectedReq.value!;
+    String? uuidV1;
+    String url;
+    String method;
+    if(val.id != null){
+      uuidV1 = val.uuid;
+      url  = "/requisition/update";
+      method = "PUT";
+    } else{
+      var uuid = Uuid();
+      uuidV1 = uuid.v1();
+      url  = "/requisition/save";
+      method = "POST";
+    }
+
     bool connectionAvailable = await _connectivityService.checkServerConnection();
     List<RequisitionItemModel> requisitionItems = [];
     double quantities = 0;
@@ -257,29 +290,181 @@ class StockRequestController extends GetxController {
       RequisitionItemModel item = RequisitionItemModel(name: "", whQtyRequest: 0, allocated: 0, quantity: cartItem.quantity, status: "REQUESTED", inventoryItem: productItem, branchQty: cartItem.product.stock, warehouseQty: 0);
       requisitionItems.add(item);
     }
-    RequisitionModel requisition = RequisitionModel(referenceNumber: "", requisitionStatus: "REQUESTED", branch: branch.value, warehouse: selectedBranch.value, requisitionItems: requisitionItems, quantities: quantities, syncStatus: false);
-    log(requisition.toJson());
+
+    RequisitionModel requisition = RequisitionModel(id:selectedReq.value!.id, uuid: uuidV1, createdByName: selectedReq.value!.createdByName, dateCreated: selectedReq.value!.dateCreated, referenceNumber: selectedReq.value!.referenceNumber,
+        timeRequested: selectedReq.value!.timeRequested,  requisitionStatus: "REQUESTED", branch: branch.value, warehouse: selectedBranch.value, requisitionItems: requisitionItems, quantities: quantities, syncStatus: false);
+    //log(requisition.toJson());
     List<RequisitionModel> existingReqs = _localStorageService.getRequisitions(box);
     if(connectionAvailable){
 
-      RequisitionModel? responseMo = await SyncService.saveStockRequest(requisition, user, box);
+      RequisitionModel? responseMo = await SyncService.saveStockRequest(url,requisition, user, box, method);
       print("Response from server ..");
 
       if(responseMo != null){
         log(responseMo.toJson());
         requisition = responseMo;
         requisition.syncStatus = true;
+        bool exists = _localStorageService.requisitionExists(requisition, existingReqs);
+        if(exists){
+          existingReqs = _localStorageService.replaceRequisition(requisition, existingReqs);
+        } else{
+          existingReqs.add(requisition);
+        }
       }
+    } else{
+      requisition.syncStatus = false;
+      existingReqs.add(requisition);
     }
-    existingReqs.add(requisition);
+
     List<Map<String, dynamic>> itemsListMap = existingReqs.map((item) =>
         item.toMap()).toList();
     box.write(AppConstants.REQUISITION_LIST, itemsListMap);
     cartItems.value = [];
     cartItems.refresh();
+    selectedReq.value = RequisitionModel();
     AppHelper.hideLoading();
     Get.snackbar("Requisition Status", "Requisition saved successfully", snackPosition: SnackPosition.BOTTOM);
+    getRequisitions();
+    Get.offNamed(AppRoutes.REQUISITION_LIST_SCREEN);
+  }
+
+  void filterItemsTransferHistory(String query) {
+    searchQuery.value = query;
+    filteredTransferHistory.value = allTransferHistory.where((item) {
+      final name = item.reference!.toLowerCase() ?? '';
+
+      final lowerQuery = query.toLowerCase();
+      return name.contains(lowerQuery);
+    }).toList();
+  }
+
+  getTransferHistory()async{
+    bool stat = await _connectivityService.checkServerConnection();
+    List<TransferHistoryModel> tickets = [];
+    if(stat) {
+      List<TransferHistoryModel>? items =  await SyncService.syncTransferHistory(user, box, company.value!.id!, branch.value!.id!);
+      if(items != null){
+        tickets = items;
+      } else{
+        tickets = loadTransfers(box);
+      }
+    } else{
+      tickets = loadTransfers(box);
+    }
+
+    allTransferHistory.value = tickets;
+
+    filteredTransferHistory.value = tickets;
+    allTransferHistory.refresh();
+    filteredTransferHistory.refresh();
+  }
+  List<TransferHistoryModel> loadTransfers( GetStorage box) {
+    List<TransferHistoryModel> list = _localStorageService.getOfflineList<TransferHistoryModel>(
+        AppConstants.TRANSFER_HISTORY_LIST,
+            (map) => TransferHistoryModel.fromMap(map),
+        box);
+
+    return list;
+  }
+
+  getRequisitions()async{
+    bool stat = await _connectivityService.checkServerConnection();
+    List<RequisitionModel> tickets = [];
+    if(stat) {
+      List<RequisitionModel>? items =  await SyncService.syncRequisitions(user, box, company.value!.id!, branch.value!.id!);
+      if(items != null){
+        tickets = items;
+      } else{
+        tickets = loadRequisitions(box);
+      }
+    } else{
+      tickets = loadRequisitions(box);
+    }
+
+    allRequisitions.value = tickets;
+
+    filteredRequisitions.value = tickets;
+    allRequisitions.refresh();
+    filteredRequisitions.refresh();
+  }
+  List<RequisitionModel> loadRequisitions( GetStorage box) {
+    List<RequisitionModel> list = _localStorageService.getOfflineList<RequisitionModel>(
+        AppConstants.REQUISITION_LIST,
+            (map) => RequisitionModel.fromMap(map),
+        box);
+
+    return list;
+  }
+  void filterItemsRequisition(String query) {
+    searchQuery.value = query;
+    filteredRequisitions.value = allRequisitions.where((item) {
+      final name = item.referenceNumber!.toLowerCase() ?? '';
+
+      final lowerQuery = query.toLowerCase();
+      return name.contains(lowerQuery);
+    }).toList();
+  }
+
+  editRequisition(RequisitionModel item){
+    List<ProductFullInfoModel> products = getProducts();
+    List<CartItemModel> items = [];
+    for(RequisitionItemModel reqItem in item.requisitionItems!){
+      for(ProductFullInfoModel pr in products){
+        if(pr.item!.id ==  reqItem.inventoryItem!.id){
+          CartItemModel itemModel = CartItemModel(product:pr, quantity: reqItem.quantity!);
+          items.add(itemModel);
+        }
+      }
+    }
+    selectedReq.value = item;
+    // selectedBranch.value = item.warehouse;
+    // isBranchSelected.value = true;
+
+    cartItems.value = items;
+    cartItems.refresh();
     Get.offNamed(AppRoutes.NEW_STOCK_REQUEST);
+
+  }
+
+  void showConfirmDialogToCancelItem(RequisitionModel item) {
+    cancelRequest(item);
+    // Get.defaultDialog(
+    //   title: "Confirmation",
+    //   middleText: "Are you sure you want to proceed?",
+    //   textCancel: "No",
+    //   textConfirm: "Yes",
+    //   onCancel: () {
+    //     Get.back(); // Close the dialog
+    //   },
+    //   onConfirm: () {
+    //
+    //
+    //   },
+    // );
+  }
+
+  cancelRequest(RequisitionModel item) async{
+    AppHelper.showLoading("Cancelling Requisition..");
+    item.requisitionStatus = "CANCELLED";
+    List<RequisitionModel> existingReqs = _localStorageService.getRequisitions(box);
+    RequisitionModel? responseMo = await SyncService.saveStockRequest("/requisition/update",item, user, box, "PUT");
+    AppHelper.hideLoading();
+
+    if(responseMo != null){
+      existingReqs = _localStorageService.replaceRequisition(responseMo, existingReqs);
+      filteredRequisitions.value = existingReqs;
+      allRequisitions.value = existingReqs;
+      filteredRequisitions.refresh();
+      allRequisitions.refresh();
+      List<Map<String, dynamic>> itemsListMap = existingReqs.map((item) =>
+          item.toMap()).toList();
+      box.write(AppConstants.REQUISITION_LIST, itemsListMap);
+      Get.snackbar("Requisition Status", "Requisition cancelled successfully", snackPosition: SnackPosition.BOTTOM);
+
+    } else{
+      Get.snackbar("Requisition Status", "Failed to cancel request!", snackPosition: SnackPosition.BOTTOM);
+    }
+
   }
 
 

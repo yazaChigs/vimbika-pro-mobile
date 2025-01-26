@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
 import 'package:get/get.dart';
@@ -13,6 +14,7 @@ import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_response_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_response_model.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_history_model.dart';
 import 'package:vimbika_pos_app/src/features/ticket/model/ticket_model.dart';
 import 'package:vimbika_pos_app/src/features/ticket/model/ticket_response_model.dart';
 import 'package:vimbika_pos_app/src/services/app_exceptions.dart';
@@ -45,7 +47,7 @@ class SyncService {
         AppHelper.showLoading("Syncing sales....");
 
         var response = await BaseHttpClient()
-            .postAuthWithCompanyHeader("/sale/sale-mobile", jsonSaleItems, user.companyId!)
+            .postAuthWithCompanyHeader("/sale/sale-mobile", jsonSaleItems, user.companyId!, "POST")
             .catchError((onError) {
           print(onError);
           AppHelper.hideLoading();
@@ -94,7 +96,7 @@ class SyncService {
 
   static Future<SaleModel?> saveSale(SaleModel sale, UserModel user, GetStorage box) async{
     String jsonSaleItems = sale.toJson();
-    var response = await BaseHttpClient().postAuthWithCompanyHeader("/sale/save", jsonSaleItems, user.companyId!).catchError((onError){
+    var response = await BaseHttpClient().postAuthWithCompanyHeader("/sale/save", jsonSaleItems, user.companyId!, "POST").catchError((onError){
       //AppHelper.hideLoading();
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
@@ -120,9 +122,9 @@ class SyncService {
     }
   }
 
-  static Future<RequisitionModel?> saveStockRequest(RequisitionModel stockRequest, UserModel user, GetStorage box) async{
+  static Future<RequisitionModel?> saveStockRequest(String url, RequisitionModel stockRequest, UserModel user, GetStorage box, String method) async{
     String jsonSaleItems = stockRequest.toJson();
-    var response = await BaseHttpClient().postAuthWithCompanyHeader("/requisition/save", jsonSaleItems, user.companyId!).catchError((onError){
+    var response = await BaseHttpClient().postAuthWithCompanyHeader(url, jsonSaleItems, user.companyId!, method).catchError((onError){
       //AppHelper.hideLoading();
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
@@ -148,7 +150,7 @@ class SyncService {
     }
   }
 
-  static Future<void>  syncTickets(UserModel user, GetStorage box, String companyId, String branchId) async{
+  static Future<List<SaleInfoModel>?>  syncTickets(UserModel user, GetStorage box, String companyId, String branchId) async{
     LocalStorageService _localStorageService = LocalStorageService();
     print("Getting tickets...");
     var response = await BaseHttpClient().getAuthWithCompanyHeader("/mobile/pos/ticket/list/" + branchId, companyId).catchError((onError){
@@ -177,8 +179,75 @@ class SyncService {
       List<Map<String, dynamic>> itemsListMap = processedTickets.map((item) =>
           item.toMap()).toList();
       box.write(AppConstants.SALE_LIST, itemsListMap);
+      return processedTickets;
     }
+    return null;
   }
+  static Future<List<TransferHistoryModel>?>  syncTransferHistory(UserModel user, GetStorage box, String companyId, String branchId) async{
+    LocalStorageService _localStorageService = LocalStorageService();
+    print("Getting transfer history...");
+    var response = await BaseHttpClient().getAuthWithCompanyHeader("/transfer-history/get-transfers/PENDING", companyId).catchError((onError){
+      if (onError is BadRequestException) {
+        var apiError = json.decode(onError.message!);
+        AppHelper.showErroDialog(description: apiError["reason"]);
+      } else {
+        AppHelper.handleError(onError);
+      }
+    });
+    print("Transfer History");
+    print(response);
+    if(response != null) {
+      List<dynamic> list = jsonDecode(response);
+      List<TransferHistoryModel> itemsListFromServer = List<TransferHistoryModel>.from(list.map((i) => TransferHistoryModel.fromMap(i)));
+      // List<TransferHistoryModel> fromServer = [];
+      List<TransferHistoryModel> offlineList = _localStorageService.getOfflineList<TransferHistoryModel>(
+          AppConstants.TRANSFER_HISTORY_LIST,
+              (map) => TransferHistoryModel.fromMap(map),
+          box);
+      offlineList.addAll(itemsListFromServer);
+      List<TransferHistoryModel> processed = processTransferHistory(offlineList);//sort and remove duplicates
+
+      List<Map<String, dynamic>> itemsListMap = processed.map((item) =>
+          item.toMap()).toList();
+      box.write(AppConstants.TRANSFER_HISTORY_LIST, itemsListMap);
+      return processed;
+    }
+    return null;
+  }
+  static Future<List<RequisitionModel>?>  syncRequisitions(UserModel user, GetStorage box, String companyId, String branchId) async{
+    LocalStorageService _localStorageService = LocalStorageService();
+    print("Getting requisitions...");
+    var response = await BaseHttpClient().getAuthWithCompanyHeader("/requisition/get-requisitions", companyId).catchError((onError){
+      if (onError is BadRequestException) {
+        var apiError = json.decode(onError.message!);
+        AppHelper.showErroDialog(description: apiError["reason"]);
+      } else {
+        AppHelper.handleError(onError);
+      }
+    });
+    if(response != null) {
+      List<dynamic> list = jsonDecode(response);
+      List<RequisitionModel> itemsListFromServer = List<RequisitionModel>.from(list.map((i) => RequisitionModel.fromMap(i)));
+       List<RequisitionModel> notSyncedAndLatestFromServer = [];
+      List<RequisitionModel> offlineList = _localStorageService.getOfflineList<RequisitionModel>(
+          AppConstants.REQUISITION_LIST,(map) => RequisitionModel.fromMap(map),box);
+      for(RequisitionModel s in offlineList){
+           bool? sts = s.syncStatus != null ? s.syncStatus : true;
+             if (!sts!) {
+               notSyncedAndLatestFromServer.add(s);
+             }
+
+      }
+      notSyncedAndLatestFromServer.addAll(itemsListFromServer);
+
+      List<Map<String, dynamic>> itemsListMap = notSyncedAndLatestFromServer.map((item) =>
+          item.toMap()).toList();
+      box.write(AppConstants.REQUISITION_LIST, itemsListMap);
+      return notSyncedAndLatestFromServer;
+    }
+    return null;
+  }
+
   // static  syncOfflineTickets(UserModel user,  GetStorage box) async {
   //   List<TicketModel> tickets = loadTickets(box);
   //   List<TicketModel> itemsToBeSynced = [];
@@ -243,7 +312,7 @@ class SyncService {
         itemsToBeSynced.map((shift) => shift.toMap()).toList());
     var response = await BaseHttpClient()
         .postAuthWithCompanyHeader(
-        "/mobile/pos/shift/save", jsonShiftItems, user.companyId!)
+        "/mobile/pos/shift/save", jsonShiftItems, user.companyId!, "POST")
         .catchError((onError) {
       print(onError);
       AppHelper.hideLoading();
@@ -340,4 +409,22 @@ class SyncService {
     });
    return uniqueTicketList;
   }
+  static List<TransferHistoryModel> processTransferHistory(List<TransferHistoryModel> upToDateItems) {
+    Map<String?, TransferHistoryModel> uniqueItems = {};
+    for (var item in upToDateItems) {
+      uniqueItems[item.id] = item;  // The last occurrence will overwrite the previous one
+    }
+
+    List<TransferHistoryModel> uniqueList = uniqueItems.values.toList();
+    DateFormat dateFormat = DateFormat(AppConstants.APP_DATE_TIME_FMT);
+    uniqueList.sort((a, b) {
+      print("Date Time Transfer History");
+      print(a.dateTime);
+      DateTime dateA = a.dateTime != null ? dateFormat.parse(a.dateTime!) : DateTime(0);
+      DateTime dateB = b.dateTime != null ? dateFormat.parse(b.dateTime!) : DateTime(0);
+      return dateB.compareTo(dateA);  // Descending order
+    });
+    return uniqueList;
+  }
+
 }

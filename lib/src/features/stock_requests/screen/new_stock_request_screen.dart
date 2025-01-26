@@ -5,18 +5,21 @@ import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/sale/screen/product_description_screen.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/controller/stock_request_controller.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 
 class NewStockRequestScreen extends GetView {
-  final StockRequestController stockRequestController = Get.put(
-      StockRequestController());
+  final StockRequestController stockRequestController = Get.find();
 
 
   @override
   Widget build(BuildContext context) {
+    RequisitionModel val = stockRequestController.selectedReq.value!;
+    String title = val.id != null ? 'EDITING REQUEST (' + val.referenceNumber! + ')':'SELECT ITEMS';
     return Scaffold(
       appBar: AppBar(
-        title: Text('SELECT ITEMS'),
+        title: Text(title),
+
         centerTitle: true,
         elevation: 0,
       ),

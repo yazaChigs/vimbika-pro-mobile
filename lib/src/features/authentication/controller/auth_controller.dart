@@ -33,15 +33,18 @@ class AuthController extends GetxController {
   var isInternetAccess = false.obs;
   var isServerAccessible = false.obs;
   /// TextField Controllers to get data from TextFields
-  // final TextEditingController usernameTextEditingController = TextEditingController(text: "demo@vimbika.net");
-  //  final TextEditingController passwordTextEditingController = TextEditingController(text: "Demo@2024");
-  final TextEditingController usernameTextEditingController = TextEditingController(text: "yaza@totalit.org");
-  final TextEditingController passwordTextEditingController = TextEditingController(text: "ELIyaza@25");
+  final TextEditingController usernameTextEditingController = TextEditingController(text: "demo@vimbika.net");
+   final TextEditingController passwordTextEditingController = TextEditingController(text: "Demo@2024");
+  // final TextEditingController usernameTextEditingController = TextEditingController(text: "yaza@totalit.org");
+  // final TextEditingController passwordTextEditingController = TextEditingController(text: "ELIyaza@25");
   // final TextEditingController usernameTextEditingController = TextEditingController(text: "shop@vimbika.demo");
   // final TextEditingController passwordTextEditingController = TextEditingController(text: "pass1234");
 
   // final TextEditingController usernameTextEditingController = TextEditingController(text: "nyakudya@farmdistributors.co.zw");
   // final TextEditingController passwordTextEditingController = TextEditingController(text: "Nyakudya25");
+
+// final TextEditingController usernameTextEditingController = TextEditingController(text: "user1@mash.co.zw");
+//   final TextEditingController passwordTextEditingController = TextEditingController(text: "pass1234");
 
   // final TextEditingController usernameTextEditingController = TextEditingController(text: "");
   // final TextEditingController passwordTextEditingController = TextEditingController(text: "");

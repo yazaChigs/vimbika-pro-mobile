@@ -2,10 +2,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/controller/stock_request_controller.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_model.dart';
 import 'package:vimbika_pos_app/src/widgets/app_widgets.dart';
 
 class StockRequestMenuScreen extends StatelessWidget {
-  const StockRequestMenuScreen({super.key});
+  final StockRequestController stockRequestController = Get.find();
+
 
   @override
   Widget build(BuildContext context) {
@@ -24,21 +27,31 @@ class StockRequestMenuScreen extends StatelessWidget {
               context,
               title: 'New Stock Request',
               icon: Icons.fire_truck,
-              onTap: () => Get.toNamed(AppRoutes.NEW_STOCK_REQUEST),
+              onTap: () {
+
+                stockRequestController.selectedReq.value = RequisitionModel();
+                Get.toNamed(AppRoutes.NEW_STOCK_REQUEST);
+              }
             ),
             const SizedBox(height: 20),
             appWidgets.buildSettingButton(
               context,
-              title: 'Receive Transfer',
+              title: 'Requisitions',
               icon: Icons.handshake,
-              onTap: () => Get.toNamed(AppRoutes.DEFAULT_FISCAL_SETTINGS),
+              onTap: () {
+                stockRequestController.getRequisitions();
+                Get.toNamed(AppRoutes.REQUISITION_LIST_SCREEN);
+              }
             ),
             const SizedBox(height: 20),
             appWidgets.buildSettingButton(
               context,
-              title: 'Transfer History',
+              title: 'Transfers',
               icon: Icons.access_time_outlined,
-              onTap: () => Get.toNamed(AppRoutes.DEFAULT_PAYMENT_METHOD_SCREEN),
+              onTap: () {
+                stockRequestController.getTransferHistory();
+                Get.toNamed(AppRoutes.TRANSFER_HISTORY_SCREEN);
+              }
             ),
           ],
         ),

@@ -13,17 +13,25 @@ String requisitionModelToJson(RequisitionModel data) => json.encode(data.toJson(
 class RequisitionModel {
   RequisitionModel({
     this.id,
+    this.uuid,
+    this.dateCreated,
+    this.createdByName,
+    this.company,
     this.requisitionStatus,
     this.timeRequested,
     this.referenceNumber,
     this.quantities,
-    required this.branch,
-    required this.warehouse,
-    required this.requisitionItems,
+     this.branch,
+     this.warehouse,
+     this.requisitionItems,
     this.syncStatus
   });
 
   String? id;
+  String? uuid;
+  String? dateCreated;
+  String? createdByName;
+  BaseNameModel? company;
   String? requisitionStatus;
   String? timeRequested;
   String? referenceNumber;
@@ -39,6 +47,10 @@ class RequisitionModel {
 
   factory RequisitionModel.fromMap(Map<String, dynamic> json) => RequisitionModel(
     id: json["id"],
+    uuid: json["uuid"],
+    dateCreated: json["dateCreated"],
+    createdByName: json["createdByName"],
+    company: json["company"] != null ? BaseNameModel.fromMap(json["company"]) : null,
     requisitionStatus: json["requisitionStatus"],
     timeRequested: json["timeRequested"],
     referenceNumber: json["referenceNumber"],
@@ -52,6 +64,10 @@ class RequisitionModel {
 
   Map<String, dynamic> toMap() => {
     "id": id,
+    "uuid": uuid,
+    "dateCreated": dateCreated,
+    "createdByName": createdByName,
+    "company": company != null?  company!.toMap() : null,
     "requisitionStatus": requisitionStatus,
     "timeRequested": timeRequested,
     "referenceNumber": referenceNumber,

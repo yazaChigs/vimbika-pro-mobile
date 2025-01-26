@@ -89,10 +89,18 @@ class TicketController extends GetxController {
   getTickets()async{
     //AppHelper.showLoading("Loading....");
     bool stat = await _connectivityService.checkServerConnection();
+    List<SaleInfoModel> tickets = [];
     if(stat) {
-      await SyncService.syncTickets(user, box, company.value!.id!, branch.value!.id!);
+      List<SaleInfoModel>? items =  await SyncService.syncTickets(user, box, company.value!.id!, branch.value!.id!);
+      if(items != null){
+        tickets = items;
+      } else{
+        tickets = loadItems(box);
+      }
+    } else{
+      tickets = loadItems(box);
     }
-    List<SaleInfoModel> tickets = loadItems(box);
+
     openedTicketsCount.value = tickets.length;
     allTickets.value = tickets;
 

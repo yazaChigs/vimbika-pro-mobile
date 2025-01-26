@@ -2,7 +2,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
+import 'package:vimbika_pos_app/src/features/sale/widget/custom_dropdown_widget.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/controller/stock_request_controller.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_model.dart';
 import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
@@ -15,13 +17,15 @@ class StockRequestCartScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    RequisitionModel val = stockRequestController.selectedReq.value!;
+    String title = val.id != null ? 'EDITING REQUEST (' + val.referenceNumber! + ')':'SELECT ITEMS';
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: inactivityController.resetInactivityTimer,
       onPanDown: (_) => inactivityController.resetInactivityTimer(),
       child: Scaffold(
         appBar: AppBar(
-          title: Text('SELECTED ITEMS'),
+          title: Text(title),
         ),
         body: Obx(() {
           if (stockRequestController.cartItems.isEmpty) {
@@ -89,40 +93,64 @@ class StockRequestCartScreen extends StatelessWidget {
                     //   'Total : ${cartController.selectedCurrency.value?.symbol ?? ''} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
                     //   style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     // ),
-                    Container(
-                      width: double.infinity, // Make the container take full width
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: Obx(() {
-                          return DropdownButton<BranchModel>(
-                            hint: const Text("Select Branch"),
-                            value: stockRequestController.isBranchSelected.isTrue
-                                ? stockRequestController.selectedBranch.value
-                                : null,
-                            icon: const Icon(Icons.location_on),
-                            elevation: 16,
-                            style: const TextStyle(color: Colors.deepPurple),
-                            onChanged: (BranchModel? newValue) {
-                              // Update your state here
-                              stockRequestController.isBranchSelected.value = true;
-                              stockRequestController.selectedBranch.value = newValue;
-                              //stockRequestController.onChangeBranch(newValue?.id);
-                            },
-                            items: stockRequestController.branchList.map<DropdownMenuItem<
-                                BranchModel>>((BranchModel value) {
-                              return DropdownMenuItem<BranchModel>(
-                                value: value,
-                                child: Text(value.name!),
-                              );
-                            }).toList(),
-                            isExpanded: true, // Make the dropdown take full width
-                          );
-                        }),
-                      ),
+                    // Container(
+                    //   width: double.infinity, // Make the container take full width
+                    //   padding: const EdgeInsets.symmetric(horizontal: 12),
+                    //   decoration: BoxDecoration(
+                    //     border: Border.all(color: Colors.grey),
+                    //     borderRadius: BorderRadius.circular(5),
+                    //   ),
+                    //   child: DropdownButtonHideUnderline(
+                    //     child: Obx(() {
+                    //       return DropdownButton<BranchModel>(
+                    //         hint: const Text("Select Branch"),
+                    //         value: stockRequestController.isBranchSelected.isTrue
+                    //             ? stockRequestController.selectedBranch.value
+                    //             : null,
+                    //         icon: const Icon(Icons.location_on),
+                    //         elevation: 16,
+                    //         style: const TextStyle(color: Colors.deepPurple),
+                    //         onChanged: (BranchModel? newValue) {
+                    //           // Update your state here
+                    //           stockRequestController.isBranchSelected.value = true;
+                    //           stockRequestController.selectedBranch.value = newValue;
+                    //           //stockRequestController.onChangeBranch(newValue?.id);
+                    //         },
+                    //         items: stockRequestController.branchList.map<DropdownMenuItem<
+                    //             BranchModel>>((BranchModel value) {
+                    //           return DropdownMenuItem<BranchModel>(
+                    //             value: value,
+                    //             child: Text(value.name!),
+                    //           );
+                    //         }).toList(),
+                    //         isExpanded: true, // Make the dropdown take full width
+                    //       );
+                    //     }),
+                    //   ),
+                    // ),
+
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Obx(() {
+                        return CustomDropdownWidget<BranchModel>(
+                          items: stockRequestController.branchList,
+                          selectedItem: stockRequestController.selectedBranch.value,
+                          hint: "Select Branch",
+                          isSelected: stockRequestController.isBranchSelected,
+                          selectedValue: stockRequestController.selectedBranch,
+                          icon: Icons.location_city,
+                          onChanged: (BranchModel? newValue) {
+                            stockRequestController.selectedBranch.value = newValue;
+                          },
+                          validator: (value) {
+                            if (stockRequestController.isBranchSelected.isFalse) {
+                              return 'Please Select Branch';
+                            }
+                            return null;
+                          },
+                          itemBuilder: (BranchModel value) => Text(value.name!),
+                        );
+                      }),
                     ),
 
 

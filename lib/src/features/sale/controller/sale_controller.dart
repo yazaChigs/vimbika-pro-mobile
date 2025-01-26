@@ -160,7 +160,7 @@ class SaleController extends GetxController {
           print("Fetching products...");
           var response = await BaseHttpClient()
               .postAuthWithCompanyHeader(
-              "/inventory/branch-stock-by-branch-mini", branchData, user.companyId!)
+              "/inventory/branch-stock-by-branch-mini", branchData, user.companyId!, "POST")
               .catchError((onError) {
             print("INSIDE FETCH..");
             AppHelper.hideLoading();

@@ -5,8 +5,11 @@ import 'package:get_storage/get_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
+import 'package:vimbika_pos_app/src/features/sale/controller/sale_controller.dart';
 import 'package:vimbika_pos_app/src/features/shift/controller/shift_controller.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/controller/stock_request_controller.dart';
+import 'package:vimbika_pos_app/src/services/background_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 class NavDrawer extends StatelessWidget {
@@ -179,7 +182,7 @@ class NavDrawer extends StatelessWidget {
          Get.toNamed(AppRoutes.SALE_RECEIPTS);
         break;
       case 2 :
-         ShiftController shiftController = Get.put(ShiftController());
+         Get.put(ShiftController());
          LocalStorageService localStorageService = LocalStorageService();
         GetStorage box = GetStorage();
         List<ShiftModel> shiftList = loadShifts(box, localStorageService);
@@ -193,6 +196,7 @@ class NavDrawer extends StatelessWidget {
       case 3:
         Get.toNamed(AppRoutes.CUSTOMER_LIST);
       case 4:
+        Get.put(StockRequestController());
         Get.toNamed(AppRoutes.STOCK_REQUESTS_MENU);
         break;
       case 5:
@@ -214,6 +218,8 @@ class NavDrawer extends StatelessWidget {
               tempActiveShift, tempShiftList);
           _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
         }
+        Get.delete<SaleController>();
+        Get.delete<BackgroundService>();
         Get.offNamed(AppRoutes.LOGIN);
         break;
       default:

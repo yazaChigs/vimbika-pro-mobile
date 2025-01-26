@@ -5,6 +5,7 @@ import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
+import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart';
 
 class PinController extends GetxController {
   RxString enteredPin = "".obs;
@@ -41,11 +42,13 @@ class PinController extends GetxController {
       if(user.pin != null){
         if(enteredPin == user.pin){
           enteredPin.value = "";
+          Get.put(InactivityController());
           startSelling();
         }
       } else{
         Get.snackbar("Pin Error", "Pin not found on this user", snackPosition: SnackPosition.BOTTOM);
         enteredPin.value = "";
+        Get.put(InactivityController());
         startSelling();
       }
 

@@ -9,8 +9,9 @@ class AppConstants {
   static const CACHED_ACCESS_TOKEN = "CACHED_ACCESS_TOKEN";
    //static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
  // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.africa/vimbika-africa/api";
-     static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
-     // static const VIMBIKA_BACKEND_URL = "http://192.168.100.20:8080/vimbika-pro/api";
+    static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
+  //static const VIMBIKA_BACKEND_URL = "https://mashwede.vimbika.africa/mashwede/api";
+  //     static const VIMBIKA_BACKEND_URL = "http://192.168.0.2:8080/vimbika-pro/api";
   //static const VIMBIKA_BACKEND_URL = "http://127.0.0.1:8080/vimbika-pro/api";
   static const USER_INFO = "USER_INFO";
   static const ACTIVE_COMPANY = "ACTIVE_COMPANY";
@@ -33,6 +34,7 @@ class AppConstants {
   static const AVAILABLE_PRINTERS = "AVAILABLE_PRINTERS";
   static const CUSTOMER_LIST = "CUSTOMER_LIST";
   static const TICKET_LIST = "TICKET_LIST";
+  static const TRANSFER_HISTORY_LIST = "TRANSFER_HISTORY_LIST";
   static const FISCAL_DEVICE = "FISCAL_DEVICE";
   static const IS_FISCALISATION_ENABLED = "IS_FISCALISATION_ENABLED";
   static const DEFAULT_CURRENCY_ID = "DEFAULT_CURRENCY_ID";

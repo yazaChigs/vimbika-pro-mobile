@@ -96,6 +96,28 @@ class LocalStorageService {
     }
     return shiftList;
   }
+  List<RequisitionModel>  replaceRequisition(RequisitionModel newItem, List<RequisitionModel> list) {
+    // Find the index of the shift with the matching shiftReference
+    int index = list.indexWhere((item) => item.uuid == newItem.uuid);
+
+    // If the shift is found, replace it with the new shift
+    if (index != -1) {
+      list[index] = newItem;
+    } else {
+      // Optionally handle the case where the shift is not found
+      print("Requisition with uuid ${newItem.uuid} not found.");
+    }
+    return list;
+  }
+  bool requisitionExists(RequisitionModel newItem, List<RequisitionModel> list) {
+    int index = list.indexWhere((item) => item.uuid == newItem.uuid);
+    if (index != -1) {
+      return true;
+    } else {
+      return false;
+    }
+
+  }
   List<ProductFullInfoModel> getProductList(GetStorage box, bool leastOnTop) {
     // Read the data as a List<dynamic>
     List<dynamic>? itemsListDynamic = box.read<List<dynamic>>(AppConstants.BRANCH_PRODUCTS);
