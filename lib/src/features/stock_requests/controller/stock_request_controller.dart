@@ -352,6 +352,7 @@ class StockRequestController extends GetxController {
       tickets = loadTransfers(box);
     }
 
+
     allTransferHistory.value = tickets;
 
     filteredTransferHistory.value = tickets;

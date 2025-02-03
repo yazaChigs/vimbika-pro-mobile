@@ -51,7 +51,7 @@ dependencies:
   flutter_cached_pdfview: ^0.4.3
   printing: ^5.13.4
   pdf: ^3.11.1
-  search_choices: ^2.2.11
+  search_choices: ^2.3.1
   sunmi_printer_plus: ^3.0.1
   telpo_m8:
   qr_flutter: ^4.0.0

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/controller/stock_request_controller.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/screen/receive_stock_screen.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_item_model.dart';
 import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart';
 
 class TransferHistoryScreen extends StatelessWidget {
@@ -112,33 +114,56 @@ class TransferHistoryScreen extends StatelessWidget {
                               'Branch To: ${item.toBranch!.name ?? 'N/A'}',
                               style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                             ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Divider(thickness: 1, height: 20),
+                                for (TransferItemModel req in item.transferItems!)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 4.0), // Adds spacing between rows
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween, // Ensures spacing between items
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            '${req.item?.name ?? 'N/A'} x ${req.quantity}',
+                                            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Text(
+                                            '${'Allocated'} x ${req.allocated ?? 'NIL'}',
+                                            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                                            textAlign: TextAlign.right, // Aligns text to the right for better readability
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
 
-
-
-
-
-
-                            Divider(thickness: 1, height: 20),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                TextButton(
-                                  onPressed: () {
-                                    // Add delete action here
-                                  //  ticketController.showConfirmDialogToDeleteItem(item.sale!.referenceNumber ?? '');
-                                  },
-                                  child: Text(
-                                    'Delete',
-                                    style: TextStyle(color: Colors.redAccent),
-                                  ),
-                                ),
-                                SizedBox(width: 10),
+                                // TextButton(
+                                //   onPressed: () {
+                                //     // Add delete action here
+                                //   //  ticketController.showConfirmDialogToDeleteItem(item.sale!.referenceNumber ?? '');
+                                //   },
+                                //   child: Text(
+                                //     'Delete',
+                                //     style: TextStyle(color: Colors.redAccent),
+                                //   ),
+                                // ),
+                                // SizedBox(width: 10),
 
                                 Visibility(
                                   visible:  item.status == "PENDING",
                                   child: ElevatedButton(
                                     onPressed: () {
                                       //ticketController.selectTicketAction(item);
+                                      Get.to(() => ReceiveStockScreen(transferHistory: item));
                                     },
                                     style: ElevatedButton.styleFrom(
                                       padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),

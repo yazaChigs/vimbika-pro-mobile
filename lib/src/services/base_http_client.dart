@@ -122,6 +122,7 @@ class BaseHttpClient {
         return responseJson;
         break;
       case 400:
+        print(response.body);
         throw BadRequestException(utf8.decode(response.bodyBytes), response.request!.url.toString());
       case 401:
       case 403:

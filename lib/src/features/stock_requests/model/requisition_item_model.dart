@@ -57,6 +57,6 @@ class RequisitionItemModel {
     "status": status,
     "branchQty": branchQty,
     "warehouseQty": warehouseQty,
-    "inventoryItem": inventoryItem!.toMap(),
+    "inventoryItem": inventoryItem != null?  inventoryItem!.toMap() : null,
   };
 }

@@ -7,29 +7,41 @@ String transferItemModelToJson(TransferItemModel data) => json.encode(data.toJso
 
 class TransferItemModel {
   TransferItemModel({
+    this.id,
+    this.dateCreated,
+    this.createdByName,
     required this.quantity,
     required this.allocated,
-    required this.inventoryItem,
+    required this.item,
   });
 
+  String? id;
+  String? dateCreated;
+  String? createdByName;
   double? allocated;
   double? quantity;
-  InventoryItemModel? inventoryItem;
+  InventoryItemModel? item;
 
   factory TransferItemModel.fromJson(Map<String, dynamic> json) => TransferItemModel.fromMap(json);
   String toJson() => json.encode(toMap());
 
   factory TransferItemModel.fromMap(Map<String, dynamic> json) => TransferItemModel(
+    id: json["id"],
+    dateCreated: json["dateCreated"],
+    createdByName: json["createdByName"],
     allocated: json["allocated"],
     quantity: json["quantity"],
-    inventoryItem: json["inventoryItem"] != null ? InventoryItemModel.fromMap(json["inventoryItem"]) : null,
+    item: json["item"] != null ? InventoryItemModel.fromMap(json["item"]) : null,
 
 
   );
 
   Map<String, dynamic> toMap() => {
+    "id": id,
+    "dateCreated": dateCreated,
+    "createdByName": createdByName,
     "allocated": allocated,
     "quantity": quantity,
-    "inventoryItem": inventoryItem!.toMap(),
+    "item": item != null?  item!.toMap() : null,
   };
 }

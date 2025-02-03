@@ -61,7 +61,7 @@ class TransferHistoryModel {
     "id": id,
     "dateCreated": dateCreated,
     "createdByName": createdByName,
-    "company": company!.toMap(),
+    "company": company != null?  company!.toMap() : null,
     "status": status,
     "dateTime": dateTime,
     "reference": reference,

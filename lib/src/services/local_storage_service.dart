@@ -4,6 +4,7 @@ import 'package:vimbika_pos_app/src/features/printers/model/available_printer_mo
 import 'package:vimbika_pos_app/src/features/sale/model/product_full_info_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_model.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_history_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 
 class LocalStorageService {
@@ -106,6 +107,19 @@ class LocalStorageService {
     } else {
       // Optionally handle the case where the shift is not found
       print("Requisition with uuid ${newItem.uuid} not found.");
+    }
+    return list;
+  }
+  List<TransferHistoryModel>  replaceTransfer(TransferHistoryModel newItem, List<TransferHistoryModel> list) {
+    // Find the index of the shift with the matching shiftReference
+    int index = list.indexWhere((item) => item.reference == newItem.reference);
+
+    // If the shift is found, replace it with the new shift
+    if (index != -1) {
+      list[index] = newItem;
+    } else {
+      // Optionally handle the case where the shift is not found
+      print("Transfer with reference ${newItem.reference} not found.");
     }
     return list;
   }

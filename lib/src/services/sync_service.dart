@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ffi';
+import 'dart:developer';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:intl/intl.dart';
@@ -15,6 +15,7 @@ import 'package:vimbika_pos_app/src/features/shift/model/shift_response_model.da
 import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_response_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_history_model.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_history_response_model.dart';
 import 'package:vimbika_pos_app/src/features/ticket/model/ticket_model.dart';
 import 'package:vimbika_pos_app/src/features/ticket/model/ticket_response_model.dart';
 import 'package:vimbika_pos_app/src/services/app_exceptions.dart';
@@ -124,6 +125,7 @@ class SyncService {
 
   static Future<RequisitionModel?> saveStockRequest(String url, RequisitionModel stockRequest, UserModel user, GetStorage box, String method) async{
     String jsonSaleItems = stockRequest.toJson();
+
     var response = await BaseHttpClient().postAuthWithCompanyHeader(url, jsonSaleItems, user.companyId!, method).catchError((onError){
       //AppHelper.hideLoading();
       if (onError is BadRequestException) {
@@ -149,7 +151,34 @@ class SyncService {
       return null;
     }
   }
-
+  static Future<TransferHistoryModel?> saveTransfer(TransferHistoryModel transfer, UserModel user, GetStorage box) async{
+    print("company");
+    print(user.companyId!);
+    String jsonSaleItems = transfer.toJson();
+    log(jsonSaleItems);
+    var response = await BaseHttpClient().postAuthWithCompanyHeader("/transfer-history/transfer", jsonSaleItems, user.companyId!, "POST").catchError((onError){
+      //AppHelper.hideLoading();
+      if (onError is BadRequestException) {
+        var apiError = json.decode(onError.message!);
+        print(apiError);
+        AppHelper.showErroDialog(description: apiError["reason"]);
+      } else if (onError is UnAuthorizedException) {
+        AppHelper.showErroDialog(title: "Error", description: "Unauthorized access");
+      }
+      else {
+        print(onError);
+        AppHelper.handleError(onError);
+      }
+    });
+    // AppHelper.hideLoading();
+    if(response != null){
+      TransferHistoryResponseModel responseModel = TransferHistoryResponseModel.fromJson(response);
+      return responseModel.item;
+    } else{
+      //failed to save sale
+      return null;
+    }
+  }
   static Future<List<SaleInfoModel>?>  syncTickets(UserModel user, GetStorage box, String companyId, String branchId) async{
     LocalStorageService _localStorageService = LocalStorageService();
     print("Getting tickets...");
@@ -195,17 +224,17 @@ class SyncService {
       }
     });
     print("Transfer History");
-    print(response);
+   // log(response);
     if(response != null) {
       List<dynamic> list = jsonDecode(response);
       List<TransferHistoryModel> itemsListFromServer = List<TransferHistoryModel>.from(list.map((i) => TransferHistoryModel.fromMap(i)));
       // List<TransferHistoryModel> fromServer = [];
-      List<TransferHistoryModel> offlineList = _localStorageService.getOfflineList<TransferHistoryModel>(
-          AppConstants.TRANSFER_HISTORY_LIST,
-              (map) => TransferHistoryModel.fromMap(map),
-          box);
-      offlineList.addAll(itemsListFromServer);
-      List<TransferHistoryModel> processed = processTransferHistory(offlineList);//sort and remove duplicates
+      // List<TransferHistoryModel> offlineList = _localStorageService.getOfflineList<TransferHistoryModel>(
+      //     AppConstants.TRANSFER_HISTORY_LIST,
+      //         (map) => TransferHistoryModel.fromMap(map),
+      //     box);
+      //offlineList.addAll(itemsListFromServer);
+      List<TransferHistoryModel> processed = processTransferHistory(itemsListFromServer);//sort and remove duplicates
 
       List<Map<String, dynamic>> itemsListMap = processed.map((item) =>
           item.toMap()).toList();
@@ -416,14 +445,14 @@ class SyncService {
     }
 
     List<TransferHistoryModel> uniqueList = uniqueItems.values.toList();
-    DateFormat dateFormat = DateFormat(AppConstants.APP_DATE_TIME_FMT);
-    uniqueList.sort((a, b) {
-      print("Date Time Transfer History");
-      print(a.dateTime);
-      DateTime dateA = a.dateTime != null ? dateFormat.parse(a.dateTime!) : DateTime(0);
-      DateTime dateB = b.dateTime != null ? dateFormat.parse(b.dateTime!) : DateTime(0);
-      return dateB.compareTo(dateA);  // Descending order
-    });
+    // DateFormat dateFormat = DateFormat(AppConstants.APP_DATE_TIME_FMT);
+    // uniqueList.sort((a, b) {
+    //   print("Date Time Transfer History");
+    //   print(a.dateTime);
+    //   DateTime dateA = a.dateTime != null ? dateFormat.parse(a.dateTime!) : DateTime(0);
+    //   DateTime dateB = b.dateTime != null ? dateFormat.parse(b.dateTime!) : DateTime(0);
+    //   return dateB.compareTo(dateA);  // Descending order
+    // });
     return uniqueList;
   }
 

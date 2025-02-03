@@ -22,6 +22,6 @@ class RequisitionResponseModel {
 
   Map<String, dynamic> toMap() => {
     "message": message,
-    "item": item!.toMap(),
+    "item": item != null?  item!.toMap() : null,
   };
 }
