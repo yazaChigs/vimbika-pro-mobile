@@ -243,6 +243,30 @@ class SyncService {
     }
     return null;
   }
+  static Future<List<TransferHistoryModel>?>  getReqHistory(UserModel user, GetStorage box, String companyId, String branchId) async{
+
+    print("Getting Req history...");
+    var response = await BaseHttpClient().getAuthWithCompanyHeader("/transfer-history/get-transfers/RECEIVED", companyId).catchError((onError){
+      if (onError is BadRequestException) {
+        var apiError = json.decode(onError.message!);
+        AppHelper.showErroDialog(description: apiError["reason"]);
+      } else {
+        AppHelper.handleError(onError);
+      }
+    });
+    print("Req History");
+    // log(response);
+    if(response != null) {
+      List<dynamic> list = jsonDecode(response);
+      List<TransferHistoryModel> itemsListFromServer = List<TransferHistoryModel>.from(list.map((i) => TransferHistoryModel.fromMap(i)));
+
+      List<Map<String, dynamic>> itemsListMap = itemsListFromServer.map((item) =>
+          item.toMap()).toList();
+      box.write(AppConstants.REQUISITION_HISTORY, itemsListMap);
+      return itemsListFromServer;
+    }
+    return null;
+  }
   static Future<List<RequisitionModel>?>  syncRequisitions(UserModel user, GetStorage box, String companyId, String branchId) async{
     LocalStorageService _localStorageService = LocalStorageService();
     print("Getting requisitions...");

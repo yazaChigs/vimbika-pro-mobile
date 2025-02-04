@@ -7,6 +7,7 @@ import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/controller/stock_request_controller.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_history_model.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_item_model.dart';
 import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
@@ -35,6 +36,10 @@ class ReceiveStockController extends GetxController {
       history.transferItems?.length ?? 0,
           (index) => TextEditingController(text: history.transferItems![index].allocated?.toString() ?? ""),
     );
+    for(TransferItemModel item in transferHistory.value.transferItems!){
+        item.item!.images = [];
+        item.item!.productImages = [];
+    }
   }
 
   void validateAndUpdateQuantity(int index, String value) {
@@ -79,15 +84,16 @@ class ReceiveStockController extends GetxController {
     if (internetStat) {
       TransferHistoryModel? historyModel =  await SyncService.saveTransfer(transferHistory.value, user, box);
       if(historyModel != null){
+        log(historyModel.toJson());
         StockRequestController src = Get.find();
         List<TransferHistoryModel> list = src.allTransferHistory;
         List<TransferHistoryModel> items = _localStorageService.replaceTransfer(historyModel, list);
         src.allTransferHistory.value = items;
         src.allTransferHistory.refresh();
-        List<Map<String, dynamic>> itemsListMap = items.map((item) =>
-            item.toMap()).toList();
-        box.write(AppConstants.TRANSFER_HISTORY_LIST, itemsListMap);
-        Get.offNamed(AppConstants.TRANSFER_HISTORY_LIST);
+        // List<Map<String, dynamic>> itemsListMap = items.map((item) =>
+        //     item.toMap()).toList();
+        // box.write(AppConstants.TRANSFER_HISTORY_LIST, itemsListMap);
+         Get.offNamed(AppConstants.TRANSFER_HISTORY_LIST);
         Get.snackbar("Success", "Stock received successfully!");
       }else{
         Get.snackbar("Error", "Failed to receive stock");

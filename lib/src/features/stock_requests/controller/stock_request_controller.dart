@@ -8,6 +8,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
+import 'package:vimbika_pos_app/src/features/printers/model/available_printer_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/controller/cart_controller.dart';
 import 'package:vimbika_pos_app/src/features/sale/controller/sale_controller.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/cart_item_model.dart';
@@ -21,6 +22,7 @@ import 'package:vimbika_pos_app/src/services/base_http_client.dart';
 
 import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
+import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
@@ -61,7 +63,11 @@ class StockRequestController extends GetxController {
 
   RxList<RequisitionModel> allRequisitions = <RequisitionModel>[].obs;
   RxList<RequisitionModel> filteredRequisitions = <RequisitionModel>[].obs;
-  // Rx<String> searchQueryRequisitions = "".obs;
+
+  RxList<TransferHistoryModel> allReqHistory = <TransferHistoryModel>[].obs;
+  RxList<TransferHistoryModel> filteredReqHistory = <TransferHistoryModel>[].obs;
+  final PrinterService _printerService = Get.put(PrinterService());
+  RxList<AvailablePrinterModel> availablePrinters = <AvailablePrinterModel>[].obs;
 
 
   @override
@@ -88,6 +94,7 @@ class StockRequestController extends GetxController {
     getBranchStock(box);
     getTransferHistory();
     getRequisitions();
+    getReqHistory();
 
   }
 
@@ -238,6 +245,10 @@ class StockRequestController extends GetxController {
     //calculateTotalAmounts(cartItems);
   }
 
+  void printGRV(TransferHistoryModel transfer) async {
+      _printerService.printCurrentGRV(transfer, box, _localStorageService);
+  }
+
   void removeFromCart(CartItemModel cartItem) {
     cartItems.remove(cartItem);
     //calculateTotalAmounts(cartItems);
@@ -327,6 +338,15 @@ class StockRequestController extends GetxController {
     getRequisitions();
     Get.offNamed(AppRoutes.REQUISITION_LIST_SCREEN);
   }
+  void filterItemsRequisition(String query) {
+    searchQuery.value = query;
+    filteredRequisitions.value = allRequisitions.where((item) {
+      final name = item.referenceNumber!.toLowerCase() ?? '';
+
+      final lowerQuery = query.toLowerCase();
+      return name.contains(lowerQuery);
+    }).toList();
+  }
 
   void filterItemsTransferHistory(String query) {
     searchQuery.value = query;
@@ -338,6 +358,39 @@ class StockRequestController extends GetxController {
     }).toList();
   }
 
+  void filterReqHistory(String query) {
+    searchQuery.value = query;
+    filteredReqHistory.value = allReqHistory.where((item) {
+      var name = '';
+      if(item.reference != null){
+        name = item.reference!.toLowerCase() ?? '';
+      }
+
+
+      final lowerQuery = query.toLowerCase();
+      return name.contains(lowerQuery);
+    }).toList();
+  }
+
+  getReqHistory()async{
+    bool stat = await _connectivityService.checkServerConnection();
+    List<TransferHistoryModel> tickets = [];
+    if(stat) {
+      List<TransferHistoryModel>? items =  await SyncService.getReqHistory(user, box, company.value!.id!, branch.value!.id!);
+      if(items != null){
+        tickets = items;
+      } else{
+        tickets = loadTransfers(box,  AppConstants.REQUISITION_HISTORY);
+      }
+    } else{
+      tickets = loadTransfers(box, AppConstants.REQUISITION_HISTORY);
+    }
+    allReqHistory.value = tickets;
+    filteredReqHistory.value = tickets;
+    allReqHistory.refresh();
+    filteredReqHistory.refresh();
+  }
+
   getTransferHistory()async{
     bool stat = await _connectivityService.checkServerConnection();
     List<TransferHistoryModel> tickets = [];
@@ -346,10 +399,10 @@ class StockRequestController extends GetxController {
       if(items != null){
         tickets = items;
       } else{
-        tickets = loadTransfers(box);
+        tickets = loadTransfers(box, AppConstants.TRANSFER_HISTORY_LIST);
       }
     } else{
-      tickets = loadTransfers(box);
+      tickets = loadTransfers(box, AppConstants.TRANSFER_HISTORY_LIST);
     }
 
 
@@ -359,14 +412,15 @@ class StockRequestController extends GetxController {
     allTransferHistory.refresh();
     filteredTransferHistory.refresh();
   }
-  List<TransferHistoryModel> loadTransfers( GetStorage box) {
+  List<TransferHistoryModel> loadTransfers( GetStorage box, String appCon) {
     List<TransferHistoryModel> list = _localStorageService.getOfflineList<TransferHistoryModel>(
-        AppConstants.TRANSFER_HISTORY_LIST,
+        appCon,
             (map) => TransferHistoryModel.fromMap(map),
         box);
 
     return list;
   }
+
 
   getRequisitions()async{
     bool stat = await _connectivityService.checkServerConnection();
@@ -396,15 +450,7 @@ class StockRequestController extends GetxController {
 
     return list;
   }
-  void filterItemsRequisition(String query) {
-    searchQuery.value = query;
-    filteredRequisitions.value = allRequisitions.where((item) {
-      final name = item.referenceNumber!.toLowerCase() ?? '';
 
-      final lowerQuery = query.toLowerCase();
-      return name.contains(lowerQuery);
-    }).toList();
-  }
 
   editRequisition(RequisitionModel item){
     List<ProductFullInfoModel> products = getProducts();
@@ -446,6 +492,10 @@ class StockRequestController extends GetxController {
 
   cancelRequest(RequisitionModel item) async{
     AppHelper.showLoading("Cancelling Requisition..");
+    for(RequisitionItemModel req in item.requisitionItems!){
+      req.inventoryItem!.images = [];
+      req.inventoryItem!.productImages = [];
+    }
     item.requisitionStatus = "CANCELLED";
     List<RequisitionModel> existingReqs = _localStorageService.getRequisitions(box);
     RequisitionModel? responseMo = await SyncService.saveStockRequest("/requisition/update",item, user, box, "PUT");

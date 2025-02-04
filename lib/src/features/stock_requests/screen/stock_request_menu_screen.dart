@@ -47,11 +47,21 @@ class StockRequestMenuScreen extends StatelessWidget {
             appWidgets.buildSettingButton(
               context,
               title: 'Transfers',
-              icon: Icons.access_time_outlined,
+              icon: Icons.bus_alert_sharp,
               onTap: () {
                 stockRequestController.getTransferHistory();
                 Get.toNamed(AppRoutes.TRANSFER_HISTORY_SCREEN);
               }
+            ),
+            const SizedBox(height: 20),
+            appWidgets.buildSettingButton(
+                context,
+                title: 'History',
+                icon: Icons.access_time,
+                onTap: () {
+                  stockRequestController.getReqHistory();
+                  Get.toNamed(AppRoutes.REQUISITION_HISTORY_SCREEN);
+                }
             ),
           ],
         ),

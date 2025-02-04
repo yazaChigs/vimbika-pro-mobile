@@ -10,6 +10,7 @@ import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import 'package:flutter_pos_printer_platform_image_3/flutter_pos_printer_platform_image_3.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:sunmi_printer_plus/enums.dart';
@@ -20,16 +21,13 @@ import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/currency_amount.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_history_model.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:image/image.dart' as img;
 
 class PrinterService extends GetxService {
   Future<void> printCurrentSale(SaleInfoModel saleInfo, GetStorage box,  LocalStorageService _localStorageService) async {
-    print("sale qr code ..");
-    print(saleInfo.sale!.taxInvoice);
-    print(saleInfo.sale!.fiscalized);
-    print(saleInfo.sale!.receiptQrCode);
     AvailablePrinterModel? prin = _localStorageService.findActivePrinter(box);
         if (prin != null) {
           if(prin.type == 'SUNMI_INBUILT_PRINTER') {
@@ -50,7 +48,27 @@ class PrinterService extends GetxService {
           print("Default Printer Not Found. Please add printer.");
         }
 
-
+  }
+  Future<void> printCurrentGRV(TransferHistoryModel transfer, GetStorage box,  LocalStorageService _localStorageService) async {
+    AvailablePrinterModel? prin = _localStorageService.findActivePrinter(box);
+    if (prin != null) {
+      if(prin.type == 'SUNMI_INBUILT_PRINTER') {
+      await printSunmiGRV(transfer);
+      }
+      if(prin.type == 'TELPO_INBUILT_PRINTER') {
+       // await printTelpoSaleReceipt(saleInfo.sale!);
+      }
+      if (prin.type == 'bluetooth') {
+        await generateBluetoothGoodsReceivedVoucher(transfer, prin);
+      }
+      if (prin.type == 'usb') {
+       // await generateUSBReceipt(saleInfo.sale!, prin);
+      }
+    } else {
+      Get.snackbar('Error', 'Default Printer Not Found. Please add printer.',
+          snackPosition: SnackPosition.BOTTOM);
+      print("Default Printer Not Found. Please add printer.");
+    }
 
   }
 
@@ -255,7 +273,156 @@ class PrinterService extends GetxService {
     await bluetoothPrint.printReceipt(config, receiptData);
   }
 
-    generateUSBReceipt(SaleModel sale,  AvailablePrinterModel printer) async {
+
+
+  Future<void> generateBluetoothGoodsReceivedVoucher(TransferHistoryModel transfer, AvailablePrinterModel printer) async {
+    BluetoothPrint bluetoothPrint = await BluetoothPrint.instance;
+    await bluetoothPrint.disconnect();
+    Uint8List imageBytes = await readLocalFileBytes();
+
+    // Encode the image to base64 string
+    String logoBase64 = base64Encode(imageBytes);
+    BluetoothDevice bt = BluetoothDevice();
+    bt.name = printer.name;
+    bt.address = printer.address;
+    await bluetoothPrint.connect(bt);
+    await Future.delayed(Duration(seconds: 3));
+
+    List<LineText> receiptData = [];
+    String todayDate = DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now());
+
+    // Add the logo
+    receiptData.add(LineText(
+      type: LineText.TYPE_IMAGE,
+      content: logoBase64,
+      height: 200,
+      width: 200,
+      align: LineText.ALIGN_CENTER,
+      linefeed: 1,
+    ));
+
+    // Title: GOODS RECEIVED VOUCHER
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'GOODS RECEIVED VOUCHER',
+      size: 2,
+      align: LineText.ALIGN_CENTER,
+      weight: 2, // Bold
+      linefeed: 1,
+    ));
+
+    // Transfer Details
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'Reference: ${transfer.reference ?? "N/A"}',
+      align: LineText.ALIGN_LEFT,
+      linefeed: 1,
+    ));
+
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'Date: ${transfer.dateTime ?? "N/A"}',
+      align: LineText.ALIGN_LEFT,
+      linefeed: 1,
+    ));
+
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'From Branch: ${transfer.fromBranch?.name ?? "N/A"}',
+      align: LineText.ALIGN_LEFT,
+      linefeed: 1,
+    ));
+
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'To Branch: ${transfer.toBranch?.name ?? "N/A"}',
+      align: LineText.ALIGN_LEFT,
+      linefeed: 1,
+    ));
+
+    // Separator
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: '--------------------------------',
+      align: LineText.ALIGN_CENTER,
+      linefeed: 1,
+    ));
+
+// Separator
+    receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '--------------------------------', align: LineText.ALIGN_CENTER, linefeed: 1));
+
+    // Items List with separate sections
+    for (var item in transfer.transferItems ?? []) {
+      String itemName = item.item?.name ?? 'Unknown Item';
+      String quantity = item.quantity?.toStringAsFixed(2) ?? "0.00";
+      String allocated = item.allocated?.toStringAsFixed(2) ?? "0.00";
+
+      // Item Section
+      receiptData.add(LineText(type: LineText.TYPE_TEXT, content: 'Item: $itemName', align: LineText.ALIGN_LEFT, weight: 2, linefeed: 1));
+      receiptData.add(LineText(type: LineText.TYPE_TEXT, content: 'Quantity: $quantity', align: LineText.ALIGN_LEFT, linefeed: 1));
+      receiptData.add(LineText(type: LineText.TYPE_TEXT, content: 'Allocated: $allocated', align: LineText.ALIGN_LEFT, linefeed: 1));
+
+      // Divider between items
+      receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '--------------------------------', align: LineText.ALIGN_CENTER, linefeed: 1));
+    }
+
+      // Signature Sections
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'Received By: _______________________',
+      align: LineText.ALIGN_LEFT,
+      linefeed: 2,
+    ));
+
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'Signature: _________________________',
+      align: LineText.ALIGN_LEFT,
+      linefeed: 2,
+    ));
+
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'Delivered By: ______________________',
+      align: LineText.ALIGN_LEFT,
+      linefeed: 2,
+    ));
+
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'Signature: _________________________',
+      align: LineText.ALIGN_LEFT,
+      linefeed: 2,
+    ));
+
+    // Footer with Date
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'Date: $todayDate',
+      align: LineText.ALIGN_LEFT,
+      linefeed: 1,
+    ));
+
+    // Thank you message
+
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'THANK YOU',
+      size: 2,
+      align: LineText.ALIGN_CENTER,
+      weight: 1, // Bold
+      linefeed: 1,
+    ));
+
+    receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n\n\n\n', weight: 1, align: LineText.ALIGN_CENTER, linefeed: 1));
+
+    receiptData.add(LineText(linefeed: 1));
+    Map<String, dynamic> config = Map();
+    await bluetoothPrint.printReceipt(config, receiptData);
+  }
+
+
+  generateUSBReceipt(SaleModel sale,  AvailablePrinterModel printer) async {
      final profile = await CapabilityProfile.load();
      final generator = Generator(PaperSize.mm80, profile);
 
@@ -529,6 +696,69 @@ class PrinterService extends GetxService {
      await SunmiPrinter.submitTransactionPrint();
      await SunmiPrinter.exitTransactionPrint(true);
    }
+
+
+  Future<void> printSunmiGRV(TransferHistoryModel transfer) async {
+    Uint8List imageBytes = await readLocalFileBytes();
+    String todayDate = DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now());
+
+    await SunmiPrinter.initPrinter();
+    await SunmiPrinter.startTransactionPrint(true);
+
+    // Print Logo (if Sunmi printer supports images)
+    await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+    await SunmiPrinter.printImage(imageBytes);
+
+    // Title: GOODS RECEIVED VOUCHER
+    await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+    await SunmiPrinter.printText("\nGOODS RECEIVED VOUCHER\n");
+    await SunmiPrinter.resetFontSize();
+
+    // Transfer Details
+    await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+    await SunmiPrinter.printText("Reference: ${transfer.reference ?? "N/A"}\n");
+    await SunmiPrinter.printText("Date: ${transfer.dateTime ?? todayDate}\n");
+    await SunmiPrinter.printText("From: ${transfer.fromBranch?.name ?? "N/A"}\n");
+    await SunmiPrinter.printText("To: ${transfer.toBranch?.name ?? "N/A"}\n");
+
+    // Separator
+    await SunmiPrinter.printText("--------------------------------\n");
+
+    // Print Items as Separate Sections
+    for (var item in transfer.transferItems ?? []) {
+      String itemName = item.item?.name ?? 'Unknown Item';
+      String quantity = item.quantity?.toStringAsFixed(2) ?? "0.00";
+      String allocated = item.allocated?.toStringAsFixed(2) ?? "0.00";
+
+      await SunmiPrinter.setFontSize(SunmiFontSize.LG);
+      await SunmiPrinter.printText("Item: $itemName\n");
+      await SunmiPrinter.resetFontSize();
+
+      await SunmiPrinter.printText("Quantity: $quantity\n");
+      await SunmiPrinter.printText("Allocated: $allocated\n");
+
+      // Divider between items
+      await SunmiPrinter.printText("--------------------------------\n");
+    }
+
+    // Signature Sections
+    await SunmiPrinter.printText("\nReceived By: ______________________\n");
+    await SunmiPrinter.printText("Signature: ________________________\n\n");
+
+    await SunmiPrinter.printText("Delivered By: _____________________\n");
+    await SunmiPrinter.printText("Signature: ________________________\n\n");
+
+    // Footer with Date
+    await SunmiPrinter.printText("Date: $todayDate\n");
+    await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+    await SunmiPrinter.printText("*** Thank you for using our service! ***\n");
+
+    // Finish Printing
+    await SunmiPrinter.printText("\n\n\n");
+    await SunmiPrinter.submitTransactionPrint();
+    await SunmiPrinter.exitTransactionPrint(true);
+  }
+
 
 // Read the image from local storage
   Future<Uint8List> readLocalFileBytes() async {

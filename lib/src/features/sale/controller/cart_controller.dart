@@ -83,7 +83,7 @@ class CartController extends GetxController {
   // RxList<BankModel> bankList = <BankModel>[].obs;
   final LocalStorageService _localStorageService = LocalStorageService();
    late  GetStorage box;
-  final PrinterService _printerService = Get.put(PrinterService());
+
   RxBool isPrintEnabled = false.obs; // Observing the state of the checkbox
   RxBool isFiscaliseReceiptEnabled = true.obs;
   RxBool isCustomerEmailValid = false.obs;
@@ -101,6 +101,7 @@ class CartController extends GetxController {
   final TextEditingController addressEditingController = TextEditingController();
   // Form key to validate the form
   var formKeyAddCustomer = GlobalKey<FormState>();
+  final PrinterService _printerService = Get.put(PrinterService());
   RxList<AvailablePrinterModel> availablePrinters = <AvailablePrinterModel>[].obs;
   var saleTicketId = "".obs;
 
@@ -529,18 +530,9 @@ class CartController extends GetxController {
     }
   }
   void printCurrentSale(SaleInfoModel saleInfo, GetStorage box) async {
-    print("printing....");
-    print(isPrintEnabled.isTrue);
-    print(saleInfo.syncStatus!);
     if(isPrintEnabled.isTrue) {
-      // if(saleInfo.syncStatus!) {
-      //   String url = AppConstants.VIMBIKA_BACKEND_URL +
-      //       "/file/download/till-slip?id=${saleInfo.sale!.id}";
-      //   Get.to(() => PdfWebViewScreen(url: url));
-      // } else{
       _printerService.printCurrentSale(saleInfo, box, _localStorageService);
     }
-    //}
   }
   Future<SaleInfoModel?> getSale(String saleId) async{
     await Future.delayed(Duration(seconds: 2));
