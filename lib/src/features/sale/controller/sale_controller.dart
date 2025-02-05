@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 
@@ -9,6 +10,8 @@ import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/product_full_info_model.dart';
+import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
+import 'package:vimbika_pos_app/src/features/sale/model/sale_model.dart';
 import 'package:vimbika_pos_app/src/services/app_exceptions.dart';
 import 'package:vimbika_pos_app/src/services/base_http_client.dart';
 import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
@@ -41,6 +44,7 @@ class SaleController extends GetxController {
   Rx<BaseNameModel?> selectedCategory = BaseNameModel(id: "All Items", name: "All Items").obs;
   final TextEditingController searchTextEditingController = TextEditingController(text: "");
   late  GetStorage box;
+  Timer? _syncTimer; // Add a timer variable
   @override
   Future<void> onInit() async {
     super.onInit();
@@ -64,6 +68,50 @@ class SaleController extends GetxController {
       Get.snackbar('Printer Status', 'Sunmi built in printer not available',
           snackPosition: SnackPosition.BOTTOM);
     }
+    _syncTimer = Timer.periodic(Duration(seconds: 60), (timer) async {
+      print("init syncing sales...");
+      syncOfflineSales();
+    });
+  }
+  @override
+  void onClose() {
+    // Cancel the timer when the controller is disposed
+    _syncTimer?.cancel();
+    super.onClose();
+  }
+  syncOfflineSales() async{
+    print("syncing sales...");
+    bool stat = await _connectivityService.checkServerConnection();
+    if(stat) {
+      List<SaleInfoModel> sales = loadSales();
+      for (SaleInfoModel saleInfo in sales) {
+        if (!saleInfo.syncStatus!) {
+          SaleModel? saleModel = await SyncService.saveSale(
+              saleInfo.sale!, user, box);
+          if (saleModel != null) {
+            List<SaleInfoModel> latestSales = loadSales();
+            SaleInfoModel saleInfoMod = SaleInfoModel(
+                sale: saleModel, syncStatus: true);
+            List<SaleInfoModel> items = _localStorageService.replaceSale(
+                saleInfoMod, latestSales);
+            writeSaleInfor(box, items);
+          }
+        }
+      }
+    }
+  }
+  writeSaleInfor(GetStorage box, List<SaleInfoModel> itemsList){
+    List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
+        item.toMap()).toList();
+    box.write(AppConstants.SALE_LIST, itemsListMap);
+  }
+  List<SaleInfoModel> loadSales() {
+    LocalStorageService _localStorageService = LocalStorageService();
+    List<SaleInfoModel> sales = _localStorageService.getOfflineList<SaleInfoModel>(
+        AppConstants.SALE_LIST,
+            (map) => SaleInfoModel.fromMap(map),
+        box);
+    return sales;
   }
 
   countAllItems() {
@@ -84,8 +132,6 @@ class SaleController extends GetxController {
 
   Future<void> syncData() async {
     AppHelper.showLoading("Syncing....");
-    print("syncing sales..");
-     await SyncService.syncOfflineSales(user, box);
     print("syncing products..");
     getBranchStock(box);
     print("syncing tickets..");
@@ -267,5 +313,7 @@ class SaleController extends GetxController {
         box);
     return list;
   }
+
+
 
 }

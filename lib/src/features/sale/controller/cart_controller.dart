@@ -478,9 +478,6 @@ class CartController extends GetxController {
             saleInfoModel = SaleInfoModel(sale: responseFromServerSale, syncStatus: true);
           }
         }
-
-
-
       } else {
         saleInfoModel = SaleInfoModel(sale: sale, syncStatus: false);
       }

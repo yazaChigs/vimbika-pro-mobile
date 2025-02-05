@@ -228,7 +228,7 @@ class CheckoutScreen extends StatelessWidget {
                         return Text(
                           'Base Amount : ${cartController.baseCurrency
                               .value!.symbol} ${cartController
-                              .totalCostInBaseCurrency}',
+                              .totalCostInBaseCurrency.toStringAsFixed(2)}',
                           style: const TextStyle(
                               fontSize: 20, fontWeight: FontWeight.bold),
                         );
@@ -237,7 +237,7 @@ class CheckoutScreen extends StatelessWidget {
                         return Text(
                           'Total : ${cartController.selectedCurrency.value!
                               .symbol} ${cartController
-                              .totalCostInSelectedCurrency}',
+                              .totalCostInSelectedCurrency.toStringAsFixed(2)}',
                           style: const TextStyle(
                               fontSize: 20, fontWeight: FontWeight.bold),
                         );

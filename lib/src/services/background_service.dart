@@ -85,8 +85,7 @@ class BackgroundService extends GetxService {
     }
   }
   Future<void> postData(UserModel user, GetStorage box) async {
-    await SyncService.syncOfflineSales(user, box);
-    // await SyncService.syncOfflineTickets(user, box);
+   // await SyncService.syncOfflineSales(user, box);
     await SyncService.getCurrencies(user, box);
     await SyncService.getPaymentTypes(user, box);
     await SyncService.syncOfflineShifts(user, box);

@@ -2,6 +2,8 @@ import 'package:get_storage/get_storage.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/features/printers/model/available_printer_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/product_full_info_model.dart';
+import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
+import 'package:vimbika_pos_app/src/features/sale/model/sale_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_history_model.dart';
@@ -123,6 +125,23 @@ class LocalStorageService {
     }
     return list;
   }
+
+
+  List<SaleInfoModel>  replaceSale(SaleInfoModel newItem, List<SaleInfoModel> list) {
+    // Find the index of the shift with the matching shiftReference
+    int index = list.indexWhere((item) => item.sale!.posReference == newItem.sale!.posReference);
+
+    // If the shift is found, replace it with the new shift
+    if (index != -1) {
+      list[index] = newItem;
+    } else {
+      // Optionally handle the case where the shift is not found
+      print("Sale with reference ${newItem.sale!.posReference} not found.");
+    }
+    return list;
+  }
+
+
   bool requisitionExists(RequisitionModel newItem, List<RequisitionModel> list) {
     int index = list.indexWhere((item) => item.uuid == newItem.uuid);
     if (index != -1) {
