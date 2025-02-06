@@ -125,57 +125,18 @@ class TicketController extends GetxController {
   }
 
   saveItem() async{
-    // Initialize GetStorage and retrieve the current list of tickets
-    GetStorage storage = GetStorage();
+
     List<SaleInfoModel> tickets = allTickets;
-    bool stat = await _connectivityService.checkServerConnection();
-    double totalSaleQuantity = 0;
-    // Generate a new ticket reference and timestamp
+
     int count = tickets.length + 1;
     String ref = AppConstants.getDateNowRef("TICKET", count);
-    String timeInit = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
-    String fullName = user.firstName + " " + user.lastName;
-    // Create a new ticket model using the current cart and selected currency
-    // TicketModel ticketModel = TicketModel(
-    //   id: null,
-    //   ticketName: ticketName.value,
-    //   openedBy: fullName,
-    //   closedBy: null,
-    //   timeClosed: null,
-    //   ticketStatus: "OPEN",
-    //   branch: branch.value!,
-    //   company: company.value!,
-    //   cartItems: List.from(cartController.cartItems), // Clone list to avoid referencing issues
-    //   reference: ref,
-    //   ticketComment: ticketComment.value,
-    //   timeInitiated: timeInit,
-    //   totalAmount: cartController.totalCostInSelectedCurrency.value,
-    //   currency: selectedCurrency.value,
-    //   synced: false
-    // );
 
-    //
-    //
-    // if(stat){
-    //   TicketModel? fromServerTicket = await saveTicket(ticketModel, user, box);
-    //   if(fromServerTicket != null){
-    //     print("ticket from server");
-    //     print(fromServerTicket);
-    //     ticketModel = fromServerTicket;
-    //   }
-    // }
-    //
-    //
-    // tickets.add(ticketModel);
-    // List<Map<String, dynamic>> itemsListMap = tickets.map((item) => item.toMap()).toList();
-    // storage.write(AppConstants.TICKET_LIST, itemsListMap);
+
     List<CartItemModel> cartItems = List.from(cartController.cartItems);
-    //cartController.calculateTotalAmounts();
     cartController.chargeSale("ON_HOLD", true, ref, ticketName.value, ticketComment.value, cartItems, "");
     Get.snackbar("New Ticket", "Ticket Saved Successfully", snackPosition: SnackPosition.BOTTOM);
     ticketNameEditingController.text = "";
     ticketCommentEditingController.text = "";
-    //cartController.cartItems.value = [];
     clearController();
 
   }

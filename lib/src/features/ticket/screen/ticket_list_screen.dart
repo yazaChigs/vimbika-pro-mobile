@@ -95,13 +95,15 @@ class TicketListScreen extends StatelessWidget {
                               ],
                             ),
                             SizedBox(height: 4),
-                            // Text(
-                            //   'Opened By: ${item.openedBy ?? ''}',
-                            //   style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                            // ),
-                            // SizedBox(height: 4),
+
                             Text(
                               'Opened At: ${item.sale!.timeIniated ?? 'N/A'}',
+                              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                            ),
+                            SizedBox(height: 4),
+
+                            Text(
+                              'Sale Status: ${item.sale!.saleStatus ?? 'N/A'}',
                               style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                             ),
 

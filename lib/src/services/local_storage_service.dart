@@ -133,6 +133,7 @@ class LocalStorageService {
 
     // If the shift is found, replace it with the new shift
     if (index != -1) {
+      print("Sale with reference ${newItem.sale!.posReference} replaced successfully");
       list[index] = newItem;
     } else {
       // Optionally handle the case where the shift is not found

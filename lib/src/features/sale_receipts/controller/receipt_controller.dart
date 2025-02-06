@@ -75,8 +75,8 @@ class ReceiptController extends GetxController {
     selectedCategory.value = BaseNameModel();
     startDateController.text = "";
     endDateController.text = "";
-    allReceipts.value = [];
-    filteredReceipts.value = [];
+    // allReceipts.value = [];
+    // filteredReceipts.value = [];
 
   }
 
@@ -113,10 +113,7 @@ class ReceiptController extends GetxController {
 
         if (response != null) {
           List<dynamic> list = jsonDecode(response);
-          List<SaleModel> itemsList = List<SaleModel>.from(
-              list.map((i) => SaleModel.fromMap(i)));
-          print("Items");
-          print(itemsList.length);
+          List<SaleModel> itemsList = List<SaleModel>.from(list.map((i) => SaleModel.fromMap(i)));
           for (SaleModel sale in itemsList) {
             SaleInfoModel saleInfoModel = SaleInfoModel(
                 sale: sale, syncStatus: true);
@@ -127,9 +124,9 @@ class ReceiptController extends GetxController {
           sortSalesByDate();
           allReceipts.refresh();
           filteredReceipts.refresh();
-          List<Map<String, dynamic>> itemsListMap = actualItems.map((item) =>
-              item.toMap()).toList();
-          box.write(AppConstants.SALE_LIST, itemsListMap);
+          // List<Map<String, dynamic>> itemsListMap = actualItems.map((item) =>
+          //     item.toMap()).toList();
+          // box.write(AppConstants.SALE_LIST, itemsListMap);
         } else {
           getSales();
         }
@@ -173,18 +170,12 @@ class ReceiptController extends GetxController {
   }
 
   List<SaleInfoModel> getExistingOfflineSales(GetStorage box) {
-    List<dynamic>? itemsListDynamic = box.read<List<dynamic>>(AppConstants.SALE_LIST);
-    if (itemsListDynamic != null) {
-      List<Map<String, dynamic>> itemsListMap = itemsListDynamic.map((item) {
-        return item as Map<String, dynamic>;
-      }).toList();
-      List<SaleInfoModel> infos = List<SaleInfoModel>.from(
-          itemsListMap.map((map) => SaleInfoModel.fromMap(map)));
-      return infos;
-    } else {
-      List<SaleInfoModel> itemsList = <SaleInfoModel>[];
-      return itemsList;
-    }
+
+    List<SaleInfoModel> sales = _localStorageService.getOfflineList<SaleInfoModel>(
+        AppConstants.SALE_LIST,
+            (map) => SaleInfoModel.fromMap(map),
+        box);
+    return sales;
   }
 
   Map<String, double> calculateTotalByCurrency() {

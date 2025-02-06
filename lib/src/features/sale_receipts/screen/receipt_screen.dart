@@ -232,6 +232,10 @@ class ReceiptScreen extends StatelessWidget {
                         trailing: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            Text(
+                              '${sale.saleStatus ?? 'N/A'}',
+                              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                            ),
                             SizedBox(
                               width: 60,
                               height: 24,
