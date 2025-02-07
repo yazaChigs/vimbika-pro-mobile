@@ -17,6 +17,7 @@ import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
 
@@ -40,6 +41,7 @@ class ReceiptController extends GetxController {
   RxList<BaseNameModel> categories = <BaseNameModel>[].obs;
   Rx<BaseNameModel?> selectedCategory = BaseNameModel().obs;
   var isCatSelected = false.obs;
+  Rx<BranchModel?> branch = BranchModel().obs;
 
   @override
   Future<void> onInit() async {
@@ -48,6 +50,8 @@ class ReceiptController extends GetxController {
     var model = box.read(AppConstants.USER_INFO) ?? {};
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     isInternetAccess.value = await _connectivityService.checkServerConnection();
+    var branchModel = box.read(AppConstants.SELECTED_BRANCH) ?? {};
+    branch.value = BranchModel.fromMap(Map<String, dynamic>.from(branchModel));
     //getSales();
     // Get today's date in the required format
 
@@ -55,14 +59,20 @@ class ReceiptController extends GetxController {
     List<BaseNameModel> catList = loadItems(box, AppConstants.CATEGORY_LIST);
     categories.value = catList;
     // Fetch sales for today's date
-    await getSalesByDate(todayDate.value, todayDate.value, "");
+    await getSalesByDate(todayDate.value, todayDate.value, "", branch.value!.id!);
   }
 
   getSales() {
     // GetStorage box = GetStorage();
     List<SaleInfoModel> sales = getExistingOfflineSales(box);
-    allReceipts.value = sales;
-    filteredReceipts.value = sales;
+    List<SaleInfoModel> actualSales = [];
+    for(SaleInfoModel s in sales){
+       if(s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING"){
+         actualSales.add(s);
+       }
+    }
+    allReceipts.value = actualSales;
+    filteredReceipts.value = actualSales;
     sortSalesByDate();
     allReceipts.refresh();
     filteredReceipts.refresh();
@@ -83,11 +93,11 @@ class ReceiptController extends GetxController {
 
   searchSales(){
     String categoryId = isCatSelected.value ? selectedCategory.value!.id! : "";
-    getSalesByDate(startDate.value, endDate.value, categoryId);
+    getSalesByDate(startDate.value, endDate.value, categoryId, branch.value!.id!);
   }
 
 
-  Future<void> getSalesByDate(String startDate, String endDate, String categoryId) async{
+  Future<void> getSalesByDate(String startDate, String endDate, String categoryId, String branchId) async{
     bool stat = await _connectivityService.checkServerConnection();
     if(stat) {
       AppHelper.showLoading("Loading...");
@@ -100,8 +110,9 @@ class ReceiptController extends GetxController {
         }
       }
       try {
+
         var response = await BaseHttpClient().getAuthWithCompanyHeader(
-            "/sale/app-sale-filter?startDate=$startDate&endDate=$endDate&categoryId=$categoryId", user.companyId!).catchError((
+            "/sale/app-sale-filter?startDate=$startDate&endDate=$endDate&categoryId=$categoryId&branchId=$branchId", user.companyId!).catchError((
             onError) {
           if (onError is BadRequestException) {
             var apiError = json.decode(onError.message!);

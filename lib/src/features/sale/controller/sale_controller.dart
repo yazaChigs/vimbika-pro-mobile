@@ -88,7 +88,10 @@ class SaleController extends GetxController {
         if (!saleInfo.syncStatus!) {
           SaleModel? saleModel = await SyncService.saveSale(
               saleInfo.sale!, user, box);
+
           if (saleModel != null) {
+            print("Res from Server");
+            log(saleModel.toJson());
             List<SaleInfoModel> latestSales = loadSales();
             SaleInfoModel saleInfoMod = SaleInfoModel(
                 sale: saleModel, syncStatus: true);

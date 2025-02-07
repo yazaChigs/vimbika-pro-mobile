@@ -93,7 +93,11 @@ class TicketController extends GetxController {
     if(stat) {
       List<SaleInfoModel>? items =  await SyncService.syncTickets(user, box, company.value!.id!, branch.value!.id!);
       if(items != null){
-        tickets = items;
+        for(SaleInfoModel sale in items){
+          if(sale.sale!.saleStatus == "ON_HOLD"){
+            tickets.add(sale);
+          }
+        }
       } else{
         tickets = loadItems(box);
       }
