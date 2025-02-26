@@ -46,10 +46,10 @@ class AuthController extends GetxController {
 // final TextEditingController usernameTextEditingController = TextEditingController(text: "user1@mash.co.zw");
 //   final TextEditingController passwordTextEditingController = TextEditingController(text: "pass1234");
 
-  // final TextEditingController usernameTextEditingController = TextEditingController(text: "shinje@farmdis.co.zw");
-  // final TextEditingController passwordTextEditingController = TextEditingController(text: "VIMBIKA1014");
-   final TextEditingController usernameTextEditingController = TextEditingController(text: "");
-   final TextEditingController passwordTextEditingController = TextEditingController(text: "");
+  final TextEditingController usernameTextEditingController = TextEditingController(text: "shinje@farmdis.co.zw");
+  final TextEditingController passwordTextEditingController = TextEditingController(text: "VIMBIKA1014");
+  //  final TextEditingController usernameTextEditingController = TextEditingController(text: "");
+  //  final TextEditingController passwordTextEditingController = TextEditingController(text: "");
 
 
   var userName = '';

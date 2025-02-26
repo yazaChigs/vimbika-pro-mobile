@@ -448,11 +448,11 @@ class SyncService {
     DateFormat dateFormat = DateFormat(AppConstants.APP_DATE_TIME_FMT);
 
     // Sort by timeInitiated in descending order (latest time first)
-    uniqueTicketList.sort((a, b) {
-      DateTime dateA = a.sale!.timeIniated != null ? dateFormat.parse(a.sale!.timeIniated!) : DateTime(0);
-      DateTime dateB = b.sale!.timeIniated != null ? dateFormat.parse(b.sale!.timeIniated!) : DateTime(0);
-      return dateB.compareTo(dateA);  // Descending order
-    });
+    // uniqueTicketList.sort((a, b) {
+    //   DateTime dateA = a.sale!.timeIniated != null ? dateFormat.parse(a.sale!.timeIniated!) : DateTime(0);
+    //   DateTime dateB = b.sale!.timeIniated != null ? dateFormat.parse(b.sale!.timeIniated!) : DateTime(0);
+    //   return dateB.compareTo(dateA);  // Descending order
+    // });
    return uniqueTicketList;
   }
   static List<TransferHistoryModel> processTransferHistory(List<TransferHistoryModel> upToDateItems) {
