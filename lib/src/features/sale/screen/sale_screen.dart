@@ -446,7 +446,9 @@ class SaleScreen extends GetView {
                           onTap: () {
                             if(product.stock! > 0) {
                               cartController.addToCart(product);
-                            } else{
+                            }else if(product.item?.itemType == 'SERVICE'){
+                              cartController.addToCart(product);
+                            }else{
                               Get.snackbar("Check your stock", "Stock not available!!!", snackPosition: SnackPosition.BOTTOM);
                             }
                           },

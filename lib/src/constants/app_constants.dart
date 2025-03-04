@@ -7,10 +7,9 @@ import 'package:path_provider/path_provider.dart';
 
 class AppConstants {
   static const CACHED_ACCESS_TOKEN = "CACHED_ACCESS_TOKEN";
-   static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
     // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
  //static const VIMBIKA_BACKEND_URL = "https://business.vimbika.africa/vimbika-africa/api";
-    // static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
+    static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
   //static const VIMBIKA_BACKEND_URL = "https://mashwede.vimbika.africa/mashwede/api";
   //     static const VIMBIKA_BACKEND_URL = "http://192.168.0.2:8080/vimbika-pro/api";
   //static const VIMBIKA_BACKEND_URL = "http://127.0.0.1:8080/vimbika-pro/api";

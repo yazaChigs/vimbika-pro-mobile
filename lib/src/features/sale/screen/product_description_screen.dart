@@ -93,6 +93,12 @@ class ProductDescriptionScreen extends StatelessWidget {
                     style: TextStyle(fontSize: 16),
                     textAlign: TextAlign.center, // Center-align text
                   ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Item Type: ${product.itemType ?? 'No Item Type'}',
+                    style: TextStyle(fontSize: 16),
+                    textAlign: TextAlign.center, // Center-align text
+                  ),
                   SizedBox(height: 16),
                   Text(
                     '\$${product.sellingPrice.toStringAsFixed(2)}',
@@ -109,9 +115,11 @@ class ProductDescriptionScreen extends StatelessWidget {
                       child: ElevatedButton(
                         onPressed: () {
                           // Add to cart functionality
-                          if(productFullInfo.stock! > 0) {
+                          if(productFullInfo.stock! > 0 ) {
                             cartController.addToCart(productFullInfo);
-                          } else{
+                          } else if(productFullInfo.item?.itemType == 'SERVICE'){
+                            cartController.addToCart(productFullInfo);
+                          }else{
                             Get.snackbar("Check your stock", "Stock not available!!!", snackPosition: SnackPosition.BOTTOM);
                           }
 
