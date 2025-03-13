@@ -33,6 +33,7 @@ import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/bank_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_received_model.dart';
@@ -90,6 +91,7 @@ class CartController extends GetxController {
   RxBool emailReceipt = false.obs;
   RxBool fiscalizeReceipt = false.obs;
   RxBool zimraFiscalizeReceipt = false.obs;
+  Rx<CompanyModel?> company = CompanyModel().obs;
 
   // Text controllers for the add new customer dialog
   final nameController = TextEditingController();
@@ -124,7 +126,8 @@ class CartController extends GetxController {
     List<UserModel> tempUserList = loadUsers(box);
     userList.value = tempUserList;
     List<ShiftModel> tempShiftList = loadShifts(box);
-
+    var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
+    company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
 
     shiftList.value = tempShiftList;
     ShiftModel? tempActiveShift = _localStorageService.getActiveShift(tempShiftList);
@@ -462,7 +465,7 @@ class CartController extends GetxController {
     SaleInfoModel saleInfoModel;
     if(stat) {
       print("SAVING SALE..");
-      SaleModel? responseFromServerSale = await SyncService.saveSale(sale, user.value!, box);
+      SaleModel? responseFromServerSale = await SyncService.saveSale(sale, user.value!, box, company.value!);
       if(responseFromServerSale != null) {
         print("QR LINK1");
         print(responseFromServerSale.receiptQrCode);

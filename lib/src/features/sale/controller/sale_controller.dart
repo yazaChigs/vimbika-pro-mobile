@@ -19,6 +19,7 @@ import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/dynamic_query_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
@@ -45,6 +46,7 @@ class SaleController extends GetxController {
   final TextEditingController searchTextEditingController = TextEditingController(text: "");
   late  GetStorage box;
   Timer? _syncTimer; // Add a timer variable
+  Rx<CompanyModel?> company = CompanyModel().obs;
   @override
   Future<void> onInit() async {
     super.onInit();
@@ -72,6 +74,8 @@ class SaleController extends GetxController {
       print("init syncing sales...");
       syncOfflineSales();
     });
+    var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
+    company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
   }
   @override
   void onClose() {
@@ -87,7 +91,7 @@ class SaleController extends GetxController {
       for (SaleInfoModel saleInfo in sales) {
         if (!saleInfo.syncStatus!) {
           SaleModel? saleModel = await SyncService.saveSale(
-              saleInfo.sale!, user, box);
+              saleInfo.sale!, user, box, company.value!);
 
           if (saleModel != null) {
             print("Res from Server");
