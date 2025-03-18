@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
@@ -47,6 +48,9 @@ class SaleController extends GetxController {
   late  GetStorage box;
   Timer? _syncTimer; // Add a timer variable
   Rx<CompanyModel?> company = CompanyModel().obs;
+
+  final TextEditingController barCodeTextEditingController = TextEditingController();
+  RxInt barCode =0.obs;
   @override
   Future<void> onInit() async {
     super.onInit();
@@ -111,6 +115,10 @@ class SaleController extends GetxController {
     List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
         item.toMap()).toList();
     box.write(AppConstants.SALE_LIST, itemsListMap);
+  }
+  processItemCode() async{
+
+
   }
   List<SaleInfoModel> loadSales() {
     LocalStorageService _localStorageService = LocalStorageService();
@@ -293,7 +301,8 @@ class SaleController extends GetxController {
         final productName = product.item?.name?.toLowerCase() ?? '';
         final brandName = product.item?.brand?.name?.toLowerCase() ?? '';
         final categoryName = product.item?.category?.name?.toLowerCase() ?? '';
-        return productName.contains(searchQuery.value) || brandName.contains(searchQuery.value) || categoryName.contains(searchQuery.value);
+        final itemCode = product.item?.itemCode?.toLowerCase() ?? '';
+        return productName.contains(searchQuery.value) || brandName.contains(searchQuery.value) || categoryName.contains(searchQuery.value) || itemCode.contains(searchQuery.value);
       }).toList();
       return;
     }
@@ -303,9 +312,10 @@ class SaleController extends GetxController {
       final productName = product.item?.name?.toLowerCase() ?? '';
       final brandName = product.item?.brand?.name?.toLowerCase() ?? '';
       final categoryName = product.item?.category?.name?.toLowerCase() ?? '';
+      final itemCode = product.item?.itemCode?.toLowerCase() ?? '';
 
       final matchesCategory = categoryName == lowerCategory;
-      final matchesSearch = productName.contains(searchQuery.value) || brandName.contains(searchQuery.value) || categoryName.contains(searchQuery.value);
+      final matchesSearch = productName.contains(searchQuery.value) || brandName.contains(searchQuery.value) || categoryName.contains(searchQuery.value) || itemCode.contains(searchQuery.value);
 
       return matchesCategory && matchesSearch;
     }).toList();

@@ -22,6 +22,7 @@ class InventoryItemModel {
     this.quantity,
     this.total,
     this.itemType,
+    this.itemCode,
     required this.taxAmount,
 
   });
@@ -39,6 +40,7 @@ class InventoryItemModel {
   double? total = 0.0;
   double taxAmount = 0.0;
   String? itemType;
+  String? itemCode;
 
   factory InventoryItemModel.fromJson(String str) => InventoryItemModel.fromMap(json.decode(str));
   String toJson() => json.encode(toMap());
@@ -76,6 +78,7 @@ class InventoryItemModel {
     return InventoryItemModel(
       id: json["id"],
       name: json["name"],
+      itemCode: json["itemCode"],
       sellingPrice: json["sellingPrice"] != null ? json["sellingPrice"].toDouble() : 0.0,
       brand: json["brand"] != null ? BaseNameModel.fromMap(json["brand"]) : null,
       currency: json["currency"] != null ? CurrencyModel.fromMap(json["currency"]) : null,
@@ -106,5 +109,6 @@ class InventoryItemModel {
     "total": total,
     "taxAmount": taxAmount,
     "itemType": itemType,
+    "itemCode": itemCode,
   };
 }

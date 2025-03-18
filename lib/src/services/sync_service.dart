@@ -407,7 +407,7 @@ class SyncService {
         var apiError = json.decode(onError.message!);
         AppHelper.showErroDialog(description: apiError["reason"]);
       } else {
-        AppHelper.handleError(onError);
+       // AppHelper.handleError(onError);
       }
     });
     if(response != null) {
