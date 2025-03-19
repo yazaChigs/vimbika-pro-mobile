@@ -350,9 +350,11 @@ class SaleScreen extends GetView {
                           ProductFullInfoModel foundItem = saleController.allProducts[index];
                           var indexC = cartController.cartItems.indexWhere((item) => item.product.item?.id == foundItem.item?.id);
                           if(indexC != -1){
-                            Get.snackbar("Info",
-                                "Product already added !!!",
-                                snackPosition: SnackPosition.BOTTOM);
+                            // Get.snackbar("Info",
+                            //     "Product already added !!!",
+                            //     snackPosition: SnackPosition.BOTTOM);
+                            cartController.addToCart(foundItem, roundedValue);
+                            saleController.barCodeTextEditingController.clear();
                           } else {
                             Get.snackbar("Info",
                                 "Product added to cart !!!",

@@ -247,7 +247,9 @@ class CartController extends GetxController {
   void addToCart(ProductFullInfoModel product, double quantity) {
     var index = cartItems.indexWhere((item) => item.product.id == product.id);
     if (index != -1) {
-      cartItems[index].quantity++;
+      CartItemModel item = cartItems[index];
+      item.quantity = item.quantity + quantity;
+     // cartItems[index].quantity++;
     } else {
       cartItems.add(CartItemModel(product: product, quantity: quantity));
     }
