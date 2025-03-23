@@ -21,6 +21,7 @@ import 'package:vimbika_pos_app/src/features/ticket/model/ticket_response_model.
 import 'package:vimbika_pos_app/src/services/app_exceptions.dart';
 import 'package:vimbika_pos_app/src/services/base_http_client.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
+import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
@@ -88,9 +89,9 @@ class SyncService {
   // }
 
 
-  static Future<SaleModel?> saveSale(SaleModel sale, UserModel user, GetStorage box) async{
+  static Future<SaleModel?> saveSale(SaleModel sale, UserModel user, GetStorage box, CompanyModel company) async{
     String jsonSaleItems = sale.toJson();
-    var response = await BaseHttpClient().postAuthWithCompanyHeader("/sale/save", jsonSaleItems, user.companyId!, "POST").catchError((onError){
+    var response = await BaseHttpClient().postAuthWithCompanyHeader("/sale/save", jsonSaleItems, company.id!, "POST").catchError((onError){
       //AppHelper.hideLoading();
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
@@ -406,7 +407,7 @@ class SyncService {
         var apiError = json.decode(onError.message!);
         AppHelper.showErroDialog(description: apiError["reason"]);
       } else {
-        AppHelper.handleError(onError);
+       // AppHelper.handleError(onError);
       }
     });
     if(response != null) {
@@ -448,11 +449,11 @@ class SyncService {
     DateFormat dateFormat = DateFormat(AppConstants.APP_DATE_TIME_FMT);
 
     // Sort by timeInitiated in descending order (latest time first)
-    uniqueTicketList.sort((a, b) {
-      DateTime dateA = a.sale!.timeIniated != null ? dateFormat.parse(a.sale!.timeIniated!) : DateTime(0);
-      DateTime dateB = b.sale!.timeIniated != null ? dateFormat.parse(b.sale!.timeIniated!) : DateTime(0);
-      return dateB.compareTo(dateA);  // Descending order
-    });
+    // uniqueTicketList.sort((a, b) {
+    //   DateTime dateA = a.sale!.timeIniated != null ? dateFormat.parse(a.sale!.timeIniated!) : DateTime(0);
+    //   DateTime dateB = b.sale!.timeIniated != null ? dateFormat.parse(b.sale!.timeIniated!) : DateTime(0);
+    //   return dateB.compareTo(dateA);  // Descending order
+    // });
    return uniqueTicketList;
   }
   static List<TransferHistoryModel> processTransferHistory(List<TransferHistoryModel> upToDateItems) {

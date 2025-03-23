@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
@@ -19,6 +20,7 @@ import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/dynamic_query_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
@@ -45,6 +47,10 @@ class SaleController extends GetxController {
   final TextEditingController searchTextEditingController = TextEditingController(text: "");
   late  GetStorage box;
   Timer? _syncTimer; // Add a timer variable
+  Rx<CompanyModel?> company = CompanyModel().obs;
+
+  final TextEditingController barCodeTextEditingController = TextEditingController();
+  RxInt barCode =0.obs;
   @override
   Future<void> onInit() async {
     super.onInit();
@@ -72,6 +78,8 @@ class SaleController extends GetxController {
       print("init syncing sales...");
       syncOfflineSales();
     });
+    var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
+    company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
   }
   @override
   void onClose() {
@@ -87,7 +95,7 @@ class SaleController extends GetxController {
       for (SaleInfoModel saleInfo in sales) {
         if (!saleInfo.syncStatus!) {
           SaleModel? saleModel = await SyncService.saveSale(
-              saleInfo.sale!, user, box);
+              saleInfo.sale!, user, box, company.value!);
 
           if (saleModel != null) {
             print("Res from Server");
@@ -107,6 +115,10 @@ class SaleController extends GetxController {
     List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
         item.toMap()).toList();
     box.write(AppConstants.SALE_LIST, itemsListMap);
+  }
+  processItemCode() async{
+
+
   }
   List<SaleInfoModel> loadSales() {
     LocalStorageService _localStorageService = LocalStorageService();
@@ -289,7 +301,8 @@ class SaleController extends GetxController {
         final productName = product.item?.name?.toLowerCase() ?? '';
         final brandName = product.item?.brand?.name?.toLowerCase() ?? '';
         final categoryName = product.item?.category?.name?.toLowerCase() ?? '';
-        return productName.contains(searchQuery.value) || brandName.contains(searchQuery.value) || categoryName.contains(searchQuery.value);
+        final itemCode = product.item?.itemCode?.toLowerCase() ?? '';
+        return productName.contains(searchQuery.value) || brandName.contains(searchQuery.value) || categoryName.contains(searchQuery.value) || itemCode.contains(searchQuery.value);
       }).toList();
       return;
     }
@@ -299,9 +312,10 @@ class SaleController extends GetxController {
       final productName = product.item?.name?.toLowerCase() ?? '';
       final brandName = product.item?.brand?.name?.toLowerCase() ?? '';
       final categoryName = product.item?.category?.name?.toLowerCase() ?? '';
+      final itemCode = product.item?.itemCode?.toLowerCase() ?? '';
 
       final matchesCategory = categoryName == lowerCategory;
-      final matchesSearch = productName.contains(searchQuery.value) || brandName.contains(searchQuery.value) || categoryName.contains(searchQuery.value);
+      final matchesSearch = productName.contains(searchQuery.value) || brandName.contains(searchQuery.value) || categoryName.contains(searchQuery.value) || itemCode.contains(searchQuery.value);
 
       return matchesCategory && matchesSearch;
     }).toList();

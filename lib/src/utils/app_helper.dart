@@ -10,8 +10,8 @@ class AppHelper {
       var message = error.message;
       showErroDialog(description: message);
     } else if (error is UnAuthorizedException) {
-      showErroDialog(title: "Unauthorized",
-          description: 'Error validating your credentials');
+
+      
     }
     else if (error is FetchDataException) {
       var message = error.message;
