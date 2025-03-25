@@ -477,6 +477,8 @@ class SaleScreen extends GetView {
                         .item!
                         .images!.first}"
                         : "https://placehold.co/50x50?text=No+Image";
+                    String category =  product.item!.category?.name ?? '';
+                    String itemName = fullName + ' ' + category;
                     return Card(
                         child:
                         ListTile(
@@ -495,9 +497,8 @@ class SaleScreen extends GetView {
                               );
                             },
                           ),
-                          title: Text(fullName),
-                          subtitle: Text(product.item!.category?.name ??
-                              'No brand'),
+                          title: Text(itemName),
+                          subtitle: Text('Available units ' + '(' + product.stock!.toInt().toString() + ')'),
                           trailing: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -523,7 +524,7 @@ class SaleScreen extends GetView {
                                     padding: EdgeInsets.all(5.0),
                                     textStyle: TextStyle(fontSize: 14),
                                   ),
-                                  child: Text('View' + '(' + product.stock!.toInt().toString() + ')'),
+                                  child: Text('View'),
                                 ),
                               ),
                             ],
