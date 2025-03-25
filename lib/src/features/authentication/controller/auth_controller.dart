@@ -33,8 +33,8 @@ class AuthController extends GetxController {
   var isInternetAccess = false.obs;
   var isServerAccessible = false.obs;
   /// TextField Controllers to get data from TextFields
-  // final TextEditingController usernameTextEditingController = TextEditingController(text: "demo@vimbika.net");
-  //  final TextEditingController passwordTextEditingController = TextEditingController(text: "Demo@2024");
+  final TextEditingController usernameTextEditingController = TextEditingController(text: "demo@vimbika.net");
+   final TextEditingController passwordTextEditingController = TextEditingController(text: "Demo@2024");
   // final TextEditingController usernameTextEditingController = TextEditingController(text: "yaza@totalit.org");
   // final TextEditingController passwordTextEditingController = TextEditingController(text: "ELIyaza@25");
   // final TextEditingController usernameTextEditingController = TextEditingController(text: "shop@vimbika.demo");
@@ -48,8 +48,8 @@ class AuthController extends GetxController {
 
   // final TextEditingController usernameTextEditingController = TextEditingController(text: "shinje@farmdis.co.zw");
   // final TextEditingController passwordTextEditingController = TextEditingController(text: "VIMBIKA1014");
-   final TextEditingController usernameTextEditingController = TextEditingController(text: "");
-   final TextEditingController passwordTextEditingController = TextEditingController(text: "");
+  //  final TextEditingController usernameTextEditingController = TextEditingController(text: "");
+  //  final TextEditingController passwordTextEditingController = TextEditingController(text: "");
 
 
   var userName = '';
@@ -165,7 +165,6 @@ class AuthController extends GetxController {
         userResponseModel.token = null;
         box.write(AppConstants.USER_INFO, userResponseModel.user!.toMap());
         Get.offNamed(AppRoutes.CHOOSE_BRANCH);
-
       } else{
         Get.snackbar("Login Failed", "Invalid credentials", snackPosition: SnackPosition.BOTTOM);
       }
