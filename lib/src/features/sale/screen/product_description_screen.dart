@@ -28,6 +28,8 @@ class ProductDescriptionScreen extends StatelessWidget {
       onPanDown: (_) => inactivityController.resetInactivityTimer(),
       child: Scaffold(
         appBar: AppBar(
+          backgroundColor: Colors.white, // Same as your app theme
+          elevation: 0,
           leading: IconButton(
             color: Colors.white,
             icon: Icon(Icons.arrow_back),
@@ -36,7 +38,7 @@ class ProductDescriptionScreen extends StatelessWidget {
             },
           ),
           title: Text(product.name ?? 'Product Details'),
-          backgroundColor: Colors.black, // AppBar background color
+          //backgroundColor: Colors.black, // AppBar background color
           foregroundColor: Colors.white, // AppBar text and icon color
         ),
         body: SingleChildScrollView(

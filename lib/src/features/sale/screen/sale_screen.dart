@@ -50,6 +50,8 @@ class SaleScreen extends GetView {
       child: Scaffold(
         key: scaffoldKey,
         appBar: AppBar(
+          backgroundColor: Colors.white, // Same as your app theme
+          elevation: 0,
           title: Row(
             children: [
               GestureDetector(

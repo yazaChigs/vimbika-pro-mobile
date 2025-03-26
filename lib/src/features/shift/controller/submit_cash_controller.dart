@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:meta/meta.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
+import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/controller/shift_controller.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/currency_amount.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
@@ -29,10 +30,13 @@ class SubmitCashController extends GetxController {
   late GetStorage box;
   var totalAmountsByCurrency = <Map<String, dynamic>>[].obs;
   final PrinterService _printerService = Get.put(PrinterService());
+  Rx<UserModel?> user = UserModel(firstName: "", lastName: "", userName: "").obs;
   @override
   Future<void> onInit() async {
     super.onInit();
     box = GetStorage();
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
 
     List<CurrencyModel> tempList = loadCurrencies(box);
     currencyList.value = tempList;
@@ -58,11 +62,11 @@ class SubmitCashController extends GetxController {
         box);
     return list;
   }
-  shiftInfo(){
+  shiftInfo() async {
 
     shifts = loadShifts(box);
     shiftList.value = shifts;
-    ShiftModel? tempActiveShift = _localStorageService.getActiveShift(shifts);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(shifts, box, user.value!, true);
     if(tempActiveShift != null) {
       print("Updating shift");
       activeShift.value = tempActiveShift;

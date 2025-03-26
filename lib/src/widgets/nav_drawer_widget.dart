@@ -5,12 +5,14 @@ import 'package:get_storage/get_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
+import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/controller/sale_controller.dart';
 import 'package:vimbika_pos_app/src/features/shift/controller/shift_controller.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/controller/stock_request_controller.dart';
 import 'package:vimbika_pos_app/src/services/background_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
+import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 class NavDrawer extends StatelessWidget {
   final String fullName;
@@ -101,7 +103,7 @@ class NavDrawer extends StatelessWidget {
       CompanyModel company = CompanyModel.fromMap(selectedCompany);
        imageUrl = "${AppConstants.VIMBIKA_BACKEND_URL}/company/logo/${company.id}";
     }
-    print(imageUrl);
+    //print(imageUrl);
 
 
     return UserAccountsDrawerHeader(
@@ -163,15 +165,19 @@ class NavDrawer extends StatelessWidget {
       onTap: onTap,
     );
   }
-  navigate(int index){
+  navigate(int index) async {
     final LocalStorageService _localStorageService = LocalStorageService();
+    GetStorage box = GetStorage();
+    UserModel user = UserModel(id: null, firstName: "", lastName: "", userName: "");
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    user = UserModel.fromMap(Map<String, dynamic>.from(model));
     switch(index){
       case 0:
         // Get.toNamed(AppRoutes.SALE);
         LocalStorageService localStorageService = LocalStorageService();
-        GetStorage box = GetStorage();
+
         List<ShiftModel> shiftList = loadShifts(box, localStorageService);
-        ShiftModel? tempActiveShift = localStorageService.getActiveShift(shiftList);
+        ShiftModel? tempActiveShift = await localStorageService.getActiveShift(shiftList, box, user, true);
         if(tempActiveShift != null) {
           Get.toNamed(AppRoutes.SALE);
         } else{
@@ -184,9 +190,9 @@ class NavDrawer extends StatelessWidget {
       case 2 :
          Get.put(ShiftController());
          LocalStorageService localStorageService = LocalStorageService();
-        GetStorage box = GetStorage();
+        //GetStorage box = GetStorage();
         List<ShiftModel> shiftList = loadShifts(box, localStorageService);
-        ShiftModel? tempActiveShift = localStorageService.getActiveShift(shiftList);
+        ShiftModel? tempActiveShift = await localStorageService.getActiveShift(shiftList, box, user, true);
         if(tempActiveShift != null) {
           Get.toNamed(AppRoutes.VIEW_SHIFT);
         } else{
@@ -203,12 +209,12 @@ class NavDrawer extends StatelessWidget {
         Get.toNamed(AppRoutes.SETTINGS_SCREEN);
         break;
       case 6 :
-        GetStorage box = GetStorage();
+       // GetStorage box = GetStorage();
         box.remove(AppConstants.CACHED_ACCESS_TOKEN);
         box.write(AppConstants.IS_AUTHENTICATED, false);
        // box.remove(AppConstants.USER_INFO);
         List<ShiftModel> tempShiftList = loadShifts(box, _localStorageService);
-        ShiftModel? tempActiveShift = _localStorageService.getActiveShift(tempShiftList);
+        ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, UserModel(firstName: "", lastName: "", userName: ""), false);
         if(tempActiveShift != null) {
           DateTime now = DateTime.now();
           String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
@@ -217,6 +223,7 @@ class NavDrawer extends StatelessWidget {
           List<ShiftModel> shi = _localStorageService.replaceShift(
               tempActiveShift, tempShiftList);
           _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
+          SyncService.syncOfflineShifts(user, box);
         }
         Get.delete<SaleController>();
         Get.delete<BackgroundService>();

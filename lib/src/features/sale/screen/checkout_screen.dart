@@ -23,6 +23,8 @@ class CheckoutScreen extends StatelessWidget {
       onPanDown: (_) => inactivityController.resetInactivityTimer(),
       child: Scaffold(
         appBar: AppBar(
+          backgroundColor: Colors.white, // Same as your app theme
+          elevation: 0,
           title: Text('Checkout'),
         ),
         body: Form(

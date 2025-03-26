@@ -1,4 +1,6 @@
 
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -13,6 +15,7 @@ import 'package:vimbika_pos_app/src/features/shift/model/currency_amount.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/printer_service.dart';
+import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 
 class ShiftController extends GetxController {
@@ -41,7 +44,7 @@ class ShiftController extends GetxController {
      box = GetStorage();
     var model = box.read(AppConstants.USER_INFO) ?? {};
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
-    print(user);
+    //print(user);
     List<CurrencyModel> tempList = loadCurrencies(box);
     currencyList.value = tempList;
     baseCurrency.value = _localStorageService.getBaseCurrency(currencyList);
@@ -57,12 +60,12 @@ class ShiftController extends GetxController {
       addCurrencyAmount(currency);
     },);
   }
-  shiftInfo(){
+  shiftInfo() async {
 
     shifts = loadShifts(box);
-    ShiftModel? tempActiveShift = _localStorageService.getActiveShift(shifts);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(shifts, box, user, true);
     if(tempActiveShift != null) {
-      print("Updating shift");
+      print("Updating shift..");
       activeShift.value = tempActiveShift;
       shiftAvailable.value = true;
       calculateTotalAmountsByCurrency();
@@ -127,11 +130,14 @@ class ShiftController extends GetxController {
 
     currencyAmountList.forEach((element) {
       element.shiftReference = ref;
+      element.active = true;
     },);
-    ShiftModel shiftModel = ShiftModel(userId: user.id, userFullName: fullName, shiftCurrencyAmounts: currencyAmountList, openingTime: timeInit, company: user.company, shiftReference: ref, synced: false);
+    ShiftModel shiftModel = ShiftModel(userId: user.id, active: true, stopSync: false, userFullName: fullName, shiftCurrencyAmounts: currencyAmountList, openingTime: timeInit, company: user.company, shiftReference: ref, synced: false);
     activeShift.value = shiftModel;
     shifts.add(shiftModel);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, shifts, box);
+    print("saved shift");
+    log(shiftModel.toJson());
     calculateTotalAmountsByCurrency();
     Get.offNamed(AppRoutes.VIEW_SHIFT);
   }
@@ -222,10 +228,12 @@ class ShiftController extends GetxController {
 
 
     temp.isShiftClosed = true;
+    temp.active = true;
     temp.closingTime = closingTime;
     List<ShiftModel> shi =  _localStorageService.replaceShift(temp, shifts);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
     Get.snackbar("Success", "Shift closed successfully", snackPosition: SnackPosition.BOTTOM);
+    SyncService.syncOfflineShifts(user, box);
     Get.delete<ShiftController>();
     Get.delete<SaleController>();
     Get.delete<CartController>();

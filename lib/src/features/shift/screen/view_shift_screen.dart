@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
@@ -6,7 +8,8 @@ import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart
 import 'package:vimbika_pos_app/src/widgets/nav_drawer_widget.dart';
 
 class ViewShiftScreen extends StatelessWidget {
-  final ShiftController shiftController = Get.put(ShiftController());
+  // final ShiftController shiftController = Get.put(ShiftController());
+  final ShiftController shiftController = Get.find();
   final InactivityController inactivityController = Get.find();
   var scaffoldKeyz = GlobalKey<ScaffoldState>();
 
@@ -14,7 +17,8 @@ class ViewShiftScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     String fullName = "${shiftController.user.firstName} ${shiftController.user.lastName}";
     String initials = shiftController.user.firstName[0] + shiftController.user.lastName[0];
-
+    print("Inside Screen");
+    log(shiftController.activeShift.value.toJson() + " Data");
     return WillPopScope(
       onWillPop: () async {
         // Navigate to a specific screen when back button is pressed
@@ -28,6 +32,8 @@ class ViewShiftScreen extends StatelessWidget {
         child: Scaffold(
           key: scaffoldKeyz,
           appBar: AppBar(
+            backgroundColor: Colors.white, // Same as your app theme
+            elevation: 1,
             title: Text('ACTIVE SHIFT'),
             leading: IconButton(
               icon: Icon(Icons.menu),
@@ -226,15 +232,39 @@ class ViewShiftScreen extends StatelessWidget {
               ],
             ),
           ),
-          bottomNavigationBar: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ElevatedButton(
-              onPressed: () {
-                shiftController.printShift(shiftController.activeShift.value);
-              },
-              child: Text('PRINT'),
+          bottomNavigationBar: Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Colors.grey, width: 0.5)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // Ensures it only takes needed space
+              children: [
+                SizedBox(
+                  width: double.infinity, // Makes the button take full width
+                  child: ElevatedButton(
+                    onPressed: () {
+                      shiftController.printShift(shiftController.activeShift.value);
+                    },
+                    child: Text('PRINT'),
+                  ),
+                ),
+                SizedBox(height: 10), // Spacing between buttons
+                SizedBox(
+                  width: double.infinity, // Makes the button take full width
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Get.offNamed(AppRoutes.SALE);
+                    },
+                    child: Text('POS'),
+                  ),
+                ),
+              ],
             ),
           ),
+
+
         ),
       ),
     );

@@ -130,7 +130,7 @@ class CartController extends GetxController {
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
 
     shiftList.value = tempShiftList;
-    ShiftModel? tempActiveShift = _localStorageService.getActiveShift(tempShiftList);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, user.value!, true);
 
     if(tempActiveShift != null) {
       activeShift = tempActiveShift;
@@ -303,13 +303,13 @@ class CartController extends GetxController {
   // double get totalAmount => cartItems.fold(0, (sum, item) => sum + item.totalPrice);
   // double get totalTaxAmount => cartItems.fold(0, (sum, item) => sum + item.totalTaxAmount);
   
-  void checkout(){
+  Future<void> checkout() async {
     if(shiftAvailable.isFalse){
       openShift();
     } else{
       List<ShiftModel> tempShiftList = loadShifts(box);
       shiftList.value = tempShiftList;
-      ShiftModel? tempActiveShift = _localStorageService.getActiveShift(tempShiftList);
+      ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, user.value!, true);
       if(tempActiveShift != null) {
         activeShift = tempActiveShift;
         Get.toNamed(AppRoutes.CHECKOUT);
@@ -469,6 +469,7 @@ class CartController extends GetxController {
       print("SAVING SALE..");
       SaleModel? responseFromServerSale = await SyncService.saveSale(sale, user.value!, box, company.value!);
       if(responseFromServerSale != null) {
+
         print("QR LINK1");
         print(responseFromServerSale.receiptQrCode);
         if(isOnHold){
@@ -491,7 +492,7 @@ class CartController extends GetxController {
     }
     if(!isOnHold) {
       deductStock();
-      updateShiftWithNewSale(ref, timeInit, totalCostInSelectedCurrency.value);
+      updateShiftWithNewSale(ref, timeInit, totalCostInSelectedCurrency.value, stat);
       infos.add(saleInfoModel);
       writeSaleInfor(box, infos);
       printCurrentSale(saleInfoModel, box);
@@ -557,13 +558,16 @@ class CartController extends GetxController {
     }
     return null;
   }
-  updateShiftWithNewSale(String ref, String timeCreated, double amt){
+  updateShiftWithNewSale(String ref, String timeCreated, double amt, bool stat){
     int count = activeShift.shiftCurrencyAmounts!.length + 1;
     String ref = AppConstants.getDateNowRef("SL_", count);
     CurrencyAmount currencyAmount = CurrencyAmount(currency: selectedCurrency.value!, amountType: "SALE", ref: ref, timeCreated: timeCreated, notes: "", amount: amt, shiftReference: activeShift.shiftReference);
     activeShift.shiftCurrencyAmounts!.add(currencyAmount);
     List<ShiftModel> updatedShifts = _localStorageService.replaceShift(activeShift, shiftList);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, updatedShifts, box);
+    if(stat){
+      SyncService.syncOfflineShifts(user.value!, box);
+    }
   }
 
   List<SaleInfoModel> getExistingOfflineSales(GetStorage box){

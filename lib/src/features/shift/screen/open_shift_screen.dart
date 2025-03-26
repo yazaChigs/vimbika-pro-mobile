@@ -24,6 +24,8 @@ class OpenShiftScreen extends StatelessWidget {
       child: Scaffold(
         key: scaffoldKey,
         appBar: AppBar(
+          backgroundColor: Colors.white, // Same as your app theme
+          elevation: 1,
           title: Text('SHIFT'),
           leading: IconButton(
             icon: Icon(Icons.menu),

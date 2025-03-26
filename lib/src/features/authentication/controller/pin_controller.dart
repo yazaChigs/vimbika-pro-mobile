@@ -18,18 +18,19 @@ class PinController extends GetxController {
   Future<void> onInit() async {
     super.onInit();
     GetStorage box = GetStorage();
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    user = UserModel.fromMap(Map<String, dynamic>.from(model));
     List<ShiftModel> tempShiftList = loadShifts(box);
-    ShiftModel? tempActiveShift = _localStorageService.getActiveShift(tempShiftList);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, user, true);
 
     if(tempActiveShift != null) {
       shiftAvailable.value = true;
     } else{
       shiftAvailable.value = false;
     }
-    var model = box.read(AppConstants.USER_INFO) ?? {};
-    user = UserModel.fromMap(Map<String, dynamic>.from(model));
+
     var selectedBranch = box.read(AppConstants.SELECTED_BRANCH) ?? null;
-    print(selectedBranch);
+    //print(selectedBranch);
     if(selectedBranch == null){
       Get.offNamed(AppRoutes.CHOOSE_BRANCH);
     }

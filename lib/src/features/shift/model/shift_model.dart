@@ -10,6 +10,9 @@ String shiftModelToJson(ShiftModel data) => json.encode(data.toJson());
 class ShiftModel {
   ShiftModel({
     this.id,
+    this.createdByName,
+    this.dateCreated,
+    this.active,
     this.userId,
     this.userFullName,
     this.isShiftClosed = false,
@@ -18,10 +21,14 @@ class ShiftModel {
     this.openingTime,
     this.closingTime,
     this.shiftReference,
-    this.synced = false
+    this.synced = false,
+    this.stopSync = false
   });
 
   String? id;
+  String? createdByName;
+  String? dateCreated;
+  bool? active = true;
   String? userId;
   bool? isShiftClosed = false;
   String? userFullName;
@@ -31,6 +38,7 @@ class ShiftModel {
   String? closingTime;
   String? shiftReference;
   bool? synced = false;
+  bool? stopSync = false;
 
 
   factory ShiftModel.fromJson(String str) => ShiftModel.fromMap(json.decode(str));
@@ -40,12 +48,16 @@ class ShiftModel {
     userId: json["userId"],
     isShiftClosed: json["isShiftClosed"],
     userFullName: json["userFullName"] ?? "",
+    dateCreated: json["dateCreated"],
+    createdByName: json["createdByName"],
+    active: json["active"],
     shiftCurrencyAmounts: List<CurrencyAmount>.from(json["shiftCurrencyAmounts"].map((x) => CurrencyAmount.fromMap(x))),
     company: BaseNameModel.fromMap(json["company"]),
     openingTime: json["openingTime"],
     closingTime: json["closingTime"],
     shiftReference: json["shiftReference"],
     synced: json["synced"],
+    stopSync: json["stopSync"],
   );
 
   Map<String, dynamic> toMap() => {
@@ -53,12 +65,16 @@ class ShiftModel {
     "userId": userId,
     "isShiftClosed": isShiftClosed,
     "userFullName": userFullName,
+    "dateCreated": dateCreated,
+    "active": active,
+    "createdByName": createdByName,
     "shiftCurrencyAmounts": List<dynamic>.from(shiftCurrencyAmounts!.map((x) => x.toMap())),
     "company": company!.toMap(),
     "openingTime": openingTime,
     "closingTime": closingTime,
     "shiftReference": shiftReference,
     "synced": synced,
+    "stopSync": stopSync,
   };
 
 

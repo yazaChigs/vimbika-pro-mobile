@@ -19,6 +19,8 @@ class CartScreen extends StatelessWidget {
       onPanDown: (_) => inactivityController.resetInactivityTimer(),
       child: Scaffold(
         appBar: AppBar(
+          backgroundColor: Colors.white, // Same as your app theme
+          elevation: 0,
           title: Text('Cart'),
         ),
         body: Obx(() {

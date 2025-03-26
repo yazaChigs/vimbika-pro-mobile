@@ -38,9 +38,9 @@ class BackgroundService extends GetxService {
     });
   }
 
-  checkShiftStatus(GetStorage box, LocalStorageService _localStorageService){
+  checkShiftStatus(GetStorage box, LocalStorageService _localStorageService) async {
     List<ShiftModel> tempShiftList = loadShifts(box, _localStorageService);
-    ShiftModel? tempActiveShift = _localStorageService.getActiveShift(tempShiftList);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, UserModel(firstName: "", lastName: "", userName: ""), false);
     print("Opening time..");
     print(tempActiveShift?.openingTime);
     if(tempActiveShift != null) {
@@ -88,9 +88,6 @@ class BackgroundService extends GetxService {
    // await SyncService.syncOfflineSales(user, box);
     await SyncService.getCurrencies(user, box);
     await SyncService.getPaymentTypes(user, box);
-    await SyncService.syncOfflineShifts(user, box);
-
-
   }
 
 

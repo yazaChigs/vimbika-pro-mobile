@@ -18,6 +18,8 @@ class SaleModel {
      this.id,
     this.cashierFullName,
     this.createdByName,
+    this.dateCreated,
+    this.active,
     required this.saleStatus,
 
     required this.onHold,
@@ -63,6 +65,8 @@ class SaleModel {
   String? id;
   String? cashierFullName;
   String? createdByName;
+  String? dateCreated;
+  bool? active = true;
   String? saleStatus;
   double? amountPaid;
   double? totalQuantity;
@@ -107,6 +111,8 @@ class SaleModel {
     id: json["id"],
     cashierFullName: json["cashierFullName"],
     createdByName: json["createdByName"],
+    dateCreated: json["dateCreated"],
+    active: json["active"],
     saleStatus: json["saleStatus"],
     onHold: json["onHold"],
     amountPaid: json["amountPaid"],
@@ -148,6 +154,10 @@ class SaleModel {
     "id": id,
     "cashierFullName": cashierFullName,
     "createdByName": createdByName,
+
+    "dateCreated": dateCreated,
+    "active": active,
+
     "saleStatus": saleStatus,
     "onHold": onHold,
     "amountPaid": amountPaid,

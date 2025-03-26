@@ -5,6 +5,9 @@ import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 class CurrencyAmount {
   CurrencyAmount({
     this.id,
+    this.createdByName,
+    this.dateCreated,
+    this.active,
     required this.currency,
     this.amount = 0.0,
     this.notes,
@@ -14,6 +17,9 @@ class CurrencyAmount {
     required this.shiftReference
   });
   String? id;
+  String? createdByName;
+  String? dateCreated;
+  bool? active = true;
   CurrencyModel currency;
   Rx<CurrencyModel?> selectedCurrency = Rx<CurrencyModel?>(null);
   double amount;
@@ -29,6 +35,9 @@ class CurrencyAmount {
 
   factory CurrencyAmount.fromMap(Map<String, dynamic> json) => CurrencyAmount(
     id: json["id"],
+    dateCreated: json["dateCreated"],
+    active: json["active"],
+    createdByName: json["createdByName"],
     amount: json["amount"],
     currency: CurrencyModel.fromMap(json["currency"]),
     notes: json["notes"],
@@ -40,6 +49,9 @@ class CurrencyAmount {
 
   Map<String, dynamic> toMap() => {
     "id": id,
+    "active": active,
+    "dateCreated": dateCreated,
+    "createdByName": createdByName,
     "amount": amount,
     "currency": currency.toMap(),
     "notes": notes,

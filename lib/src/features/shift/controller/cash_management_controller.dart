@@ -9,6 +9,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
+import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/controller/shift_controller.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/currency_amount.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
@@ -33,13 +34,16 @@ class CashManagementController extends GetxController {
   late GetStorage box;
   var shouldViewReceipt = false.obs;
   final PrinterService _printerService = Get.put(PrinterService());
+  Rx<UserModel?> user = UserModel(firstName: "", lastName: "", userName: "").obs;
   @override
   Future<void> onInit() async {
     super.onInit();
      box = GetStorage();
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
     List<ShiftModel> tempShiftList = loadShifts(box);
     shiftList.value = tempShiftList;
-    ShiftModel? tempActiveShift = _localStorageService.getActiveShift(tempShiftList);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, user.value!, true);
     if(tempActiveShift != null) {
       activeShift = tempActiveShift;
       shiftAvailable.value = true;

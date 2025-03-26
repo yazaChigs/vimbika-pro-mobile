@@ -10,6 +10,7 @@ import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_item_response_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_response_model.dart';
+import 'package:vimbika_pos_app/src/features/shift/model/shift_item_response_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_response_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_model.dart';
@@ -108,6 +109,7 @@ class SyncService {
     // AppHelper.hideLoading();
     if(response != null){
       SaleItemResponseModel saleResponseModel = SaleItemResponseModel.fromJson(response);
+
       return saleResponseModel.item;
 
 
@@ -175,7 +177,7 @@ class SyncService {
   }
   static Future<List<SaleInfoModel>?>  syncTickets(UserModel user, GetStorage box, String companyId, String branchId) async{
     LocalStorageService _localStorageService = LocalStorageService();
-    print("Getting tickets...");
+    //print("Getting tickets...");
     var response = await BaseHttpClient().getAuthWithCompanyHeader("/mobile/pos/ticket/list/" + branchId, companyId).catchError((onError){
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
@@ -347,9 +349,7 @@ class SyncService {
     print("Syncing shifts " + shiftInfo.length.toString());
 
     for (ShiftModel sh in shiftInfo) {
-      print("Currencies " + sh.shiftCurrencyAmounts!.length.toString());
-      print(sh.toJson());
-      if (!sh.synced! && sh.isShiftClosed!) {
+      if (!sh.stopSync!) {
         itemsToBeSynced.add(sh);
       } else {
         upToDateItems.add(sh);
@@ -374,15 +374,36 @@ class SyncService {
       ShiftResponseModel saleResponseModel = ShiftResponseModel.fromJson(response);
       updateItems.addAll(saleResponseModel.items ?? []);
       updateItems.addAll(upToDateItems);
+      //List<ShiftModel> items =  saleResponseModel.items ?? [];
+
       List<Map<String, dynamic>> itemsListMap = updateItems.map((item) =>
           item.toMap()).toList();
       box.write(AppConstants.SHIFT_LIST, itemsListMap);
 
       // Get.snackbar("Success", "Shifts synced successfully");
     } else {
-      Get.snackbar("Error", "No response from server");
+      //Get.snackbar("Error", "No response from server");
 
     }
+  }
+  static Future<ShiftModel?> getOpenedShift(UserModel user, GetStorage box) async{
+    var response = await BaseHttpClient().getAuthWithCompanyHeader("/mobile/pos/shift/opened_shift/" + user.id!, user.companyId!).catchError((onError){
+      if (onError is BadRequestException) {
+        var apiError = json.decode(onError.message!);
+        AppHelper.showErroDialog(description: apiError["reason"]);
+      } else {
+        // AppHelper.handleError(onError);
+      }
+    });
+    // print("Opended shift ");
+    // log(response);
+    if(response != null) {
+      ShiftItemResponseModel shiftResponseModel = ShiftItemResponseModel.fromJson(response);
+      if (shiftResponseModel.available!) {
+        return shiftResponseModel.item;
+      }
+    }
+     return null;
   }
   static List<ShiftModel> loadShiftInfo(GetStorage box) {
     LocalStorageService _localStorageService = LocalStorageService();
@@ -418,6 +439,7 @@ class SyncService {
       box.write(AppConstants.CURRENCY_LIST, itemsListMap);
     }
   }
+
    static Future<void>  getPaymentTypes(UserModel user, GetStorage box) async{
     var response = await BaseHttpClient().getAuthWithCompanyHeader("/payment-method/get-all", user.companyId!).catchError((onError){
       if (onError is BadRequestException) {

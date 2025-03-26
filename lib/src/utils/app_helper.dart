@@ -8,14 +8,16 @@ class AppHelper {
     hideLoading();
     if (error is BadRequestException) {
       var message = error.message;
-      showErroDialog(description: message);
+      print(message);
+      //showErroDialog(description: message);
     } else if (error is UnAuthorizedException) {
 
       
     }
     else if (error is FetchDataException) {
       var message = error.message;
-      showErroDialog(description: message);
+      print(message);
+      //showErroDialog(description: message);
     } else if (error is ApiNotRespondingException) {
       // showErroDialog(
       //     description: 'Oops! It took longer to respond.');

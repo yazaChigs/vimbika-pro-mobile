@@ -1,5 +1,6 @@
 import 'package:get_storage/get_storage.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
+import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
 import 'package:vimbika_pos_app/src/features/printers/model/available_printer_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/product_full_info_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
@@ -7,6 +8,7 @@ import 'package:vimbika_pos_app/src/features/sale/model/sale_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_history_model.dart';
+import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 
 class LocalStorageService {
@@ -78,10 +80,22 @@ class LocalStorageService {
     }
     return updatedPrinters;
   }
-  ShiftModel? getActiveShift(List<ShiftModel> shifts){
+  Future<ShiftModel?> getActiveShift(List<ShiftModel> shifts, GetStorage box, UserModel user, bool checkShiftFromServer) async {
     for(var cur in shifts)  {
       if(!cur.isShiftClosed!){
         return cur;
+      }
+    }
+    if(checkShiftFromServer) {
+      ShiftModel? sh = await SyncService.getOpenedShift(user, box);
+      if (sh != null) {
+        int index = shifts.indexWhere((shift) => shift.shiftReference == sh.shiftReference);
+        if (index != -1) {
+        } else{
+          shifts.add(sh);
+          writeItems(AppConstants.SHIFT_LIST, shifts, box);
+        }
+        return sh;
       }
     }
     return null;
