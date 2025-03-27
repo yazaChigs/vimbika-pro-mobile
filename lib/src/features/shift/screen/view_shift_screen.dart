@@ -17,8 +17,6 @@ class ViewShiftScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     String fullName = "${shiftController.user.firstName} ${shiftController.user.lastName}";
     String initials = shiftController.user.firstName[0] + shiftController.user.lastName[0];
-    print("Inside Screen");
-    log(shiftController.activeShift.value.toJson() + " Data");
     return WillPopScope(
       onWillPop: () async {
         // Navigate to a specific screen when back button is pressed
@@ -166,7 +164,7 @@ class ViewShiftScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  '${currencyAmount.currency.symbol} ${currencyAmount.amount}',
+                                  '${currencyAmount.currency.symbol} ${currencyAmount.amount.toStringAsFixed(2)}',
                                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                 ),
                                 Text(
@@ -199,7 +197,7 @@ class ViewShiftScreen extends StatelessWidget {
                         style: TextStyle(fontSize: 18),
                       ),
                       trailing: Text(
-                        '${total['totalAmount']}',
+                        '${total['totalAmount'].toStringAsFixed(2)}',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     );
@@ -223,7 +221,7 @@ class ViewShiftScreen extends StatelessWidget {
                         style: TextStyle(fontSize: 18),
                       ),
                       trailing: Text(
-                        '${submitted['totalAmount']}',
+                        '${submitted['totalAmount'].toStringAsFixed(2)}',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     );

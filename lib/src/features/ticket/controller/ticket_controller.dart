@@ -80,7 +80,7 @@ class TicketController extends GetxController {
             (map) => SaleInfoModel.fromMap(map),
         box);
     for(SaleInfoModel sale in list){
-      if(sale.sale!.saleStatus == "ON_HOLD"){
+      if(sale.sale!.saleStatus == "ON_HOLD" && sale.sale!.active!){
         tickets.add(sale);
       }
     }
@@ -94,7 +94,7 @@ class TicketController extends GetxController {
       List<SaleInfoModel>? items =  await SyncService.syncTickets(user, box, company.value!.id!, branch.value!.id!);
       if(items != null){
         for(SaleInfoModel sale in items){
-          if(sale.sale!.saleStatus == "ON_HOLD"){
+          if(sale.sale!.saleStatus == "ON_HOLD" && sale.sale!.active!){
             tickets.add(sale);
           }
         }
@@ -165,7 +165,7 @@ class TicketController extends GetxController {
       Get.toNamed(AppRoutes.TICKET_LIST);
     }
   }
-  void showConfirmDialogToDeleteItem(String reference) {
+  void showConfirmDialogToDeleteItem(String reference, String saleId) {
     Get.defaultDialog(
       title: "Confirmation",
       middleText: "Are you sure you want to proceed?",
@@ -175,43 +175,36 @@ class TicketController extends GetxController {
         Get.back(); // Close the dialog
       },
       onConfirm: () {
-        deleteTicketByReference(reference);
+        deleteTicketByReference(reference, saleId);
 
       },
     );
   }
-  void closeTicket(String reference){
-    String timeClosed = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
-    String fullName = user.firstName + " " + user.lastName;
-    //   for (TicketModel ticket in allTickets){
-    //       if(ticket.reference == reference){
-    //         ticket.ticketStatus = "CLOSED";
-    //         ticket.timeClosed = timeClosed;
-    //         ticket.closedBy = fullName;
-    //       }
-    //   }
-    // for (SaleInfoModel ticket in filteredTickets){
-    //   if(ticket.reference == reference){
-    //     ticket.ticketStatus = "CLOSED";
-    //     ticket.timeClosed = timeClosed;
-    //     ticket.closedBy = fullName;
-    //   }
-    // }
-    allTickets.refresh();
-    filteredTickets.refresh();
-    List<Map<String, dynamic>> itemsListMap = allTickets.map((item) => item.toMap()).toList();
-    box.write(AppConstants.TICKET_LIST, itemsListMap);
-    Get.snackbar("Ticket", "Ticket Closed Successfully", snackPosition: SnackPosition.BOTTOM);
-    //Get.back();
-  }
-  void deleteTicketByReference(String reference) {
+  // void closeTicket(String reference){
+  //   String timeClosed = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
+  //   String fullName = user.firstName + " " + user.lastName;
+  //
+  //   allTickets.refresh();
+  //   filteredTickets.refresh();
+  //   List<Map<String, dynamic>> itemsListMap = allTickets.map((item) => item.toMap()).toList();
+  //   box.write(AppConstants.TICKET_LIST, itemsListMap);
+  //   Get.snackbar("Ticket", "Ticket Closed Successfully", snackPosition: SnackPosition.BOTTOM);
+  //   //Get.back();
+  // }
+  Future<void> deleteTicketByReference(String reference, String? saleId) async {
     // Find the ticket with the matching reference
     allTickets.removeWhere((ticket) => ticket.sale!.referenceNumber == reference);
     filteredTickets.removeWhere((ticket) => ticket.sale!.referenceNumber  == reference);
     // Update storage with the new list
     List<Map<String, dynamic>> itemsListMap = allTickets.map((item) => item.toMap()).toList();
-    box.write(AppConstants.TICKET_LIST, itemsListMap);
+    box.write(AppConstants.SALE_LIST, itemsListMap);
     Get.snackbar("Ticket", "Ticket Deleted Successfully", snackPosition: SnackPosition.BOTTOM);
+    bool stat = await _connectivityService.checkServerConnection();
+    if(stat){
+      if(saleId != null) {
+        SyncService.deleteTicket(user, box, saleId);
+      }
+    }
     Navigator.of(Get.context!).pop();
   }
 

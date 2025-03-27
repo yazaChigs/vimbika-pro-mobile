@@ -74,17 +74,17 @@ class SaleController extends GetxController {
       Get.snackbar('Printer Status', 'Sunmi built in printer not available',
           snackPosition: SnackPosition.BOTTOM);
     }
-    _syncTimer = Timer.periodic(Duration(seconds: 60), (timer) async {
-      print("init syncing sales...");
-      syncOfflineSales();
-    });
+    // _syncTimer = Timer.periodic(Duration(seconds: 60), (timer) async {
+    //   print("init syncing sales...");
+    //   syncOfflineSales();
+    // });
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
   }
   @override
   void onClose() {
     // Cancel the timer when the controller is disposed
-    _syncTimer?.cancel();
+   // _syncTimer?.cancel();
     super.onClose();
   }
   syncOfflineSales() async{
@@ -126,7 +126,13 @@ class SaleController extends GetxController {
         AppConstants.SALE_LIST,
             (map) => SaleInfoModel.fromMap(map),
         box);
-    return sales;
+    List<SaleInfoModel> list = [];
+    for (SaleInfoModel sale in sales) {
+      if(sale.sale!.active!){
+        list.add(sale);
+      }
+    }
+    return list;
   }
 
   countAllItems() {

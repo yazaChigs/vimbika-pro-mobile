@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
+import 'dart:ffi';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:intl/intl.dart';
@@ -404,6 +405,18 @@ class SyncService {
       }
     }
      return null;
+  }
+  static deleteTicket(UserModel user, GetStorage box, String saleId) async{
+    var response = await BaseHttpClient().getAuthWithCompanyHeader("/mobile/pos/ticket/delete/" + saleId, user.companyId!).catchError((onError){
+      if (onError is BadRequestException) {
+        var apiError = json.decode(onError.message!);
+        AppHelper.showErroDialog(description: apiError["reason"]);
+      } else {
+        // AppHelper.handleError(onError);
+      }
+    });
+     print("Delete Ticket");
+     log(response);
   }
   static List<ShiftModel> loadShiftInfo(GetStorage box) {
     LocalStorageService _localStorageService = LocalStorageService();

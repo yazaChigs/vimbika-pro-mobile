@@ -128,7 +128,7 @@ class TicketListScreen extends StatelessWidget {
                                 TextButton(
                                   onPressed: () {
                                     // Add delete action here
-                                    ticketController.showConfirmDialogToDeleteItem(item.sale!.referenceNumber ?? '');
+                                    ticketController.showConfirmDialogToDeleteItem(item.sale!.referenceNumber ?? '', item.sale!.id!);
                                   },
                                   child: Text(
                                     'Delete',
