@@ -61,7 +61,7 @@ class CartScreen extends StatelessWidget {
                             onPressed: () =>
                                 cartController.decrementQuantity(cartItem),
                           ),
-                          Text('${cartItem.quantity}'),
+                          Text('${(cartItem.quantity*cartItem.product.item!.sellingPrice).toStringAsFixed(2)}'),
                           IconButton(
                             icon: Icon(Icons.add),
                             onPressed: () =>
