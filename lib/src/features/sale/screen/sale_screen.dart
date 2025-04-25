@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -340,6 +341,8 @@ class SaleScreen extends GetView {
                       String weight = exp.length > 12 ? exp.substring(7, 12) : '0';
 
                       double kgs = double.parse(weight)/1000;
+                      log('data: $kgs');
+                      debugPrint(kgs.toString());
                       double roundedValue = double.parse(kgs.toStringAsFixed(3));
                       if(kgs > 0) {
                         // print(weight);
