@@ -956,7 +956,7 @@ class PrinterService extends GetxService {
      // Amounts by PaymentType
      if (totalAmountsByPaymentType.isNotEmpty) {
        await SunmiPrinter.printText("\nAmounts by Payment Method:\n");
-       for (var total in totalAmountsByCurrency) {
+       for (var total in totalAmountsByPaymentType) {
          await SunmiPrinter.printText(" ${total['paymentTypeName']}\t\t${total['currencySymbol']}${total['totalAmount']}");
          await SunmiPrinter.printText("Amount: ${total['totalAmount']}");
        }
