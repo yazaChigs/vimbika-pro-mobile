@@ -37,7 +37,7 @@ class ReceiveStockController extends GetxController {
           (index) => TextEditingController(text: history.transferItems![index].allocated?.toString() ?? ""),
     );
     for(TransferItemModel item in transferHistory.value.transferItems!){
-        item.item!.images = [];
+        item.item!.image="";
         item.item!.productImages = [];
     }
   }

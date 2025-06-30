@@ -23,6 +23,7 @@ import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/fiscal_device_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/settings_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 import 'package:http/http.dart' as http;
 // import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
@@ -58,6 +59,7 @@ class OfflineDataController extends GetxController {
   Future<void> getOfflineData(UserModel user, GetStorage box) async{
     if(isInternetAccess.value){
       getCompanies(user, box);
+      getSettings(user, box);
       getBranches(user, box, user.companyId!);//download branches
       getCurrencies(user, box);//download currencies
 
@@ -215,6 +217,21 @@ class OfflineDataController extends GetxController {
           item.toMap()).toList();
       //showSnackBar("Message", "Companies downloaded successfully");
       box.write(AppConstants.COMPANY_LIST, itemsListMap);
+    }
+  }
+  Future<void>  getSettings(UserModel user, GetStorage box) async{
+    var response = await BaseHttpClient().getAuthWithCompanyHeader("/product-feature/get", user.companyId!).catchError((onError){
+      if (onError is BadRequestException) {
+        var apiError = json.decode(onError.message!);
+        AppHelper.showErroDialog(description: apiError["reason"]);
+      } else {
+        AppHelper.handleError(onError);
+      }
+    });
+    if(response != null) {
+      SettingsModel itemConverted = SettingsModel.fromJson(response);
+      print(itemConverted.sellNilItems);
+      box.write(AppConstants.COMPANY_SETTINGS, itemConverted.toMap());
     }
   }
   Future<void>  getPaymentTypes(UserModel user, GetStorage box) async{

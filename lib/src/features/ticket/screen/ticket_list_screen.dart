@@ -83,7 +83,7 @@ class TicketListScreen extends StatelessWidget {
                                       ),
                                     ),
                                     Text(
-                                      '${item.sale!.currency?.symbol} ${item.sale!.amountPaid!.toStringAsFixed(2) ?? 0} ',  // Assuming amount is added to the TicketModel
+                                      '${item.sale!.currency?.symbol} ${item!.sale!.amountPaid!.toStringAsFixed(2) ?? 0} ',  // Assuming amount is added to the TicketModel
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,

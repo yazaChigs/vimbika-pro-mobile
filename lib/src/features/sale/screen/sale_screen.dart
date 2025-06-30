@@ -321,10 +321,10 @@ class SaleScreen extends GetView {
               padding: const EdgeInsets.all(12.0),
               child: TextFormField(
                 controller: saleController.barCodeTextEditingController,
-                keyboardType: TextInputType.number, // Allow only numbers
-                inputFormatters: <TextInputFormatter>[
-                  FilteringTextInputFormatter.digitsOnly, // Only allow digits (no decimals)
-                ],
+                // keyboardType: TextInputType.number, // Allow only numbers
+                // inputFormatters: <TextInputFormatter>[
+                //   FilteringTextInputFormatter.digitsOnly, // Only allow digits (no decimals)
+                // ],
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.document_scanner_sharp),
                   labelText: "Bar Code",
@@ -334,7 +334,57 @@ class SaleScreen extends GetView {
                   if (val.isNotEmpty) {
                     String exp =  val;
 
-                    if(exp.length>=12) {
+                    if(saleController.useSerialNumbers) {
+                        var index = saleController.allProducts.indexWhere((
+                            item) => item.barCodes?.contains(exp)== true);
+                        if (index != -1) {
+                          ProductFullInfoModel foundItem = saleController
+                              .allProducts[index];
+                          var indexC = cartController.cartItems.indexWhere((
+                              item) =>
+                          item.product.item?.id == foundItem.item?.id);
+                          if (indexC != -1) {
+                            // Get.snackbar("Info",
+                            //     "Product already added !!!",
+                            //     snackPosition: SnackPosition.BOTTOM);
+                            cartController.addToCartWithBarCode(foundItem, 1, exp);
+                            saleController.barCodeTextEditingController.clear();
+                          } else {
+                            Get.snackbar("Info",
+                                "Product added to cart !!!",
+                                snackPosition: SnackPosition.BOTTOM);
+                            cartController.addToCartWithBarCode(foundItem, 1,exp);
+                            saleController.barCodeTextEditingController.clear();
+                          }
+                        }else{
+                          var index = saleController.allProducts.indexWhere((
+                              item) => item.item?.itemCode == exp);
+                          if (index != -1) {
+
+                            ProductFullInfoModel foundItem = saleController.allProducts[index];
+                            var indexC = cartController.cartItems.indexWhere((item) => item.product.item?.id == foundItem.item?.id);
+                            if(indexC != -1){
+                              // Get.snackbar("Info",
+                              //     "Product already added !!!",
+                              //     snackPosition: SnackPosition.BOTTOM);
+                              cartController.addToCart(foundItem, 1);
+                              saleController.barCodeTextEditingController.clear();
+                            } else {
+                              Get.snackbar("Info",
+                                  "Product added to cart !!!",
+                                  snackPosition: SnackPosition.BOTTOM);
+                              cartController.addToCart(foundItem, 1);
+                              saleController.barCodeTextEditingController.clear();
+                            }
+                          } else {
+                            // Item not found, handle this case
+                            Get.snackbar("Not Found",
+                                "Product with item  code " + exp +
+                                    " is not found!!!",
+                                snackPosition: SnackPosition.BOTTOM);
+                          }
+                        }
+                      } else if(exp.length>=12) {
                       String chackCode = exp.length > 2 ? exp.substring(0, 2) : '';
                       String productCode = exp.length > 6 ? exp.substring(2, 6) : '';
                       String categoryCode = exp.length > 7 ? exp.substring(6, 7) : '';
@@ -476,11 +526,11 @@ class SaleScreen extends GetView {
                     String name = product.item!.name ?? 'no name';
                     String brand = product.item!.brand?.name ?? '';
                     String fullName = "${name}  ${brand}";
-                    String imageUrl = product.item!.images!.isNotEmpty
+                    String imageUrl = product.item!.image!=null
                         ? "${AppConstants
                         .VIMBIKA_BACKEND_URL}/inventory/image?name=${product
                         .item!
-                        .images!.first}"
+                        .image}"
                         : "https://placehold.co/50x50?text=No+Image";
                     String category =  product.item!.category?.name ?? '';
                     String itemName = fullName + ' ' + category;
@@ -537,9 +587,9 @@ class SaleScreen extends GetView {
                           isThreeLine: true,
 
                           onTap: () {
-                            if(product.stock! > 0) {
+                            if(product.item?.itemType == 'SERVICE') {
                               cartController.addToCart(product, 1);
-                            }else if(product.item?.itemType == 'SERVICE'){
+                            }else if(product.stock! > 0 || saleController.sellNilItems){
                               cartController.addToCart(product, 1);
                             }else{
                               Get.snackbar("Check your stock", "Stock not available!!!", snackPosition: SnackPosition.BOTTOM);

@@ -641,21 +641,21 @@ class PrinterService extends GetxService {
 
      await SunmiPrinter.setFontSize(SunmiFontSize.XL);
      await SunmiPrinter.printText("\n");
-     await SunmiPrinter.printText("RECEIPT\n");
+     await SunmiPrinter.printText("RECEIPT");
      await SunmiPrinter.resetFontSize();
 
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
-     await SunmiPrinter.printText("Cashier: ${sale.cashierFullName}\n");
-     await SunmiPrinter.printText("Date: ${sale.timeIniated}\n");
-     await SunmiPrinter.printText("Reference: ${sale.referenceNumber}\n");
+     await SunmiPrinter.printText("Cashier: ${sale.cashierFullName}");
+     await SunmiPrinter.printText("Date: ${sale.timeIniated}");
+     await SunmiPrinter.printText("Reference: ${sale.referenceNumber}");
 
      // Customer Information
      if (sale.customer != null) {
-       await SunmiPrinter.printText("Customer: ${sale.customer!.name}\n");
+       await SunmiPrinter.printText("Customer: ${sale.customer!.name}");
      }
 
      // Separator
-     await SunmiPrinter.printText("--------------------------------\n");
+     await SunmiPrinter.printText("--------------------------------");
 
      // Items
      for (var item in sale.items!) {
@@ -665,33 +665,35 @@ class PrinterService extends GetxService {
        double total = item.total ?? 0;
        total = total * cur!.rate!;
        price = price * cur!.rate!;
-       await SunmiPrinter.printText("$itemName\n");
-       await SunmiPrinter.printText("Qty: $quantity  Price: ${cur?.symbol ?? ''} ${price.toStringAsFixed(2)}\n");
-       await SunmiPrinter.printText("Total: ${cur?.symbol ?? ''} ${total.toStringAsFixed(2)}\n");
-       await SunmiPrinter.printText("--------------------------------\n");
+       await SunmiPrinter.printText("$itemName");
+       await SunmiPrinter.printText("Qty: $quantity  Price: ${cur?.symbol ?? ''} ${price.toStringAsFixed(2)}");
+       await SunmiPrinter.printText("Total: ${cur?.symbol ?? ''} ${total.toStringAsFixed(2)}");
+       // await SunmiPrinter.printText("--------------------------------");
      }
 
+     // Separator
+     await SunmiPrinter.printText("--------------------------------");
      // Totals
-     await SunmiPrinter.printText("Subtotal: ${cur?.symbol ?? ''} ${sale.amountPaid?.toStringAsFixed(2)}\n");
-     await SunmiPrinter.printText("Amount Paid: ${cur?.symbol ?? ''} ${sale.customerAmountPaid?.toStringAsFixed(2)}\n");
-     await SunmiPrinter.printText("Change: ${cur?.symbol ?? ''} ${sale.change?.toStringAsFixed(2)}\n");
+     await SunmiPrinter.printText("Subtotal: ${cur?.symbol ?? ''} ${sale.amountPaid?.toStringAsFixed(2)}");
+     await SunmiPrinter.printText("Amount Paid: ${cur?.symbol ?? ''} ${sale.customerAmountPaid?.toStringAsFixed(2)}");
+     await SunmiPrinter.printText("Change: ${cur?.symbol ?? ''} ${sale.change?.toStringAsFixed(2)}");
 
      //qr code
 
      if(sale.receiptQrCode != null){
        await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
        await SunmiPrinter.printQRCode(sale.receiptQrCode!);
-       await SunmiPrinter.printText("Scan the QR Code above\n");
+       await SunmiPrinter.printText("Scan the QR Code above");
        await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-       await SunmiPrinter.printText(sale.receiptQrData! + "\n");
+       await SunmiPrinter.printText(sale.receiptQrData! + "");
        await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-       await SunmiPrinter.printText("You can verify this receipt manually at \n");
-       await SunmiPrinter.printText(sale.receiptQrCode! + "\n");
+       await SunmiPrinter.printText("You can verify this receipt manually at ");
+       await SunmiPrinter.printText(sale.receiptQrCode! + "");
      }
 
      // Footer
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-     await SunmiPrinter.printText("*** Thank you for your purchase! ***\n");
+     await SunmiPrinter.printText("*** Thank you for your purchase! ***");
      await SunmiPrinter.printText("\n\n\n");
      await SunmiPrinter.submitTransactionPrint();
      await SunmiPrinter.exitTransactionPrint(true);

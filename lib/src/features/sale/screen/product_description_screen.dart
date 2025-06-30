@@ -18,8 +18,8 @@ class ProductDescriptionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     InventoryItemModel product = productFullInfo.item!;
-    String imageUrl = product.images!.isNotEmpty
-        ? "${AppConstants.VIMBIKA_BACKEND_URL}/inventory/image?name=${product.images!.first}"
+    String imageUrl = product.image != null
+        ? "${AppConstants.VIMBIKA_BACKEND_URL}/inventory/image?name=${product.image}"
         : "https://via.placeholder.com/150";
 
     return GestureDetector(

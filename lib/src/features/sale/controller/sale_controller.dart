@@ -22,10 +22,12 @@ import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/dynamic_query_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/settings_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
 class SaleController extends GetxController {
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
+  late SettingsModel settingsModel = SettingsModel(sellNilItems: false);
   RxList<ProductFullInfoModel> allProducts = <ProductFullInfoModel>[].obs;
   RxList<ProductFullInfoModel> filteredProducts = <ProductFullInfoModel>[].obs;
   RxList<BaseNameModel> brands = <BaseNameModel>[].obs;
@@ -36,6 +38,8 @@ class SaleController extends GetxController {
   Rx<double> price = 0.0.obs;
   Rx<String> searchQuery = "".obs;
   var isSearching = false.obs;
+  bool sellNilItems = false;
+  bool useSerialNumbers = false;
   var isServerReachable = false.obs;
   var isBrandSelected = false.obs;
   var isCatSelected = false.obs;
@@ -58,7 +62,10 @@ class SaleController extends GetxController {
     box = GetStorage();
     var model = box.read(AppConstants.USER_INFO) ?? {};
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
-
+    var settings = box.read(AppConstants.COMPANY_SETTINGS) ?? {};
+    settingsModel = SettingsModel.fromMap(Map<String, dynamic>.from(settings));
+    sellNilItems= settingsModel.sellNilItems ?? false;
+    useSerialNumbers = settingsModel.useSerialNumbers ?? false;
 
     isServerReachable.value =  await _connectivityService.checkServerConnection();
     List<BaseNameModel> brandList = loadItems(box, AppConstants.BRAND_LIST);

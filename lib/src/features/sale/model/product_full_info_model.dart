@@ -16,16 +16,19 @@ class ProductFullInfoModel {
     required this.stock,
     required this.stockValue,
     required this.alertQuantity,
+    this.barCodes
 
   });
 
   String? id;
   String? category;
   InventoryItemModel? item;
+  List<String>? barCodes;
   int count = 0;
   double? stock;
   double? stockValue;
   double? alertQuantity;
+
 
   factory ProductFullInfoModel.fromJson(String str) => ProductFullInfoModel.fromMap(json.decode(str));
   String toJson() => json.encode(toMap());
@@ -34,6 +37,7 @@ class ProductFullInfoModel {
     item: json["item"] != null ? InventoryItemModel.fromMap(json["item"]) : null,
     category: json["category"],
     count: json["count"] ?? 0,
+    barCodes: json["barCodes"] != null ? List<String>.from(json["barCodes"].map((x) => x.toString())) : null,
     stock: json["stock"] ?? 0.0,
     stockValue: json["stockValue"] ?? 0.0,
     alertQuantity: json["alertQuantity"] ?? 0.0,
@@ -47,5 +51,6 @@ class ProductFullInfoModel {
     "stock": stock,
     "stockValue": stockValue,
     "alertQuantity": alertQuantity,
+    "barcodes":barCodes
   };
 }

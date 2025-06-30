@@ -7,12 +7,12 @@ import 'package:path_provider/path_provider.dart';
 
 class AppConstants {
   static const CACHED_ACCESS_TOKEN = "CACHED_ACCESS_TOKEN";
-  static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
- // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.africa/vimbika-africa/api";
- //     static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
+  // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
+  // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.africa/vimbika-africa/api";
+  static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
   //static const VIMBIKA_BACKEND_URL = "https://mashwede.vimbika.africa/mashwede/api";
-  //     static const VIMBIKA_BACKEND_URL = "http://192.168.100.126:8080/vimbika-pro/api";
-  //static const VIMBIKA_BACKEND_URL = "http://127.0.0.1:8080/vimbika-pro/api";
+  //     static const VIMBIKA_BACKEND_URL = "http://192.168.0.124:8080/vimbika-pro/api";
+  // static const VIMBIKA_BACKEND_URL = "http://172.20.10.7:8080/vimbika-pro/api";
   static const USER_INFO = "USER_INFO";
   static const ACTIVE_COMPANY = "ACTIVE_COMPANY";
   static const IS_AUTHENTICATED = "IS_AUTHENTICATED";
@@ -22,6 +22,7 @@ class AppConstants {
   static const BRAND_LIST = "BRAND_LIST";
   static const CATEGORY_LIST = "CATEGORY_LIST";
   static const SHIFT_SETTING = "SHIFT_SETTING";
+  static const COMPANY_SETTINGS = "COMPANY_SETTINGS";
 
   static const BRANCH_LIST = "BRANCH_LIST";
   static const COMPANY_LIST = "COMPANY_LIST";
@@ -37,6 +38,7 @@ class AppConstants {
   static const TRANSFER_HISTORY_LIST = "TRANSFER_HISTORY_LIST";
   static const FISCAL_DEVICE = "FISCAL_DEVICE";
   static const IS_FISCALISATION_ENABLED = "IS_FISCALISATION_ENABLED";
+  static const ALWAYS_PRINT = "ALWAYS_PRINT";
   static const DEFAULT_CURRENCY_ID = "DEFAULT_CURRENCY_ID";
   static const DEFAULT_PAYMENT_METHOD_ID = "DEFAULT_PAYMENT_METHOD_ID";
 
@@ -71,30 +73,30 @@ class AppConstants {
 
 
 
-    static void printLongJson(String content) async {
-      try {
-        // Get the application documents directory
-        final directory = await getApplicationDocumentsDirectory();
+  static void printLongJson(String content) async {
+    try {
+      // Get the application documents directory
+      final directory = await getApplicationDocumentsDirectory();
 
-        // Create the custom folder path
-        final folderPath = '${directory.path}/jsonoutput';
-        final folder = Directory(folderPath);
+      // Create the custom folder path
+      final folderPath = '${directory.path}/jsonoutput';
+      final folder = Directory(folderPath);
 
-        // Check if the folder exists, if not, create it
-        if (!await folder.exists()) {
-          await folder.create(recursive: true);
-        }
-
-        // Create the full file path
-        final filePath = '$folderPath/jsondata_love.json';
-        final file = File(filePath);
-
-        await file.writeAsString(content);
-        print('File saved to $filePath');
-      } catch (e) {
-        print('Error writing to file: $e');
+      // Check if the folder exists, if not, create it
+      if (!await folder.exists()) {
+        await folder.create(recursive: true);
       }
+
+      // Create the full file path
+      final filePath = '$folderPath/jsondata_love.json';
+      final file = File(filePath);
+
+      await file.writeAsString(content);
+      print('File saved to $filePath');
+    } catch (e) {
+      print('Error writing to file: $e');
     }
+  }
 
 
 

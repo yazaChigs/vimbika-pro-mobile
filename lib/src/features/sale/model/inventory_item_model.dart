@@ -18,6 +18,7 @@ class InventoryItemModel {
     this.category,
     this.productImages,
     this.images,
+    this.image,
     this.fullName,
     this.quantity,
     this.total,
@@ -35,6 +36,7 @@ class InventoryItemModel {
   BaseNameModel? category;
   List<ProductImageModel>? productImages;
   List<String>? images;
+  String? image;
   String? fullName;
   double? quantity = 0;
   double? total = 0.0;
@@ -85,6 +87,7 @@ class InventoryItemModel {
       category: json["category"] != null ? BaseNameModel.fromMap(json["category"]) : null,
       productImages: productImages.isNotEmpty ? productImages : null,  // Ensure this is nullable if required
       images: json["images"] != null ? List<String>.from(json["images"].map((x) => x.toString())) : null,
+      image: json["image"],
       fullName: json["fullName"],
       quantity: json["quantity"] != null ? json["quantity"].toDouble() : 0.0,
       total: json["total"] != null ? json["total"].toDouble() : 0.0,
@@ -104,6 +107,7 @@ class InventoryItemModel {
     "category": category?.toMap(),
     "productImages": productImages!= null ?  List<dynamic>.from(productImages!.map((x) => x)) : null,
     "images": images != null ? List<dynamic>.from(images!.map((x) => x)) : null,
+    "image": image,
     "fullName": fullName,
     "quantity": quantity,
     "total": total,

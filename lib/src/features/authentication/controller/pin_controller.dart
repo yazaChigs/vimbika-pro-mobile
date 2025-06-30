@@ -9,7 +9,7 @@ import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart
 
 class PinController extends GetxController {
   RxString enteredPin = "".obs;
-  RxBool isPinVisible = true.obs;
+  RxBool isPinVisible = false.obs;
   var shiftAvailable = false.obs;
   final LocalStorageService _localStorageService = LocalStorageService();
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");

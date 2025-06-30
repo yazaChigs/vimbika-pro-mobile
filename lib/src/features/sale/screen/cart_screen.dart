@@ -34,10 +34,10 @@ class CartScreen extends StatelessWidget {
                   itemCount: cartController.cartItems.length,
                   itemBuilder: (context, index) {
                     final cartItem = cartController.cartItems[index];
-                    String imageUrl = cartItem.product.item!.images!.isNotEmpty
+                    String imageUrl = cartItem.product.item!.image!=null
                         ? "${AppConstants
                         .VIMBIKA_BACKEND_URL}/inventory/image?name=${cartItem
-                        .product.item!.images!.first}"
+                        .product.item!.image}"
                         : "https://via.placeholder.com/150";
 
                     return ListTile(

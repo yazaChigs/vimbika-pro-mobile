@@ -162,11 +162,11 @@ class NewStockRequestScreen extends GetView {
                       String name = product.item!.name ?? 'no name';
                       String brand = product.item!.brand?.name ?? '';
                       String fullName = "${name}  ${brand}";
-                      String imageUrl = product.item!.images!.isNotEmpty
+                      String imageUrl = product.item!.image!=null
                           ? "${AppConstants
                           .VIMBIKA_BACKEND_URL}/inventory/image?name=${product
                           .item!
-                          .images!.first}"
+                          .image}"
                           : "https://placehold.co/50x50?text=No+Image";
                       return Card(
                           child:

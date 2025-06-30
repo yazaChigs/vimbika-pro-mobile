@@ -38,6 +38,21 @@ class PrinterSettingsScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Checkbox
+              Obx(() => CheckboxListTile(
+                title: Text(
+                  'Always Print',
+                  style: TextStyle(fontSize: 16),
+                ),
+                value: _controller.isAlwaysPrintEnabled.value,
+                onChanged: (value) {
+                  _controller.toggleDefaultPrintingSettings();
+                },
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              )),
+
+              Spacer(),
               Expanded(
                 child: Obx(() {
                   return ListView.builder(

@@ -40,6 +40,8 @@ import 'package:vimbika_pos_app/src/shared/models/payment_received_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
+import '../../../shared/models/settings_model.dart';
+
 
 class CartController extends GetxController {
   var cartItems = <CartItemModel>[].obs;
@@ -85,7 +87,9 @@ class CartController extends GetxController {
   final LocalStorageService _localStorageService = LocalStorageService();
    late  GetStorage box;
 
+  bool sellNilItems = false;
   RxBool isPrintEnabled = false.obs; // Observing the state of the checkbox
+  late SettingsModel settingsModel = SettingsModel(sellNilItems: false);
   RxBool isFiscaliseReceiptEnabled = true.obs;
   RxBool isCustomerEmailValid = false.obs;
   RxBool emailReceipt = false.obs;
@@ -112,6 +116,12 @@ class CartController extends GetxController {
     super.onInit();
    // isInternetAccess.value =  await _connectivityService.checkConnection();
      box = GetStorage();
+     var print = box.read(AppConstants.ALWAYS_PRINT) ?? false;
+     if(print){
+        isPrintEnabled.value = true;
+      } else{
+        isPrintEnabled.value = false;
+     }
     var model = box.read(AppConstants.USER_INFO) ?? {};
      user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
     isUserSelected.value = true;
@@ -120,6 +130,9 @@ class CartController extends GetxController {
     if(fiscalStatus){
       fiscalizeReceipt.value = true;
     }
+    var settings = box.read(AppConstants.COMPANY_SETTINGS) ?? {};
+    settingsModel = SettingsModel.fromMap(Map<String, dynamic>.from(settings));
+    sellNilItems= settingsModel.sellNilItems ?? false;
 
     var branchModel = box.read(AppConstants.SELECTED_BRANCH) ?? {};
     branch.value = BranchModel.fromMap(Map<String, dynamic>.from(branchModel));
@@ -246,17 +259,45 @@ class CartController extends GetxController {
 
   void addToCart(ProductFullInfoModel product, double quantity) {
     var index = cartItems.indexWhere((item) => item.product.id == product.id);
-    if(quantity==0.001){
-      quantity = 1.00;
+      if (index!=-1 && cartItems[index].quantity+1 > product.stock!.toDouble() && !sellNilItems) {
+        Get.snackbar("Check your Quantity", "Quantity can not be greater than stock available!!!",
+            snackPosition: SnackPosition.BOTTOM);
+    }else {
+      if (quantity == 0.001) {
+        quantity = 1.00;
+      }
+      if (index != -1) {
+        CartItemModel item = cartItems[index];
+        item.quantity = item.quantity + quantity;
+        // cartItems[index].quantity++;
+      } else {
+        cartItems.add(CartItemModel(product: product, quantity: quantity));
+      }
+      calculateTotalAmounts(cartItems);
     }
-    if (index != -1) {
-      CartItemModel item = cartItems[index];
-      item.quantity = item.quantity + quantity;
-     // cartItems[index].quantity++;
-    } else {
-      cartItems.add(CartItemModel(product: product, quantity: quantity));
+  }
+  void addToCartWithBarCode(ProductFullInfoModel product, double quantity,String usedCode) {
+    Set<String> itemCodes = {};
+    var index = cartItems.indexWhere((item) => item.product.id == product.id);
+      if (index!=-1 && cartItems[index].quantity+1 > product.stock!.toDouble() && !sellNilItems) {
+        Get.snackbar("Check your Quantity", "Quantity can not be greater than stock available!!!",
+            snackPosition: SnackPosition.BOTTOM);
+    }else {
+      if (quantity == 0.001) {
+        quantity = 1.00;
+      }
+      if (index != -1) {
+        CartItemModel item = cartItems[index];
+        item.quantity = item.quantity + quantity;
+        item.usedCodes.add(usedCode);
+        itemCodes = item.usedCodes;
+        // cartItems[index].quantity++;
+      } else {
+        itemCodes.add(usedCode);
+        cartItems.add(CartItemModel(product: product, quantity: quantity,usedCodes: itemCodes));
+      }
+      calculateTotalAmounts(cartItems);
     }
-    calculateTotalAmounts(cartItems);
   }
 
   void removeFromCart(CartItemModel cartItem) {
@@ -266,8 +307,15 @@ class CartController extends GetxController {
 
   void incrementQuantity(CartItemModel cartItem) {
     cartItem.quantity++;
-    calculateTotalAmounts(cartItems);
-    cartItems.refresh();
+    if (cartItem.quantity > cartItem.product.stock!.toDouble()  && !sellNilItems) {
+      Get.snackbar("Check your Quantity", "Quantity can not be greater than stock available!!!",
+          snackPosition: SnackPosition.BOTTOM);
+      cartItem.quantity = cartItem.product.stock!.toDouble();
+    // }
+    // else{
+      calculateTotalAmounts(cartItems);
+      cartItems.refresh();
+    }
   }
 
   void decrementQuantity(CartItemModel cartItem) {
@@ -441,14 +489,14 @@ class CartController extends GetxController {
       totalSaleQuantity = totalSaleQuantity + cartItem.quantity;
       productItem.quantity = cartItem.quantity;
       productItem.total = cartItem.totalPrice;
-      SaleItemModel saleItem = SaleItemModel(sellingPrice: productItem.sellingPrice, baseCurrencySellingPrice: productItem.sellingPrice, quantity:  cartItem.quantity, total: cartItem.totalPrice, baseCurrencyTotal: cartItem.totalPrice, taxAmount: cartItem.totalTaxAmount, baseTaxAmount: cartItem.totalTaxAmount, inventoryItem: productItem, branch: branch.value);
+      SaleItemModel saleItem = SaleItemModel(sellingPrice: productItem.sellingPrice, baseCurrencySellingPrice: productItem.sellingPrice, quantity:  cartItem.quantity, total: cartItem.totalPrice, baseCurrencyTotal: cartItem.totalPrice, taxAmount: cartItem.totalTaxAmount, baseTaxAmount: cartItem.totalTaxAmount, inventoryItem: productItem, branch: branch.value, usedCodes: cartItem.usedCodes);
       saleItem.id = productItem.id;
       if(saleItem.inventoryItem != null){
         if(saleItem.inventoryItem!.productImages != null){
           saleItem.inventoryItem!.productImages = [];
         }
-        if(saleItem.inventoryItem!.images != null){
-          saleItem.inventoryItem!.images = [];
+        if(saleItem.inventoryItem!.image != null){
+          saleItem.inventoryItem!.image = "";
         }
       }
 

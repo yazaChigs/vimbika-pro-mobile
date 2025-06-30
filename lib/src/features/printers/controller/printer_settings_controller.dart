@@ -24,6 +24,9 @@ class PrinterSettingsController extends GetxController {
   var selectedPrinter = Rx<PrinterDevice?>(null);
   final storage = GetStorage();
   var isSearching = false.obs;
+
+  RxBool isAlwaysPrintEnabled = false.obs;
+
   // PrinterManager _printerManager = PrinterManager.instance;
   var isConnected = false.obs; // Add this to track connection status
   RxList<AvailablePrinterModel> availablePrinters = <AvailablePrinterModel>[].obs;
@@ -40,10 +43,22 @@ class PrinterSettingsController extends GetxController {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     List<AvailablePrinterModel> tempList = loadAvailablePrinters(box);
     availablePrinters.value = tempList;
+    var print = box.read(AppConstants.ALWAYS_PRINT);
+    if(print){
+      isAlwaysPrintEnabled.value = true;
+    } else{
+      isAlwaysPrintEnabled.value = false;
+    }
 
     //WidgetsBinding.instance.addPostFrameCallback((_) => initBluetooth());
 
 
+  }
+
+
+  void toggleDefaultPrintingSettings() {
+    isAlwaysPrintEnabled.value = !isAlwaysPrintEnabled.value;
+    storage.write(AppConstants.ALWAYS_PRINT,isAlwaysPrintEnabled.value);
   }
 
   navigateToNetworkPrinter(PrinterType type)async{

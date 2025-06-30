@@ -224,7 +224,7 @@ class ReceiptScreen extends StatelessWidget {
                     return Card(
                       child: ListTile(
                         leading: Text(
-                          '${sale!.currency?.symbol ?? ''} ${sale.amountPaid!.toStringAsFixed(2).toString()}',
+                          '${sale!.currency?.symbol ?? ''} ${sale.amountAfterDiscount!.toStringAsFixed(2).toString()}',
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         title: Text(sale.timeIniated!),

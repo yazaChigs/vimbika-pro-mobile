@@ -211,7 +211,7 @@ class CheckoutScreen extends StatelessWidget {
                       }
 
                       if (enteredAmount <
-                          cartController.totalCostInSelectedCurrency.value) {
+                          double.parse(cartController.totalCostInSelectedCurrency.value.toStringAsFixed(2))) {
                         return 'Amount paid cannot be less than the total amount';
                       }
                       return null;
