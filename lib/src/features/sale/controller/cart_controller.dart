@@ -127,8 +127,20 @@ class CartController extends GetxController {
     isUserSelected.value = true;
 
     var fiscalStatus = box.read(AppConstants.IS_FISCALISATION_ENABLED) ?? false;
+    var deviceFiscalSetting = box.read(AppConstants.DEFAULT_FISCAL_SETTING) ?? false;
     if(fiscalStatus){
       fiscalizeReceipt.value = true;
+      if(deviceFiscalSetting) {
+        isFiscaliseReceiptEnabled.value = true;
+        zimraFiscalizeReceipt.value = true;
+      }else{
+        isFiscaliseReceiptEnabled.value = false;
+        zimraFiscalizeReceipt.value = false;
+      }
+    }
+    else {
+      fiscalizeReceipt.value = false;
+      isFiscaliseReceiptEnabled.value = false;
     }
     var settings = box.read(AppConstants.COMPANY_SETTINGS) ?? {};
     settingsModel = SettingsModel.fromMap(Map<String, dynamic>.from(settings));

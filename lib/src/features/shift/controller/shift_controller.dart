@@ -59,8 +59,6 @@ class ShiftController extends GetxController {
     // initCurrencies();
 
   }
-
-
   getSales() {
     // GetStorage box = GetStorage();
     List<SaleInfoModel> sales = getExistingOfflineSales(box);

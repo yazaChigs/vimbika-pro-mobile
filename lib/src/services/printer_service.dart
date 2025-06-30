@@ -933,11 +933,9 @@ class PrinterService extends GetxService {
      if (shift.shiftCurrencyAmounts != null && shift.shiftCurrencyAmounts!.isNotEmpty) {
        await SunmiPrinter.printText("\nTransactions:\n");
        for (var currencyAmount in shift.shiftCurrencyAmounts!) {
-         await SunmiPrinter.printText("Ref: ${currencyAmount.ref}");
+         await SunmiPrinter.printText("Type: ${currencyAmount.amountType ?? ''}\t\t\t\tRef: ${currencyAmount.ref}");
          await SunmiPrinter.printText("Time: ${currencyAmount.timeCreated}");
-         await SunmiPrinter.printText("Currency: ${currencyAmount.currency.name}");
-         await SunmiPrinter.printText("Amount: ${currencyAmount.amount.toString()}");
-         await SunmiPrinter.printText("Type: ${currencyAmount.amountType ?? ''}");
+         await SunmiPrinter.printText("Amount: ${currencyAmount.currency.name} ${currencyAmount.amount.toString()}");
          await SunmiPrinter.printText("--------------------------------");
        }
      } else {
@@ -948,7 +946,7 @@ class PrinterService extends GetxService {
      if (totalAmountsByCurrency.isNotEmpty) {
        await SunmiPrinter.printText("\nAmounts by Currency:\n");
        for (var total in totalAmountsByCurrency) {
-         await SunmiPrinter.printText(" ${total['currencyName']}\t\t${total['totalAmount']}");
+         await SunmiPrinter.printText(" ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
        }
        await SunmiPrinter.printText("--------------------------------");
      }
@@ -957,8 +955,7 @@ class PrinterService extends GetxService {
      if (totalAmountsByPaymentType.isNotEmpty) {
        await SunmiPrinter.printText("\nAmounts by Payment Method:\n");
        for (var total in totalAmountsByPaymentType) {
-         await SunmiPrinter.printText(" ${total['paymentTypeName']}\t\t${total['currencySymbol']}${total['totalAmount']}");
-         await SunmiPrinter.printText("Amount: ${total['totalAmount']}");
+         await SunmiPrinter.printText(" ${total['paymentTypeName']}:\t\t\t\t${total['currencySymbol']}${total['totalAmount']}");
        }
        await SunmiPrinter.printText("--------------------------------");
      }
