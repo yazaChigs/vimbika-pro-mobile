@@ -179,7 +179,13 @@ class ViewShiftScreen extends StatelessWidget {
                     );
                   },
                 ),
-                SizedBox(height: 16),
+                Divider(
+                  height: 10,
+                  color: Colors.green,
+                  thickness: 1,
+                  indent : 10,
+                  endIndent : 10,
+                ),
                 Text(
                   'TOTAL AMOUNTS BY CURRENCY',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -192,18 +198,65 @@ class ViewShiftScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final total = shiftController.totalAmountsByCurrency[index];
                     return ListTile(
+                      tileColor: Colors.orangeAccent[100],
                       title: Text(
                         total['currencyName'],
-                        style: TextStyle(fontSize: 18),
+                        style: TextStyle(fontSize: 12),
                       ),
                       trailing: Text(
                         '${total['totalAmount'].toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: Colors.grey, width: 0.5),
+                        borderRadius: BorderRadius.circular(5),
                       ),
                     );
                   },
                 ),
-                SizedBox(height: 20), // Space between sections
+                Divider(
+                  height: 10,
+                  color: Colors.green,
+                  thickness: 1,
+                  indent : 10,
+                  endIndent : 10,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'TOTAL AMOUNTS BY PAYMENT METHOD',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(), // Disable scrolling of ListView.builder
+                  itemCount: shiftController.totalAmountsByPaymentType.length,
+                  itemBuilder: (context, index) {
+                    final total = shiftController.totalAmountsByPaymentType[index];
+                    return ListTile(
+                      tileColor: Colors.blue[100],
+                      title: Text(
+                        total['paymentTypeName'],
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      trailing: Text(
+                        '${total['currencySymbol']}' '${total['totalAmount'].toStringAsFixed(2)}',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: Colors.grey, width: 0.5),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 10,
+                  color: Colors.green,
+                  thickness: 1,
+                  indent : 10,
+                  endIndent : 10,
+                ),
                 Text(
                   'TOTAL CASH SUBMITTED',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -216,13 +269,18 @@ class ViewShiftScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final submitted = shiftController.totalCashSubmittedList[index];
                     return ListTile(
+                      tileColor: Colors.lightGreenAccent[100],
                       title: Text(
                         submitted['currencyName'],
-                        style: TextStyle(fontSize: 18),
+                        style: TextStyle(fontSize: 12),
                       ),
                       trailing: Text(
                         '${submitted['totalAmount'].toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: Colors.grey, width: 0.5),
+                        borderRadius: BorderRadius.circular(5),
                       ),
                     );
                   },

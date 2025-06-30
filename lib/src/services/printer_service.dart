@@ -913,7 +913,7 @@ class PrinterService extends GetxService {
 
 
   // Print Shift Details
-   Future<void> printShiftDetails(ShiftModel shift, List<Map<String, dynamic>> totalAmountsByCurrency) async {
+   Future<void> printShiftDetails(ShiftModel shift, List<Map<String, dynamic>> totalAmountsByCurrency, List<Map<String, dynamic>> totalAmountsByPaymentType) async {
      await SunmiPrinter.initPrinter();
      await SunmiPrinter.startTransactionPrint(true);
 
@@ -925,20 +925,20 @@ class PrinterService extends GetxService {
 
      // Shift Details
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
-     await SunmiPrinter.printText("User: ${shift.userFullName ?? ''}\n");
-     await SunmiPrinter.printText("OT: ${shift.openingTime ?? ''}\n");
-     await SunmiPrinter.printText("CT: ${shift.closingTime ?? ''}\n");
+     await SunmiPrinter.printText("User: ${shift.userFullName ?? ''}");
+     await SunmiPrinter.printText("OT: ${shift.openingTime ?? ''}");
+     await SunmiPrinter.printText("CT: ${shift.closingTime ?? ''}");
 
      // Transactions
      if (shift.shiftCurrencyAmounts != null && shift.shiftCurrencyAmounts!.isNotEmpty) {
        await SunmiPrinter.printText("\nTransactions:\n");
        for (var currencyAmount in shift.shiftCurrencyAmounts!) {
-         await SunmiPrinter.printText("Ref: ${currencyAmount.ref}\n");
-         await SunmiPrinter.printText("Time: ${currencyAmount.timeCreated}\n");
-         await SunmiPrinter.printText("Currency: ${currencyAmount.currency.name}\n");
-         await SunmiPrinter.printText("Amount: ${currencyAmount.amount.toString()}\n");
-         await SunmiPrinter.printText("Type: ${currencyAmount.amountType ?? ''}\n");
-         await SunmiPrinter.printText("--------------------------------\n");
+         await SunmiPrinter.printText("Ref: ${currencyAmount.ref}");
+         await SunmiPrinter.printText("Time: ${currencyAmount.timeCreated}");
+         await SunmiPrinter.printText("Currency: ${currencyAmount.currency.name}");
+         await SunmiPrinter.printText("Amount: ${currencyAmount.amount.toString()}");
+         await SunmiPrinter.printText("Type: ${currencyAmount.amountType ?? ''}");
+         await SunmiPrinter.printText("--------------------------------");
        }
      } else {
        await SunmiPrinter.printText("No transactions available.\n");
@@ -948,17 +948,26 @@ class PrinterService extends GetxService {
      if (totalAmountsByCurrency.isNotEmpty) {
        await SunmiPrinter.printText("\nAmounts by Currency:\n");
        for (var total in totalAmountsByCurrency) {
-         await SunmiPrinter.printText("Currency: ${total['currencyName']}\n");
-         await SunmiPrinter.printText("Amount: ${total['totalAmount']}\n");
-         await SunmiPrinter.printText("--------------------------------\n");
+         await SunmiPrinter.printText(" ${total['currencyName']}\t\t${total['totalAmount']}");
        }
+       await SunmiPrinter.printText("--------------------------------");
+     }
+
+     // Amounts by PaymentType
+     if (totalAmountsByPaymentType.isNotEmpty) {
+       await SunmiPrinter.printText("\nAmounts by Payment Method:\n");
+       for (var total in totalAmountsByCurrency) {
+         await SunmiPrinter.printText(" ${total['paymentTypeName']}\t\t${total['currencySymbol']}${total['totalAmount']}");
+         await SunmiPrinter.printText("Amount: ${total['totalAmount']}");
+       }
+       await SunmiPrinter.printText("--------------------------------");
      }
 
 
 
      // Footer
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-     await SunmiPrinter.printText("*** Thank you! ***\n");
+     await SunmiPrinter.printText("*** Thank you! ***");
 
      await SunmiPrinter.submitTransactionPrint();
      await SunmiPrinter.exitTransactionPrint(true);

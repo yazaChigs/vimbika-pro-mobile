@@ -18,11 +18,14 @@ import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 
+import '../../sale/model/sale_infor_model.dart';
+
 class ShiftController extends GetxController {
   late UserModel user = UserModel(id: null, firstName: "", lastName: "", userName: "");
   Rx<CurrencyModel?> selectedCurrency = CurrencyModel().obs;
   Rx<CurrencyModel?> baseCurrency = CurrencyModel().obs;
   RxList<CurrencyModel> currencyList = <CurrencyModel>[].obs;
+  RxList<SaleInfoModel> allReceipts = <SaleInfoModel>[].obs;
 
   List<ShiftModel>  shifts = [];
   var currencyAmountList = <CurrencyAmount>[].obs;
@@ -37,6 +40,7 @@ class ShiftController extends GetxController {
   // This will store the total amounts grouped by currency
   // final List<Map<String, dynamic>> totalAmountsByCurrency = [];
   var totalAmountsByCurrency = <Map<String, dynamic>>[].obs;
+  var totalAmountsByPaymentType = <Map<String, dynamic>>[].obs;
   var totalCashSubmittedList = <Map<String, dynamic>>[].obs;
   @override
   Future<void> onInit() async {
@@ -51,8 +55,31 @@ class ShiftController extends GetxController {
     selectedCurrency.value = baseCurrency.value;
     isCurrencySelected.value = true;
     shiftInfo();
+    getSales();
     // initCurrencies();
 
+  }
+
+
+  getSales() {
+    // GetStorage box = GetStorage();
+    List<SaleInfoModel> sales = getExistingOfflineSales(box);
+    List<SaleInfoModel> actualSales = [];
+    for(SaleInfoModel s in sales){
+      if(s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING"){
+        actualSales.add(s);
+      }
+    }
+    allReceipts.value = actualSales;
+    calculateTotalAmountsByPaymentType();
+  }
+
+  List<SaleInfoModel> getExistingOfflineSales(GetStorage box) {
+    List<SaleInfoModel> sales = _localStorageService.getOfflineList<SaleInfoModel>(
+        AppConstants.SALE_LIST,
+            (map) => SaleInfoModel.fromMap(map),
+        box);
+    return sales;
   }
 
   initCurrencies(){
@@ -218,6 +245,31 @@ class ShiftController extends GetxController {
     });
   }
 
+  void calculateTotalAmountsByPaymentType() {
+    Map<String, double> totals = {};
+
+    for (var sale in allReceipts) {
+      final paymentTypeId = sale.sale?.paymentType?.id;
+
+      if (sale.sale?.saleStatus == 'COMPLETE' || sale.sale?.saleStatus == 'PENDING') {
+        totals[paymentTypeId!] = (totals[paymentTypeId] ?? 0.0) + (sale.sale!.amountAfterDiscount ?? 0.0);
+      } 
+    }
+
+    totalAmountsByPaymentType.clear();
+
+    totals.forEach((paymentTypeId, total) {
+      final sale = allReceipts
+          .firstWhere((sale) => sale.sale?.paymentType?.id == paymentTypeId)
+          .sale;
+      totalAmountsByPaymentType.add({
+        "paymentTypeName": sale?.paymentType?.name ?? 'Unknown',
+        "currencySymbol": sale?.currency?.symbol,
+        "totalAmount": total,
+      });
+    });
+  }
+
 
 
 
@@ -260,7 +312,7 @@ class ShiftController extends GetxController {
     AvailablePrinterModel? ap = _localStorageService.findActivePrinter(box);
     if(ap != null) {
       if(ap.type == 'SUNMI_INBUILT_PRINTER') {
-        await printerService.printShiftDetails(shift, totalAmountsByCurrency);
+        await printerService.printShiftDetails(shift, totalAmountsByCurrency,totalAmountsByPaymentType);
       }
       if(ap.type == "bluetooth") {
         await printerService.printShiftDetailsBluetooth(shift, ap, totalAmountsByCurrency);
