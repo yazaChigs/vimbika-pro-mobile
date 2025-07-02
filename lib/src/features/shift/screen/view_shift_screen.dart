@@ -179,51 +179,8 @@ class ViewShiftScreen extends StatelessWidget {
                     );
                   },
                 ),
-                Divider(
-                  height: 10,
-                  color: Colors.green,
-                  thickness: 1,
-                  indent : 10,
-                  endIndent : 10,
-                ),
                 Text(
-                  'TOTAL AMOUNTS BY CURRENCY',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(), // Disable scrolling of ListView.builder
-                  itemCount: shiftController.totalAmountsByCurrency.length,
-                  itemBuilder: (context, index) {
-                    final total = shiftController.totalAmountsByCurrency[index];
-                    return ListTile(
-                      tileColor: Colors.orangeAccent[100],
-                      title: Text(
-                        total['currencyName'],
-                        style: TextStyle(fontSize: 12),
-                      ),
-                      trailing: Text(
-                        '${total['totalAmount'].toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        side: BorderSide(color: Colors.grey, width: 0.5),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                    );
-                  },
-                ),
-                Divider(
-                  height: 10,
-                  color: Colors.green,
-                  thickness: 1,
-                  indent : 10,
-                  endIndent : 10,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'TOTAL AMOUNTS BY PAYMENT METHOD',
+                  'TOTAL SALES BY PAYMENT METHOD',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
@@ -241,6 +198,74 @@ class ViewShiftScreen extends StatelessWidget {
                       ),
                       trailing: Text(
                         '${total['currencySymbol']}' '${total['totalAmount'].toStringAsFixed(2)}',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: Colors.grey, width: 0.5),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 10,
+                  color: Colors.green,
+                  thickness: 1,
+                  indent : 10,
+                  endIndent : 10,
+                ),
+                Text(
+                  'TOTAL CASH IN',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(), // Disable scrolling of ListView.builder
+                  itemCount: shiftController.totalCashIn.length,
+                  itemBuilder: (context, index) {
+                    final total = shiftController.totalCashIn[index];
+                    return ListTile(
+                      tileColor: Colors.yellow[100],
+                      title: Text(
+                        total['currencyName'],
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      trailing: Text( '${total['totalAmount'].toStringAsFixed(2)}',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: Colors.grey, width: 0.5),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 10,
+                  color: Colors.green,
+                  thickness: 1,
+                  indent : 10,
+                  endIndent : 10,
+                ),
+                Text(
+                  'TOTAL CASH OUT',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(), // Disable scrolling of ListView.builder
+                  itemCount: shiftController.totalCashOut.length,
+                  itemBuilder: (context, index) {
+                    final total = shiftController.totalCashOut[index];
+                    return ListTile(
+                      tileColor: Colors.pinkAccent[100],
+                      title: Text(
+                        total['currencyName'],
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      trailing: Text( '${total['totalAmount'].toStringAsFixed(2)}',
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                       shape: RoundedRectangleBorder(
@@ -284,6 +309,41 @@ class ViewShiftScreen extends StatelessWidget {
                       ),
                     );
                   },
+                ),
+                Text(
+                  'TOTAL AMOUNTS BY CURRENCY',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(), // Disable scrolling of ListView.builder
+                  itemCount: shiftController.totalAmountsByCurrency.length,
+                  itemBuilder: (context, index) {
+                    final total = shiftController.totalAmountsByCurrency[index];
+                    return ListTile(
+                      tileColor: Colors.orangeAccent[100],
+                      title: Text(
+                        total['currencyName'],
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      trailing: Text(
+                        '${total['totalAmount'].toStringAsFixed(2)}',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: Colors.grey, width: 0.5),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 10,
+                  color: Colors.green,
+                  thickness: 1,
+                  indent : 10,
+                  endIndent : 10,
                 ),
               ],
             ),

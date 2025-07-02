@@ -5,7 +5,7 @@ import 'package:vimbika_pos_app/src/features/authentication/screen/pin_screen.da
 
 class InactivityController extends GetxController {
   Timer? _inactivityTimer;
-  static const _inactivityDuration = Duration(minutes: 10);
+  static const _inactivityDuration = Duration(hours: 10);
 
   @override
   void onInit() {

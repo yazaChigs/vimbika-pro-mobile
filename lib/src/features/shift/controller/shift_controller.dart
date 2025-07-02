@@ -18,12 +18,14 @@ import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 
+import '../../../services/connectivity_service.dart';
 import '../../sale/model/sale_infor_model.dart';
 
 class ShiftController extends GetxController {
   late UserModel user = UserModel(id: null, firstName: "", lastName: "", userName: "");
   Rx<CurrencyModel?> selectedCurrency = CurrencyModel().obs;
   Rx<CurrencyModel?> baseCurrency = CurrencyModel().obs;
+  final ConnectivityService _connectivityService = ConnectivityService();
   RxList<CurrencyModel> currencyList = <CurrencyModel>[].obs;
   RxList<SaleInfoModel> allReceipts = <SaleInfoModel>[].obs;
 
@@ -41,6 +43,8 @@ class ShiftController extends GetxController {
   // final List<Map<String, dynamic>> totalAmountsByCurrency = [];
   var totalAmountsByCurrency = <Map<String, dynamic>>[].obs;
   var totalAmountsByPaymentType = <Map<String, dynamic>>[].obs;
+  var totalCashIn = <Map<String, dynamic>>[].obs;
+  var totalCashOut = <Map<String, dynamic>>[].obs;
   var totalCashSubmittedList = <Map<String, dynamic>>[].obs;
   @override
   Future<void> onInit() async {
@@ -146,7 +150,7 @@ class ShiftController extends GetxController {
     currencyAmountList[index].amount = amount;
   }
 
-  void openShift(){
+  Future<void> openShift() async {
     String fullName = "${user.firstName} ${user.lastName}";
     DateTime now = DateTime.now();
     int shiftCount = shifts.length + 1;
@@ -163,46 +167,21 @@ class ShiftController extends GetxController {
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, shifts, box);
     print("saved shift");
     log(shiftModel.toJson());
+    print("syncing shifts..");
+    bool stat = await _connectivityService.checkServerConnection();
+    if(stat) {
+      await SyncService.syncOfflineShifts(user, box);
+    }
     calculateTotalAmountsByCurrency();
     Get.offNamed(AppRoutes.VIEW_SHIFT);
+
+
   }
-  // void calculateTotalAmountsByCurrency() {
-  //   Map<String, double> totals = {};
-  //
-  //   for (var currencyAmount in activeShift.value.shiftCurrencyAmounts!) {
-  //     final currencyId = currencyAmount.currency.id;
-  //
-  //     if (totals.containsKey(currencyId)) {
-  //       if (currencyAmount.amountType == 'CASH_IN' ||
-  //           currencyAmount.amountType == 'OPENING_AMOUNT' ||
-  //           currencyAmount.amountType == 'SALE') {
-  //         totals[currencyId!] = totals[currencyId]! + currencyAmount.amount;
-  //       } else if (currencyAmount.amountType == 'CASH_OUT') {
-  //         totals[currencyId!] = totals[currencyId]! - currencyAmount.amount;
-  //       }
-  //     } else {
-  //       totals[currencyId!] = currencyAmount.amountType == 'CASH_IN' ||
-  //           currencyAmount.amountType == 'OPENING_AMOUNT' ||
-  //           currencyAmount.amountType == 'SALE'
-  //           ? currencyAmount.amount
-  //           : -currencyAmount.amount; // Handle initial value based on amountType
-  //     }
-  //   }
-  //
-  //   totalAmountsByCurrency.clear(); // Clear previous data
-  //   totals.forEach((currencyId, total) {
-  //     final currency = activeShift.value.shiftCurrencyAmounts!
-  //         .firstWhere((amount) => amount.currency.id == currencyId)
-  //         .currency;
-  //     totalAmountsByCurrency.add({
-  //       "currencyName": currency.symbol,
-  //       "totalAmount": total,
-  //     });
-  //   });
-  // }
 
   void calculateTotalAmountsByCurrency() {
     Map<String, double> totals = {};
+    Map<String, double> cashIns = {};
+    Map<String, double> cashOuts = {};
     Map<String, double> totalCashSubmitted = {};
 
     for (var currencyAmount in activeShift.value.shiftCurrencyAmounts!) {
@@ -214,13 +193,29 @@ class ShiftController extends GetxController {
         totals[currencyId!] = (totals[currencyId] ?? 0.0) + currencyAmount.amount;
       } else if (currencyAmount.amountType == 'CASH_OUT') {
         totals[currencyId!] = (totals[currencyId] ?? 0.0) - currencyAmount.amount;
+        cashOuts[currencyId] = (cashOuts[currencyId] ?? 0.0) + currencyAmount.amount;
       } else if (currencyAmount.amountType == 'CASH_SUBMIT') {
         totalCashSubmitted[currencyId!] = (totalCashSubmitted[currencyId] ?? 0.0) + currencyAmount.amount;
+      }
+      if (currencyAmount.amountType == 'CASH_IN') {
+        cashIns[currencyId!] = (cashIns[currencyId] ?? 0.0) + currencyAmount.amount;
       }
     }
 
     totalAmountsByCurrency.clear();
+    totalCashIn.clear();
+    totalCashOut.clear();
     totalCashSubmittedList.clear(); // Clear previous cash submitted data
+
+    totalCashSubmitted.forEach((currencyId, total) {
+      final currency = activeShift.value.shiftCurrencyAmounts!
+          .firstWhere((amount) => amount.currency.id == currencyId)
+          .currency;
+      totalCashSubmittedList.add({
+        "currencyName": currency.symbol,
+        "totalAmount": total,
+      });
+    });
 
     totals.forEach((currencyId, total) {
       final currency = activeShift.value.shiftCurrencyAmounts!
@@ -228,15 +223,23 @@ class ShiftController extends GetxController {
           .currency;
       totalAmountsByCurrency.add({
         "currencyName": currency.symbol,
-        "totalAmount": total,
+        "totalAmount": total-(totalCashSubmitted[currencyId] ?? 0.0),
       });
     });
-
-    totalCashSubmitted.forEach((currencyId, total) {
+    cashIns.forEach((currencyId, total) {
       final currency = activeShift.value.shiftCurrencyAmounts!
           .firstWhere((amount) => amount.currency.id == currencyId)
           .currency;
-      totalCashSubmittedList.add({
+      totalCashIn.add({
+        "currencyName": currency.symbol,
+        "totalAmount": total,
+      });
+    });
+    cashOuts.forEach((currencyId, total) {
+      final currency = activeShift.value.shiftCurrencyAmounts!
+          .firstWhere((amount) => amount.currency.id == currencyId)
+          .currency;
+      totalCashOut.add({
         "currencyName": currency.symbol,
         "totalAmount": total,
       });
@@ -251,7 +254,7 @@ class ShiftController extends GetxController {
 
       if (sale.sale?.saleStatus == 'COMPLETE' || sale.sale?.saleStatus == 'PENDING') {
         totals[paymentTypeId!] = (totals[paymentTypeId] ?? 0.0) + (sale.sale!.amountAfterDiscount ?? 0.0);
-      } 
+      }
     }
 
     totalAmountsByPaymentType.clear();
@@ -310,7 +313,7 @@ class ShiftController extends GetxController {
     AvailablePrinterModel? ap = _localStorageService.findActivePrinter(box);
     if(ap != null) {
       if(ap.type == 'SUNMI_INBUILT_PRINTER') {
-        await printerService.printShiftDetails(shift, totalAmountsByCurrency,totalAmountsByPaymentType);
+        await printerService.printShiftDetails(shift, totalAmountsByCurrency,totalAmountsByPaymentType,totalCashIn, totalCashOut, totalCashSubmittedList);
       }
       if(ap.type == "bluetooth") {
         await printerService.printShiftDetailsBluetooth(shift, ap, totalAmountsByCurrency);

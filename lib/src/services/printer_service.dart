@@ -913,7 +913,7 @@ class PrinterService extends GetxService {
 
 
   // Print Shift Details
-   Future<void> printShiftDetails(ShiftModel shift, List<Map<String, dynamic>> totalAmountsByCurrency, List<Map<String, dynamic>> totalAmountsByPaymentType) async {
+   Future<void> printShiftDetails(ShiftModel shift, List<Map<String, dynamic>> totalAmountsByCurrency, List<Map<String, dynamic>> totalAmountsByPaymentType, List<Map<String, dynamic>> totalCashIn, List<Map<String, dynamic>> totalCashOut, List<Map<String, dynamic>> totalSubmitted) async {
      await SunmiPrinter.initPrinter();
      await SunmiPrinter.startTransactionPrint(true);
 
@@ -941,16 +941,6 @@ class PrinterService extends GetxService {
      } else {
        await SunmiPrinter.printText("No transactions available.\n");
      }
-
-     // Amounts by Currency
-     if (totalAmountsByCurrency.isNotEmpty) {
-       await SunmiPrinter.printText("\nAmounts by Currency:\n");
-       for (var total in totalAmountsByCurrency) {
-         await SunmiPrinter.printText(" ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
-       }
-       await SunmiPrinter.printText("--------------------------------");
-     }
-
      // Amounts by PaymentType
      if (totalAmountsByPaymentType.isNotEmpty) {
        await SunmiPrinter.printText("\nAmounts by Payment Method:\n");
@@ -960,7 +950,44 @@ class PrinterService extends GetxService {
        await SunmiPrinter.printText("--------------------------------");
      }
 
+      // Cash In
+      if (totalCashIn.isNotEmpty) {
+        await SunmiPrinter.printText("\nCash In:\n");
+        for (var total in totalCashIn) {
+          await SunmiPrinter.printText(
+              " ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
+        }
+        await SunmiPrinter.printText("--------------------------------");
+      }
 
+      // Cash Out
+      if (totalCashOut.isNotEmpty) {
+        await SunmiPrinter.printText("\nCash Out:\n");
+        for (var total in totalCashOut) {
+          await SunmiPrinter.printText(
+              " ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
+        }
+        await SunmiPrinter.printText("--------------------------------");
+      }
+
+      // Total Submitted
+      if (totalSubmitted.isNotEmpty) {
+        await SunmiPrinter.printText("\nTotal Submitted:\n");
+        for (var total in totalSubmitted) {
+          await SunmiPrinter.printText(
+              " ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
+        }
+        await SunmiPrinter.printText("--------------------------------");
+      }
+
+     // Amounts by Currency
+     if (totalAmountsByCurrency.isNotEmpty) {
+       await SunmiPrinter.printText("\nAmounts by Currency:\n");
+       for (var total in totalAmountsByCurrency) {
+         await SunmiPrinter.printText(" ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
+       }
+       await SunmiPrinter.printText("--------------------------------");
+     }
 
      // Footer
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);

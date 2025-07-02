@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:ffi';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:intl/intl.dart';
@@ -11,6 +12,7 @@ import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_item_response_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_response_model.dart';
+import 'package:vimbika_pos_app/src/features/shift/model/shift_currency_response_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_item_response_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_response_model.dart';
@@ -27,6 +29,8 @@ import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
+
+import '../features/shift/model/currency_amount.dart';
 
 
 class SyncService {
@@ -345,19 +349,61 @@ class SyncService {
   static  syncOfflineShifts(UserModel user,  GetStorage box) async {
     List<ShiftModel> shiftInfo = loadShiftInfo(box);
     List<ShiftModel> itemsToBeSynced = [];
+    List<CurrencyAmount> currencyItemsToBeSynced = [];
     List<ShiftModel> upToDateItems = [];
     List<ShiftModel> updateItems = [];
+    List<CurrencyAmount> updateCurrencyItems = [];
     print("Syncing shifts " + shiftInfo.length.toString());
 
     for (ShiftModel sh in shiftInfo) {
       if (!sh.stopSync!) {
         itemsToBeSynced.add(sh);
+        if (sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty) {
+          for (CurrencyAmount ca in sh.shiftCurrencyAmounts!) {
+            ca.active=true;
+              currencyItemsToBeSynced.add(ca);
+          }
+        }
       } else {
         upToDateItems.add(sh);
       }
     }
-    String jsonShiftItems = json.encode(
+    String jsonShiftCurrencyItems = json.encode(
+        currencyItemsToBeSynced.map((shift) => shift.toMap()).toList());
+    var shiftCurrencyResponse = await BaseHttpClient()
+        .postAuthWithCompanyHeader(
+        "/mobile/pos/shift/save-currency-amounts", jsonShiftCurrencyItems, user.companyId!, "POST")
+        .catchError((onError) {
+      print(onError);
+      AppHelper.hideLoading();
+      if (onError is BadRequestException) {
+        var apiError = json.decode(onError.message!);
+        AppHelper.showErroDialog(description: apiError["reason"]);
+      } else {
+        AppHelper.handleError(onError);
+      }
+    });
+    if (shiftCurrencyResponse != null) {
+      ShiftCurrencyResponseModel saleResponseModel = ShiftCurrencyResponseModel.fromJson(shiftCurrencyResponse);
+      updateCurrencyItems.addAll(saleResponseModel.items ?? []);
+    }
+
+    for (ShiftModel sh in itemsToBeSynced) {
+      if (sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty) {
+        for (CurrencyAmount ca in updateCurrencyItems) {
+          if(ca.shiftReference == sh.shiftReference){
+            sh.shiftCurrencyAmounts?.remove(sh.shiftCurrencyAmounts?.firstWhere((element) => element.ref==ca.ref));
+            sh.shiftCurrencyAmounts?.add(ca);
+          }
+        }
+      }
+    }
+    debugPrint("Currency items to be synced " + itemsToBeSynced.toString());
+
+      String jsonShiftItems = json.encode(
         itemsToBeSynced.map((shift) => shift.toMap()).toList());
+      debugPrint("Shift items to be synced " + jsonShiftItems);
+    debugPrint("Syncing shifts " + jsonShiftItems);
     var response = await BaseHttpClient()
         .postAuthWithCompanyHeader(
         "/mobile/pos/shift/save", jsonShiftItems, user.companyId!, "POST")
