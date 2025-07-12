@@ -76,6 +76,7 @@ class ReceiptController extends GetxController {
     sortSalesByDate();
     allReceipts.refresh();
     filteredReceipts.refresh();
+    print("All Receipts: ${allReceipts.length}");
   }
 
   refreshFilter(){
@@ -87,7 +88,7 @@ class ReceiptController extends GetxController {
     endDateController.text = "";
     // allReceipts.value = [];
     // filteredReceipts.value = [];
-
+     getSalesByDate(startDate.value, endDate.value, "", branch.value!.id!);
   }
 
 
@@ -101,7 +102,7 @@ class ReceiptController extends GetxController {
     bool stat = await _connectivityService.checkServerConnection();
     if(stat) {
       AppHelper.showLoading("Loading...");
-
+      getSales();
       List<SaleInfoModel> items = allReceipts;
       List<SaleInfoModel> actualItems = [];
       for (SaleInfoModel s in items) {
@@ -135,9 +136,10 @@ class ReceiptController extends GetxController {
           sortSalesByDate();
           allReceipts.refresh();
           filteredReceipts.refresh();
-          // List<Map<String, dynamic>> itemsListMap = actualItems.map((item) =>
-          //     item.toMap()).toList();
-          // box.write(AppConstants.SALE_LIST, itemsListMap);
+          List<Map<String, dynamic>> itemsListMap = actualItems.map((item) =>
+              item.toMap()).toList();
+
+          box.write(AppConstants.SALE_LIST, itemsListMap);
         } else {
           getSales();
         }
@@ -194,7 +196,7 @@ class ReceiptController extends GetxController {
 
     for (var saleInfo in filteredReceipts) {
       String? currencySymbol = saleInfo.sale?.currency?.symbol ?? '';
-      double amountPaid = saleInfo.sale?.amountPaid ?? 0;
+      double amountPaid = saleInfo.sale?.baseSaleAmount ?? 0;
 
       if (totals.containsKey(currencySymbol)) {
         totals[currencySymbol] = totals[currencySymbol]! + amountPaid;

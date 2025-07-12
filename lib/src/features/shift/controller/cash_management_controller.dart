@@ -93,6 +93,7 @@ class CashManagementController extends GetxController {
     activeShift.shiftCurrencyAmounts!.add(currencyAmount);
     List<ShiftModel> updatedShifts = _localStorageService.replaceShift(activeShift, shiftList);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, updatedShifts, box);
+    print("Updated Shift: ${activeShift.toJson()}");
 
     Get.delete<CashManagementController>();
     Get.put(ShiftController());

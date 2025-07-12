@@ -23,7 +23,7 @@ class SaleItemModel {
     required this.baseTaxAmount,
     required this.inventoryItem,
     required this.branch,
-    this.usedCodes,
+    this.usedCodesString,
   });
 
   String? id;
@@ -31,7 +31,7 @@ class SaleItemModel {
   double? baseCurrencySellingPrice;
   double? quantity;
   double? total;
-  Set<String>? usedCodes;
+  Set<String>? usedCodesString;
   double? baseCurrencyTotal;
   double? taxAmount;
   double? baseTaxAmount;
@@ -51,7 +51,7 @@ class SaleItemModel {
 
     baseCurrencyTotal: json["baseCurrencyTotal"],
     taxAmount: json["taxAmount"],
-    usedCodes: json["usedCodes"] != null
+    usedCodesString: json["usedCodes"] != null
         ? Set<String>.from(json["usedCodes"].map((x) => x.toString()))
         : {},
     baseTaxAmount: json["baseTaxAmount"],
@@ -72,6 +72,6 @@ class SaleItemModel {
     "baseTaxAmount": baseTaxAmount,
     "inventoryItem": inventoryItem!.toMap(),
     "branch": branch != null?  branch!.toMap() : null,
-    "usedCodes": usedCodes != null ? List<dynamic>.from(usedCodes!.map((x) => x)) : [],
+    "usedCodes": usedCodesString != null ? List<dynamic>.from(usedCodesString!.map((x) => x)) : [],
   };
 }

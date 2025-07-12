@@ -16,6 +16,7 @@ import 'package:vimbika_pos_app/src/features/shift/model/shift_currency_response
 import 'package:vimbika_pos_app/src/features/shift/model/shift_item_response_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_response_model.dart';
+import 'package:vimbika_pos_app/src/features/stock_requests/model/customer_response_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_response_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_history_model.dart';
@@ -31,6 +32,7 @@ import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
 import '../features/shift/model/currency_amount.dart';
+import '../shared/models/customer_model.dart';
 
 
 class SyncService {
@@ -179,6 +181,52 @@ class SyncService {
       //failed to save sale
       return null;
     }
+  }
+
+  static Future<CustomerModel?> saveCustomer( UserModel user, GetStorage box) async{
+    final LocalStorageService _localStorageService = LocalStorageService();
+    List<CustomerModel> customers = _localStorageService.getOfflineList<CustomerModel>(
+        AppConstants.CUSTOMER_LIST,
+            (map) => CustomerModel.fromMap(map),
+        box);
+    customers = customers.where((customer) => customer.id == null).toList();
+    print(customers.length);
+    for(CustomerModel customerModel in customers) {
+      String jsonSaleItems = customerModel.toJson();
+      var response = await BaseHttpClient()
+          .postAuthWithCompanyHeader("/customer/save",
+              jsonSaleItems, user.companyId!, "POST")
+          .catchError((onError) {
+        //AppHelper.hideLoading();
+        if (onError is BadRequestException) {
+          var apiError = json.decode(onError.message!);
+          print(apiError);
+          AppHelper.showErroDialog(description: apiError["reason"]);
+        } else if (onError is UnAuthorizedException) {
+          AppHelper.showErroDialog(
+              title: "Error", description: "Unauthorized access");
+        } else {
+          print(onError);
+          AppHelper.handleError(onError);
+        }
+      });
+      // AppHelper.hideLoading();
+      if (response != null) {
+        CustomerResponseModel responseModel =
+        CustomerResponseModel.fromJson(response);
+        var index = customers.indexWhere((customer)=>customer.name==responseModel.item?.name);
+        if(index!= -1)
+        customers[index] = responseModel.item!;
+        // return responseModel.item;
+      } else {
+        //failed to save sale
+        return null;
+      }
+    }
+    List<Map<String, dynamic>> itemsListMap = customers.map((item) =>
+        item.toMap()).toList();
+    box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
+    return null;
   }
   static Future<List<SaleInfoModel>?>  syncTickets(UserModel user, GetStorage box, String companyId, String branchId) async{
     LocalStorageService _localStorageService = LocalStorageService();
@@ -356,10 +404,12 @@ class SyncService {
     print("Syncing shifts " + shiftInfo.length.toString());
 
     for (ShiftModel sh in shiftInfo) {
-      if (!sh.stopSync!) {
+      print(sh.toJson());
+      if (!sh.stopSync! && !sh.isShiftClosed!) {
         itemsToBeSynced.add(sh);
         if (sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty) {
           for (CurrencyAmount ca in sh.shiftCurrencyAmounts!) {
+            print(ca.toJson());
             ca.active=true;
               currencyItemsToBeSynced.add(ca);
           }
@@ -368,25 +418,33 @@ class SyncService {
         upToDateItems.add(sh);
       }
     }
-    String jsonShiftCurrencyItems = json.encode(
-        currencyItemsToBeSynced.map((shift) => shift.toMap()).toList());
-    var shiftCurrencyResponse = await BaseHttpClient()
-        .postAuthWithCompanyHeader(
-        "/mobile/pos/shift/save-currency-amounts", jsonShiftCurrencyItems, user.companyId!, "POST")
-        .catchError((onError) {
-      print(onError);
-      AppHelper.hideLoading();
-      if (onError is BadRequestException) {
-        var apiError = json.decode(onError.message!);
-        AppHelper.showErroDialog(description: apiError["reason"]);
-      } else {
-        AppHelper.handleError(onError);
+    debugPrint("Items to be synced " + currencyItemsToBeSynced.toString());
+    if(currencyItemsToBeSynced.isNotEmpty) {
+      String jsonShiftCurrencyItems = json.encode(
+          currencyItemsToBeSynced.map((shift) => shift.toMap()).toList());
+      debugPrint("Shift currency items to be synced " + jsonShiftCurrencyItems);
+      var shiftCurrencyResponse = await BaseHttpClient()
+          .postAuthWithCompanyHeader("/mobile/pos/shift/save-currency-amounts",
+              jsonShiftCurrencyItems, user.companyId!, "POST")
+          .catchError((onError) {
+        print(onError);
+        AppHelper.hideLoading();
+        if (onError is BadRequestException) {
+          var apiError = json.decode(onError.message!);
+          AppHelper.showErroDialog(description: apiError["reason"]);
+        } else {
+          AppHelper.handleError(onError);
+        }
+      });
+      if (shiftCurrencyResponse != null) {
+        debugPrint("Shift currency response " + shiftCurrencyResponse.toString());
+        ShiftCurrencyResponseModel saleResponseModel =
+            ShiftCurrencyResponseModel.fromJson(shiftCurrencyResponse);
+        debugPrint("Shift currency items " + saleResponseModel.items.toString());
+        updateCurrencyItems.addAll(saleResponseModel.items ?? []);
       }
-    });
-    if (shiftCurrencyResponse != null) {
-      ShiftCurrencyResponseModel saleResponseModel = ShiftCurrencyResponseModel.fromJson(shiftCurrencyResponse);
-      updateCurrencyItems.addAll(saleResponseModel.items ?? []);
     }
+    debugPrint("Items to be synced " + itemsToBeSynced.toString());
 
     for (ShiftModel sh in itemsToBeSynced) {
       if (sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty) {
@@ -471,6 +529,20 @@ class SyncService {
             (map) => ShiftModel.fromMap(map),
         box);
     return list;
+  }
+  static List<CurrencyAmount> loadShiftCurrencyInfo(GetStorage box) {
+    List<CurrencyAmount> currencyAmounts = [];
+    LocalStorageService _localStorageService = LocalStorageService();
+    List<ShiftModel> list = _localStorageService.getOfflineList<ShiftModel>(
+        AppConstants.SHIFT_LIST,
+            (map) => ShiftModel.fromMap(map),
+        box);
+    for(ShiftModel sh in list){
+      if(sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty){
+        currencyAmounts.addAll(sh.shiftCurrencyAmounts!);
+      }
+    }
+    return currencyAmounts;
   }
   static List<TicketModel> loadTickets( GetStorage box) {
     LocalStorageService _localStorageService = LocalStorageService();

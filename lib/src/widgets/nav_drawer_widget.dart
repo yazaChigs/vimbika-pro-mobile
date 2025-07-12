@@ -216,13 +216,13 @@ class NavDrawer extends StatelessWidget {
         List<ShiftModel> tempShiftList = loadShifts(box, _localStorageService);
         ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, UserModel(firstName: "", lastName: "", userName: ""), false);
         if(tempActiveShift != null) {
-          DateTime now = DateTime.now();
-          String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
-          tempActiveShift.isShiftClosed = true;
-          tempActiveShift.closingTime = closingTime;
-          List<ShiftModel> shi = _localStorageService.replaceShift(
-              tempActiveShift, tempShiftList);
-          _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
+          // DateTime now = DateTime.now();
+          // String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+          // tempActiveShift.isShiftClosed = true;
+          // tempActiveShift.closingTime = closingTime;
+          // List<ShiftModel> shi = _localStorageService.replaceShift(
+          //     tempActiveShift, tempShiftList);
+          // _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
           SyncService.syncOfflineShifts(user, box);
         }
         Get.delete<SaleController>();

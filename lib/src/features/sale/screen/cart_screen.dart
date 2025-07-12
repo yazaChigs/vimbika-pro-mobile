@@ -41,6 +41,7 @@ class CartScreen extends StatelessWidget {
                         : "https://via.placeholder.com/150";
 
                     return ListTile(
+                      tileColor: Colors.blue[100],
                       leading: CachedNetworkImage(
                           imageUrl: imageUrl,
                           placeholder: (context, url) =>
@@ -61,14 +62,19 @@ class CartScreen extends StatelessWidget {
                             onPressed: () =>
                                 cartController.decrementQuantity(cartItem),
                           ),
-                          Text('${(cartItem.quantity*cartItem.product.item!.sellingPrice).toStringAsFixed(2)}'),
+                          Text('${(cartItem.quantity*cartItem.product.item!.sellingPrice).toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: Colors.indigo,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           IconButton(
-                            icon: Icon(Icons.add),
+                            icon: Icon(Icons.add,color: Colors.indigoAccent,),
                             onPressed: () =>
                                 cartController.incrementQuantity(cartItem),
                           ),
                           IconButton(
-                            icon: Icon(Icons.delete),
+                            icon: Icon(Icons.delete,color: Colors.red,),
                             onPressed: () =>
                                 cartController.removeFromCart(cartItem),
                           ),
@@ -87,7 +93,7 @@ class CartScreen extends StatelessWidget {
                   children: [
                     Text(
                       'Total : ${cartController.selectedCurrency.value?.symbol ?? ''} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold,color: Colors.indigoAccent),
                     ),
 
                     SizedBox(height: 10),
@@ -95,6 +101,11 @@ class CartScreen extends StatelessWidget {
                       onPressed: () {
                           cartController.checkout();
                       },
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.lightGreenAccent, // Set button color to red
+                        foregroundColor: Colors.black, // Set text color to red
+                        textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                      ),
                       child: Text('Checkout'),
                     ),
                   ],

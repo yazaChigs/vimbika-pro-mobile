@@ -19,6 +19,7 @@ import 'package:telpo_m8/telpo_m8.dart';
 import 'package:vimbika_pos_app/src/features/printers/model/available_printer_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_model.dart';
+import 'package:vimbika_pos_app/src/features/shift/controller/shift_controller.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/currency_amount.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_history_model.dart';
@@ -913,7 +914,7 @@ class PrinterService extends GetxService {
 
 
   // Print Shift Details
-   Future<void> printShiftDetails(ShiftModel shift, List<Map<String, dynamic>> totalAmountsByCurrency, List<Map<String, dynamic>> totalAmountsByPaymentType, List<Map<String, dynamic>> totalCashIn, List<Map<String, dynamic>> totalCashOut, List<Map<String, dynamic>> totalSubmitted) async {
+   Future<void> printShiftDetails(ShiftModel shift,RxList<SaleInfoModel> allReceipts, List<Map<String, dynamic>> totalAmountsByCurrency, List<Map<String, dynamic>> totalAmountsByPaymentType, List<Map<String, dynamic>> totalCashIn, List<Map<String, dynamic>> totalCashOut, List<Map<String, dynamic>> totalSubmitted) async {
      await SunmiPrinter.initPrinter();
      await SunmiPrinter.startTransactionPrint(true);
 
@@ -933,9 +934,10 @@ class PrinterService extends GetxService {
      if (shift.shiftCurrencyAmounts != null && shift.shiftCurrencyAmounts!.isNotEmpty) {
        await SunmiPrinter.printText("\nTransactions:\n");
        for (var currencyAmount in shift.shiftCurrencyAmounts!) {
+         var sale = allReceipts.firstWhere((receipt) => receipt.sale!.posReference == currencyAmount.posReference, orElse: () => SaleInfoModel(sale: null,syncStatus: false));
          await SunmiPrinter.printText("Type: ${currencyAmount.amountType ?? ''}\t\t\t\tRef: ${currencyAmount.ref}");
          await SunmiPrinter.printText("Time: ${currencyAmount.timeCreated}");
-         await SunmiPrinter.printText("Amount: ${currencyAmount.currency.name} ${currencyAmount.amount.toString()}");
+         await SunmiPrinter.printText("Amount: ${currencyAmount.currency.name} ${currencyAmount.amount.toString()}\t\t\t\ ${sale.sale?.paymentType?.name ?? ''}");
          await SunmiPrinter.printText("--------------------------------");
        }
      } else {
@@ -982,7 +984,7 @@ class PrinterService extends GetxService {
 
      // Amounts by Currency
      if (totalAmountsByCurrency.isNotEmpty) {
-       await SunmiPrinter.printText("\nAmounts by Currency:\n");
+       await SunmiPrinter.printText("\Cash by Currency:\n");
        for (var total in totalAmountsByCurrency) {
          await SunmiPrinter.printText(" ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
        }

@@ -22,7 +22,6 @@ class PinController extends GetxController {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     List<ShiftModel> tempShiftList = loadShifts(box);
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, user, true);
-
     if(tempActiveShift != null) {
       shiftAvailable.value = true;
     } else{

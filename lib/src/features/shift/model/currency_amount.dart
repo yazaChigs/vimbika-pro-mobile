@@ -14,7 +14,9 @@ class CurrencyAmount {
     required this.amountType,
     required this.ref,
     required this.timeCreated,
-    required this.shiftReference
+    required this.shiftReference,
+    this.posReference,
+    this.isCash = false,
   });
   String? id;
   String? createdByName;
@@ -27,6 +29,8 @@ class CurrencyAmount {
   String amountType;
   String? ref;
   String? shiftReference;
+  String? posReference;
+  bool? isCash = false;
   String timeCreated;
 
   factory CurrencyAmount.fromJson(String str) => CurrencyAmount.fromMap(json.decode(str));
@@ -45,6 +49,8 @@ class CurrencyAmount {
     ref: json["ref"],
     timeCreated: json["timeCreated"],
     shiftReference: json["shiftReference"],
+    posReference: json["posReference"],
+    isCash: json["isCash"] ?? false,
   );
 
   Map<String, dynamic> toMap() => {
@@ -59,6 +65,8 @@ class CurrencyAmount {
     "ref": ref,
     "timeCreated": timeCreated,
     "shiftReference": shiftReference,
+    "posReference": posReference,
+    "isCash": isCash,
   };
 }
 

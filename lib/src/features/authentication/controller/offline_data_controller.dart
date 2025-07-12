@@ -357,7 +357,7 @@ class OfflineDataController extends GetxController {
       box.write(AppConstants.SELECTED_BRANCH, selectedBranch.value!.toMap());
       box.write(AppConstants.ACTIVE_COMPANY, selectedCompany.value!.toMap());
        downloadAndSaveImage(selectedCompany.value!.id!);
-      downloadBranchRelatedInfor(user, box, selectedBranch.value!.id!);
+      // downloadBranchRelatedInfor(user, box, selectedBranch.value!.id!);
       getUsers(user, box, selectedCompany.value!.id!, selectedBranch.value!.id!);
       Get.toNamed(AppRoutes.ENTER_PIN);
     } else{

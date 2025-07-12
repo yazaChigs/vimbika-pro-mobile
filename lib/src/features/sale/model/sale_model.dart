@@ -23,6 +23,7 @@ class SaleModel {
     required this.saleStatus,
 
     required this.onHold,
+    this.taxAmount,
     required this.amountPaid,
     required this.totalQuantity,
     required this.saleCost,
@@ -99,6 +100,7 @@ class SaleModel {
   bool? taxInvoice;
   bool? fiscalized;
   bool? onHold;
+  double? taxAmount;
   bool? emailReceipt;
   bool? isWalkInCustomer;
   String? receiptQrData;
@@ -119,6 +121,7 @@ class SaleModel {
     totalQuantity: json["totalQuantity"],
     saleCost: json["saleCost"],
     totalTaxAmount: json["totalTaxAmount"],
+    taxAmount: json["taxAmount"],
     totalDiscount: json["totalDiscount"],
     zeroRatedTotal: json["zeroRatedTotal"],
     baseSaleAmount: json["baseSaleAmount"],
@@ -162,6 +165,7 @@ class SaleModel {
     "onHold": onHold,
     "amountPaid": amountPaid,
     "totalTaxAmount": totalTaxAmount,
+    "taxAmount": taxAmount,
     "zeroRatedTotal": zeroRatedTotal,
     "baseSaleAmount": baseSaleAmount,
     "totalDiscount": totalDiscount,

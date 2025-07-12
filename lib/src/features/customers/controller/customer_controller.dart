@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -8,6 +10,10 @@ import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
+
+import '../../../services/app_exceptions.dart';
+import '../../../services/base_http_client.dart';
+import '../../../utils/app_helper.dart';
 
 class CustomerController extends GetxController {
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
@@ -101,6 +107,39 @@ class CustomerController extends GetxController {
        // Get.back();
       },
     );
+  }
+
+
+  Future<void>  getCustomers(UserModel user, GetStorage box, String companyId) async{
+    if(isInternetAccess.value==true) {
+      var response = await BaseHttpClient()
+          .getAuthWithCompanyHeader("/customer/get-all", companyId)
+          .catchError((onError) {
+        if (onError is BadRequestException) {
+          var apiError = json.decode(onError.message!);
+          AppHelper.showErroDialog(description: apiError["reason"]);
+        } else {
+          AppHelper.handleError(onError);
+        }
+      });
+      if (response != null) {
+        List<dynamic> list = jsonDecode(response);
+        List<CustomerModel> itemsList =
+            List<CustomerModel>.from(list.map((i) => CustomerModel.fromMap(i)));
+        allCustomers.value = itemsList;
+        List<Map<String, dynamic>> itemsListMap =
+            itemsList.map((item) => item.toMap()).toList();
+        // showSnackBar("Message", "Customers downloaded successfully");
+        box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
+      }
+    }
+    else {
+      allCustomers = _localStorageService.getOfflineList<CustomerModel>(
+          AppConstants.CUSTOMER_LIST,
+          (map) => CustomerModel.fromMap(map),
+          box
+      ).obs;
+    }
   }
 
   void clearForm() {

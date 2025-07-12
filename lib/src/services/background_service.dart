@@ -30,36 +30,31 @@ class BackgroundService extends GetxService {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     var shiftModel = box.read(AppConstants.SHIFT_SETTING) ?? {};
     shiftSetting = ShiftSettingModel.fromMap(Map<String, dynamic>.from(shiftModel));
-    Timer.periodic(Duration(minutes: 1), (timer) async {
-      checkShiftStatus(box, _localStorageService);
-      await postDataToBackend();
-
-
-    });
+    // Timer.periodic(Duration(minutes: 1), (timer) async {
+    //   // checkShiftStatus(box, _localStorageService);
+    //   await postDataToBackend();
+    // });
   }
 
   checkShiftStatus(GetStorage box, LocalStorageService _localStorageService) async {
     List<ShiftModel> tempShiftList = loadShifts(box, _localStorageService);
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, UserModel(firstName: "", lastName: "", userName: ""), false);
-    print("Opening time..");
-    print(tempActiveShift?.openingTime);
     if(tempActiveShift != null) {
        DateTime openingTime = DateTime.parse(tempActiveShift.openingTime!);
-       DateTime closingTime = openingTime.add(Duration(hours: shiftSetting.shiftDuration!));
+       // DateTime closingTime = openingTime.add(Duration(hours: shiftSetting.shiftDuration??24));
 
 
-       DateTime now = DateTime.now();
-       print(closingTime.toString());
-       if(now.isAfter(closingTime)){
-
-         String closingTi = DateFormat('yyyy-MM-dd HH:mm:ss').format(closingTime);
-         tempActiveShift.isShiftClosed = true;
-         tempActiveShift.closingTime = closingTi;
-         List<ShiftModel> shi =  _localStorageService.replaceShift(tempActiveShift, tempShiftList);
-         _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
-         Get.snackbar("Status", "Your current shift has been closed.", snackPosition: SnackPosition.BOTTOM);
-
-       }
+       // DateTime now = DateTime.now();
+       // if(now.isAfter(closingTime)){
+       //
+       //   String closingTi = DateFormat('yyyy-MM-dd HH:mm:ss').format(closingTime);
+       //   tempActiveShift.isShiftClosed = true;
+       //   tempActiveShift.closingTime = closingTi;
+       //   List<ShiftModel> shi =  _localStorageService.replaceShift(tempActiveShift, tempShiftList);
+       //   _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
+       //   Get.snackbar("Status", "Your current shift has been closed.", snackPosition: SnackPosition.BOTTOM);
+       //
+       // }
     }
   }
   List<ShiftModel> loadShifts( GetStorage box, LocalStorageService _localStorageService) {

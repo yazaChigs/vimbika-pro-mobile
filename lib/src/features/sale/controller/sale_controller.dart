@@ -13,6 +13,7 @@ import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dar
 import 'package:vimbika_pos_app/src/features/sale/model/product_full_info_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_model.dart';
+import 'package:vimbika_pos_app/src/features/sale_receipts/controller/receipt_controller.dart';
 import 'package:vimbika_pos_app/src/services/app_exceptions.dart';
 import 'package:vimbika_pos_app/src/services/base_http_client.dart';
 import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
@@ -21,9 +22,13 @@ import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/dynamic_query_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/settings_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
+
+import '../../shift/model/currency_amount.dart';
+import '../../shift/model/shift_model.dart';
 
 class SaleController extends GetxController {
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
@@ -39,6 +44,9 @@ class SaleController extends GetxController {
   Rx<String> searchQuery = "".obs;
   var isSearching = false.obs;
   bool sellNilItems = false;
+  List<SaleInfoModel> offlineSales = <SaleInfoModel>[];
+  RxList<SaleInfoModel> allReceipts = <SaleInfoModel>[].obs;
+  RxList<SaleInfoModel> filteredReceipts = <SaleInfoModel>[].obs;
   bool useSerialNumbers = false;
   var isServerReachable = false.obs;
   var isBrandSelected = false.obs;
@@ -95,37 +103,117 @@ class SaleController extends GetxController {
     super.onClose();
   }
   syncOfflineSales() async{
-    print("syncing sales...");
+    print("syncing offline sales...");
     bool stat = await _connectivityService.checkServerConnection();
     if(stat) {
-      List<SaleInfoModel> sales = loadSales();
-      for (SaleInfoModel saleInfo in sales) {
-        if (!saleInfo.syncStatus!) {
-          SaleModel? saleModel = await SyncService.saveSale(
-              saleInfo.sale!, user, box, company.value!);
-
-          if (saleModel != null) {
-            print("Res from Server");
-            log(saleModel.toJson());
-            List<SaleInfoModel> latestSales = loadSales();
-            SaleInfoModel saleInfoMod = SaleInfoModel(
-                sale: saleModel, syncStatus: true);
-            List<SaleInfoModel> items = _localStorageService.replaceSale(
-                saleInfoMod, latestSales);
-            writeSaleInfor(box, items);
+      List<SaleInfoModel> sales = getExistingOfflineSales(box);
+      List<SaleInfoModel> actualSales = [];
+      List<CurrencyAmount> currencyAmounts = [];
+      List<ShiftModel> shiftList = loadShiftInfo(box);
+      for(ShiftModel sh in shiftList){
+        if(sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty){
+          currencyAmounts.addAll(sh.shiftCurrencyAmounts!);
+        }
+      }
+      SaleInfoModel saleInfoModel;
+        for(SaleInfoModel s in sales){
+          if(s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING"){
+            actualSales.add(s);
           }
+        }
+
+      actualSales = actualSales.where((sale)=> sale.syncStatus == false).toList();
+      offlineSales = actualSales;
+      print(offlineSales.map((e) => !e.syncStatus!,));
+      print("Unsynced sales count: ${offlineSales.length}");
+
+    List<SaleInfoModel> syncedSales = [];
+    for (SaleInfoModel saleInfo in offlineSales) {
+      CurrencyAmount saleCurrencyAmount =  currencyAmounts.firstWhere((test)=> test.posReference==saleInfo.sale!.posReference!, orElse: () => CurrencyAmount(currency: CurrencyModel(), amountType: "", ref: "", timeCreated: "", notes: "", amount: 0.0, shiftReference: null));
+      if (!saleInfo.syncStatus!) {
+        print(saleInfo.sale!.posReference);
+        SaleModel? saleModel = await SyncService.saveSale(
+            saleInfo.sale!, user, box, company.value!);
+        if (saleModel != null) {
+          syncedSales.add(saleInfo);
+          SaleInfoModel? infoModel = await getSale(saleModel.id!);
+          if(infoModel != null){
+            saleInfoModel = infoModel;
+          } else{
+            saleInfoModel = SaleInfoModel(sale: saleModel, syncStatus: true);
+          }
+          saleCurrencyAmount.posReference = saleInfoModel.sale?.posReference;
+          var list = [saleCurrencyAmount];
+         shiftList.firstWhere((shift)=>shift.shiftReference==saleInfoModel.sale!.shiftReference).shiftCurrencyAmounts = [...list];
+          print(shiftList.firstWhere((shift)=>shift.shiftReference==saleInfoModel.sale!.shiftReference).toJson());
+          // Update the sale in the local storage
+          if(sales.any((saleInfo)=> saleInfo.sale?.posReference == saleInfo.sale?.posReference)){
+            print("Updating existing sale...");
+            sales.remove(saleInfo);
+            sales.add(saleInfoModel);
+          }
+          writeSaleInfor(box, sales);
+
         }
       }
     }
+    writeSaleInfor(box, sales);
+    for(SaleInfoModel saleInfo in syncedSales) {
+      // Remove the synced sales from the offline list
+      print(offlineSales.remove(saleInfo));
+    }
+    }
   }
+
+
+  Future<SaleInfoModel?> getSale(String saleId) async{
+    await Future.delayed(Duration(seconds: 2));
+    var response = await BaseHttpClient().getAuthWithCompanyHeader("/sale/get-item/" + saleId, user.companyId!).catchError((onError){
+      if (onError is BadRequestException) {
+        var apiError = json.decode(onError.message!);
+        AppHelper.showErroDialog(description: apiError["reason"]);
+      } else {
+        AppHelper.handleError(onError);
+      }
+    });
+    if(response != null) {
+      print("Fetched sale..");
+      print(response);
+      // SaleModel itemConverted = SaleModel.fromJson(response);
+      SaleModel itemConverted = SaleModel.fromJson(json.decode(response));
+
+      SaleInfoModel saleInfoModel = SaleInfoModel(sale: itemConverted, syncStatus: true);
+      return saleInfoModel;
+    }
+    return null;
+  }
+
+  addPaymentType(){}
+
   writeSaleInfor(GetStorage box, List<SaleInfoModel> itemsList){
     List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
         item.toMap()).toList();
     box.write(AppConstants.SALE_LIST, itemsListMap);
   }
-  processItemCode() async{
+  writeShiftInfor(GetStorage box, List<ShiftModel> itemsList){
+    List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
+        item.toMap()).toList();
+    box.write(AppConstants.SHIFT_LIST, itemsListMap);
+  }
 
-
+  List<SaleInfoModel> getExistingOfflineSales(GetStorage box){
+    List<dynamic>? itemsListDynamic = box.read<List<dynamic>>(AppConstants.SALE_LIST);
+    if(itemsListDynamic != null) {
+      List<Map<String, dynamic>> itemsListMap = itemsListDynamic.map((item) {
+        return item as Map<String, dynamic>;
+      }).toList();
+      List<SaleInfoModel> infos = List<SaleInfoModel>.from(
+          itemsListMap.map((map) => SaleInfoModel.fromMap(map)));
+      return infos;
+    } else{
+      List<SaleInfoModel> itemsList = <SaleInfoModel>[];
+      return itemsList;
+    }
   }
   List<SaleInfoModel> loadSales() {
     LocalStorageService _localStorageService = LocalStorageService();
@@ -135,10 +223,24 @@ class SaleController extends GetxController {
         box);
     List<SaleInfoModel> list = [];
     for (SaleInfoModel sale in sales) {
-      if(sale.sale!.active!){
+      if(sale.sale!.active ?? false){
         list.add(sale);
       }
+      else{
+        print(sale);
+      }
     }
+    return sales;
+  }
+
+
+  static List<ShiftModel> loadShiftInfo(GetStorage box) {
+    List<CurrencyAmount> currencyAmounts = [];
+    LocalStorageService _localStorageService = LocalStorageService();
+    List<ShiftModel> list = _localStorageService.getOfflineList<ShiftModel>(
+        AppConstants.SHIFT_LIST,
+            (map) => ShiftModel.fromMap(map),
+        box);
     return list;
   }
 
@@ -162,6 +264,8 @@ class SaleController extends GetxController {
     AppHelper.showLoading("Syncing....");
     print("syncing products..");
     getBranchStock(box);
+    print("syncing offline sales..");
+    await syncOfflineSales();
     print("syncing tickets..");
      //await SyncService.syncOfflineTickets(user, box);
     print("syncing shifts..");
@@ -170,6 +274,8 @@ class SaleController extends GetxController {
     await SyncService.getCurrencies(user, box);
     print("syncing payments..");
     await SyncService.getPaymentTypes(user, box);
+    print("syncing new Customers..");
+    await SyncService.saveCustomer(user, box);
     AppHelper.hideLoading();
   }
   void clearFilters() {
@@ -285,6 +391,20 @@ class SaleController extends GetxController {
   }
 
 
+  getSales() {
+    // GetStorage box = GetStorage();
+    List<SaleInfoModel> sales = getExistingOfflineSales(box);
+    List<SaleInfoModel> actualSales = [];
+    for(SaleInfoModel s in sales){
+      if(s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING"){
+        actualSales.add(s);
+      }
+    }
+    allReceipts.value = actualSales;
+    filteredReceipts.value = actualSales;
+    print(actualSales.map((e) => !e.syncStatus!,));
+    print("All Receipts: ${allReceipts.length}");
+  }
 
   void filterProducts({String query = '', String? category}) {
     searchQuery.value = query.trim().toLowerCase();

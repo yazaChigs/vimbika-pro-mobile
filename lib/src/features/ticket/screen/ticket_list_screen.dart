@@ -22,7 +22,7 @@ class TicketListScreen extends StatelessWidget {
             IconButton(
               icon: Icon(Icons.refresh),
               onPressed: () {
-                 ticketController.getTickets();
+                 // ticketController.getTickets();
               },
             ),
           ],

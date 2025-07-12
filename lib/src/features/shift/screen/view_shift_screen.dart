@@ -63,6 +63,11 @@ class ViewShiftScreen extends StatelessWidget {
                         Get.delete<ShiftController>();
                         Get.toNamed(AppRoutes.CASH_MANAGEMENT);
                       },
+                      style: TextButton.styleFrom(
+                      backgroundColor: Colors.indigo, // Set button color to red
+                      foregroundColor: Colors.white, // Set text color to red
+                      textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                    ),
                       child: Text('CASH MANAGEMENT'),
                     ),
                   ),
@@ -77,6 +82,11 @@ class ViewShiftScreen extends StatelessWidget {
                         Get.delete<ShiftController>();
                         Get.toNamed(AppRoutes.SUBMIT_CASH);
                       },
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.indigo, // Set button color to red
+                        foregroundColor: Colors.white, // Set text color to red
+                        textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                      ),
                       child: Text('SUBMIT CASH'),
                     ),
                   ),
@@ -90,6 +100,11 @@ class ViewShiftScreen extends StatelessWidget {
                       onPressed: () {
                         shiftController.showConfirmDialogCloseShift();
                       },
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.red, // Set button color to red
+                        foregroundColor: Colors.white, // Set text color to red
+                        textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                      ),
                       child: Text('CLOSE SHIFT'),
                     ),
                   ),
@@ -215,6 +230,40 @@ class ViewShiftScreen extends StatelessWidget {
                   endIndent : 10,
                 ),
                 Text(
+                  'TOTAL SALES',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(), // Disable scrolling of ListView.builder
+                  itemCount: shiftController.totalSales.length,
+                  itemBuilder: (context, index) {
+                    final total = shiftController.totalSales[index];
+                    return ListTile(
+                      tileColor: Colors.purpleAccent[100],
+                      title: Text(
+                        total['currencyName'],
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      trailing: Text( '${total['totalAmount'].toStringAsFixed(2)}',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: Colors.grey, width: 0.5),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 10,
+                  color: Colors.green,
+                  thickness: 1,
+                  indent : 10,
+                  endIndent : 10,
+                ),
+                Text(
                   'TOTAL CASH IN',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
@@ -311,7 +360,7 @@ class ViewShiftScreen extends StatelessWidget {
                   },
                 ),
                 Text(
-                  'TOTAL AMOUNTS BY CURRENCY',
+                  'TOTAL CASH BY CURRENCY',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
@@ -363,6 +412,11 @@ class ViewShiftScreen extends StatelessWidget {
                     onPressed: () {
                       shiftController.printShift(shiftController.activeShift.value);
                     },
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.lightBlue, // Set button color to red
+                      foregroundColor: Colors.black, // Set text color to red
+                      textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                    ),
                     child: Text('PRINT'),
                   ),
                 ),
@@ -373,6 +427,11 @@ class ViewShiftScreen extends StatelessWidget {
                     onPressed: () {
                       Get.offNamed(AppRoutes.SALE);
                     },
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.indigo, // Set button color to red
+                      foregroundColor: Colors.white, // Set text color to red
+                      textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                    ),
                     child: Text('POS'),
                   ),
                 ),

@@ -57,12 +57,12 @@ class TicketController extends GetxController {
 
     var branchModel = box.read(AppConstants.SELECTED_BRANCH) ?? {};
     branch.value = BranchModel.fromMap(Map<String, dynamic>.from(branchModel));
-    getTickets();
+    // getTickets();
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
     // Start a periodic timer to sync tickets every 5 seconds
     _syncTimer = Timer.periodic(Duration(seconds: 9), (timer) async {
-      getTickets();
+      // getTickets();
     });
   }
 

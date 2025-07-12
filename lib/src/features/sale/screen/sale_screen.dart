@@ -159,12 +159,13 @@ class SaleScreen extends GetView {
                     child: Obx(() {
                       return ElevatedButton(
                         onPressed: () {
-                          ticketController.getTickets();
+                          // ticketController.getTickets();
                           ticketController.ticketActionButton(cartController.selectedCurrency.value!, cartController.cartItems.length);
                         },
                         style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.cyan,
                           padding: EdgeInsets.symmetric(vertical: 14.0),
-                          textStyle: TextStyle(fontSize: 12),
+                          textStyle: TextStyle(fontSize: 12,color: Colors.white, fontWeight: FontWeight.bold),
                         ),
 
                         child: Text(
@@ -206,8 +207,9 @@ class SaleScreen extends GetView {
                         Get.toNamed(AppRoutes.CART);
                       },
                       style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
                         padding: EdgeInsets.symmetric(vertical: 14.0),
-                        textStyle: TextStyle(fontSize: 12),
+                        textStyle: TextStyle(fontSize: 12,color: Colors.white, fontWeight: FontWeight.bold),
                       ),
                       child: Obx(() {
                         // Check if totalCostInSelectedCurrency is a number
@@ -391,8 +393,6 @@ class SaleScreen extends GetView {
                       String weight = exp.length > 12 ? exp.substring(7, 12) : '0';
 
                       double kgs = double.parse(weight)/1000;
-                      log('data: $kgs');
-                      debugPrint(kgs.toString());
                       double roundedValue = double.parse(kgs.toStringAsFixed(3));
                       if(kgs > 0) {
                         // print(weight);
@@ -537,6 +537,7 @@ class SaleScreen extends GetView {
                     return Card(
                         child:
                         ListTile(
+                          tileColor: Colors.blue[100],
                           leading: CachedNetworkImage(
                             imageUrl: imageUrl,
                             placeholder: (context, url) =>
@@ -576,8 +577,9 @@ class SaleScreen extends GetView {
                                             productFullInfo: product));
                                   },
                                   style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.indigo,
                                     padding: EdgeInsets.all(5.0),
-                                    textStyle: TextStyle(fontSize: 14),
+                                    textStyle: TextStyle(fontSize: 14,color: Colors.white),
                                   ),
                                   child: Text('View'),
                                 ),

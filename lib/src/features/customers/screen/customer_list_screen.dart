@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
@@ -38,7 +41,7 @@ class CustomerListScreen extends StatelessWidget {
             IconButton(
               icon: Icon(Icons.refresh),
               onPressed: () {
-
+                customerController.getCustomers(customerController.user, customerController.box, customerController.user.company!.id!);
               },
             ),
           ],

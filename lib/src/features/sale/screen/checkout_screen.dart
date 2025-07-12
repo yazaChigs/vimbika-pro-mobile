@@ -12,7 +12,7 @@ import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
 
 class CheckoutScreen extends StatelessWidget {
-  final CartController cartController = Get.find();
+  final CartController cartController = Get.put(CartController());
   final InactivityController inactivityController = Get.find();
 
   @override
@@ -27,7 +27,10 @@ class CheckoutScreen extends StatelessWidget {
           elevation: 0,
           title: Text('Checkout'),
         ),
-        body: Form(
+
+        body:
+
+        Form(
           key: cartController.formKey,
           child: SingleChildScrollView(
             child: Column(
@@ -52,7 +55,7 @@ class CheckoutScreen extends StatelessWidget {
                             padding: const EdgeInsets.only(left: 8.0, right: 20),
                             child: Icon(
                               Icons.person_add, // Change this to the icon you want
-                              color: Colors.black, // Set icon color
+                              color: Colors.indigo, // Set icon color
                             ),
                           ),
                         ),
@@ -68,6 +71,7 @@ class CheckoutScreen extends StatelessWidget {
                                 );
                               }).toList(),
                               value: cartController.selectedCustomer.value,
+                              // onTap: cartController.reGetCustomers(),
                               // initial selected value if needed
                               hint: "Select Customer",
                               searchHint: "Search Customer",
@@ -96,6 +100,20 @@ class CheckoutScreen extends StatelessWidget {
                               isExpanded: true,
                             );
                           }),
+                        ),
+
+                        GestureDetector(
+                          onTap: () {
+                            // Get.toNamed(AppRoutes.CUSTOMER_FORM);
+                            cartController.reGetCustomers();
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 8.0, right: 20),
+                            child: Icon(
+                              Icons.refresh, // Change this to the icon you want
+                              color: Colors.deepOrange, // Set icon color
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -130,6 +148,331 @@ class CheckoutScreen extends StatelessWidget {
                 ),
 
                 const SizedBox(height: 20),
+
+                 /*   Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 8.0),
+                      child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: Obx(() {
+                                return CustomDropdownWidget<CurrencyModel>(
+                                  items: cartController.currencyList,
+                                  selectedItem: cartController.selectedCurrency.value,
+                                  hint: "Select Currency",
+                                  isSelected: cartController.isCurrencySelected,
+                                  selectedValue: cartController.selectedCurrency,
+                                  icon: Icons.currency_exchange,
+                                  onChanged: (CurrencyModel? newValue) {
+                                    cartController.onCurrencyChange(newValue!);
+                                  },
+                                  validator: (value) {
+                                    if (cartController.isCurrencySelected.isFalse) {
+                                      return 'Please select a currency';
+                                    }
+                                    return null;
+                                  },
+                                  itemBuilder: (CurrencyModel value) => Text(value.name! + " (" + value.rate!.toString() + ")"),
+                                );
+                              }),
+                            ),
+                            Expanded(
+                              child: Obx(() {
+                                return CustomDropdownWidget<PaymentTypeModel>(
+                                  items: cartController.filteredPaymentTypesList,
+                                  selectedItem: cartController.selectedPaymentType.value,
+                                  hint: "Select Payment Type",
+                                  isSelected: cartController.isPaymentTypeSelected,
+                                  selectedValue: cartController.selectedPaymentType,
+                                  icon: Icons.payments,
+                                  onChanged: (PaymentTypeModel? newValue) {
+                                    cartController.onChangePaymentType(newValue!);
+                                  },
+                                  validator: (value) {
+                                    if (cartController.isPaymentTypeSelected.isFalse) {
+                                      return 'Please select a payment type';
+                                    }
+                                    return null;
+                                  },
+                                  itemBuilder: (PaymentTypeModel value) =>
+                                      Text(value.name!),
+                                );
+                              }),
+                            ),
+                            Expanded(
+                              child: TextFormField(
+                                controller:
+                                cartController.amountPaidTextEditingController,
+                                keyboardType: const TextInputType.numberWithOptions(
+                                    decimal: true),
+                                inputFormatters: <TextInputFormatter>[
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r'^\d+\.?\d{0,2}')),
+                                ],
+                                decoration: const InputDecoration(
+                                    prefixIcon: Icon(Icons.money),
+                                    labelText: "Amount",
+                                    hintText: "Amount"),
+                                onChanged: (String val) {
+                                  if (val.isNotEmpty) {
+                                    cartController.amountPaidChange(val);
+                                  }
+                                },
+                                validator: (value) {
+                                  if (cartController.totalAmountPaid.value == 0.0) {
+                                    return 'Please enter an amount';
+                                  }
+                                  double enteredAmount;
+                                  try {
+                                    enteredAmount = cartController.totalAmountPaid.value;
+                                  } catch (e) {
+                                    return 'Please enter a valid amount';
+                                  }
+
+                                  if (enteredAmount <
+                                      double.parse(cartController.totalCostInSelectedCurrency.value.toStringAsFixed(2))) {
+                                    return 'Amount paid cannot be less than the total amount';
+                                  }
+                                  return null;
+                                },
+                                onSaved: (value) {
+                                  cartController.amountPaid.value = cartController.totalAmountPaid.value;
+                                },
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.add,size: 50,color: Colors.blue,),
+                              onPressed: () {
+                                cartController.addPaymentType();
+                                FocusScope.of(context).unfocus();
+                                new TextEditingController().clear();
+                              },
+                            ),
+                            // Text('Volume : '),
+                            ],
+                      ),
+                    ),
+
+                SizedBox(height: 200,
+                child:
+                Expanded(
+                  child: Obx(() {
+                    return ListView.builder(
+                      itemCount: cartController.paymentTypes.length,
+                      itemBuilder: (context, index) {
+                        final total = cartController.paymentTypes[index];
+                        return Card(
+                          child: ListTile(
+                            tileColor: Colors.lightBlueAccent[100],
+                            title: Text(
+                              total.paymentType!.name!,
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            subtitle: Text(
+                              total.currency!.name!,
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            trailing:
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text( total.currency!.symbol! + " " + total.amount!.toStringAsFixed(2),
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                SizedBox(
+                                  width: 100,
+                                  // Adjust the width to fit the text
+                                  height: 30,
+                                  // Adjust the height to make the button smaller
+                                  child: IconButton(
+                                    icon: const Icon(Icons.delete,size: 35,color: Colors.redAccent,),
+                                    onPressed: () {
+                                      cartController.removePaymentMethod(index);
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      padding: EdgeInsets.all(5.0),
+                                      textStyle: TextStyle(fontSize: 14),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            shape: RoundedRectangleBorder(
+                              side: BorderSide(color: Colors.grey, width: 0.5),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }),
+                ),
+                  ),
+
+*//*   Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 8.0),
+                      child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: Obx(() {
+                                return CustomDropdownWidget<CurrencyModel>(
+                                  items: cartController.currencyList,
+                                  selectedItem: cartController.selectedCurrency.value,
+                                  hint: "Select Currency",
+                                  isSelected: cartController.isCurrencySelected,
+                                  selectedValue: cartController.selectedCurrency,
+                                  icon: Icons.currency_exchange,
+                                  onChanged: (CurrencyModel? newValue) {
+                                    cartController.onCurrencyChange(newValue!);
+                                  },
+                                  validator: (value) {
+                                    if (cartController.isCurrencySelected.isFalse) {
+                                      return 'Please select a currency';
+                                    }
+                                    return null;
+                                  },
+                                  itemBuilder: (CurrencyModel value) => Text(value.name! + " (" + value.rate!.toString() + ")"),
+                                );
+                              }),
+                            ),
+                            Expanded(
+                              child: Obx(() {
+                                return CustomDropdownWidget<PaymentTypeModel>(
+                                  items: cartController.filteredPaymentTypesList,
+                                  selectedItem: cartController.selectedPaymentType.value,
+                                  hint: "Select Payment Type",
+                                  isSelected: cartController.isPaymentTypeSelected,
+                                  selectedValue: cartController.selectedPaymentType,
+                                  icon: Icons.payments,
+                                  onChanged: (PaymentTypeModel? newValue) {
+                                    cartController.onChangePaymentType(newValue!);
+                                  },
+                                  validator: (value) {
+                                    if (cartController.isPaymentTypeSelected.isFalse) {
+                                      return 'Please select a payment type';
+                                    }
+                                    return null;
+                                  },
+                                  itemBuilder: (PaymentTypeModel value) =>
+                                      Text(value.name!),
+                                );
+                              }),
+                            ),
+                            Expanded(
+                              child: TextFormField(
+                                controller:
+                                cartController.amountPaidTextEditingController,
+                                keyboardType: const TextInputType.numberWithOptions(
+                                    decimal: true),
+                                inputFormatters: <TextInputFormatter>[
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r'^\d+\.?\d{0,2}')),
+                                ],
+                                decoration: const InputDecoration(
+                                    prefixIcon: Icon(Icons.money),
+                                    labelText: "Amount",
+                                    hintText: "Amount"),
+                                onChanged: (String val) {
+                                  if (val.isNotEmpty) {
+                                    cartController.amountPaidChange(val);
+                                  }
+                                },
+                                validator: (value) {
+                                  if (cartController.totalAmountPaid.value == 0.0) {
+                                    return 'Please enter an amount';
+                                  }
+                                  double enteredAmount;
+                                  try {
+                                    enteredAmount = cartController.totalAmountPaid.value;
+                                  } catch (e) {
+                                    return 'Please enter a valid amount';
+                                  }
+
+                                  if (enteredAmount <
+                                      double.parse(cartController.totalCostInSelectedCurrency.value.toStringAsFixed(2))) {
+                                    return 'Amount paid cannot be less than the total amount';
+                                  }
+                                  return null;
+                                },
+                                onSaved: (value) {
+                                  cartController.amountPaid.value = cartController.totalAmountPaid.value;
+                                },
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.add,size: 50,color: Colors.blue,),
+                              onPressed: () {
+                                cartController.addPaymentType();
+                                FocusScope.of(context).unfocus();
+                                new TextEditingController().clear();
+                              },
+                            ),
+                            // Text('Volume : '),
+                            ],
+                      ),
+                    ),
+
+                SizedBox(height: 200,
+                child:
+                Expanded(
+                  child: Obx(() {
+                    return ListView.builder(
+                      itemCount: cartController.paymentTypes.length,
+                      itemBuilder: (context, index) {
+                        final total = cartController.paymentTypes[index];
+                        return Card(
+                          child: ListTile(
+                            tileColor: Colors.lightBlueAccent[100],
+                            title: Text(
+                              total.paymentType!.name!,
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            subtitle: Text(
+                              total.currency!.name!,
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            trailing:
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text( total.currency!.symbol! + " " + total.amount!.toStringAsFixed(2),
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                SizedBox(
+                                  width: 100,
+                                  // Adjust the width to fit the text
+                                  height: 30,
+                                  // Adjust the height to make the button smaller
+                                  child: IconButton(
+                                    icon: const Icon(Icons.delete,size: 35,color: Colors.redAccent,),
+                                    onPressed: () {
+                                      cartController.removePaymentMethod(index);
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      padding: EdgeInsets.all(5.0),
+                                      textStyle: TextStyle(fontSize: 14),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            shape: RoundedRectangleBorder(
+                              side: BorderSide(color: Colors.grey, width: 0.5),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }),
+                ),
+                  ),
+
+*/
+
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Obx(() {
@@ -226,13 +569,22 @@ class CheckoutScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // Obx(() {
+                      //   return Text(
+                      //     'Total Base Amount Paid : ${cartController.baseCurrency
+                      //         .value!.symbol} ${cartController
+                      //         .totalAmountPaid.toStringAsFixed(2)}',
+                      //     style: const TextStyle(
+                      //         fontSize: 20, fontWeight: FontWeight.bold),
+                      //   );
+                      // }),
                       Obx(() {
                         return Text(
                           'Base Amount : ${cartController.baseCurrency
                               .value!.symbol} ${cartController
                               .totalCostInBaseCurrency.toStringAsFixed(2)}',
                           style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold),
+                              fontSize: 20, fontWeight: FontWeight.bold,color: Colors.indigo),
                         );
                       }),
                       Obx(() {
@@ -241,7 +593,7 @@ class CheckoutScreen extends StatelessWidget {
                               .symbol} ${cartController
                               .totalCostInSelectedCurrency.toStringAsFixed(2)}',
                           style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold),
+                              fontSize: 20, fontWeight: FontWeight.bold,color: Colors.indigo),
                         );
                       }),
                       Obx(() {
@@ -249,7 +601,7 @@ class CheckoutScreen extends StatelessWidget {
                           'Change : ${cartController.selectedCurrency.value!
                               .symbol} ${cartController.change.value.toStringAsFixed(2)}',
                           style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
+                              fontSize: 18, fontWeight: FontWeight.bold,color: Colors.indigo),
                         );
                       }),
                       SizedBox(height: 5),
@@ -304,14 +656,27 @@ class CheckoutScreen extends StatelessWidget {
                             cartController.showConfirmDialogChargeSale();
                           }
                         },
-                        child: Text('Charge'),
+
+                        style: TextButton.styleFrom(
+                          backgroundColor: Colors.lightGreenAccent, // Set button color to red
+                          foregroundColor: Colors.black, // Set text color to red
+                          textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                        ),
+                        child:
+                            Text('Charge'),
                       ),
                       SizedBox(height: 10),
                       ElevatedButton(
+                        style: TextButton.styleFrom(
+                          backgroundColor: Colors.red[800], // Set button color to red
+                          foregroundColor: Colors.black, // Set text color to red
+                          textStyle: TextStyle(fontSize: 16,color: Colors.white,fontWeight: FontWeight.bold), // Set text size
+                        ),
                         onPressed: () {
                           cartController.cancelSale();
                         },
                         child: Text('Cancel Sale'),
+
                       ),
                     ],
                   ),
@@ -378,11 +743,17 @@ class CheckoutScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red, // Set text color to red
+              textStyle: TextStyle(fontSize: 16,color: Colors.white), // Set text size
+            ),
             onPressed: () {
               // Close dialog without adding a customer
               Get.back();
             },
+
             child: Text("Cancel"),
+
           ),
           TextButton(
             onPressed: () {

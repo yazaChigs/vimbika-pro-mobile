@@ -90,6 +90,7 @@ class LocalStorageService {
       ShiftModel? sh = await SyncService.getOpenedShift(user, box);
       if (sh != null) {
         int index = shifts.indexWhere((shift) => shift.shiftReference == sh.shiftReference);
+        // if (index != -1) {
         if (index != -1) {
         } else{
           shifts.add(sh);
