@@ -17,6 +17,7 @@ class CurrencyAmount {
     required this.shiftReference,
     this.posReference,
     this.isCash = false,
+    this.paymentType,
   });
   String? id;
   String? createdByName;
@@ -27,6 +28,7 @@ class CurrencyAmount {
   double amount;
   String? notes;
   String amountType;
+  String? paymentType;
   String? ref;
   String? shiftReference;
   String? posReference;
@@ -51,6 +53,7 @@ class CurrencyAmount {
     shiftReference: json["shiftReference"],
     posReference: json["posReference"],
     isCash: json["isCash"] ?? false,
+    paymentType: json["paymentType"],
   );
 
   Map<String, dynamic> toMap() => {
@@ -66,6 +69,7 @@ class CurrencyAmount {
     "timeCreated": timeCreated,
     "shiftReference": shiftReference,
     "posReference": posReference,
+    "paymentType": paymentType,
     "isCash": isCash,
   };
 }

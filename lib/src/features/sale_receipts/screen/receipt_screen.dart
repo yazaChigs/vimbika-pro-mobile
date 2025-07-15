@@ -234,7 +234,7 @@ class ReceiptScreen extends StatelessWidget {
                           children: [
                             Text(
                               '${sale.saleStatus ?? 'N/A'}',
-                              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                              style: sale.saleStatus!='REVERSED'? TextStyle(fontSize: 14, color: Colors.grey[700]):TextStyle(fontSize: 14, color: Colors.red[700]),
                             ),
                             SizedBox(
                               width: 60,
@@ -247,17 +247,16 @@ class ReceiptScreen extends StatelessWidget {
                                   //   Future<Uint8List> pdf = GenerateFlutterPdf.generateReceipt(saleInfo.sale!);
                                   //   Get.to(() => PdfPreviewScreen(pdf: pdf));
                                   // }
-                                  receiptController.printSale(saleInfo);
-
+                                  sale.saleStatus != 'REVERSED'?receiptController.printSale(saleInfo):null;
                                 },
                                 style: ElevatedButton.styleFrom(
                                   padding: EdgeInsets.zero,
                                   backgroundColor: saleInfo.syncStatus == true
-                                      ? Colors.green
+                                      ? sale.saleStatus != 'REVERSED'?Colors.green:Colors.red
                                       : Theme.of(context).primaryColor,
                                   textStyle: TextStyle(fontSize: 10),
                                 ),
-                                child: Text('Print'),
+                                child: sale.saleStatus != 'REVERSED'?Text('Print'):Text('X'),
                               ),
                             ),
                           ],

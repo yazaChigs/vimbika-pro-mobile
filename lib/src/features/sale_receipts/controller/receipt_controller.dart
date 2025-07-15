@@ -80,6 +80,7 @@ class ReceiptController extends GetxController {
   }
 
   refreshFilter(){
+    getSalesByDate(startDate.value, endDate.value, "", branch.value!.id!);
     startDate.value = "";
     endDate.value = "";
     isCatSelected.value = false;
@@ -88,7 +89,6 @@ class ReceiptController extends GetxController {
     endDateController.text = "";
     // allReceipts.value = [];
     // filteredReceipts.value = [];
-     getSalesByDate(startDate.value, endDate.value, "", branch.value!.id!);
   }
 
 
@@ -151,7 +151,7 @@ class ReceiptController extends GetxController {
     } else{
       getSales();
     }
-
+      print("Sales fetched: ${allReceipts.length}");
   }
 
   printSale(SaleInfoModel saleInfo) async{
@@ -197,11 +197,12 @@ class ReceiptController extends GetxController {
     for (var saleInfo in filteredReceipts) {
       String? currencySymbol = saleInfo.sale?.currency?.symbol ?? '';
       double amountPaid = saleInfo.sale?.baseSaleAmount ?? 0;
-
-      if (totals.containsKey(currencySymbol)) {
-        totals[currencySymbol] = totals[currencySymbol]! + amountPaid;
-      } else {
-        totals[currencySymbol] = amountPaid;
+      if(saleInfo.sale!.saleStatus!= "REVERSED") {
+        if (totals.containsKey(currencySymbol)) {
+          totals[currencySymbol] = totals[currencySymbol]! + amountPaid;
+        } else {
+          totals[currencySymbol] = amountPaid;
+        }
       }
     }
 

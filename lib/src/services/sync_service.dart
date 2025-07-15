@@ -99,6 +99,7 @@ class SyncService {
 
   static Future<SaleModel?> saveSale(SaleModel sale, UserModel user, GetStorage box, CompanyModel company) async{
     String jsonSaleItems = sale.toJson();
+    print("Company ID ${company.id}");
     var response = await BaseHttpClient().postAuthWithCompanyHeader("/sale/save", jsonSaleItems, company.id!, "POST").catchError((onError){
       //AppHelper.hideLoading();
       if (onError is BadRequestException) {
@@ -404,7 +405,6 @@ class SyncService {
     print("Syncing shifts " + shiftInfo.length.toString());
 
     for (ShiftModel sh in shiftInfo) {
-      print(sh.toJson());
       if (!sh.stopSync! && !sh.isShiftClosed!) {
         itemsToBeSynced.add(sh);
         if (sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty) {
@@ -415,10 +415,13 @@ class SyncService {
           }
         }
       } else {
+        if(sh.isShiftClosed! && !sh.stopSync!) {
+          sh.stopSync = true;
+          itemsToBeSynced.add(sh);
+        }
         upToDateItems.add(sh);
       }
     }
-    debugPrint("Items to be synced " + currencyItemsToBeSynced.toString());
     if(currencyItemsToBeSynced.isNotEmpty) {
       String jsonShiftCurrencyItems = json.encode(
           currencyItemsToBeSynced.map((shift) => shift.toMap()).toList());
@@ -444,7 +447,6 @@ class SyncService {
         updateCurrencyItems.addAll(saleResponseModel.items ?? []);
       }
     }
-    debugPrint("Items to be synced " + itemsToBeSynced.toString());
 
     for (ShiftModel sh in itemsToBeSynced) {
       if (sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty) {
@@ -456,12 +458,7 @@ class SyncService {
         }
       }
     }
-    debugPrint("Currency items to be synced " + itemsToBeSynced.toString());
-
-      String jsonShiftItems = json.encode(
-        itemsToBeSynced.map((shift) => shift.toMap()).toList());
-      debugPrint("Shift items to be synced " + jsonShiftItems);
-    debugPrint("Syncing shifts " + jsonShiftItems);
+      String jsonShiftItems = json.encode(itemsToBeSynced.map((shift) => shift.toMap()).toList());
     var response = await BaseHttpClient()
         .postAuthWithCompanyHeader(
         "/mobile/pos/shift/save", jsonShiftItems, user.companyId!, "POST")

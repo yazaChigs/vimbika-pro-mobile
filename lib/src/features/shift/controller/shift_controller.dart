@@ -71,6 +71,7 @@ class ShiftController extends GetxController {
   }
   getSales() {
     List<SaleInfoModel> sales = getExistingOfflineSales(box);
+    print("saels: ${sales.length}");
     List<SaleInfoModel> actualSales = [];
     for(SaleInfoModel s in sales){
       if(s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING"){
@@ -216,13 +217,13 @@ class ShiftController extends GetxController {
         // }
 
       }
-       if ((currencyAmount.amountType == 'CASH_IN' ||
-          currencyAmount.amountType == 'OPENING_AMOUNT' ||
-          currencyAmount.amountType == 'SALE') && (isCash || currencyAmount.isCash! == true)) {
-         print("Adding CASH_IN or OPENING_AMOUNT for amount: ${currencyAmount.amount}");
+       if (((currencyAmount.amountType == 'CASH_IN' || currencyAmount.amountType == 'OPENING_AMOUNT' || currencyAmount.amountType == 'SALE')
+           && (isCash || currencyAmount.isCash! == true)) || (currencyAmount.paymentType!=null && currencyAmount.paymentType!.startsWith("CASH-"))) {
         totals[currencyId!] = (totals[currencyId] ?? 0.0) + currencyAmount.amount;
+        print("Adding to totals: ${currencyAmount.amount} for currency: ${currencyAmount.currency.symbol}");
       } else if (currencyAmount.amountType == 'CASH_OUT') {
         totals[currencyId!] = (totals[currencyId] ?? 0.0) - currencyAmount.amount;
+        print("Subtracting from totals: ${currencyAmount.amount} for currency: ${currencyAmount.currency.symbol}");
         cashOuts[currencyId] = (cashOuts[currencyId] ?? 0.0) + currencyAmount.amount;
       } else if (currencyAmount.amountType == 'CASH_SUBMIT') {
         totalCashSubmitted[currencyId!] = (totalCashSubmitted[currencyId] ?? 0.0) + currencyAmount.amount;
@@ -255,6 +256,7 @@ class ShiftController extends GetxController {
       final currency = activeShift.value.shiftCurrencyAmounts!
           .firstWhere((amount) => amount.currency.id == currencyId)
           .currency;
+      print("Currency: ${currency.symbol}, Total: $total, Cash Submitted: ${totalCashSubmitted[currencyId] ?? 0.0}");
       totalAmountsByCurrency.add({
         "currencyName": currency.symbol,
         "totalAmount": total-(totalCashSubmitted[currencyId] ?? 0.0),

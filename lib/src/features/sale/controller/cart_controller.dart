@@ -543,7 +543,8 @@ class CartController extends GetxController {
       totalSaleQuantity = totalSaleQuantity + cartItem.quantity;
       productItem.quantity = cartItem.quantity;
       productItem.total = cartItem.totalPrice;
-      SaleItemModel saleItem = SaleItemModel(sellingPrice: productItem.sellingPrice, baseCurrencySellingPrice: productItem.sellingPrice, quantity:  cartItem.quantity, total: cartItem.totalPrice, baseCurrencyTotal: cartItem.totalPrice, taxAmount: cartItem.totalTaxAmount, baseTaxAmount: cartItem.totalTaxAmount, inventoryItem: productItem, branch: branch.value, usedCodesString: cartItem.usedCodes);
+      
+      SaleItemModel saleItem = SaleItemModel(sellingPrice: productItem.sellingPrice, baseCurrencySellingPrice: productItem.sellingPrice, quantity:  cartItem.quantity, total: cartItem.totalPrice, baseCurrencyTotal: cartItem.totalPrice, taxAmount: double.parse(cartItem.totalTaxAmount.toStringAsFixed(2)), baseTaxAmount: double.parse(cartItem.totalTaxAmount.toStringAsFixed(2)), inventoryItem: productItem, branch: branch.value, usedCodesString: cartItem.usedCodes);
       saleItem.id = productItem.id;
       if(saleItem.inventoryItem != null){
         if(saleItem.inventoryItem!.productImages != null){
@@ -562,15 +563,15 @@ class CartController extends GetxController {
     if(isOnHold){
       paymentTypes = [];
     }
+    var totalTaxInSelectedCurrency = saleItems.fold<double>(0.0, (sum, item) => sum + item.taxAmount!);
     String fullName = user.value!.firstName + " " + user.value!.lastName;
     var saleTotal =  saleItems.fold<double>(0.0,(sum,item)=>sum +item.total!);
-    SaleModel sale = SaleModel(id: saleTicketId.value.length > 2 ? saleTicketId.value: null, active: true, createdByName: user.value!.userName, cashierFullName: fullName, paymentTypes: paymentTypes, saleStatus: saleStatus, onHold: isOnHold,taxAmount: totalTaxInSelectedCurrency.value,
-        amountPaid: customerAmountPaid.value, totalQuantity: totalSaleQuantity, saleCost: 0.0, totalTaxAmount: totalTaxInSelectedCurrency.value, baseSaleAmount: saleTotal, referenceNumber: ref, change: change.value, customerAmountPaid: customerAmountPaid.value, timeIniated: timeInit,
+    SaleModel sale = SaleModel(id: saleTicketId.value.length > 2 ? saleTicketId.value: null, active: true, createdByName: user.value!.userName, cashierFullName: fullName, paymentTypes: paymentTypes, saleStatus: saleStatus, onHold: isOnHold,taxAmount: totalTaxInSelectedCurrency,
+        amountPaid: customerAmountPaid.value, totalQuantity: totalSaleQuantity, saleCost: 0.0, totalTaxAmount: totalTaxInSelectedCurrency, baseSaleAmount: saleTotal, referenceNumber: ref, change: change.value, customerAmountPaid: customerAmountPaid.value, timeIniated: timeInit,
         timeInit: timeInit, currency: selectedCurrency.value, baseCurrency: baseCurrency.value, paymentType: isOnHold? null : selectedPaymentType.value, items: saleItems, branch: branch.value, amountAfterDiscount: saleTotal, shiftReference: activeShift.shiftReference,
         posReference: ref, customer: isWalkIn ? null :  selectedCustomer.value, isWalkInCustomer: isWalkIn, taxInvoice: fiscalizeReceipt.value, fiscalized: zimraFiscalizeReceipt.value, emailReceipt: emailReceipt.value, totalDiscount: 0, ticketName: ticketName, ticketComment: ticketComment);
-      sale.paymentTypes!.map((toElement)=>print("Payment type: " + toElement.toJson()));
     SaleInfoModel saleInfoModel;
-    if(stat) {
+   /* if(stat) {
       print("SAVING SALE..");
       SaleModel? responseFromServerSale = await SyncService.saveSale(sale, user.value!, box, company.value!);
       print("RESPONSE FROM SERVER SALE: " + responseFromServerSale.toString());
@@ -596,16 +597,16 @@ class CartController extends GetxController {
         saleInfoModel = SaleInfoModel(sale: sale, syncStatus: false);
       }
     } else{
-      saleInfoModel = SaleInfoModel(sale: sale, syncStatus: false);
-    }
+    }*/
+    saleInfoModel = SaleInfoModel(sale: sale, syncStatus: false);
     if(!isOnHold) {
       deductStock();
       // for(var paymentReceived in paymentTypes) {
       //     updateShiftWithNewSale(ref, timeInit, paymentReceived.amount!, stat, saleInfoModel.sale!.referenceNumber!);
       // }
-      paymentTypes.clear();
+      // paymentTypes.clear();
       var isCash = selectedPaymentType.value!.name!.startsWith("CASH");
-      updateShiftWithNewSale(ref, timeInit, totalCostInSelectedCurrency.value, stat, saleInfoModel.sale!.referenceNumber!,isCash);
+      updateShiftWithNewSale(ref, timeInit, totalCostInSelectedCurrency.value, stat, saleInfoModel.sale!.referenceNumber!,isCash,selectedPaymentType.value!.name!);
       infos.add(saleInfoModel);
       writeSaleInfor(box, infos);
       printCurrentSale(saleInfoModel, box);
@@ -624,56 +625,6 @@ class CartController extends GetxController {
         box);
     return sales;
   }
-
-  syncOfflineSales() async{
-    print("syncing 0ffline sales...");
-    List<SaleInfoModel> sales = getExistingOfflineSales(box);
-    List<SaleInfoModel> syncedSales = [];
-    print(offlineSales.map((e) => !e.syncStatus!,));
-    bool stat = await _connectivityService.checkServerConnection();
-    SaleInfoModel saleInfoModel;
-    if(stat) {
-      for (SaleInfoModel saleInfo in offlineSales) {
-        if (!saleInfo.syncStatus!) {
-          print(saleInfo.sale!.posReference);
-          SaleModel? saleModel = await SyncService.saveSale(
-              saleInfo.sale!, user.value!, box, company.value!);
-          if (saleModel != null) {
-            syncedSales.add(saleInfo);
-            SaleInfoModel? infoModel = await getSale(saleModel.id!);
-            if(infoModel != null){
-              saleInfoModel = infoModel;
-            } else{
-              saleInfoModel = SaleInfoModel(sale: saleModel, syncStatus: true);
-            }
-            print(saleInfoModel.sale?.posReference);
-            // Update the sale in the local storage
-            if(sales.any((saleInfo)=> saleInfo.sale?.posReference == saleInfo.sale?.posReference)){
-              print("Updating existing sale...");
-              sales.remove(saleInfo);
-              sales.add(saleInfoModel);
-            }
-            writeSaleInfor(box, sales);
-
-          }
-        }
-      }
-      writeSaleInfor(box, sales);
-      print("Synced size: "+syncedSales.length.toString());
-      print("offlineSales size: "+offlineSales.length.toString());
-      print(offlineSales);
-      for(SaleInfoModel saleInfo in syncedSales) {
-        // Remove the synced sales from the offline list
-        print(offlineSales.remove(saleInfo));
-      }
-      offlineSales = [];
-      getExistingOfflineSales(box).removeWhere((saleInfo) => syncedSales.contains(saleInfo));
-      print(offlineSales.length);
-      print(offlineSales);
-      print(getExistingOfflineSales(box).length);
-    }
-  }
-
 
   addPaymentType(){
     PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(amount: double.parse(amountPaidTextEditingController.text) , paymentType: selectedPaymentType.value, paymentDescription: "SALE", isPaid: true, currency: selectedCurrency.value, bank: selectedBank.value);
@@ -752,7 +703,7 @@ class CartController extends GetxController {
     }
     return null;
   }
-  updateShiftWithNewSale(String ref, String timeCreated, double amt, bool stat,String posReference,bool isCash) async {
+  updateShiftWithNewSale(String ref, String timeCreated, double amt, bool stat,String posReference,bool isCash,String paymentType) async {
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(loadShifts(box), box, user.value!, true);
     if(tempActiveShift != null) {
       activeShift = tempActiveShift;
@@ -765,7 +716,7 @@ class CartController extends GetxController {
     // }
     // paymentTypes.clear();
     CurrencyAmount currencyAmount = CurrencyAmount(currency: selectedCurrency.value!, amountType: "SALE", ref: ref,
-        timeCreated: timeCreated, notes: "", amount: amt, shiftReference: activeShift.shiftReference,posReference: posReference,isCash: isCash);
+        timeCreated: timeCreated, notes: "", amount: amt, shiftReference: activeShift.shiftReference,posReference: posReference,isCash: isCash,paymentType: paymentType);
     activeShift.shiftCurrencyAmounts!.add(currencyAmount);
     List<ShiftModel> updatedShifts = _localStorageService.replaceShift(activeShift, shiftList);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, updatedShifts, box);

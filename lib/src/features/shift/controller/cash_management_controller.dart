@@ -89,7 +89,8 @@ class CashManagementController extends GetxController {
     int count = activeShift.shiftCurrencyAmounts!.length + 1;
     print(activeShift.toJson());
     String ref = AppConstants.getDateNowRef(payType+"_", count);
-    CurrencyAmount currencyAmount = CurrencyAmount(currency: selectedCurrency.value!, amountType: payType, ref: ref, timeCreated: timeCreated, notes: comments.value, amount: amount.value, shiftReference: activeShift.shiftReference);
+    CurrencyAmount currencyAmount = CurrencyAmount(currency: selectedCurrency.value!, amountType: payType, ref: ref, timeCreated: timeCreated,
+        notes: comments.value, amount: amount.value, shiftReference: activeShift.shiftReference, paymentType: "${payType}-${selectedCurrency.value!.name}");
     activeShift.shiftCurrencyAmounts!.add(currencyAmount);
     List<ShiftModel> updatedShifts = _localStorageService.replaceShift(activeShift, shiftList);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, updatedShifts, box);

@@ -89,9 +89,9 @@ class SaleController extends GetxController {
       Get.snackbar('Printer Status', 'Sunmi built in printer not available',
           snackPosition: SnackPosition.BOTTOM);
     }
-    // _syncTimer = Timer.periodic(Duration(seconds: 60), (timer) async {
+    // _syncTimer = Timer.periodic(Duration(seconds: 10), (timer) async {
     //   print("init syncing sales...");
-    //   syncOfflineSales();
+    //   // syncOfflineSales();
     // });
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
@@ -194,11 +194,6 @@ class SaleController extends GetxController {
     List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
         item.toMap()).toList();
     box.write(AppConstants.SALE_LIST, itemsListMap);
-  }
-  writeShiftInfor(GetStorage box, List<ShiftModel> itemsList){
-    List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
-        item.toMap()).toList();
-    box.write(AppConstants.SHIFT_LIST, itemsListMap);
   }
 
   List<SaleInfoModel> getExistingOfflineSales(GetStorage box){
@@ -359,8 +354,6 @@ class SaleController extends GetxController {
 
             List<dynamic> list = jsonDecode(response);
             List<ProductFullInfoModel> itemsList = List<ProductFullInfoModel>.from(list.map((i) => ProductFullInfoModel.fromMap(i)));
-            print("ALL ITEMS..");
-            print(itemsList.length);
             itemsList.sort((a, b) => b.stock!.compareTo(a.stock!));
 
 
