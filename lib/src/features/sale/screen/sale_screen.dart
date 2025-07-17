@@ -36,7 +36,17 @@ class SaleScreen extends GetView {
   final BackgroundService bb = Get.put(BackgroundService());
   final ReceiptController receiptController = Get.put(ReceiptController());
 
-  SaleScreen({super.key});
+  // const Responsive({required this.mobile, required this.tablet, required this.desktop, super.key});
+
+  late Widget mobile;
+  late Widget tablet;
+
+  static bool isMobile(BuildContext context) => MediaQuery.of(context).size.width < 950.0;
+
+  static bool isTablet(BuildContext context) => MediaQuery.of(context).size.width >= 950.0 ;
+
+
+  SaleScreen( {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -44,301 +54,315 @@ class SaleScreen extends GetView {
         .lastName}";
     String initials = saleController.user.firstName[0] +
         saleController.user.lastName[0];
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTap: inactivityController.resetInactivityTimer,
-      onPanDown: (_) => inactivityController.resetInactivityTimer(),
-      child: Scaffold(
-        key: scaffoldKey,
-        appBar: AppBar(
-          backgroundColor: Colors.white, // Same as your app theme
-          elevation: 0,
-          title: Row(
-            children: [
-              GestureDetector(
-                onTap: () {
-                  // Define the action when "Ticket" is clicked
-                  // Get.toNamed(AppRoutes.OPEN_TICKETS);
-                },
-                child: Text(
-                  'Ticket',
-                  style: TextStyle(color: Colors.black),
+    if(isMobile(context)) {
+      return GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: inactivityController.resetInactivityTimer,
+        onPanDown: (_) => inactivityController.resetInactivityTimer(),
+        child: Scaffold(
+          key: scaffoldKey,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            // Same as your app theme
+            elevation: 0,
+            title: Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    // Define the action when "Ticket" is clicked
+                    // Get.toNamed(AppRoutes.OPEN_TICKETS);
+                  },
+                  child: Text(
+                    'Ticket',
+                    style: TextStyle(color: Colors.black),
+                  ),
                 ),
-              ),
-              SizedBox(width: 4),
-              GestureDetector(
-                onTap: () {
-                  // Define the action when the count is clicked
-                  //  Get.toNamed(AppRoutes.OPEN_TICKETS);
-                },
-                child: Obx(() {
-                  final count = ticketController.openedTicketsCount;
-                  return Container(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      // Set the background color for the count
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      count.toString(),
-                      style: TextStyle(color: Colors.white,
-                          fontSize: 10), // Text color
-                    ),
+                SizedBox(width: 4),
+                GestureDetector(
+                  onTap: () {
+                    // Define the action when the count is clicked
+                    //  Get.toNamed(AppRoutes.OPEN_TICKETS);
+                  },
+                  child: Obx(() {
+                    final count = ticketController.openedTicketsCount;
+                    return Container(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        // Set the background color for the count
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        count.toString(),
+                        style: TextStyle(color: Colors.white,
+                            fontSize: 10), // Text color
+                      ),
+                    );
+                  }),
+                ),
+                SizedBox(width: 6),
+                Obx(() {
+                  CurrencyModel? cur = cartController.selectedCurrency.value;
+                  // Check if the selected currency exists in the list
+                  if (!cartController.currencyList.contains(cur) &&
+                      cartController.currencyList.isNotEmpty) {
+                    cur = cartController.currencyList.first;
+                    cartController.selectedCurrency.value =
+                        cur; // Set a default currency if not found
+                  }
+                  return DropdownButton<CurrencyModel>(
+                    value: cur,
+                    isExpanded: false,
+                    // Make the dropdown take full width
+                    items: cartController.currencyList.map((cur) {
+                      return DropdownMenuItem<CurrencyModel>(
+
+                        value: cur,
+                        child: Text(cur.symbol!),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      // Filter based on selected currency
+                      cartController.onCurrencyChange(value!);
+                    },
+                    hint: Text("Currency"),
                   );
                 }),
-              ),
-              SizedBox(width: 6),
-              Obx(() {
-                CurrencyModel? cur =  cartController.selectedCurrency.value;
-                // Check if the selected currency exists in the list
-                if (!cartController.currencyList.contains(cur) && cartController.currencyList.isNotEmpty) {
-                  cur = cartController.currencyList.first;
-                  cartController.selectedCurrency.value = cur; // Set a default currency if not found
-                }
-                return DropdownButton<CurrencyModel>(
-                  value: cur,
-                  isExpanded: false,
-                  // Make the dropdown take full width
-                  items: cartController.currencyList.map((cur) {
-                    return DropdownMenuItem<CurrencyModel>(
-
-                      value: cur,
-                      child: Text(cur.symbol!),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    // Filter based on selected currency
-                    cartController.onCurrencyChange(value!);
-
+                SizedBox(width: 3),
+                IconButton(
+                  icon: Icon(Icons.refresh),
+                  onPressed: () {
+                    //Get.toNamed(AppRoutes.CUSTOMER_FORM);
+                    saleController.syncData();
                   },
-                  hint: Text("Currency"),
-                );
-              }),
-              SizedBox(width: 3),
-              IconButton(
-                icon: Icon(Icons.refresh),
-                onPressed: () {
-                  //Get.toNamed(AppRoutes.CUSTOMER_FORM);
-                  saleController.syncData();
-                },
-              ),
-            ],
-          ),
-          leading: IconButton(
-            icon: Icon(Icons.menu),
-            onPressed: () {
-              scaffoldKey.currentState?.openDrawer();
-            },
-          ),
-          actions: [
-            IconButton(
-              icon: Icon(Icons.person_add),
+                ),
+              ],
+            ),
+            leading: IconButton(
+              icon: Icon(Icons.menu),
               onPressed: () {
-                 Get.toNamed(AppRoutes.CUSTOMER_FORM);
+                scaffoldKey.currentState?.openDrawer();
               },
             ),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.person_add),
+                onPressed: () {
+                  Get.toNamed(AppRoutes.CUSTOMER_FORM);
+                },
+              ),
 
-          ],
-        ),
+            ],
+          ),
 
 
-        drawer: NavDrawer(fullName: fullName,
-            mobileNumber: saleController.user.mobilePhone ?? "",
-            nameInitials: initials),
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0, vertical: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  // OPEN TICKETS button
-                  Expanded(
-                    child: Obx(() {
-                      return ElevatedButton(
-                        onPressed: () {
-                          // ticketController.getTickets();
-                          ticketController.ticketActionButton(cartController.selectedCurrency.value!, cartController.cartItems.length);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.cyan,
-                          padding: EdgeInsets.symmetric(vertical: 14.0),
-                          textStyle: TextStyle(fontSize: 12,color: Colors.white, fontWeight: FontWeight.bold),
-                        ),
-
-                        child: Text(
-                          cartController.cartItems.length > 0
-                              ? 'SAVE'
-                              : 'OPEN TICKETS',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
-
-                        ),
-                      );
-                    }),
-                  ),
-                  SizedBox(width: 8.0),
-                  // CHARGE button
-                  // Expanded(
-                  //   child: ElevatedButton(
-                  //     onPressed: () {
-                  //       // Define action for charge
-                  //       // e.g., open checkout or payment screen
-                  //       Get.toNamed(AppRoutes.CART);
-                  //     },
-                  //
-                  //     style: ElevatedButton.styleFrom(
-                  //       padding: EdgeInsets.symmetric(vertical: 14.0),
-                  //       textStyle: TextStyle(fontSize: 12),
-                  //     ),
-                  //     child: Obx(() =>
-                  //         Text(
-                  //          'CHARGE : ${cartController.selectedCurrency.value?.symbol ?? ''} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
-                  //           style: TextStyle(color: Colors.white, fontSize: 16),
-                  //         )),
-                  //   ),
-                  // ),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // Define action for charge
-                        // e.g., open checkout or payment screen
-                        Get.toNamed(AppRoutes.CART);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        padding: EdgeInsets.symmetric(vertical: 14.0),
-                        textStyle: TextStyle(fontSize: 12,color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
+          drawer: NavDrawer(fullName: fullName,
+              mobileNumber: saleController.user.mobilePhone ?? "",
+              nameInitials: initials),
+          body: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // OPEN TICKETS button
+                    Expanded(
                       child: Obx(() {
-                        // Check if totalCostInSelectedCurrency is a number
-                        final totalCost = cartController.totalCostInSelectedCurrency;
-                        final formattedCost = totalCost != null
-                            ? totalCost.toStringAsFixed(2) // Convert to 2 decimal places
-                            : '0.00';
+                        return ElevatedButton(
+                          onPressed: () {
+                            // ticketController.getTickets();
+                            ticketController.ticketActionButton(
+                                cartController.selectedCurrency.value!,
+                                cartController.cartItems.length);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.cyan,
+                            padding: EdgeInsets.symmetric(vertical: 14.0),
+                            textStyle: TextStyle(fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
 
-                        return Text(
-                          'CHARGE : ${cartController.selectedCurrency.value?.symbol ?? ''} $formattedCost',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
+                          child: Text(
+                            cartController.cartItems.length > 0
+                                ? 'SAVE'
+                                : 'OPEN TICKETS',
+                            style: TextStyle(color: Colors.white, fontSize: 16),
+
+                          ),
                         );
                       }),
                     ),
-                  ),
-
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0, vertical: 8.0),
-              child: Obx(() {
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Conditionally show either the DropdownButton or the Search TextField
-                    saleController.isSearching.value
-                        ? Expanded(
-                      child: TextField(
-                        controller: saleController.searchTextEditingController,
-                        decoration: InputDecoration(
-                          hintText: 'Search Items...',
-                          border: OutlineInputBorder(),
-                          prefixIcon: IconButton(
-                            icon: Icon(Icons.close),
-                            onPressed: () {
-                              saleController.searchTextEditingController
-                                  .clear();
-                              saleController.isSearching.value =
-                              false; // Hide search field
-
-                              final allItemsCategory = saleController.categories
-                                  .firstWhere(
-                                    (category) => category.id == "All Items",
-                                orElse: () => saleController.categories.first,
-                              );
-                              saleController.selectedCategory.value =
-                                  allItemsCategory;
-
-
-                              saleController.filterProducts(query: '',
-                                  category: saleController.selectedCategory
-                                      .value?.id);
-                            },
-                          ),
+                    SizedBox(width: 8.0),
+                    // CHARGE button
+                    // Expanded(
+                    //   child: ElevatedButton(
+                    //     onPressed: () {
+                    //       // Define action for charge
+                    //       // e.g., open checkout or payment screen
+                    //       Get.toNamed(AppRoutes.CART);
+                    //     },
+                    //
+                    //     style: ElevatedButton.styleFrom(
+                    //       padding: EdgeInsets.symmetric(vertical: 14.0),
+                    //       textStyle: TextStyle(fontSize: 12),
+                    //     ),
+                    //     child: Obx(() =>
+                    //         Text(
+                    //          'CHARGE : ${cartController.selectedCurrency.value?.symbol ?? ''} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
+                    //           style: TextStyle(color: Colors.white, fontSize: 16),
+                    //         )),
+                    //   ),
+                    // ),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // Define action for charge
+                          // e.g., open checkout or payment screen
+                          Get.toNamed(AppRoutes.CART);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          padding: EdgeInsets.symmetric(vertical: 14.0),
+                          textStyle: TextStyle(fontSize: 12, color: Colors
+                              .white, fontWeight: FontWeight.bold),
                         ),
-                        onChanged: (query) {
-                          // saleController.filterProducts(query);
-                          saleController.filterProducts(query: query,
-                              category: saleController.selectedCategory.value
-                                  ?.name); // Filter based on search query and category
-                        },
-                      ),
-                    )
-                        : Expanded(
-                      child: DropdownButton<BaseNameModel>(
-                        value: saleController.selectedCategory.value,
-                        isExpanded: true,
-                        // Make the dropdown take full width
-                        items: saleController.categories.map((category) {
-                          return DropdownMenuItem<BaseNameModel>(
-                            value: category,
-                            child: Text(category.name!),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          saleController.isCatSelected.value = true;
-                          saleController.selectedCategory.value = value!;
-                          // saleController.filterProducts(value.name!);
-                          saleController.filterProducts(category: value
-                              .id!); // Filter based on selected category
+                        child: Obx(() {
+                          // Check if totalCostInSelectedCurrency is a number
+                          final totalCost = cartController
+                              .totalCostInSelectedCurrency;
+                          final formattedCost = totalCost != null
+                              ? totalCost.toStringAsFixed(
+                              2) // Convert to 2 decimal places
+                              : '0.00';
 
-                        },
-                        hint: Text("Select Category"),
+                          return Text(
+                            'CHARGE : ${cartController.selectedCurrency.value
+                                ?.symbol ?? ''} $formattedCost',
+                            style: TextStyle(color: Colors.white, fontSize: 16),
+                          );
+                        }),
                       ),
                     ),
-                    // Search Icon
-                    if (!saleController.isSearching
-                        .value) // Show search icon only when not searching
-                      IconButton(
-                        icon: Icon(Icons.search),
-                        onPressed: () {
-                          saleController.isSearching.value =
-                          true; // Show search field
-                          saleController.selectedCategory.value =
-                              BaseNameModel(id: "All Items", name: "All Items");
-                          saleController.filterProducts(query: '',
-                              category: saleController.selectedCategory.value
-                                  ?.id);
-                        },
-                      ),
 
-                  
                   ],
-                );
-              }),
-            ),
-            const SizedBox(height: 5),
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: TextFormField(
-                controller: saleController.barCodeTextEditingController,
-                // keyboardType: TextInputType.number, // Allow only numbers
-                // inputFormatters: <TextInputFormatter>[
-                //   FilteringTextInputFormatter.digitsOnly, // Only allow digits (no decimals)
-                // ],
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.document_scanner_sharp),
-                  labelText: "Bar Code",
-                  hintText: "Bar Code",
                 ),
-                onChanged: (String val) {
-                  if (val.isNotEmpty) {
-                    String exp =  val;
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 8.0),
+                child: Obx(() {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Conditionally show either the DropdownButton or the Search TextField
+                      saleController.isSearching.value
+                          ? Expanded(
+                        child: TextField(
+                          controller: saleController
+                              .searchTextEditingController,
+                          decoration: InputDecoration(
+                            hintText: 'Search Items...',
+                            border: OutlineInputBorder(),
+                            prefixIcon: IconButton(
+                              icon: Icon(Icons.close),
+                              onPressed: () {
+                                saleController.searchTextEditingController
+                                    .clear();
+                                saleController.isSearching.value =
+                                false; // Hide search field
 
-                    if(saleController.useSerialNumbers) {
+                                final allItemsCategory = saleController
+                                    .categories
+                                    .firstWhere(
+                                      (category) => category.id == "All Items",
+                                  orElse: () => saleController.categories.first,
+                                );
+                                saleController.selectedCategory.value =
+                                    allItemsCategory;
+
+
+                                saleController.filterProducts(query: '',
+                                    category: saleController.selectedCategory
+                                        .value?.id);
+                              },
+                            ),
+                          ),
+                          onChanged: (query) {
+                            // saleController.filterProducts(query);
+                            saleController.filterProducts(query: query,
+                                category: saleController.selectedCategory.value
+                                    ?.name); // Filter based on search query and category
+                          },
+                        ),
+                      )
+                          : Expanded(
+                        child: DropdownButton<BaseNameModel>(
+                          value: saleController.selectedCategory.value,
+                          isExpanded: true,
+                          // Make the dropdown take full width
+                          items: saleController.categories.map((category) {
+                            return DropdownMenuItem<BaseNameModel>(
+                              value: category,
+                              child: Text(category.name!),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            saleController.isCatSelected.value = true;
+                            saleController.selectedCategory.value = value!;
+                            // saleController.filterProducts(value.name!);
+                            saleController.filterProducts(category: value
+                                .id!); // Filter based on selected category
+
+                          },
+                          hint: Text("Select Category"),
+                        ),
+                      ),
+                      // Search Icon
+                      if (!saleController.isSearching
+                          .value) // Show search icon only when not searching
+                        IconButton(
+                          icon: Icon(Icons.search),
+                          onPressed: () {
+                            saleController.isSearching.value =
+                            true; // Show search field
+                            saleController.selectedCategory.value =
+                                BaseNameModel(
+                                    id: "All Items", name: "All Items");
+                            saleController.filterProducts(query: '',
+                                category: saleController.selectedCategory.value
+                                    ?.id);
+                          },
+                        ),
+
+
+                    ],
+                  );
+                }),
+              ),
+              const SizedBox(height: 5),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: TextFormField(
+                  controller: saleController.barCodeTextEditingController,
+                  // keyboardType: TextInputType.number, // Allow only numbers
+                  // inputFormatters: <TextInputFormatter>[
+                  //   FilteringTextInputFormatter.digitsOnly, // Only allow digits (no decimals)
+                  // ],
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.document_scanner_sharp),
+                    labelText: "Bar Code",
+                    hintText: "Bar Code",
+                  ),
+                  onChanged: (String val) {
+                    if (val.isNotEmpty) {
+                      String exp = val;
+
+                      if (saleController.useSerialNumbers) {
                         var index = saleController.allProducts.indexWhere((
-                            item) => item.barCodes?.contains(exp)== true);
+                            item) => item.barCodes?.contains(exp) == true);
                         if (index != -1) {
                           ProductFullInfoModel foundItem = saleController
                               .allProducts[index];
@@ -349,34 +373,40 @@ class SaleScreen extends GetView {
                             // Get.snackbar("Info",
                             //     "Product already added !!!",
                             //     snackPosition: SnackPosition.BOTTOM);
-                            cartController.addToCartWithBarCode(foundItem, 1, exp);
+                            cartController.addToCartWithBarCode(
+                                foundItem, 1, exp);
                             saleController.barCodeTextEditingController.clear();
                           } else {
                             Get.snackbar("Info",
                                 "Product added to cart !!!",
                                 snackPosition: SnackPosition.BOTTOM);
-                            cartController.addToCartWithBarCode(foundItem, 1,exp);
+                            cartController.addToCartWithBarCode(
+                                foundItem, 1, exp);
                             saleController.barCodeTextEditingController.clear();
                           }
-                        }else{
+                        } else {
                           var index = saleController.allProducts.indexWhere((
                               item) => item.item?.itemCode == exp);
                           if (index != -1) {
-
-                            ProductFullInfoModel foundItem = saleController.allProducts[index];
-                            var indexC = cartController.cartItems.indexWhere((item) => item.product.item?.id == foundItem.item?.id);
-                            if(indexC != -1){
+                            ProductFullInfoModel foundItem = saleController
+                                .allProducts[index];
+                            var indexC = cartController.cartItems.indexWhere((
+                                item) =>
+                            item.product.item?.id == foundItem.item?.id);
+                            if (indexC != -1) {
                               // Get.snackbar("Info",
                               //     "Product already added !!!",
                               //     snackPosition: SnackPosition.BOTTOM);
                               cartController.addToCart(foundItem, 1);
-                              saleController.barCodeTextEditingController.clear();
+                              saleController.barCodeTextEditingController
+                                  .clear();
                             } else {
                               Get.snackbar("Info",
                                   "Product added to cart !!!",
                                   snackPosition: SnackPosition.BOTTOM);
                               cartController.addToCart(foundItem, 1);
-                              saleController.barCodeTextEditingController.clear();
+                              saleController.barCodeTextEditingController
+                                  .clear();
                             }
                           } else {
                             // Item not found, handle this case
@@ -386,227 +416,723 @@ class SaleScreen extends GetView {
                                 snackPosition: SnackPosition.BOTTOM);
                           }
                         }
-                      } else if(exp.length>=12) {
-                      String chackCode = exp.length > 2 ? exp.substring(0, 2) : '';
-                      String productCode = exp.length > 6 ? exp.substring(2, 6) : '';
-                      String categoryCode = exp.length > 7 ? exp.substring(6, 7) : '';
-                      String weight = exp.length > 12 ? exp.substring(7, 12) : '0';
+                      } else if (exp.length >= 12) {
+                        String chackCode = exp.length > 2
+                            ? exp.substring(0, 2)
+                            : '';
+                        String productCode = exp.length > 6 ? exp.substring(
+                            2, 6) : '';
+                        String categoryCode = exp.length > 7 ? exp.substring(
+                            6, 7) : '';
+                        String weight = exp.length > 12
+                            ? exp.substring(7, 12)
+                            : '0';
 
-                      double kgs = double.parse(weight)/1000;
-                      double roundedValue = double.parse(kgs.toStringAsFixed(3));
-                      if(kgs > 0) {
-                        // print(weight);
-                        // print(kgs);
-                        // print(roundedValue);
-                        var index = saleController.allProducts.indexWhere((
-                            item) => item.item?.itemCode == productCode);
-                        if (index != -1) {
-
-                          ProductFullInfoModel foundItem = saleController.allProducts[index];
-                          var indexC = cartController.cartItems.indexWhere((item) => item.product.item?.id == foundItem.item?.id);
-                          if(indexC != -1){
-                            // Get.snackbar("Info",
-                            //     "Product already added !!!",
-                            //     snackPosition: SnackPosition.BOTTOM);
-                            cartController.addToCart(foundItem, roundedValue);
-                            saleController.barCodeTextEditingController.clear();
+                        double kgs = double.parse(weight) / 1000;
+                        double roundedValue = double.parse(kgs.toStringAsFixed(
+                            3));
+                        if (kgs > 0) {
+                          // print(weight);
+                          // print(kgs);
+                          // print(roundedValue);
+                          var index = saleController.allProducts.indexWhere((
+                              item) => item.item?.itemCode == productCode);
+                          if (index != -1) {
+                            ProductFullInfoModel foundItem = saleController
+                                .allProducts[index];
+                            var indexC = cartController.cartItems.indexWhere((
+                                item) =>
+                            item.product.item?.id == foundItem.item?.id);
+                            if (indexC != -1) {
+                              // Get.snackbar("Info",
+                              //     "Product already added !!!",
+                              //     snackPosition: SnackPosition.BOTTOM);
+                              cartController.addToCart(foundItem, roundedValue);
+                              saleController.barCodeTextEditingController
+                                  .clear();
+                            } else {
+                              Get.snackbar("Info",
+                                  "Product added to cart !!!",
+                                  snackPosition: SnackPosition.BOTTOM);
+                              cartController.addToCart(foundItem, roundedValue);
+                              saleController.barCodeTextEditingController
+                                  .clear();
+                            }
                           } else {
-                            Get.snackbar("Info",
-                                "Product added to cart !!!",
+                            // Item not found, handle this case
+                            Get.snackbar("Not Found",
+                                "Product with item  code " + productCode +
+                                    " is not found!!!",
                                 snackPosition: SnackPosition.BOTTOM);
-                            cartController.addToCart(foundItem, roundedValue);
-                            saleController.barCodeTextEditingController.clear();
-
                           }
-                        } else {
-                          // Item not found, handle this case
-                          Get.snackbar("Not Found",
-                              "Product with item  code " + productCode +
-                                  " is not found!!!",
-                              snackPosition: SnackPosition.BOTTOM);
                         }
                       }
                     }
+                  },
+                  validator: (value) {
+                    // if (value == null || value.isEmpty) {
+                    //   return 'Please enter an amount';
+                    // }
+                    // int enteredAmount;
+                    // try {
+                    //   enteredAmount = int.parse(value); // Parse as integer (no decimals)
+                    // } catch (e) {
+                    //   return 'Please enter a valid whole number';
+                    // }
+                    //
+                    // if (enteredAmount < cartController.totalCostInSelectedCurrency.value) {
+                    //   return 'Amount paid cannot be less than the total amount';
+                    // }
+                    return null;
+                  },
+                  onSaved: (value) {
+                    // cartController.amountPaid.value = int.parse(value!); // Store as integer
+                  },
+                ),
+              ),
+
+
+              const SizedBox(height: 10),
+              // Padding(
+              //   padding: const EdgeInsets.all(8.0),
+              //   child: Obx(() {
+              //     return CustomDropdownWidget<BaseNameModel>(
+              //       items: saleController.categories.value,
+              //       selectedItem: saleController.selectedCategory.value,
+              //       hint: "Select Category",
+              //       isSelected: saleController.isCatSelected,
+              //       selectedValue: saleController.selectedCategory,
+              //       icon: Icons.shopping_basket_outlined,
+              //       onChanged: (BaseNameModel? newValue) {
+              //         print("Selected category: ${newValue?.name}");
+              //         saleController.isCatSelected.value = true;
+              //         saleController.selectedCategory.value = newValue!;
+              //         saleController.filterProducts(newValue.name!);
+              //       },
+              //       validator: (value) {
+              //         return null;
+              //       },
+              //       itemBuilder: (BaseNameModel value) =>
+              //           Text(value.name!),
+              //     );
+              //   }),
+              // ),
+              // const SizedBox(height: 10),
+              // Padding(
+              //   padding: const EdgeInsets.all(8.0),
+              //   child: Obx(() {
+              //     return CustomDropdownWidget<BaseNameModel>(
+              //       items: saleController.brands.value,
+              //       selectedItem: saleController.selectedBrand.value,
+              //       hint: "Select Brand",
+              //       isSelected: saleController.isBrandSelected,
+              //       selectedValue: saleController.selectedBrand,
+              //       icon: Icons.breakfast_dining_rounded,
+              //       onChanged: (BaseNameModel? newValue) {
+              //         saleController.isBrandSelected.value = true;
+              //         saleController.selectedBrand.value = newValue!;
+              //         print(newValue.name!);
+              //         saleController.filterProducts(newValue.name!);
+              //       },
+              //       validator: (value) {
+              //         return null;
+              //       },
+              //       itemBuilder: (BaseNameModel value) =>
+              //           Text(value.name!),
+              //     );
+              //   }),
+              // ),
+              // const SizedBox(height: 10),
+              // Padding(
+              //   padding: const EdgeInsets.all(8.0),
+              //   child: ElevatedButton(
+              //     onPressed: () {
+              //       saleController.clearFilters(); // Clear category dropdown
+              //     },
+              //     style: ElevatedButton.styleFrom(
+              //       padding: EdgeInsets.all(8.0),
+              //       textStyle: TextStyle(fontSize: 15),
+              //     ),
+              //     child: Text('Clear Filters'),
+              //   ),
+              // ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: Obx(() {
+                  return ListView.builder(
+                    itemCount: saleController.filteredProducts.length,
+                    itemBuilder: (context, index) {
+                      final product = saleController.filteredProducts[index];
+                      String name = product.item!.name ?? 'no name';
+                      String brand = product.item!.brand?.name ?? '';
+                      String fullName = "${name}  ${brand}";
+                      String imageUrl = product.item!.image != null
+                          ? "${AppConstants
+                          .VIMBIKA_BACKEND_URL}/inventory/image?name=${product
+                          .item!
+                          .image}"
+                          : "https://placehold.co/50x50?text=No+Image";
+                      String category = product.item!.category?.name ?? '';
+                      String itemName = fullName + ' ' + category;
+                      return Card(
+                          child:
+                          ListTile(
+                            tileColor: Colors.blue[100],
+                            leading: CachedNetworkImage(
+                              imageUrl: imageUrl,
+                              placeholder: (context, url) =>
+                                  CircularProgressIndicator(),
+
+
+                              errorWidget: (context, url, error) {
+                                debugPrint('Image load failed: $error');
+                                return Image.asset(
+                                  'assets/images/dummy/dummy.png',
+                                  // Path to your error image
+                                  fit: BoxFit.cover,
+                                );
+                              },
+                            ),
+                            title: Text(itemName),
+                            subtitle: Text('Available units ' + '(' +
+                                product.stock!.toInt().toString() + ')'),
+                            trailing: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                    "\$${product.item!.sellingPrice
+                                        .toStringAsFixed(
+                                        2)}"),
+                                SizedBox(
+                                  height: 4, // Space between price and button
+                                ),
+                                SizedBox(
+                                  width: 100,
+                                  // Adjust the width to fit the text
+                                  height: 30,
+                                  // Adjust the height to make the button smaller
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      Get.to(() =>
+                                          ProductDescriptionScreen(
+                                              productFullInfo: product));
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.indigo,
+                                      padding: EdgeInsets.all(5.0),
+                                      textStyle: TextStyle(
+                                          fontSize: 14, color: Colors.white),
+                                    ),
+                                    child: Text('View'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            isThreeLine: true,
+
+                            onTap: () {
+                              if (product.item?.itemType == 'SERVICE') {
+                                cartController.addToCart(product, 1);
+                              } else if (product.stock! > 0 ||
+                                  saleController.sellNilItems) {
+                                cartController.addToCart(product, 1);
+                              } else {
+                                Get.snackbar("Check your stock",
+                                    "Stock not available!!!",
+                                    snackPosition: SnackPosition.BOTTOM);
+                              }
+                            },
+                          )
+                      );
+                    },
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
+      );
+    }else {
+      return GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: inactivityController.resetInactivityTimer,
+        onPanDown: (_) => inactivityController.resetInactivityTimer(),
+        child: Scaffold(
+          key: scaffoldKey,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            // Same as your app theme
+            elevation: 0,
+            title: Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    // Define the action when "Ticket" is clicked
+                    // Get.toNamed(AppRoutes.OPEN_TICKETS);
+                  },
+                  child: Text(
+                    'Ticket',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+                SizedBox(width: 4),
+                GestureDetector(
+                  onTap: () {
+                    // Define the action when the count is clicked
+                    //  Get.toNamed(AppRoutes.OPEN_TICKETS);
+                  },
+                  child: Obx(() {
+                    final count = ticketController.openedTicketsCount;
+                    return Container(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        // Set the background color for the count
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        count.toString(),
+                        style: TextStyle(color: Colors.white,
+                            fontSize: 10), // Text color
+                      ),
+                    );
+                  }),
+                ),
+                SizedBox(width: 6),
+                Obx(() {
+                  CurrencyModel? cur = cartController.selectedCurrency.value;
+                  // Check if the selected currency exists in the list
+                  if (!cartController.currencyList.contains(cur) &&
+                      cartController.currencyList.isNotEmpty) {
+                    cur = cartController.currencyList.first;
+                    cartController.selectedCurrency.value =
+                        cur; // Set a default currency if not found
                   }
-                },
-                validator: (value) {
-                  // if (value == null || value.isEmpty) {
-                  //   return 'Please enter an amount';
-                  // }
-                  // int enteredAmount;
-                  // try {
-                  //   enteredAmount = int.parse(value); // Parse as integer (no decimals)
-                  // } catch (e) {
-                  //   return 'Please enter a valid whole number';
-                  // }
-                  //
-                  // if (enteredAmount < cartController.totalCostInSelectedCurrency.value) {
-                  //   return 'Amount paid cannot be less than the total amount';
-                  // }
-                  return null;
-                },
-                onSaved: (value) {
-                 // cartController.amountPaid.value = int.parse(value!); // Store as integer
+                  return DropdownButton<CurrencyModel>(
+                    value: cur,
+                    isExpanded: false,
+                    // Make the dropdown take full width
+                    items: cartController.currencyList.map((cur) {
+                      return DropdownMenuItem<CurrencyModel>(
+
+                        value: cur,
+                        child: Text(cur.symbol!),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      // Filter based on selected currency
+                      cartController.onCurrencyChange(value!);
+                    },
+                    hint: Text("Currency"),
+                  );
+                }),
+                SizedBox(width: 3),
+                IconButton(
+                  icon: Icon(Icons.refresh),
+                  onPressed: () {
+                    //Get.toNamed(AppRoutes.CUSTOMER_FORM);
+                    saleController.syncData();
+                  },
+                ),
+              ],
+            ),
+            leading: IconButton(
+              icon: Icon(Icons.menu),
+              onPressed: () {
+                scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.person_add),
+                onPressed: () {
+                  Get.toNamed(AppRoutes.CUSTOMER_FORM);
                 },
               ),
-            ),
+
+            ],
+          ),
 
 
-            const SizedBox(height: 10),
-            // Padding(
-            //   padding: const EdgeInsets.all(8.0),
-            //   child: Obx(() {
-            //     return CustomDropdownWidget<BaseNameModel>(
-            //       items: saleController.categories.value,
-            //       selectedItem: saleController.selectedCategory.value,
-            //       hint: "Select Category",
-            //       isSelected: saleController.isCatSelected,
-            //       selectedValue: saleController.selectedCategory,
-            //       icon: Icons.shopping_basket_outlined,
-            //       onChanged: (BaseNameModel? newValue) {
-            //         print("Selected category: ${newValue?.name}");
-            //         saleController.isCatSelected.value = true;
-            //         saleController.selectedCategory.value = newValue!;
-            //         saleController.filterProducts(newValue.name!);
-            //       },
-            //       validator: (value) {
-            //         return null;
-            //       },
-            //       itemBuilder: (BaseNameModel value) =>
-            //           Text(value.name!),
-            //     );
-            //   }),
-            // ),
-            // const SizedBox(height: 10),
-            // Padding(
-            //   padding: const EdgeInsets.all(8.0),
-            //   child: Obx(() {
-            //     return CustomDropdownWidget<BaseNameModel>(
-            //       items: saleController.brands.value,
-            //       selectedItem: saleController.selectedBrand.value,
-            //       hint: "Select Brand",
-            //       isSelected: saleController.isBrandSelected,
-            //       selectedValue: saleController.selectedBrand,
-            //       icon: Icons.breakfast_dining_rounded,
-            //       onChanged: (BaseNameModel? newValue) {
-            //         saleController.isBrandSelected.value = true;
-            //         saleController.selectedBrand.value = newValue!;
-            //         print(newValue.name!);
-            //         saleController.filterProducts(newValue.name!);
-            //       },
-            //       validator: (value) {
-            //         return null;
-            //       },
-            //       itemBuilder: (BaseNameModel value) =>
-            //           Text(value.name!),
-            //     );
-            //   }),
-            // ),
-            // const SizedBox(height: 10),
-            // Padding(
-            //   padding: const EdgeInsets.all(8.0),
-            //   child: ElevatedButton(
-            //     onPressed: () {
-            //       saleController.clearFilters(); // Clear category dropdown
-            //     },
-            //     style: ElevatedButton.styleFrom(
-            //       padding: EdgeInsets.all(8.0),
-            //       textStyle: TextStyle(fontSize: 15),
-            //     ),
-            //     child: Text('Clear Filters'),
-            //   ),
-            // ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: Obx(() {
-                return ListView.builder(
-                  itemCount: saleController.filteredProducts.length,
-                  itemBuilder: (context, index) {
-                    final product = saleController.filteredProducts[index];
-                    String name = product.item!.name ?? 'no name';
-                    String brand = product.item!.brand?.name ?? '';
-                    String fullName = "${name}  ${brand}";
-                    String imageUrl = product.item!.image!=null
-                        ? "${AppConstants
-                        .VIMBIKA_BACKEND_URL}/inventory/image?name=${product
-                        .item!
-                        .image}"
-                        : "https://placehold.co/50x50?text=No+Image";
-                    String category =  product.item!.category?.name ?? '';
-                    String itemName = fullName + ' ' + category;
-                    return Card(
-                        child:
-                        ListTile(
-                          tileColor: Colors.blue[100],
-                          leading: CachedNetworkImage(
-                            imageUrl: imageUrl,
-                            placeholder: (context, url) =>
-                                CircularProgressIndicator(),
-
-
-                            errorWidget: (context, url, error) {
-                              debugPrint('Image load failed: $error');
-                              return Image.asset(
-                                'assets/images/dummy/dummy.png',
-                                // Path to your error image
-                                fit: BoxFit.cover,
-                              );
-                            },
+          drawer: NavDrawer(fullName: fullName,
+              mobileNumber: saleController.user.mobilePhone ?? "",
+              nameInitials: initials),
+          body: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // OPEN TICKETS button
+                    Expanded(
+                      child: Obx(() {
+                        return ElevatedButton(
+                          onPressed: () {
+                            // ticketController.getTickets();
+                            ticketController.ticketActionButton(
+                                cartController.selectedCurrency.value!,
+                                cartController.cartItems.length);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.cyan,
+                            padding: EdgeInsets.symmetric(vertical: 14.0),
+                            textStyle: TextStyle(fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
                           ),
-                          title: Text(itemName),
-                          subtitle: Text('Available units ' + '(' + product.stock!.toInt().toString() + ')'),
-                          trailing: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                  "\$${product.item!.sellingPrice
-                                      .toStringAsFixed(
-                                      2)}"),
-                              SizedBox(
-                                height: 4, // Space between price and button
-                              ),
-                              SizedBox(
-                                width: 100,
-                                // Adjust the width to fit the text
-                                height: 30,
-                                // Adjust the height to make the button smaller
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    Get.to(() =>
-                                        ProductDescriptionScreen(
-                                            productFullInfo: product));
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.indigo,
-                                    padding: EdgeInsets.all(5.0),
-                                    textStyle: TextStyle(fontSize: 14,color: Colors.white),
-                                  ),
-                                  child: Text('View'),
-                                ),
-                              ),
-                            ],
-                          ),
-                          isThreeLine: true,
 
-                          onTap: () {
-                            if(product.item?.itemType == 'SERVICE') {
-                              cartController.addToCart(product, 1);
-                            }else if(product.stock! > 0 || saleController.sellNilItems){
-                              cartController.addToCart(product, 1);
-                            }else{
-                              Get.snackbar("Check your stock", "Stock not available!!!", snackPosition: SnackPosition.BOTTOM);
+                          child: Text(
+                            cartController.cartItems.length > 0
+                                ? 'SAVE'
+                                : 'OPEN TICKETS',
+                            style: TextStyle(color: Colors.white, fontSize: 16),
+
+                          ),
+                        );
+                      }),
+                    ),
+                    SizedBox(width: 8.0),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // Define action for charge
+                          // e.g., open checkout or payment screen
+                          Get.toNamed(AppRoutes.CART);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          padding: EdgeInsets.symmetric(vertical: 14.0),
+                          textStyle: TextStyle(fontSize: 12, color: Colors
+                              .white, fontWeight: FontWeight.bold),
+                        ),
+                        child: Obx(() {
+                          // Check if totalCostInSelectedCurrency is a number
+                          final totalCost = cartController
+                              .totalCostInSelectedCurrency;
+                          final formattedCost = totalCost != null
+                              ? totalCost.toStringAsFixed(
+                              2) // Convert to 2 decimal places
+                              : '0.00';
+
+                          return Text(
+                            'CHARGE : ${cartController.selectedCurrency.value
+                                ?.symbol ?? ''} $formattedCost',
+                            style: TextStyle(color: Colors.white, fontSize: 16),
+                          );
+                        }),
+                      ),
+                    ),
+
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 8.0),
+                child: Obx(() {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Conditionally show either the DropdownButton or the Search TextField
+                      saleController.isSearching.value
+                          ? Expanded(
+                        child: TextField(
+                          controller: saleController
+                              .searchTextEditingController,
+                          decoration: InputDecoration(
+                            hintText: 'Search Items...',
+                            border: OutlineInputBorder(),
+                            prefixIcon: IconButton(
+                              icon: Icon(Icons.close),
+                              onPressed: () {
+                                saleController.searchTextEditingController
+                                    .clear();
+                                saleController.isSearching.value =
+                                false; // Hide search field
+
+                                final allItemsCategory = saleController
+                                    .categories
+                                    .firstWhere(
+                                      (category) => category.id == "All Items",
+                                  orElse: () => saleController.categories.first,
+                                );
+                                saleController.selectedCategory.value =
+                                    allItemsCategory;
+
+
+                                saleController.filterProducts(query: '',
+                                    category: saleController.selectedCategory
+                                        .value?.id);
+                              },
+                            ),
+                          ),
+                          onChanged: (query) {
+                            // saleController.filterProducts(query);
+                            saleController.filterProducts(query: query,
+                                category: saleController.selectedCategory.value
+                                    ?.name); // Filter based on search query and category
+                          },
+                        ),
+                      )
+                          : Expanded(
+                        child: DropdownButton<BaseNameModel>(
+                          borderRadius: BorderRadius.circular(8.0),
+                          value: saleController.selectedCategory.value,
+                          isExpanded: true,
+                          // Make the dropdown take full width
+                          items: saleController.categories.map((category) {
+                            return DropdownMenuItem<BaseNameModel>(
+                              value: category,
+                              child: Text(category.name!),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            saleController.isCatSelected.value = true;
+                            saleController.selectedCategory.value = value!;
+                            // saleController.filterProducts(value.name!);
+                            saleController.filterProducts(category: value
+                                .id!); // Filter based on selected category
+
+                          },
+                          hint: Text("Select Category"),
+                        ),
+                      ),
+                      // Search Icon
+                      if (!saleController.isSearching
+                          .value) // Show search icon only when not searching
+                        IconButton(
+                          icon: Icon(Icons.search),
+                          color: Colors.indigo,
+                          onPressed: () {
+                            saleController.isSearching.value =
+                            true; // Show search field
+                            saleController.selectedCategory.value =
+                                BaseNameModel(
+                                    id: "All Items", name: "All Items");
+                            saleController.filterProducts(query: '',
+                                category: saleController.selectedCategory.value
+                                    ?.id);
+                          },
+                        ),
+
+                      Expanded(
+                      //   padding: const EdgeInsets.all(12.0),
+                        child: TextFormField(
+                          controller: saleController.barCodeTextEditingController,
+                          // keyboardType: TextInputType.number, // Allow only numbers
+                          // inputFormatters: <TextInputFormatter>[
+                          //   FilteringTextInputFormatter.digitsOnly, // Only allow digits (no decimals)
+                          // ],
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.document_scanner_sharp),
+                            labelText: "Bar Code",
+                            hintText: "Bar Code",
+                          ),
+                          onChanged: (String val) {
+                            if (val.isNotEmpty) {
+                              String exp = val;
+
+                              if (saleController.useSerialNumbers) {
+                                var index = saleController.allProducts.indexWhere((
+                                    item) => item.barCodes?.contains(exp) == true);
+                                if (index != -1) {
+                                  ProductFullInfoModel foundItem = saleController
+                                      .allProducts[index];
+                                  var indexC = cartController.cartItems.indexWhere((
+                                      item) =>
+                                  item.product.item?.id == foundItem.item?.id);
+                                  if (indexC != -1) {
+                                    // Get.snackbar("Info",
+                                    //     "Product already added !!!",
+                                    //     snackPosition: SnackPosition.BOTTOM);
+                                    cartController.addToCartWithBarCode(
+                                        foundItem, 1, exp);
+                                    saleController.barCodeTextEditingController.clear();
+                                  } else {
+                                    Get.snackbar("Info",
+                                        "Product added to cart !!!",
+                                        snackPosition: SnackPosition.BOTTOM);
+                                    cartController.addToCartWithBarCode(
+                                        foundItem, 1, exp);
+                                    saleController.barCodeTextEditingController.clear();
+                                  }
+                                } else {
+                                  var index = saleController.allProducts.indexWhere((
+                                      item) => item.item?.itemCode == exp);
+                                  if (index != -1) {
+                                    ProductFullInfoModel foundItem = saleController
+                                        .allProducts[index];
+                                    var indexC = cartController.cartItems.indexWhere((
+                                        item) =>
+                                    item.product.item?.id == foundItem.item?.id);
+                                    if (indexC != -1) {
+                                      // Get.snackbar("Info",
+                                      //     "Product already added !!!",
+                                      //     snackPosition: SnackPosition.BOTTOM);
+                                      cartController.addToCart(foundItem, 1);
+                                      saleController.barCodeTextEditingController
+                                          .clear();
+                                    } else {
+                                      Get.snackbar("Info",
+                                          "Product added to cart !!!",
+                                          snackPosition: SnackPosition.BOTTOM);
+                                      cartController.addToCart(foundItem, 1);
+                                      saleController.barCodeTextEditingController
+                                          .clear();
+                                    }
+                                  } else {
+                                    // Item not found, handle this case
+                                    Get.snackbar("Not Found",
+                                        "Product with item  code " + exp +
+                                            " is not found!!!",
+                                        snackPosition: SnackPosition.BOTTOM);
+                                  }
+                                }
+                              } else if (exp.length >= 12) {
+                                String chackCode = exp.length > 2
+                                    ? exp.substring(0, 2)
+                                    : '';
+                                String productCode = exp.length > 6 ? exp.substring(
+                                    2, 6) : '';
+                                String categoryCode = exp.length > 7 ? exp.substring(
+                                    6, 7) : '';
+                                String weight = exp.length > 12
+                                    ? exp.substring(7, 12)
+                                    : '0';
+
+                                double kgs = double.parse(weight) / 1000;
+                                double roundedValue = double.parse(kgs.toStringAsFixed(
+                                    3));
+                                if (kgs > 0) {
+                                  // print(weight);
+                                  // print(kgs);
+                                  // print(roundedValue);
+                                  var index = saleController.allProducts.indexWhere((
+                                      item) => item.item?.itemCode == productCode);
+                                  if (index != -1) {
+                                    ProductFullInfoModel foundItem = saleController
+                                        .allProducts[index];
+                                    var indexC = cartController.cartItems.indexWhere((
+                                        item) =>
+                                    item.product.item?.id == foundItem.item?.id);
+                                    if (indexC != -1) {
+                                      // Get.snackbar("Info",
+                                      //     "Product already added !!!",
+                                      //     snackPosition: SnackPosition.BOTTOM);
+                                      cartController.addToCart(foundItem, roundedValue);
+                                      saleController.barCodeTextEditingController
+                                          .clear();
+                                    } else {
+                                      Get.snackbar("Info",
+                                          "Product added to cart !!!",
+                                          snackPosition: SnackPosition.BOTTOM);
+                                      cartController.addToCart(foundItem, roundedValue);
+                                      saleController.barCodeTextEditingController
+                                          .clear();
+                                    }
+                                  } else {
+                                    // Item not found, handle this case
+                                    Get.snackbar("Not Found",
+                                        "Product with item  code " + productCode +
+                                            " is not found!!!",
+                                        snackPosition: SnackPosition.BOTTOM);
+                                  }
+                                }
+                              }
                             }
                           },
-                        )
-                    );
-                  },
-                );
-              }),
-            ),
-          ],
+                          validator: (value) {
+                            return null;
+                          },
+                          onSaved: (value) {
+                            // cartController.amountPaid.value = int.parse(value!); // Store as integer
+                          },
+                        ),
+                      ),
+
+                    ],
+                  );
+                }),
+              ),
+              // const SizedBox(height: 5),
+
+              const SizedBox(height: 10),
+            Expanded(child:
+                Obx(() {
+                  return GridView.builder(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 6,
+                      crossAxisSpacing: 1.0,
+                      mainAxisSpacing: 1.0,
+                      childAspectRatio: 2.0, // Adjust aspect ratio as needed
+                    ),
+                    itemCount: saleController.filteredProducts.length,
+                    itemBuilder: (context, index) =>
+                    Card(
+                      color: Colors.blue[100],
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        child: GridTile(
+                            header: Container(
+                              padding: EdgeInsets.all(8.0),
+                              // color: Colors.white,
+                              child: Text(
+                                saleController.filteredProducts[index].item!.category?.name ?? '',
+                                style: TextStyle(fontSize: 14, color: Colors.black),
+                                textAlign: TextAlign.left,
+                              ),
+                            ),
+                          footer: Container(
+                              padding: EdgeInsets.all(8.0),
+                              // color: Colors.white,
+                              child: Text(
+                                "\$"+saleController.filteredProducts[index].item!.sellingPrice.toStringAsFixed(2)?? 'No Name',
+                                style: TextStyle(fontSize: 14, color: Colors.black,),
+                                textAlign: TextAlign.right,
+                              ),
+                            ),
+
+                            child:
+                            InkWell(
+                              borderRadius: BorderRadius.circular(8.0),
+                              // Add a border radius to the InkWell
+                              splashColor: Colors.blue.withAlpha(30),
+                              onTap: () {
+                                if (saleController.filteredProducts[index].item?.itemType == 'SERVICE') {
+                                  cartController.addToCart(saleController.filteredProducts[index], 1);
+                                } else if (saleController.filteredProducts[index].stock! > 0 ||
+                                    saleController.sellNilItems) {
+                                  cartController.addToCart(saleController.filteredProducts[index], 1);
+                                } else {
+                                  Get.snackbar("Check your stock",
+                                      "Stock not available!!!",
+                                      snackPosition: SnackPosition.BOTTOM);
+                                }
+                              },
+                              child: Center(
+                                child: Text(
+                                  saleController.filteredProducts[index].item!
+                                      .name ?? 'No Name',
+                                  style: TextStyle(
+                                      fontSize: 16, color: Colors.black, fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            )
+                        ),
+                      ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
 }
