@@ -99,6 +99,9 @@ class CartScreen extends StatelessWidget {
                     SizedBox(height: 10),
                     ElevatedButton(
                       onPressed: () {
+                        for(var item in cartController.cartItems) {
+                          print("Item: ${item.product.item!.name}, Quantity: ${item.quantity}, Price: ${item.product.item!.sellingPrice}");
+                        }
                           cartController.checkout();
                       },
                       style: TextButton.styleFrom(

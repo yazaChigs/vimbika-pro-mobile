@@ -28,10 +28,13 @@ import 'package:vimbika_pos_app/src/services/base_http_client.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/dynamic_query_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
+import '../features/sale/model/product_full_info_model.dart';
 import '../features/shift/model/currency_amount.dart';
+import '../shared/models/branch_model.dart';
 import '../shared/models/customer_model.dart';
 
 
@@ -97,9 +100,82 @@ class SyncService {
   // }
 
 
+  static Future<void>  getCustomers(UserModel user, GetStorage box, String companyId) async{
+    var response = await BaseHttpClient().getAuthWithCompanyHeader("/customer/get-all", companyId).catchError((onError){
+      if (onError is BadRequestException) {
+        var apiError = json.decode(onError.message!);
+        AppHelper.showErroDialog(description: apiError["reason"]);
+      } else {
+        AppHelper.handleError(onError);
+      }
+    });
+    if(response != null) {
+      List<dynamic> list = jsonDecode(response);
+      List<CustomerModel> itemsList = List<CustomerModel>.from(list.map((i) => CustomerModel.fromMap(i)));
+      // customerList.value = itemsList;
+      List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
+          item.toMap()).toList();
+      //showSnackBar("Message", "Customers downloaded successfully");
+      box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
+    }
+  }
+
+  static Future<void> getBranchStock(GetStorage box,UserModel user) async{
+
+    var selectedBranch = box.read(AppConstants.SELECTED_BRANCH) ?? null;
+    //print(selectedBranch);
+    if(selectedBranch != null) {
+      BranchModel branch = BranchModel.fromMap(selectedBranch);
+      if(branch.id != null){
+        DynamicQueryModel dynamicQueryModel = DynamicQueryModel();
+        dynamicQueryModel.branch = branch;
+        var branchData = dynamicQueryModel.toJson();
+
+          // getOfflineProducts(box);
+          print("Fetching products...");
+          var response = await BaseHttpClient()
+              .postAuthWithCompanyHeader(
+              "/inventory/branch-stock-by-branch-mini", branchData, user.companyId!, "POST")
+              .catchError((onError) {
+            print("INSIDE FETCH..");
+            AppHelper.hideLoading();
+            print(onError);
+            if (onError is BadRequestException) {
+              var apiError = json.decode(onError.message!);
+              AppHelper.showErroDialog(description: apiError["reason"]);
+            } else {
+              AppHelper.handleError(onError);
+            }
+          });
+          if (response != null) {
+            //AppHelper.hideLoading();
+
+            List<dynamic> list = jsonDecode(response);
+            List<ProductFullInfoModel> itemsList = List<ProductFullInfoModel>.from(list.map((i) => ProductFullInfoModel.fromMap(i)));
+            itemsList.sort((a, b) => b.stock!.compareTo(a.stock!));
+            List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
+                item.toMap()).toList();
+            box.write(AppConstants.BRANCH_PRODUCTS, itemsListMap);
+          } else {
+            // AppHelper.hideLoading();
+            print("Failed to retrieve products");
+          }
+        }
+      }
+
+
+  }
+
+
+
+
   static Future<SaleModel?> saveSale(SaleModel sale, UserModel user, GetStorage box, CompanyModel company) async{
     String jsonSaleItems = sale.toJson();
     print("Company ID ${company.id}");
+    if(company.id==null){
+      var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
+      company = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
+    }
     var response = await BaseHttpClient().postAuthWithCompanyHeader("/sale/save", jsonSaleItems, company.id!, "POST").catchError((onError){
       //AppHelper.hideLoading();
       if (onError is BadRequestException) {

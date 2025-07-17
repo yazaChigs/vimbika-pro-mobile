@@ -36,9 +36,10 @@ class BackgroundService extends GetxService {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     var shiftModel = box.read(AppConstants.SHIFT_SETTING) ?? {};
     shiftSetting = ShiftSettingModel.fromMap(Map<String, dynamic>.from(shiftModel));
-    Timer.periodic(Duration(seconds: 20), (timer) async {
-      print("Background task running every 1 minute");
+    Timer.periodic(Duration(hours: 1), (timer) async {
+      print("Background task running every 1 hour");
         await syncOfflineSales();
+        postDataToBackend();
       });
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
@@ -102,17 +103,24 @@ class BackgroundService extends GetxService {
       for (SaleInfoModel saleInfo in offlineSales) {
         CurrencyAmount saleCurrencyAmount =  currencyAmounts.firstWhere((test)=> test.posReference==saleInfo.sale!.posReference!, orElse: () => CurrencyAmount(currency: CurrencyModel(), amountType: "", ref: "", timeCreated: "", notes: "", amount: 0.0, shiftReference: null));
         if (!saleInfo.syncStatus!) {
-          print(saleInfo.sale!.posReference);
+          print("Syncing sale: ${saleInfo.sale!.posReference}");
+          for(var item in saleInfo.sale!.items!){
+            print("Item: ${item.inventoryItem!.name}, Quantity: ${item.quantity}, Price: ${item.sellingPrice} Total: ${item.total}");
+          }
           SaleModel? saleModel = await SyncService.saveSale(
               saleInfo.sale!, user, box, company.value!);
           if (saleModel != null) {
-            synced = true;
+            // synced = true;
             syncedSales.add(saleInfo);
             SaleInfoModel? infoModel = await getSale(saleModel.id!);
             if(infoModel != null){
               saleInfoModel = infoModel;
             } else{
               saleInfoModel = SaleInfoModel(sale: saleModel, syncStatus: true);
+            }
+            print("Syncing sale: ${saleInfoModel.sale!.posReference}");
+            for(var item in saleInfoModel.sale!.items!){
+              print("Item: ${item.inventoryItem!.name}, Quantity: ${item.quantity}, Price: ${item.sellingPrice} Total: ${item.total}");
             }
             saleCurrencyAmount.posReference = saleInfoModel.sale?.posReference;
             var list = [saleCurrencyAmount];
@@ -134,10 +142,10 @@ class BackgroundService extends GetxService {
         // Remove the synced sales from the offline list
         print(offlineSales.remove(saleInfo));
       }
-      if(synced) {
+      // if(synced) {
         await SyncService.syncOfflineShifts(user, box);
-        synced = false;
-      }
+      //   synced = false;
+      // }
     }
   }
 
@@ -225,7 +233,10 @@ class BackgroundService extends GetxService {
       final box = GetStorage();
       var model = box.read(AppConstants.USER_INFO) ?? {};
       UserModel user = UserModel.fromMap(Map<String, dynamic>.from(model));
-      postData(user, box);
+      print("Network is available, getting branchStock...");
+      SyncService.getBranchStock(box, user);
+      SyncService.getCustomers(user, box, user.companyId!);
+      // postData(user, box);
     }
   }
   Future<void> postData(UserModel user, GetStorage box) async {

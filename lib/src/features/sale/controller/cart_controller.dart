@@ -238,6 +238,7 @@ class CartController extends GetxController {
 
   reGetCustomers() {
     List<CustomerModel> newCustomers = loadCustomers(box);
+    print("New Customers: ${newCustomers.length}");
     if(newCustomers.isNotEmpty && allCustomers.length<newCustomers.length) {
       allCustomers.value = newCustomers;
 
@@ -260,6 +261,7 @@ class CartController extends GetxController {
     } else{
       allCustomers.value = newCustomers;
     }
+    print("All Customers: ${allCustomers.length}");
   }
 
   onCustomerChange(CustomerModel? newValue){
@@ -539,13 +541,15 @@ class CartController extends GetxController {
     saleTicketId.value = saleId;
 
     for (var cartItem in saleCartItems) {
+      print("Cart Item: ${cartItem.product.item!.name} - Quantity: ${cartItem.quantity} - Total Price: ${cartItem.totalPrice}");
       InventoryItemModel productItem = cartItem.product.item!;
       totalSaleQuantity = totalSaleQuantity + cartItem.quantity;
       productItem.quantity = cartItem.quantity;
       productItem.total = cartItem.totalPrice;
       
       SaleItemModel saleItem = SaleItemModel(sellingPrice: productItem.sellingPrice, baseCurrencySellingPrice: productItem.sellingPrice, quantity:  cartItem.quantity, total: cartItem.totalPrice, baseCurrencyTotal: cartItem.totalPrice, taxAmount: double.parse(cartItem.totalTaxAmount.toStringAsFixed(2)), baseTaxAmount: double.parse(cartItem.totalTaxAmount.toStringAsFixed(2)), inventoryItem: productItem, branch: branch.value, usedCodesString: cartItem.usedCodes);
-      saleItem.id = productItem.id;
+      print("Sale Item: ${saleItem.inventoryItem!.name} - Quantity: ${saleItem.quantity} - Total Price: ${saleItem.total}");
+      saleItem.id = saleCartItems.indexOf(cartItem).toString();
       if(saleItem.inventoryItem != null){
         if(saleItem.inventoryItem!.productImages != null){
           saleItem.inventoryItem!.productImages = [];
@@ -608,6 +612,12 @@ class CartController extends GetxController {
       var isCash = selectedPaymentType.value!.name!.startsWith("CASH");
       updateShiftWithNewSale(ref, timeInit, totalCostInSelectedCurrency.value, stat, saleInfoModel.sale!.referenceNumber!,isCash,selectedPaymentType.value!.name!);
       infos.add(saleInfoModel);
+      for(var item in infos) {
+        print("Sale Info: ${item.sale!.referenceNumber}");
+        for(var saleItem in item.sale!.items!) {
+          print("Sale Item: ${saleItem.inventoryItem!.name} - Quantity: ${saleItem.quantity} - Total Price: ${saleItem.total} - Tax: ${saleItem.quantity! * saleItem.sellingPrice!}");
+        }
+      }
       writeSaleInfor(box, infos);
       printCurrentSale(saleInfoModel, box);
       AppHelper.hideLoading();

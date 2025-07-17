@@ -152,6 +152,12 @@ class ReceiptController extends GetxController {
       getSales();
     }
       print("Sales fetched: ${allReceipts.length}");
+    for(var saleInfo in allReceipts) {
+      print("Sale Reference: ${saleInfo.sale!.referenceNumber}");
+      for(var item in saleInfo.sale!.items!) {
+        print("Item: ${item.inventoryItem!.name} - ${item.quantity} - ${item.sellingPrice} - ${item.total}");
+      }
+    }
   }
 
   printSale(SaleInfoModel saleInfo) async{

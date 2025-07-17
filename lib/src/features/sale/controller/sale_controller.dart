@@ -82,7 +82,9 @@ class SaleController extends GetxController {
     catList.insert(0, BaseNameModel(id: "All Items", name: "All Items"));
     selectedCategory.value = catList[0];
     categories.value = catList;
-    getBranchStock(box);
+    // getBranchStock(box);
+    getOfflineProducts(box);
+
     bool? result = await SunmiPrinter.bindingPrinter();
     result = result ?? false;
     if(!result) {
@@ -259,8 +261,8 @@ class SaleController extends GetxController {
     AppHelper.showLoading("Syncing....");
     print("syncing products..");
     getBranchStock(box);
-    print("syncing offline sales..");
-    await syncOfflineSales();
+    // print("syncing offline sales..");
+    // await syncOfflineSales();
     print("syncing tickets..");
      //await SyncService.syncOfflineTickets(user, box);
     print("syncing shifts..");
@@ -347,8 +349,6 @@ class SaleController extends GetxController {
               AppHelper.handleError(onError);
             }
           });
-          print("RES..");
-         // log(response);
           if (response != null) {
             //AppHelper.hideLoading();
 

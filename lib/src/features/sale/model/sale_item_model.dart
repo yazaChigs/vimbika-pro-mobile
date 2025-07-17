@@ -24,6 +24,7 @@ class SaleItemModel {
     required this.inventoryItem,
     required this.branch,
     this.usedCodesString,
+    this.isMobile = true,
   });
 
   String? id;
@@ -37,6 +38,7 @@ class SaleItemModel {
   double? baseTaxAmount;
   InventoryItemModel? inventoryItem;
   BranchModel? branch;
+  bool? isMobile = true;
 
 
   factory SaleItemModel.fromJson(Map<String, dynamic> json) => SaleItemModel.fromMap(json);
@@ -57,6 +59,7 @@ class SaleItemModel {
     baseTaxAmount: json["baseTaxAmount"],
     inventoryItem: json["inventoryItem"] != null ? InventoryItemModel.fromMap(json["inventoryItem"]) : null,
     branch: json["branch"] != null ? BranchModel.fromMap(json["branch"]) : null,
+  isMobile: json["isMobile"] ?? true,
 
 
   );
@@ -73,5 +76,6 @@ class SaleItemModel {
     "inventoryItem": inventoryItem!.toMap(),
     "branch": branch != null?  branch!.toMap() : null,
     "usedCodes": usedCodesString != null ? List<dynamic>.from(usedCodesString!.map((x) => x)) : [],
+  "isMobile": isMobile,
   };
 }
