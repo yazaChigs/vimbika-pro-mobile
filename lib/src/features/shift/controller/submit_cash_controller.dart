@@ -83,6 +83,7 @@ class SubmitCashController extends GetxController {
     amts.add(CurrencyAmount(
         currency: currency, // Use this as the main reference
         amountType: "CASH_SUBMIT",
+        paymentType: "CASH_SUBMIT-${currency.name}",
         ref: ref,
         timeCreated: timeInit,
         shiftReference: activeShift.value.shiftReference,

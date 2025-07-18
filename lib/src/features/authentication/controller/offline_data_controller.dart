@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -70,6 +71,15 @@ class OfflineDataController extends GetxController {
       getBrands(user, box, user.companyId!);
       getShiftSetting(user, box);
       getBanks(user, box);
+      print("getting getOfflineData");
+      await SyncService.getBranchStock(box, user);
+
+      Timer.periodic(Duration(hours: 1), (timer) async {
+        print("init syncing branchStock...");
+        await SyncService.getBranchStock(box, user);
+        await SyncService.getCustomers(user, box, user.companyId!);
+        // syncOfflineSales();
+      });
 
 
     } else{

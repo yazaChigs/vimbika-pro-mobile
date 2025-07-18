@@ -478,14 +478,12 @@ class SyncService {
     List<ShiftModel> upToDateItems = [];
     List<ShiftModel> updateItems = [];
     List<CurrencyAmount> updateCurrencyItems = [];
-    print("Syncing shifts " + shiftInfo.length.toString());
 
     for (ShiftModel sh in shiftInfo) {
       if (!sh.stopSync! && !sh.isShiftClosed!) {
         itemsToBeSynced.add(sh);
         if (sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty) {
           for (CurrencyAmount ca in sh.shiftCurrencyAmounts!) {
-            print(ca.toJson());
             ca.active=true;
               currencyItemsToBeSynced.add(ca);
           }

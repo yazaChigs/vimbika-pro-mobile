@@ -38,6 +38,13 @@ class ReceiptScreen extends StatelessWidget {
           ),
           actions: [
             IconButton(
+              icon: Icon(Icons.clear),
+              color: Colors.red,
+              onPressed: () {
+                receiptController.cancelFilter();
+              },
+            ),
+            IconButton(
               icon: Icon(Icons.refresh),
               onPressed: () {
                 receiptController.refreshFilter();

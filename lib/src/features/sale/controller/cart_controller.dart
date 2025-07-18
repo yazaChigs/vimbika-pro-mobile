@@ -612,12 +612,6 @@ class CartController extends GetxController {
       var isCash = selectedPaymentType.value!.name!.startsWith("CASH");
       updateShiftWithNewSale(ref, timeInit, totalCostInSelectedCurrency.value, stat, saleInfoModel.sale!.referenceNumber!,isCash,selectedPaymentType.value!.name!);
       infos.add(saleInfoModel);
-      for(var item in infos) {
-        print("Sale Info: ${item.sale!.referenceNumber}");
-        for(var saleItem in item.sale!.items!) {
-          print("Sale Item: ${saleItem.inventoryItem!.name} - Quantity: ${saleItem.quantity} - Total Price: ${saleItem.total} - Tax: ${saleItem.quantity! * saleItem.sellingPrice!}");
-        }
-      }
       writeSaleInfor(box, infos);
       printCurrentSale(saleInfoModel, box);
       AppHelper.hideLoading();

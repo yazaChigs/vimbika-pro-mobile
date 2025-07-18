@@ -82,19 +82,13 @@ class SaleController extends GetxController {
     catList.insert(0, BaseNameModel(id: "All Items", name: "All Items"));
     selectedCategory.value = catList[0];
     categories.value = catList;
-    // getBranchStock(box);
-    getOfflineProducts(box);
-
+      getOfflineProducts(box);
     bool? result = await SunmiPrinter.bindingPrinter();
     result = result ?? false;
     if(!result) {
       Get.snackbar('Printer Status', 'Sunmi built in printer not available',
           snackPosition: SnackPosition.BOTTOM);
     }
-    // _syncTimer = Timer.periodic(Duration(seconds: 10), (timer) async {
-    //   print("init syncing sales...");
-    //   // syncOfflineSales();
-    // });
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
   }
@@ -273,6 +267,7 @@ class SaleController extends GetxController {
     await SyncService.getPaymentTypes(user, box);
     print("syncing new Customers..");
     await SyncService.saveCustomer(user, box);
+    await SyncService.getCustomers(user, box,user.companyId!);
     AppHelper.hideLoading();
   }
   void clearFilters() {
@@ -333,7 +328,7 @@ class SaleController extends GetxController {
         print(isServerReachable.value);
         if (isServerReachable.value) {
 
-          getOfflineProducts(box);
+          // getOfflineProducts(box);
           print("Fetching products...");
           var response = await BaseHttpClient()
               .postAuthWithCompanyHeader(
@@ -366,9 +361,10 @@ class SaleController extends GetxController {
            // AppHelper.hideLoading();
             print("Failed to retrieve products");
           }
-        } else {
-          getOfflineProducts(box);
         }
+        // else {
+        //   getOfflineProducts(box);
+        // }
       } else{
         Get.offNamed(AppRoutes.CHOOSE_BRANCH);
       }
@@ -381,6 +377,10 @@ class SaleController extends GetxController {
     List<ProductFullInfoModel> storageProductList = _localStorageService.getProductList(box, false);
     allProducts.value = storageProductList;
     filteredProducts.value = storageProductList;
+    print("Offline products loaded: ${allProducts.length}");
+    if(allProducts.isEmpty) {
+      getBranchStock(box);
+    }
   }
 
 

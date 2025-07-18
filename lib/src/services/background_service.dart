@@ -36,11 +36,14 @@ class BackgroundService extends GetxService {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     var shiftModel = box.read(AppConstants.SHIFT_SETTING) ?? {};
     shiftSetting = ShiftSettingModel.fromMap(Map<String, dynamic>.from(shiftModel));
-    Timer.periodic(Duration(hours: 1), (timer) async {
-      print("Background task running every 1 hour");
+    Timer.periodic(Duration(minutes: 1), (timer) async {
+      print("Background task running every 20 seconds");
         await syncOfflineSales();
-        postDataToBackend();
       });
+    // Timer.periodic(Duration(seconds: 30), (timer) async {
+    //   print("Background task running every 30 seconds");
+    //     postDataToBackend();
+    //   });
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
   }
@@ -103,10 +106,6 @@ class BackgroundService extends GetxService {
       for (SaleInfoModel saleInfo in offlineSales) {
         CurrencyAmount saleCurrencyAmount =  currencyAmounts.firstWhere((test)=> test.posReference==saleInfo.sale!.posReference!, orElse: () => CurrencyAmount(currency: CurrencyModel(), amountType: "", ref: "", timeCreated: "", notes: "", amount: 0.0, shiftReference: null));
         if (!saleInfo.syncStatus!) {
-          print("Syncing sale: ${saleInfo.sale!.posReference}");
-          for(var item in saleInfo.sale!.items!){
-            print("Item: ${item.inventoryItem!.name}, Quantity: ${item.quantity}, Price: ${item.sellingPrice} Total: ${item.total}");
-          }
           SaleModel? saleModel = await SyncService.saveSale(
               saleInfo.sale!, user, box, company.value!);
           if (saleModel != null) {
@@ -118,7 +117,6 @@ class BackgroundService extends GetxService {
             } else{
               saleInfoModel = SaleInfoModel(sale: saleModel, syncStatus: true);
             }
-            print("Syncing sale: ${saleInfoModel.sale!.posReference}");
             for(var item in saleInfoModel.sale!.items!){
               print("Item: ${item.inventoryItem!.name}, Quantity: ${item.quantity}, Price: ${item.sellingPrice} Total: ${item.total}");
             }

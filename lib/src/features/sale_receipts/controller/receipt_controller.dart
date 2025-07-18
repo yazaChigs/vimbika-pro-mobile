@@ -81,6 +81,8 @@ class ReceiptController extends GetxController {
 
   refreshFilter(){
     getSalesByDate(startDate.value, endDate.value, "", branch.value!.id!);
+  }
+  cancelFilter(){
     startDate.value = "";
     endDate.value = "";
     isCatSelected.value = false;
@@ -101,7 +103,7 @@ class ReceiptController extends GetxController {
   Future<void> getSalesByDate(String startDate, String endDate, String categoryId, String branchId) async{
     bool stat = await _connectivityService.checkServerConnection();
     if(stat) {
-      AppHelper.showLoading("Loading...");
+      // AppHelper.showLoading("Loading...");
       getSales();
       List<SaleInfoModel> items = allReceipts;
       List<SaleInfoModel> actualItems = [];
@@ -150,13 +152,6 @@ class ReceiptController extends GetxController {
       }
     } else{
       getSales();
-    }
-      print("Sales fetched: ${allReceipts.length}");
-    for(var saleInfo in allReceipts) {
-      print("Sale Reference: ${saleInfo.sale!.referenceNumber}");
-      for(var item in saleInfo.sale!.items!) {
-        print("Item: ${item.inventoryItem!.name} - ${item.quantity} - ${item.sellingPrice} - ${item.total}");
-      }
     }
   }
 
