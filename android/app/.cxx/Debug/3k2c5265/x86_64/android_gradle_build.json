@@ -1,0 +1,28 @@
+{
+  "buildFiles": [
+    "/home/yaza/develop/flutter/packages/flutter_tools/gradle/src/main/groovy/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/home/yaza/cmake/3.18.1/bin/ninja",
+      "-C",
+      "/home/yaza/totalit/vimbika-android/vimbika-mobile-pos/android/app/.cxx/Debug/3k2c5265/x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/home/yaza/cmake/3.18.1/bin/ninja",
+    "-C",
+    "/home/yaza/totalit/vimbika-android/vimbika-mobile-pos/android/app/.cxx/Debug/3k2c5265/x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {},
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "/home/yaza/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang.lld",
+      "cppCompilerExecutable": "/home/yaza/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++.lld"
+    }
+  },
+  "cFileExtensions": [],
+  "cppFileExtensions": []
+}

@@ -16,6 +16,7 @@ import 'package:vimbika_pos_app/src/features/sale/model/inventory_item_model.dar
 import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_item_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_model.dart';
+import 'package:vimbika_pos_app/src/features/sale/screen/sale_screen.dart';
 import 'package:vimbika_pos_app/src/features/sale_receipts/controller/receipt_controller.dart';
 import 'package:vimbika_pos_app/src/features/sale_receipts/screen/pdf_web_view_screen.dart';
 import 'package:vimbika_pos_app/src/features/shift/controller/shift_controller.dart';
@@ -766,8 +767,12 @@ class CartController extends GetxController {
      Get.delete<ShiftController>();
     Get.delete<ReceiptController>();
     Get.delete<TicketController>();
-
-    Get.offNamed(AppRoutes.SALE);
+    Navigator.pushReplacement(
+        Get.context!,
+        MaterialPageRoute(
+            builder: (BuildContext context) =>
+                SaleScreen()));
+    Get.reload();
   }
 
   void resetFormKey() {

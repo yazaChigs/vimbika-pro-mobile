@@ -24,6 +24,7 @@ import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/dynamic_query_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/settings_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
@@ -45,6 +46,7 @@ class SaleController extends GetxController {
   var isSearching = false.obs;
   bool sellNilItems = false;
   List<SaleInfoModel> offlineSales = <SaleInfoModel>[];
+  PaymentTypeModel selectedPaymentType = PaymentTypeModel();
   RxList<SaleInfoModel> allReceipts = <SaleInfoModel>[].obs;
   RxList<SaleInfoModel> filteredReceipts = <SaleInfoModel>[].obs;
   bool useSerialNumbers = false;
