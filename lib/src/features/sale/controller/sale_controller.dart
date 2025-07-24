@@ -40,6 +40,8 @@ class SaleController extends GetxController {
   RxList<BaseNameModel> categories = <BaseNameModel>[].obs;
   bool isItemListScreen = true;
   bool isCartScreen = false;
+  RxBool multiple = false.obs;
+  RxBool showMultiple = false.obs;
   Rx<int> itemCount = 0.obs;
   Rx<double> price = 0.0.obs;
   Rx<String> searchQuery = "".obs;
@@ -47,6 +49,7 @@ class SaleController extends GetxController {
   bool sellNilItems = false;
   List<SaleInfoModel> offlineSales = <SaleInfoModel>[];
   PaymentTypeModel selectedPaymentType = PaymentTypeModel();
+  List<PaymentTypeModel> selectedPaymentTypes = <PaymentTypeModel>[];
   RxList<SaleInfoModel> allReceipts = <SaleInfoModel>[].obs;
   RxList<SaleInfoModel> filteredReceipts = <SaleInfoModel>[].obs;
   bool useSerialNumbers = false;
@@ -64,6 +67,7 @@ class SaleController extends GetxController {
   Rx<CompanyModel?> company = CompanyModel().obs;
 
   final TextEditingController barCodeTextEditingController = TextEditingController();
+  final TextEditingController amountTextEditingController = TextEditingController();
   RxInt barCode =0.obs;
   @override
   Future<void> onInit() async {
@@ -122,8 +126,6 @@ class SaleController extends GetxController {
 
       actualSales = actualSales.where((sale)=> sale.syncStatus == false).toList();
       offlineSales = actualSales;
-      print(offlineSales.map((e) => !e.syncStatus!,));
-      print("Unsynced sales count: ${offlineSales.length}");
 
     List<SaleInfoModel> syncedSales = [];
     for (SaleInfoModel saleInfo in offlineSales) {

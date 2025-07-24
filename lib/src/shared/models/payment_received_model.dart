@@ -16,7 +16,8 @@ class PaymentReceivedModel {
     this.currency,
     this.paymentDescription,
     this.dateTime,
-    this.bank
+    this.bank,
+    this.isMobile = true,
   });
 
   String? id;
@@ -28,6 +29,7 @@ class PaymentReceivedModel {
   BankModel? bank;
   String? paymentDescription = "SALE";
   String? dateTime;
+  bool? isMobile = true;
 
   factory PaymentReceivedModel.fromJson(String str) => PaymentReceivedModel.fromMap(json.decode(str));
 
@@ -42,6 +44,8 @@ class PaymentReceivedModel {
     currency: json["currency"] != null ? CurrencyModel.fromMap(json["currency"]) : null,
     paymentType: json["paymentType"] != null ? PaymentTypeModel.fromMap(json["paymentType"]) : null,
     bank: json["bank"] != null ? BankModel.fromMap(json["bank"]) : null,
+    dateTime: json["dateTime"],
+    isMobile: json["isMobile"] ?? true,
   );
 
   Map<String, dynamic> toMap() => {
@@ -53,5 +57,7 @@ class PaymentReceivedModel {
     "currency": currency?.toMap(),
     "paymentType": paymentType?.toMap(),
     "bank": bank?.toMap(),
+    "dateTime": dateTime,
+    "isMobile": isMobile,
   };
 }

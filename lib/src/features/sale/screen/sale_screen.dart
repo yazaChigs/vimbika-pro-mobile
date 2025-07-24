@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -203,26 +204,6 @@ class SaleScreen extends GetView {
                       }),
                     ),
                     SizedBox(width: 8.0),
-                    // CHARGE button
-                    // Expanded(
-                    //   child: ElevatedButton(
-                    //     onPressed: () {
-                    //       // Define action for charge
-                    //       // e.g., open checkout or payment screen
-                    //       Get.toNamed(AppRoutes.CART);
-                    //     },
-                    //
-                    //     style: ElevatedButton.styleFrom(
-                    //       padding: EdgeInsets.symmetric(vertical: 14.0),
-                    //       textStyle: TextStyle(fontSize: 12),
-                    //     ),
-                    //     child: Obx(() =>
-                    //         Text(
-                    //          'CHARGE : ${cartController.selectedCurrency.value?.symbol ?? ''} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
-                    //           style: TextStyle(color: Colors.white, fontSize: 16),
-                    //         )),
-                    //   ),
-                    // ),
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
@@ -477,19 +458,6 @@ class SaleScreen extends GetView {
                     }
                   },
                   validator: (value) {
-                    // if (value == null || value.isEmpty) {
-                    //   return 'Please enter an amount';
-                    // }
-                    // int enteredAmount;
-                    // try {
-                    //   enteredAmount = int.parse(value); // Parse as integer (no decimals)
-                    // } catch (e) {
-                    //   return 'Please enter a valid whole number';
-                    // }
-                    //
-                    // if (enteredAmount < cartController.totalCostInSelectedCurrency.value) {
-                    //   return 'Amount paid cannot be less than the total amount';
-                    // }
                     return null;
                   },
                   onSaved: (value) {
@@ -497,72 +465,6 @@ class SaleScreen extends GetView {
                   },
                 ),
               ),
-
-
-              const SizedBox(height: 10),
-              // Padding(
-              //   padding: const EdgeInsets.all(8.0),
-              //   child: Obx(() {
-              //     return CustomDropdownWidget<BaseNameModel>(
-              //       items: saleController.categories.value,
-              //       selectedItem: saleController.selectedCategory.value,
-              //       hint: "Select Category",
-              //       isSelected: saleController.isCatSelected,
-              //       selectedValue: saleController.selectedCategory,
-              //       icon: Icons.shopping_basket_outlined,
-              //       onChanged: (BaseNameModel? newValue) {
-              //         print("Selected category: ${newValue?.name}");
-              //         saleController.isCatSelected.value = true;
-              //         saleController.selectedCategory.value = newValue!;
-              //         saleController.filterProducts(newValue.name!);
-              //       },
-              //       validator: (value) {
-              //         return null;
-              //       },
-              //       itemBuilder: (BaseNameModel value) =>
-              //           Text(value.name!),
-              //     );
-              //   }),
-              // ),
-              // const SizedBox(height: 10),
-              // Padding(
-              //   padding: const EdgeInsets.all(8.0),
-              //   child: Obx(() {
-              //     return CustomDropdownWidget<BaseNameModel>(
-              //       items: saleController.brands.value,
-              //       selectedItem: saleController.selectedBrand.value,
-              //       hint: "Select Brand",
-              //       isSelected: saleController.isBrandSelected,
-              //       selectedValue: saleController.selectedBrand,
-              //       icon: Icons.breakfast_dining_rounded,
-              //       onChanged: (BaseNameModel? newValue) {
-              //         saleController.isBrandSelected.value = true;
-              //         saleController.selectedBrand.value = newValue!;
-              //         print(newValue.name!);
-              //         saleController.filterProducts(newValue.name!);
-              //       },
-              //       validator: (value) {
-              //         return null;
-              //       },
-              //       itemBuilder: (BaseNameModel value) =>
-              //           Text(value.name!),
-              //     );
-              //   }),
-              // ),
-              // const SizedBox(height: 10),
-              // Padding(
-              //   padding: const EdgeInsets.all(8.0),
-              //   child: ElevatedButton(
-              //     onPressed: () {
-              //       saleController.clearFilters(); // Clear category dropdown
-              //     },
-              //     style: ElevatedButton.styleFrom(
-              //       padding: EdgeInsets.all(8.0),
-              //       textStyle: TextStyle(fontSize: 15),
-              //     ),
-              //     child: Text('Clear Filters'),
-              //   ),
-              // ),
               const SizedBox(height: 10),
               Expanded(
                 child: Obx(() {
@@ -573,19 +475,19 @@ class SaleScreen extends GetView {
                       String name = product.item!.name ?? 'no name';
                       String brand = product.item!.brand?.name ?? '';
                       String fullName = "${name}  ${brand}";
-                      String imageUrl = product.item!.image != null
+                      /*String imageUrl = product.item!.image != null
                           ? "${AppConstants
                           .VIMBIKA_BACKEND_URL}/inventory/image?name=${product
                           .item!
                           .image}"
-                          : "https://placehold.co/50x50?text=No+Image";
+                          : "https://placehold.co/50x50?text=No+Image";*/
                       String category = product.item!.category?.name ?? '';
                       String itemName = fullName + ' ' + category;
                       return Card(
                           child:
                           ListTile(
                             tileColor: Colors.blue[100],
-                            leading: CachedNetworkImage(
+                          /*  leading: CachedNetworkImage(
                               imageUrl: imageUrl,
                               placeholder: (context, url) =>
                                   CircularProgressIndicator(),
@@ -599,7 +501,7 @@ class SaleScreen extends GetView {
                                   fit: BoxFit.cover,
                                 );
                               },
-                            ),
+                            ),*/
                             title: Text(itemName),
                             subtitle: Text('Available units ' + '(' +
                                 product.stock!.toInt().toString() + ')'),
@@ -613,7 +515,7 @@ class SaleScreen extends GetView {
                                 SizedBox(
                                   height: 4, // Space between price and button
                                 ),
-                                SizedBox(
+                                /*SizedBox(
                                   width: 100,
                                   // Adjust the width to fit the text
                                   height: 30,
@@ -632,7 +534,7 @@ class SaleScreen extends GetView {
                                     ),
                                     child: Text('View'),
                                   ),
-                                ),
+                                ),*/
                               ],
                             ),
                             isThreeLine: true,
@@ -1247,8 +1149,9 @@ class SaleScreen extends GetView {
                                   } else if (saleController.filteredProducts[index].stock! > 0 ||
                                       saleController.sellNilItems) {
                                     cartController.addToCart(saleController.filteredProducts[index], 1);
-                                    cartController.amountPaidTextEditingController.text = cartController.totalCostInSelectedCurrency.value.toString();
+                                    cartController.amountPaidTextEditingController.text = cartController.totalCostInSelectedCurrency.value.toStringAsFixed(2);
                                     cartController.amountPaid.value = cartController.totalCostInSelectedCurrency.value;
+                                    cartController.customerAmountPaid.value = cartController.totalCostInSelectedCurrency.value;
                                   } else {
                                     Get.snackbar("Check your stock",
                                         "Stock not available!!!",
@@ -1294,294 +1197,415 @@ class SaleScreen extends GetView {
                               ),
                           ),
                       ),
-                      Expanded(
-                        child: Container(
-                          width: 0.4*screenSize,
-                          alignment: Alignment.topRight,
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.indigo, width: 3.0),
-                                    borderRadius: BorderRadius.circular(8.0),
-                                  ),
-                                  height: 400,
-                                  child: Obx(() {
-                                    if (cartController.cartItems.isEmpty) {
-                                      return Center(
-                                          child: Column(
-                                            children: [
-                                              SizedBox(height: 30),
-                                              Text('Your cart is empty'),
-                                              SizedBox(height: 10),
-                                              IconButton(
-                                                icon: Icon(Icons.warning_amber,size: 50,),
-                                                color: Colors.grey,
-                                                onPressed: () {
-                                                },
-                                              ),
-                                            ],
-                                          )
-                                      );
-                                    }
-                                    return ListView.builder(
-                                      itemCount: cartController.cartItems.length,
-                                      itemBuilder: (context, index) {
-                                        final cartItem = cartController.cartItems[index];
-                                        return Card(
-                                          child: ListTile(
-                                            minTileHeight: 30,
-                                            title: Text(cartItem.product.item!.name ?? 'No Name',
-                                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigo,fontStyle: FontStyle.italic)
-                                              ,),
-                                            subtitle: Text('Qty: ${cartItem.quantity} Price: \$${cartItem.product.item!.sellingPrice.toStringAsFixed(2)}'),
-                                            trailing:
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
+                      // SafeArea(
+                      //   child:
+                        Expanded(
+                          // width: 0.4*screenSize,
+                          // height:1000,
+                          // alignment: Alignment.topRight,
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.indigo, width: 3.0),
+                                      borderRadius: BorderRadius.circular(8.0),
+                                    ),
+                                    height: 300,
+                                    child: Obx(() {
+                                      if (cartController.cartItems.isEmpty) {
+                                        return Center(
+                                            child: Column(
                                               children: [
+                                                SizedBox(height: 30),
+                                                Text('Your cart is empty'),
+                                                SizedBox(height: 10),
                                                 IconButton(
-                                                  icon: Icon(Icons.remove),
-                                                  onPressed: () =>
-                                                      cartController.decrementQuantity(cartItem),
+                                                  icon: Icon(Icons.warning_amber,size: 50,),
+                                                  color: Colors.grey,
+                                                  onPressed: () {
+                                                  },
                                                 ),
-                                                Text("\$${cartItem.totalPrice.toStringAsFixed(2)}",
-                                                  style: TextStyle(fontSize: 22, color: Colors.indigo, fontWeight: FontWeight.bold),
+                                              ],
+                                            )
+                                        );
+                                      }
+                                      return ListView.builder(
+                                        itemCount: cartController.cartItems.length,
+                                        itemBuilder: (context, index) {
+                                          final cartItem = cartController.cartItems[index];
+                                          return Card(
+                                            child: ListTile(
+                                              minTileHeight: 30,
+                                              title: Text(cartItem.product.item!.name ?? 'No Name',
+                                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigo,fontStyle: FontStyle.italic)
+                                                ,),
+                                              subtitle: Text('Qty: ${cartItem.quantity} Price: \$${cartItem.product.item!.sellingPrice.toStringAsFixed(2)}'),
+                                              trailing:
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  IconButton(
+                                                    icon: Icon(Icons.remove),
+                                                    onPressed: () =>
+                                                        cartController.decrementQuantity(cartItem),
+                                                  ),
+                                                  Text("\$${cartItem.totalPrice.toStringAsFixed(2)}",
+                                                    style: TextStyle(fontSize: 22, color: Colors.indigo, fontWeight: FontWeight.bold),
+                                                  ),
+                                                  IconButton(
+                                                    icon: Icon(Icons.add,color: Colors.indigoAccent,),
+                                                    onPressed: () =>
+                                                        cartController.incrementQuantity(cartItem),
+                                                  ),
+                                                  IconButton(
+                                                    icon: Icon(Icons.delete,color: Colors.red,),
+                                                    onPressed: () =>
+                                                        cartController.removeFromCart(cartItem),
+                                                  ),
+                                                ],
+                                              ),
+                                              onTap: () {
+                                                // Get.to(() => CartDetailsScreen(cartItem: cartItem));
+                                              },
+                                            ),
+                                          );
+                                        },
+                                      );
+                                    }),
+                                  ),
+                                SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Column(
+                                          children: [
+                                            TextFormField(
+                                              controller:
+                                              cartController.amountPaidTextEditingController,
+                                              keyboardType: const TextInputType.numberWithOptions(
+                                                  decimal: true),
+                                              inputFormatters: <TextInputFormatter>[
+                                                FilteringTextInputFormatter.allow(
+                                                    RegExp(r'^\d+\.?\d{0,2}')),
+                                              ],
+                                              decoration: InputDecoration(
+                                                  enabledBorder: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(8.0),
+                                                    borderSide: const BorderSide(
+                                                      color: Colors.indigo,
+                                                      width: 3.0,
+                                                    ),
+                                                  ),
+                                                  focusedBorder: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(8.0),
+                                                    borderSide: const BorderSide(
+                                                      color: Colors.pinkAccent,
+                                                      width: 3.0,
+                                                    ),
+                                                  ),
+                                                  prefixIcon: const Icon(Icons.money),
+                                                  labelText: "Amount Paid",
+                                                  hintText: "Amount Paid"),
+                                              onChanged: (String val) {
+                                                if (val.isNotEmpty) {
+                                                  cartController.amountPaidChange(val);
+                                                  cartController.amountPaid.value = double.parse(val);
+                                                  cartController.customerAmountPaid.value = double.parse(val);
+                                                }
+                                              },
+                                              validator: (value) {
+                                                if (value == null || value.isEmpty) {
+                                                  return 'Please enter an amount';
+                                                }
+                                                double enteredAmount;
+                                                try {
+                                                  enteredAmount = double.parse(value);
+                                                } catch (e) {
+                                                  return 'Please enter a valid amount';
+                                                }
+
+                                                if (enteredAmount <
+                                                    double.parse(cartController.totalCostInSelectedCurrency.value.toStringAsFixed(2))) {
+                                                  return 'Amount paid cannot be less than the total amount';
+                                                }
+                                                return null;
+                                              },
+                                              onSaved: (value) {
+                                                cartController.amountPaid.value = double.parse(value!);
+                                                cartController.customerAmountPaid.value = double.parse(value!);
+                                              },
+                                            ),
+                                            Column(
+                                              children: [
+                                                Text(
+                                                  'Total: ${cartController.selectedCurrency.value!.symbol} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
+                                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold,
+                                                      color: Colors.indigo),
                                                 ),
-                                                IconButton(
-                                                  icon: Icon(Icons.add,color: Colors.indigoAccent,),
-                                                  onPressed: () =>
-                                                      cartController.incrementQuantity(cartItem),
-                                                ),
-                                                IconButton(
-                                                  icon: Icon(Icons.delete,color: Colors.red,),
-                                                  onPressed: () =>
-                                                      cartController.removeFromCart(cartItem),
+                                                Text(
+                                                  'Change: ${cartController.selectedCurrency.value!.symbol} ${cartController.change.toStringAsFixed(2)}',
+                                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold,
+                                                      color: Colors.orange),
                                                 ),
                                               ],
                                             ),
-                                            onTap: () {
-                                              // Get.to(() => CartDetailsScreen(cartItem: cartItem));
-                                            },
-                                          ),
-                                        );
-                                      },
-                                    );
-                                  }),
-                                ),
-                              ),
-                              SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Column(
-                                        children: [
-                                          TextFormField(
-                                            controller:
-                                            cartController.amountPaidTextEditingController,
-                                            keyboardType: const TextInputType.numberWithOptions(
-                                                decimal: true),
-                                            inputFormatters: <TextInputFormatter>[
-                                              FilteringTextInputFormatter.allow(
-                                                  RegExp(r'^\d+\.?\d{0,2}')),
-                                            ],
-                                            decoration: InputDecoration(
-                                                enabledBorder: OutlineInputBorder(
-                                                  borderRadius: BorderRadius.circular(8.0),
-                                                  borderSide: const BorderSide(
-                                                    color: Colors.indigo,
-                                                    width: 3.0,
+                                            Column(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Container(
+                                                  height: 30,
+                                                  child: Obx(() =>
+                                                      CheckboxListTile(
+                                                        title: Text('Print Receipt'),
+                                                        value: cartController.isPrintEnabled.value,
+                                                        onChanged: (bool? value) {
+                                                          cartController.isPrintEnabled.value =
+                                                              value ?? false;
+                                                        },
+                                                      )
                                                   ),
                                                 ),
-                                                focusedBorder: OutlineInputBorder(
-                                                  borderRadius: BorderRadius.circular(8.0),
-                                                  borderSide: const BorderSide(
-                                                    color: Colors.pinkAccent,
-                                                    width: 3.0,
-                                                  ),
+                                                Container(
+                                                  // height: 30,
+                                                  child:  Obx(() {
+                                                    if (cartController.fiscalizeReceipt.value) {
+                                                      return CheckboxListTile(
+                                                        title: Text('Fiscalize Receipt'),
+                                                        value: cartController.isFiscaliseReceiptEnabled
+                                                            .value,
+                                                        onChanged: (bool? value) {
+                                                          cartController.isFiscaliseReceiptEnabled.value =
+                                                              value ?? false;
+                                                          cartController.zimraFiscalizeReceipt.value = value!;
+                                                        },
+                                                      );
+                                                    } else {
+                                                      return Container(); // Empty container when email is not valid
+                                                    }
+                                                  }),
                                                 ),
-                                                prefixIcon: const Icon(Icons.money),
-                                                labelText: "Amount Paid",
-                                                hintText: "Amount Paid"),
-                                            onChanged: (String val) {
-                                              if (val.isNotEmpty) {
-                                                cartController.amountPaidChange(val);
-                                                cartController.amountPaid.value = double.parse(val);
-                                              }
-                                            },
-                                            validator: (value) {
-                                              if (value == null || value.isEmpty) {
-                                                return 'Please enter an amount';
-                                              }
-                                              double enteredAmount;
-                                              try {
-                                                enteredAmount = double.parse(value);
-                                              } catch (e) {
-                                                return 'Please enter a valid amount';
-                                              }
-
-                                              if (enteredAmount <
-                                                  double.parse(cartController.totalCostInSelectedCurrency.value.toStringAsFixed(2))) {
-                                                return 'Amount paid cannot be less than the total amount';
-                                              }
-                                              return null;
-                                            },
-                                            onSaved: (value) {
-                                              cartController.amountPaid.value = double.parse(value!);
-                                            },
-                                          ),
-                                          Column(
-                                            children: [
-                                              Text(
-                                                'Total: \$${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
-                                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold,
-                                                    color: Colors.indigo),
-                                              ),
-                                              Text(
-                                                'Change: \$${cartController.change.toStringAsFixed(2)}',
-                                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold,
-                                                    color: Colors.orange),
-                                              ),
-                                            ],
-                                          ),
-                                          Column(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Container(
-                                                height: 30,
-                                                child: Obx(() =>
-                                                    CheckboxListTile(
-                                                      title: Text('Print Receipt'),
-                                                      value: cartController.isPrintEnabled.value,
-                                                      onChanged: (bool? value) {
-                                                        cartController.isPrintEnabled.value =
-                                                            value ?? false;
-                                                      },
-                                                    )
+                                                Container(
+                                                  // height: 30,
+                                                  child:   Obx(() {
+                                                    if (cartController.isCustomerEmailValid.value) {
+                                                      return CheckboxListTile(
+                                                        title: Text('Email Receipt'),
+                                                        value: cartController.emailReceipt.value,
+                                                        onChanged: (bool? value) {
+                                                          cartController.emailReceipt.value =
+                                                              value ?? false;
+                                                        },
+                                                      );
+                                                    } else {
+                                                      return Container(); // Empty container when email is not valid
+                                                    }
+                                                  }),
                                                 ),
-                                              ),
-                                              Container(
-                                                // height: 30,
-                                                child:  Obx(() {
-                                                  if (cartController.fiscalizeReceipt.value) {
-                                                    return CheckboxListTile(
-                                                      title: Text('Fiscalize Receipt'),
-                                                      value: cartController.isFiscaliseReceiptEnabled
-                                                          .value,
-                                                      onChanged: (bool? value) {
-                                                        cartController.isFiscaliseReceiptEnabled.value =
-                                                            value ?? false;
-                                                        cartController.zimraFiscalizeReceipt.value = value!;
-                                                      },
-                                                    );
-                                                  } else {
-                                                    return Container(); // Empty container when email is not valid
-                                                  }
-                                                }),
-                                              ),
-                                              Container(
-                                                // height: 30,
-                                                child:   Obx(() {
-                                                  if (cartController.isCustomerEmailValid.value) {
-                                                    return CheckboxListTile(
-                                                      title: Text('Email Receipt'),
-                                                      value: cartController.emailReceipt.value,
-                                                      onChanged: (bool? value) {
-                                                        cartController.emailReceipt.value =
-                                                            value ?? false;
-                                                      },
-                                                    );
-                                                  } else {
-                                                    return Container(); // Empty container when email is not valid
-                                                  }
-                                                }),
-                                              ),
-                                            ],
-                                          )
-                                        ],
+                                              ],
+                                            )
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  // Expanded(child:
-                                  //
-                                  // ),
-                                  Expanded(child:
-                                  Container(
-                                    child:
-                                    Obx((){
-                                      return GridView.builder(gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3),
-                                        shrinkWrap: true,
-                                          itemCount: cartController.filteredPaymentTypesList.length,
-                                          itemBuilder: (context, index) =>
-                                          Container(
-                                                margin: EdgeInsets.all(4.0),
-                                                child: ElevatedButton(
-                                                  onPressed: () {
-                                                    saleController.selectedPaymentType = cartController.filteredPaymentTypesList[index];
-                                                    cartController.onChangePaymentType(cartController.filteredPaymentTypesList[index]);
-                                                    cartController.filteredPaymentTypesList.refresh();
-                                      },
-                                                 style: ElevatedButton.styleFrom(
-                                                   backgroundColor: cartController.filteredPaymentTypesList[index].id == saleController.selectedPaymentType.id?
-                                                  Colors.pinkAccent : Colors.indigo,
-                                                 // backgroundColor: Colors.indigo,
-                                                 padding: EdgeInsets.all(8.0),
-                                                 textStyle: TextStyle(fontSize: 14,
-                                                  color: Colors.black),
-                                                 ),
-                                                  child: Text(cartController.filteredPaymentTypesList[index].name ?? 'No Name',
-                                                  style: TextStyle(fontSize: 14, color: Colors.lightGreen[200]),),
-                                            )
-                                               )
-                                      );
-                                    }),
+                                    Expanded(child:
+                                    Column(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(0.0),
+                                          height: 40,
+                                          child: Obx(() =>
+                                              CheckboxListTile(
+                                                title: Text('Select Multiple'),
+                                                value: saleController.multiple.value,
+                                                onChanged: (bool? value) {
+                                                  saleController.multiple.value =
+                                                      value ?? false;
+                                                  saleController.showMultiple.value =
+                                                      value ?? false;
+                                                  if( saleController.multiple.value == true) {
+                                                    cartController.amountPaidTextEditingController.clear();
+                                                    cartController.amountPaidTextEditingController.text = 0.00.toStringAsFixed(2);
+                                                    cartController.amountPaid.value = 0.00;
+                                                    cartController.customerAmountPaid.value = 0.00;
+                                                  }
+                                                },
+                                              )
+                                          ),
+                                        ),
+                                        Container(
+                                            child:
+                                            Obx((){
+                                              return GridView.builder(gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3),
+                                                shrinkWrap: true,
+                                                  itemCount: cartController.filteredPaymentTypesList.length,
+                                                  itemBuilder: (context, index) =>
+                                                  Container(
+                                                        margin: EdgeInsets.all(4.0),
+                                                        child: ElevatedButton(
+                                                          onPressed: () {
+                                                            var paymentType = cartController.filteredPaymentTypesList[index];
+                                                            saleController.selectedPaymentType = paymentType;
+                                                            if(saleController.multiple.value == false){
+                                                              saleController.selectedPaymentTypes.clear();
+                                                              // cartController.selectedPaymentTypes[index].amount = cartController.totalCostInSelectedCurrency.value;
+                                                            }
+                                                            if(saleController.selectedPaymentTypes.any((element) => element.id == paymentType.id)) {
+                                                              saleController.selectedPaymentTypes.removeWhere((element) => element.id == paymentType.id);
+                                                            }
+                                                            else {
+                                                              if(saleController.multiple.value == false)
+                                                                paymentType.amount = cartController.totalCostInSelectedCurrency.value;
+                                                              saleController.selectedPaymentTypes.add(paymentType);
+                                                              cartController.onChangePaymentType(paymentType,saleController.multiple.value);
+                                                            }
+                                                            cartController.filteredPaymentTypesList.refresh();
+                                                            cartController.selectedPaymentTypes.refresh();
+                                              },
+                                                         style: ElevatedButton.styleFrom(
+                                                           backgroundColor: saleController.selectedPaymentTypes.contains(cartController.filteredPaymentTypesList[index])?
+                                                          Colors.pinkAccent : Colors.indigo,
+                                                         // backgroundColor: Colors.indigo,
+                                                         padding: EdgeInsets.all(8.0),
+                                                         textStyle: TextStyle(fontSize: 14,
+                                                          color: Colors.black),
+                                                         ),
+                                                          child: Text(cartController.filteredPaymentTypesList[index].name ?? 'No Name',
+                                                          style: TextStyle(fontSize: 14, color: Colors.lightGreen[200]),),
+                                                    )
+                                                       )
+                                              );
+                                            }),
 
-                                  ) ,
-                                  ),
-                                ],
-                              ),
-
-                              Container(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    if(cartController.cartItems.isEmpty) {
-                                      Get.snackbar("Error", "Your cart is empty.",
-                                          snackPosition: SnackPosition.TOP);
-                                      return;
-                                    }
-                                    if(cartController.selectedPaymentType.value == null ||
-                                        cartController.selectedPaymentType.value!.id == null) {
-                                      Get.snackbar("Error", "Please select a payment type.",
-                                          snackPosition: SnackPosition.TOP);
-                                      return;
-                                    }
-                                    if(cartController.amountPaid.value <= 0 ||
-                                        cartController.amountPaid.value < cartController.totalCostInSelectedCurrency.value) {
-                                      print("Amount Paid: ${cartController.amountPaid.value}");
-                                      print("Amount totalCostInSelectedCurrency: ${cartController.totalCostInSelectedCurrency.value}");
-                                      Get.snackbar("Error", "Please enter a valid amount paid.",
-                                          snackPosition: SnackPosition.TOP);
-                                      return;
-                                    }
-                                    cartController.showConfirmDialogChargeSale();
-                                  },
-
-                                  style: TextButton.styleFrom(
-                                    backgroundColor: Colors.lightGreenAccent, // Set button color to red
-                                    foregroundColor: Colors.black, // Set text color to red
-                                    textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
-                                  ),
-                                  child:
-                                  Text('Charge'),
+                                          ),
+                                      ],
+                                    ) ,
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
+
+                                  Container(
+                                    color: Colors.pinkAccent[50],
+                                    height: saleController.showMultiple.value?200:10,
+                                    decoration:
+                                    saleController.showMultiple.value?BoxDecoration(
+                                      border: Border.all(color: Colors.lightGreenAccent, width: 2.0),
+                                      borderRadius: BorderRadius.circular(8.0),
+                                    ):BoxDecoration(),
+                                    child: Obx(() {
+                                      if (saleController.showMultiple.value==false ) {
+                                        return Container();
+                                      }
+                                      else {
+                                        return ListView.builder(
+                                          itemCount: cartController
+                                              .selectedPaymentTypes.length,
+                                          itemBuilder: (context, index) {
+                                            final paymentType = cartController
+                                                .selectedPaymentTypes[index];
+                                            return Card(
+                                              child: ListTile(
+
+                                                title: Text(
+                                                    paymentType.name ??
+                                                        'No Name',
+                                                    style: TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                        FontWeight.bold,
+                                                        color: Colors.indigo,
+                                                        fontStyle:
+                                                        FontStyle.italic)
+                                                ),
+                                                subtitle: Text(
+                                                    'Amount: \$${paymentType.amount!.toStringAsFixed(2)}',
+                                                    style: TextStyle(
+                                                        fontSize: 14,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Colors.black54)
+                                                ),
+                                                trailing: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    ElevatedButton(onPressed: () async {
+                                                      final amount = await addAmount(index);
+                                                    }, child:
+                                                    Text("Add AMount", style:
+                                                      TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold, fontSize: 14),
+                                                    ),
+                                                      style: TextButton.styleFrom(
+                                                        padding: EdgeInsets.all(8.0),
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius: BorderRadius.circular(8.0),
+                                                        ),
+                                                        backgroundColor: Colors.transparent, // Set button color to red
+                                                        foregroundColor: Colors.black, // Set text color to red
+                                                      ),
+
+                                                        ),
+                                                    IconButton(
+                                                      icon: Icon(
+                                                        Icons.delete,
+                                                        color: Colors.red,
+                                                      ),
+                                                      onPressed: () {
+                                                        cartController
+                                                            .removePaymentMethod(index);
+                                                        saleController.selectedPaymentTypes.removeAt(index);
+                                                      },
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      }
+                                    }),
+                                  ),
+
+                                Container(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      if(cartController.cartItems.isEmpty) {
+                                        Get.snackbar("Error", "Your cart is empty.",
+                                            snackPosition: SnackPosition.TOP);
+                                        return;
+                                      }
+                                      if(cartController.selectedPaymentType.value == null ||
+                                          cartController.selectedPaymentType.value!.id == null) {
+                                        Get.snackbar("Error", "Please select a payment type.",
+                                            snackPosition: SnackPosition.TOP);
+                                        return;
+                                      }
+                                      if(cartController.amountPaid.value <= 0 ||
+                                          cartController.amountPaid.value < cartController.totalCostInSelectedCurrency.value) {
+                                        Get.snackbar("Error", "Please enter a valid amount paid.",
+                                            snackPosition: SnackPosition.TOP);
+                                        return;
+                                      }
+                                      cartController.showConfirmDialogChargeSale();
+                                    },
+
+                                    style: TextButton.styleFrom(
+                                      backgroundColor: Colors.lightGreenAccent, // Set button color to red
+                                      foregroundColor: Colors.black, // Set text color to red
+                                      textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                                    ),
+                                    child:
+                                    Text('Charge'),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      )
+                      // )
                     ],
                   );
                   }),
@@ -1594,6 +1618,65 @@ class SaleScreen extends GetView {
     }
   }
 
+
+  Future<Double?> addAmount(int index) => showDialog<Double>(
+    context: Get.context!,
+    builder: (context) {
+      return AlertDialog(
+        title: Text("Add Amount"),
+        content:
+            TextField(
+              autofocus: true,
+              controller: saleController.amountTextEditingController,
+              decoration: InputDecoration(
+                labelText: "Enter Amount",
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true),
+              onChanged: (String val) {
+                if (val.isNotEmpty) {
+                  // cartController.amountPaidChange(val);
+                  print("Amount Changed: $val");
+                  print(index);
+                  cartController.paymentTypeAmountPaid.value = double.parse(val);
+                  cartController.selectedPaymentTypes[index].amount = double.parse(val);
+                }
+              },
+            ),
+
+        actions: [
+          TextButton(
+            onPressed: () {
+              saleController.amountTextEditingController.clear();
+              Get.back(); // Close dialog without adding an amount
+            },
+            child: Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              print("Amount: ${saleController.amountTextEditingController.text}");
+              if( saleController.amountTextEditingController.text.isNotEmpty) {
+                double amount = double.parse(saleController.amountTextEditingController.text);
+                if(amount <= 0) {
+                  Get.snackbar("Error", "Amount must be greater than zero.",
+                      snackPosition: SnackPosition.TOP);
+                  return;
+                }
+                cartController.amountPaid.value += cartController.selectedPaymentTypes[index].amount!;
+                cartController.customerAmountPaid.value += cartController.selectedPaymentTypes[index].amount!;
+                cartController.amountPaidTextEditingController.text = cartController.amountPaid.value.toStringAsFixed(2);
+                cartController.selectedPaymentTypes.refresh();
+                saleController.amountTextEditingController.clear();
+                Get.back(); // Close the dialog after adding
+              }
+            },
+            child: Text("Add"),
+          ),
+        ],
+      );
+    },
+  );
 
   getCustomerForm() {
     Get.dialog(

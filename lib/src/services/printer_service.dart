@@ -675,8 +675,8 @@ class PrinterService extends GetxService {
      // Separator
      await SunmiPrinter.printText("--------------------------------");
      // Totals
-     await SunmiPrinter.printText("Subtotal: ${cur?.symbol ?? ''} ${sale.amountPaid?.toStringAsFixed(2)}");
-     await SunmiPrinter.printText("Amount Paid: ${cur?.symbol ?? ''} ${sale.customerAmountPaid?.toStringAsFixed(2)}");
+     await SunmiPrinter.printText("Subtotal: ${cur?.symbol ?? ''} ${sale.amountAfterDiscount?.toStringAsFixed(2)}");
+     await SunmiPrinter.printText("Amount Paid: ${cur?.symbol ?? ''} ${sale.amountPaid?.toStringAsFixed(2)}");
      await SunmiPrinter.printText("Change: ${cur?.symbol ?? ''} ${sale.change?.toStringAsFixed(2)}");
 
      //qr code
@@ -773,7 +773,7 @@ class PrinterService extends GetxService {
         Uint8List log =  await file.readAsBytes(); // Read and return the image bytes
 
         // Decode the image
-        print("Printing log");
+        print(img.Image);
         print(log);
         img.Image? image = img.decodeImage(log);
         if (image == null) {

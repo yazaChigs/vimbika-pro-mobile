@@ -197,7 +197,7 @@ class ReceiptController extends GetxController {
 
     for (var saleInfo in filteredReceipts) {
       String? currencySymbol = saleInfo.sale?.currency?.symbol ?? '';
-      double amountPaid = saleInfo.sale?.baseSaleAmount ?? 0;
+      double amountPaid = saleInfo.sale?.amountAfterDiscount ?? 0;
       if(saleInfo.sale!.saleStatus!= "REVERSED") {
         if (totals.containsKey(currencySymbol)) {
           totals[currencySymbol] = totals[currencySymbol]! + amountPaid;

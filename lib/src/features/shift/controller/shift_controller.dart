@@ -104,6 +104,7 @@ class ShiftController extends GetxController {
       print("Updating shift..");
       activeShift.value = tempActiveShift;
       shiftAvailable.value = true;
+      activeShift.value.shiftCurrencyAmounts?.sort((a, b) => a.timeCreated.compareTo(b.timeCreated));
       // calculateTotalAmountsByCurrency();
     }
     getSales();

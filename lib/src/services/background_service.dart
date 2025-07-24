@@ -117,9 +117,6 @@ class BackgroundService extends GetxService {
             } else{
               saleInfoModel = SaleInfoModel(sale: saleModel, syncStatus: true);
             }
-            for(var item in saleInfoModel.sale!.items!){
-              print("Item: ${item.inventoryItem!.name}, Quantity: ${item.quantity}, Price: ${item.sellingPrice} Total: ${item.total}");
-            }
             saleCurrencyAmount.posReference = saleInfoModel.sale?.posReference;
             var list = [saleCurrencyAmount];
             shiftList.firstWhere((shift)=>shift.shiftReference==saleInfoModel.sale!.shiftReference).shiftCurrencyAmounts = [...list];

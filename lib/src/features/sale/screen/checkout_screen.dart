@@ -508,7 +508,7 @@ class CheckoutScreen extends StatelessWidget {
                       selectedValue: cartController.selectedPaymentType,
                       icon: Icons.payments,
                       onChanged: (PaymentTypeModel? newValue) {
-                       cartController.onChangePaymentType(newValue!);
+                       cartController.onChangePaymentType(newValue!,false);
                       },
                       validator: (value) {
                         if (cartController.isPaymentTypeSelected.isFalse) {
