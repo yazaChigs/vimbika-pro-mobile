@@ -19,6 +19,8 @@ import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../../../services/sync_service.dart';
+
 class CashManagementController extends GetxController {
   Rx<CurrencyModel?> selectedCurrency = CurrencyModel().obs;
   RxList<CurrencyModel> currencyList = <CurrencyModel>[].obs;
@@ -83,7 +85,7 @@ class CashManagementController extends GetxController {
 
 
   }
-  payInPayOutAction(String payType){
+  payInPayOutAction(String payType) async {
 
     String timeCreated = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
     int count = activeShift.shiftCurrencyAmounts!.length + 1;
@@ -94,7 +96,7 @@ class CashManagementController extends GetxController {
     activeShift.shiftCurrencyAmounts!.add(currencyAmount);
     List<ShiftModel> updatedShifts = _localStorageService.replaceShift(activeShift, shiftList);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, updatedShifts, box);
-    print("Updated Shift: ${activeShift.toJson()}");
+    await SyncService.syncOfflineShifts(user.value!, box);
 
     Get.delete<CashManagementController>();
     Get.put(ShiftController());

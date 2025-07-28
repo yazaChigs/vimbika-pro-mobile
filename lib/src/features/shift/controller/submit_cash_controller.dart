@@ -13,6 +13,8 @@ import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 
+import '../../../services/sync_service.dart';
+
 class SubmitCashController extends GetxController {
 
   Rx<CurrencyModel?> selectedCurrency = CurrencyModel().obs;
@@ -125,7 +127,7 @@ class SubmitCashController extends GetxController {
     );
   }
 
-  void submitCash(){
+  Future<void> submitCash() async {
     ShiftModel shift = activeShift.value;
     currencyAmountList.forEach((element) {
       shift.shiftCurrencyAmounts!.add(element);
@@ -133,6 +135,7 @@ class SubmitCashController extends GetxController {
     List<ShiftModel> updatedShifts = _localStorageService.replaceShift(shift, shiftList);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, updatedShifts, box);
     _printerService.printSunmiCashSubmitReceipt("CASH_SUBMIT", currencyAmountList);
+    await SyncService.syncOfflineShifts(user.value!, box);
 
     Get.delete<SubmitCashController>();
     Get.put(ShiftController());

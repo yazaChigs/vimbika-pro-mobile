@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -85,6 +86,18 @@ class SaleController extends GetxController {
     List<BaseNameModel> brandList = loadItems(box, AppConstants.BRAND_LIST);
     brands.value = brandList;
     List<BaseNameModel> catList = loadItems(box, AppConstants.CATEGORY_LIST);
+    List<BaseNameModel> removedList =[];
+    // for(var cat in catList){
+    //   filterProducts(category: cat.name!);
+    //   print("Category: ${cat.name} has ${filteredProducts.length} products");
+    //   if(filteredProducts.isEmpty)
+    //   {
+    //     removedList.remove(cat);
+    //   }
+    // }
+    // print("Removed loaded: ${removedList.length}");
+    // catList.removeWhere((cat)=> removedList.contains(cat));
+    // print("Categories loaded: ${catList.length}");
     catList.insert(0, BaseNameModel(id: "All Items", name: "All Items"));
     selectedCategory.value = catList[0];
     categories.value = catList;
@@ -378,6 +391,7 @@ class SaleController extends GetxController {
     }
   }
   getOfflineProducts(GetStorage box){
+    AppHelper.showLoading();
     List<ProductFullInfoModel> storageProductList = _localStorageService.getProductList(box, false);
     allProducts.value = storageProductList;
     filteredProducts.value = storageProductList;
@@ -385,6 +399,8 @@ class SaleController extends GetxController {
     if(allProducts.isEmpty) {
       getBranchStock(box);
     }
+    AppHelper.hideLoading();
+
   }
 
 
@@ -417,10 +433,7 @@ class SaleController extends GetxController {
     if (lowerCategory != 'all items' && searchQuery.value.isEmpty) {
       filteredProducts.value = allProducts.value.where((product) {
         final categoryName = product.item?.category?.id?.toLowerCase() ?? '';
-        print(categoryName + ' VS '+ lowerCategory!);
-
-        // return categoryName == lowerCategory;
-        return categoryName.contains(lowerCategory);
+        return categoryName.contains(lowerCategory!);
       }).toList();
       return;
     }

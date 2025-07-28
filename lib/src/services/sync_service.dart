@@ -484,8 +484,10 @@ class SyncService {
         itemsToBeSynced.add(sh);
         if (sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty) {
           for (CurrencyAmount ca in sh.shiftCurrencyAmounts!) {
-            ca.active=true;
+            if((ca.active == null || !ca.active! ) && ca.id == null) {
+              ca.active = true;
               currencyItemsToBeSynced.add(ca);
+            }
           }
         }
       } else {
@@ -496,6 +498,7 @@ class SyncService {
         upToDateItems.add(sh);
       }
     }
+    print("currencyItemsToBeSynced: ${currencyItemsToBeSynced.isNotEmpty} " );
     if(currencyItemsToBeSynced.isNotEmpty) {
       String jsonShiftCurrencyItems = json.encode(
           currencyItemsToBeSynced.map((shift) => shift.toMap()).toList());
@@ -532,34 +535,38 @@ class SyncService {
         }
       }
     }
-      String jsonShiftItems = json.encode(itemsToBeSynced.map((shift) => shift.toMap()).toList());
-    var response = await BaseHttpClient()
-        .postAuthWithCompanyHeader(
-        "/mobile/pos/shift/save", jsonShiftItems, user.companyId!, "POST")
-        .catchError((onError) {
-      print(onError);
-      AppHelper.hideLoading();
-      if (onError is BadRequestException) {
-        var apiError = json.decode(onError.message!);
-        AppHelper.showErroDialog(description: apiError["reason"]);
+    if(itemsToBeSynced.isNotEmpty && currencyItemsToBeSynced.isNotEmpty) {
+      String jsonShiftItems = json.encode(
+          itemsToBeSynced.map((shift) => shift.toMap()).toList());
+      var response = await BaseHttpClient()
+          .postAuthWithCompanyHeader(
+          "/mobile/pos/shift/save", jsonShiftItems, user.companyId!, "POST")
+          .catchError((onError) {
+        print(onError);
+        AppHelper.hideLoading();
+        if (onError is BadRequestException) {
+          var apiError = json.decode(onError.message!);
+          AppHelper.showErroDialog(description: apiError["reason"]);
+        } else {
+          AppHelper.handleError(onError);
+        }
+      });
+      if (response != null) {
+        ShiftResponseModel saleResponseModel = ShiftResponseModel.fromJson(
+            response);
+        updateItems.addAll(saleResponseModel.items ?? []);
+        updateItems.addAll(upToDateItems);
+        //List<ShiftModel> items =  saleResponseModel.items ?? [];
+
+        List<Map<String, dynamic>> itemsListMap = updateItems.map((item) =>
+            item.toMap()).toList();
+        box.write(AppConstants.SHIFT_LIST, itemsListMap);
+
+        // Get.snackbar("Success", "Shifts synced successfully");
       } else {
-        AppHelper.handleError(onError);
+        //Get.snackbar("Error", "No response from server");
+
       }
-    });
-    if (response != null) {
-      ShiftResponseModel saleResponseModel = ShiftResponseModel.fromJson(response);
-      updateItems.addAll(saleResponseModel.items ?? []);
-      updateItems.addAll(upToDateItems);
-      //List<ShiftModel> items =  saleResponseModel.items ?? [];
-
-      List<Map<String, dynamic>> itemsListMap = updateItems.map((item) =>
-          item.toMap()).toList();
-      box.write(AppConstants.SHIFT_LIST, itemsListMap);
-
-      // Get.snackbar("Success", "Shifts synced successfully");
-    } else {
-      //Get.snackbar("Error", "No response from server");
-
     }
   }
   static Future<ShiftModel?> getOpenedShift(UserModel user, GetStorage box) async{
