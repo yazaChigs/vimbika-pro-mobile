@@ -1702,52 +1702,82 @@ class SaleScreen extends GetView {
                                     ),
 
                                     Container(
-                                      height: 50,
+                                      height: 55,
                                       width: double.infinity,
                                       // child: Positioned(
                                       //   bottom: 2.0,
                                       //   right: 2.0,
-                                        child: ElevatedButton(
-                                          onPressed: () {
-                                            if (cartController.cartItems.isEmpty) {
-                                              Get.snackbar("Error", "Your cart is empty.",
-                                                  snackPosition: SnackPosition.TOP);
-                                              return;
-                                            }
-                                            if (cartController.selectedPaymentType
-                                                .value == null ||
-                                                cartController.selectedPaymentType.value!
-                                                    .id == null) {
-                                              Get.snackbar("Error",
-                                                  "Please select a payment type.",
-                                                  snackPosition: SnackPosition.TOP);
-                                              return;
-                                            }
-                                            if (cartController.amountPaid.value <= 0 ||
-                                                cartController.amountPaid.value <
-                                                    cartController
-                                                        .totalCostInSelectedCurrency
-                                                        .value) {
-                                              Get.snackbar("Error",
-                                                  "Please enter a valid amount paid.",
-                                                  snackPosition: SnackPosition.TOP);
-                                              return;
-                                            }
-                                            cartController.showConfirmDialogChargeSale();
-                                          },
-
-                                          style: TextButton.styleFrom(
-                                            backgroundColor: Colors.lightGreenAccent[400],
-                                            // Set button color to red
-                                            foregroundColor: Colors.black,
-                                            // Set text color to red
-                                            textStyle: TextStyle(fontSize: 18,
+                                        child: Row(
+                                          children: [
+                                          Expanded(
+                                            child: ElevatedButton(
+                                            onPressed: () {
+                                                // ticketController.getTickets();
+                                                ticketController.ticketActionButton(
+                                                cartController.selectedCurrency.value!,
+                                                cartController.cartItems.length);
+                                                },
+                                                style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.deepOrange,
+                                                padding: EdgeInsets.symmetric(vertical: 14.0),
+                                                textStyle: TextStyle(fontSize: 12,
                                                 color: Colors.white,
-                                                fontWeight: FontWeight
-                                                    .bold), // Set text size
+                                                fontWeight: FontWeight.bold),
+                                                ),
+
+                                                child: Text(
+                                                 'SAVE',
+                                                style: TextStyle(color: Colors.white, fontSize: 16),
+
+                                                ),
+                                                ),
                                           ),
-                                          child:
-                                          Text('Charge'),
+                                            SizedBox(width: 5,),
+                                            Expanded(
+                                              child: ElevatedButton(
+                                                onPressed: () {
+                                                  if (cartController.cartItems.isEmpty) {
+                                                    Get.snackbar("Error", "Your cart is empty.",
+                                                        snackPosition: SnackPosition.TOP);
+                                                    return;
+                                                  }
+                                                  if (cartController.selectedPaymentType
+                                                      .value == null ||
+                                                      cartController.selectedPaymentType.value!
+                                                          .id == null) {
+                                                    Get.snackbar("Error",
+                                                        "Please select a payment type.",
+                                                        snackPosition: SnackPosition.TOP);
+                                                    return;
+                                                  }
+                                                  if (cartController.amountPaid.value <= 0 ||
+                                                      cartController.amountPaid.value <
+                                                          cartController
+                                                              .totalCostInSelectedCurrency
+                                                              .value) {
+                                                    Get.snackbar("Error",
+                                                        "Please enter a valid amount paid.",
+                                                        snackPosition: SnackPosition.TOP);
+                                                    return;
+                                                  }
+                                                  cartController.showConfirmDialogChargeSale();
+                                                },
+
+                                                style: TextButton.styleFrom(
+                                                  backgroundColor: Colors.lightGreenAccent[400],
+                                                  // Set button color to red
+                                                  foregroundColor: Colors.black,
+                                                  // Set text color to red
+                                                  textStyle: TextStyle(fontSize: 18,
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight
+                                                          .bold), // Set text size
+                                                ),
+                                                child:
+                                                Text('Charge'),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       // ),
                                     ),

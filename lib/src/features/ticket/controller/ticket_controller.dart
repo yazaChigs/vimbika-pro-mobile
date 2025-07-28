@@ -180,17 +180,17 @@ class TicketController extends GetxController {
       },
     );
   }
-  // void closeTicket(String reference){
-  //   String timeClosed = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
-  //   String fullName = user.firstName + " " + user.lastName;
-  //
-  //   allTickets.refresh();
-  //   filteredTickets.refresh();
-  //   List<Map<String, dynamic>> itemsListMap = allTickets.map((item) => item.toMap()).toList();
-  //   box.write(AppConstants.TICKET_LIST, itemsListMap);
-  //   Get.snackbar("Ticket", "Ticket Closed Successfully", snackPosition: SnackPosition.BOTTOM);
-  //   //Get.back();
-  // }
+  void closeTicket(String reference){
+    String timeClosed = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
+    String fullName = user.firstName + " " + user.lastName;
+
+    allTickets.refresh();
+    filteredTickets.refresh();
+    List<Map<String, dynamic>> itemsListMap = allTickets.map((item) => item.toMap()).toList();
+    box.write(AppConstants.TICKET_LIST, itemsListMap);
+    Get.snackbar("Ticket", "Ticket Closed Successfully", snackPosition: SnackPosition.BOTTOM);
+    //Get.back();
+  }
   Future<void> deleteTicketByReference(String reference, String? saleId) async {
     // Find the ticket with the matching reference
     allTickets.removeWhere((ticket) => ticket.sale!.referenceNumber == reference);

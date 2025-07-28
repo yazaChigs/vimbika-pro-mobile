@@ -149,7 +149,7 @@ class CartController extends GetxController {
     var fiscalStatus = box.read(AppConstants.IS_FISCALISATION_ENABLED) ?? false;
     var deviceFiscalSetting = box.read(AppConstants.DEFAULT_FISCAL_SETTING) ?? false;
     if(fiscalStatus){
-      fiscalizeReceipt.value = true;
+      // fiscalizeReceipt.value = true;
       if(deviceFiscalSetting) {
         isFiscaliseReceiptEnabled.value = true;
         zimraFiscalizeReceipt.value = true;
@@ -589,8 +589,8 @@ class CartController extends GetxController {
         timeInit: timeInit, currency: selectedCurrency.value, baseCurrency: baseCurrency.value, paymentType: isOnHold? null : selectedPaymentType.value, items: saleItems, branch: branch.value, amountAfterDiscount: saleTotal, shiftReference: activeShift.shiftReference,
         posReference: ref, customer: isWalkIn ? null :  selectedCustomer.value, isWalkInCustomer: isWalkIn, taxInvoice: fiscalizeReceipt.value, fiscalized: zimraFiscalizeReceipt.value, emailReceipt: emailReceipt.value, totalDiscount: 0, ticketName: ticketName, ticketComment: ticketComment);
     SaleInfoModel saleInfoModel;
+    print("SAVING SALE.. ${fiscalizeReceipt.value}");
     if(stat && fiscalizeReceipt.value) {
-      print("SAVING SALE..");
       SaleModel? responseFromServerSale = await SyncService.saveSale(sale, user.value!, box, company.value!);
       print("RESPONSE FROM SERVER SALE: " + responseFromServerSale.toString());
       if(responseFromServerSale != null) {
@@ -619,18 +619,14 @@ class CartController extends GetxController {
     }
     if(!isOnHold) {
       deductStock();
-      // for(var paymentReceived in paymentTypes) {
-      //     updateShiftWithNewSale(ref, timeInit, paymentReceived.amount!, stat, saleInfoModel.sale!.referenceNumber!);
-      // }
-      // paymentTypes.clear();
       var isCash = selectedPaymentType.value!.name!.startsWith("CASH");
       updateShiftWithNewSale(ref, timeInit, totalCostInSelectedCurrency.value, stat, saleInfoModel.sale!.referenceNumber!,isCash,paymentTypes);
       infos.add(saleInfoModel);
       writeSaleInfor(box, infos);
       printCurrentSale(saleInfoModel, box);
-      AppHelper.hideLoading();
-      cancelSale();
     }
+    AppHelper.hideLoading();
+    cancelSale();
 
   }
 
