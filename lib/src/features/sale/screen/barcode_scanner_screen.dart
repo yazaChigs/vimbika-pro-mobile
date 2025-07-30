@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -27,22 +26,11 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   final AudioPlayer audioPlayer = AudioPlayer();
   String lastScannedBarcode = '';
   DateTime? lastScanTime;
-  Orientation currentOrientation = Orientation.portrait;
 
   @override
   void initState() {
     super.initState();
     _requestCameraPermission();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Set initial orientation after dependencies are available
-    final orientation = MediaQuery.of(context).orientation;
-    if (orientation != currentOrientation) {
-      currentOrientation = orientation;
-    }
   }
 
   Future<void> _requestCameraPermission() async {
@@ -103,40 +91,10 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     lastScanTime = DateTime.now();
   }
 
-  void _handleOrientationChange(Orientation orientation) {
-    setState(() {
-      currentOrientation = orientation;
-    });
-
-    // Adjust camera settings based on orientation
-    if (orientation == Orientation.landscape) {
-      // Force landscape mode for camera
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-    } else {
-      // Allow portrait mode
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-    }
-  }
-
   @override
   void dispose() {
     cameraController.dispose();
     audioPlayer.dispose();
-    // Restore orientation when leaving
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
     super.dispose();
   }
 
@@ -542,12 +500,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Listen to orientation changes
-    final orientation = MediaQuery.of(context).orientation;
-    if (orientation != currentOrientation) {
-      _handleOrientationChange(orientation);
-    }
-
     if (!hasPermission) {
       return Scaffold(
         appBar: AppBar(
@@ -586,157 +538,87 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     }
 
     return Scaffold(
-      appBar: currentOrientation == Orientation.landscape
-          ? null
-          : AppBar(
-              title: const Text('Barcode Scanner'),
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
-              elevation: 0,
-              actions: [
-                // Products added badge
-                Stack(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.shopping_cart),
-                      onPressed: () {
-                        // Show cart summary or navigate to cart
-                        Get.snackbar(
-                          "Cart Summary",
-                          "Products added in this session: $productsAddedInSession",
-                          snackPosition: SnackPosition.TOP,
-                          backgroundColor: Colors.blue,
-                          colorText: Colors.white,
-                        );
-                      },
+      appBar: AppBar(
+        title: const Text('Barcode Scanner'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        actions: [
+          // Products added badge
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.shopping_cart),
+                onPressed: () {
+                  // Show cart summary or navigate to cart
+                  Get.snackbar(
+                    "Cart Summary",
+                    "Products added in this session: $productsAddedInSession",
+                    snackPosition: SnackPosition.TOP,
+                    backgroundColor: Colors.blue,
+                    colorText: Colors.white,
+                  );
+                },
+              ),
+              if (productsAddedInSession > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    if (productsAddedInSession > 0)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 20,
-                            minHeight: 20,
-                          ),
-                          child: Text(
-                            '${productsAddedInSession}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
+                    constraints: const BoxConstraints(
+                      minWidth: 20,
+                      minHeight: 20,
+                    ),
+                    child: Text(
+                      '${productsAddedInSession}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
                       ),
-                  ],
-                ),
-                IconButton(
-                  icon: Icon(
-                    soundEnabled ? Icons.volume_up : Icons.volume_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      soundEnabled = !soundEnabled;
-                    });
-                    Get.snackbar(
-                      soundEnabled ? "Sound Enabled" : "Sound Disabled",
-                      soundEnabled
-                          ? "Success sounds will play"
-                          : "Success sounds are muted",
-                      snackPosition: SnackPosition.TOP,
-                      backgroundColor:
-                          soundEnabled ? Colors.green : Colors.grey,
-                      colorText: Colors.white,
-                      duration: const Duration(seconds: 1),
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: Icon(
-                    cameraController.torchEnabled
-                        ? Icons.flash_on
-                        : Icons.flash_off,
-                  ),
-                  onPressed: () => cameraController.toggleTorch(),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.flip_camera_ios),
-                  onPressed: () => cameraController.switchCamera(),
-                ),
-              ],
-            ),
-      floatingActionButton: currentOrientation == Orientation.landscape
-          ? FloatingActionButton(
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  builder: (context) => Container(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ListTile(
-                          leading: Icon(
-                            soundEnabled ? Icons.volume_up : Icons.volume_off,
-                          ),
-                          title: Text(soundEnabled ? 'Sound On' : 'Sound Off'),
-                          onTap: () {
-                            setState(() {
-                              soundEnabled = !soundEnabled;
-                            });
-                            Navigator.pop(context);
-                          },
-                        ),
-                        ListTile(
-                          leading: Icon(
-                            cameraController.torchEnabled
-                                ? Icons.flash_on
-                                : Icons.flash_off,
-                          ),
-                          title: const Text('Toggle Flash'),
-                          onTap: () {
-                            cameraController.toggleTorch();
-                            Navigator.pop(context);
-                          },
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.flip_camera_ios),
-                          title: const Text('Switch Camera'),
-                          onTap: () {
-                            cameraController.switchCamera();
-                            Navigator.pop(context);
-                          },
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.shopping_cart),
-                          title:
-                              Text('Products Added: $productsAddedInSession'),
-                          onTap: () {
-                            Get.snackbar(
-                              "Cart Summary",
-                              "Products added in this session: $productsAddedInSession",
-                              snackPosition: SnackPosition.TOP,
-                              backgroundColor: Colors.blue,
-                              colorText: Colors.white,
-                            );
-                            Navigator.pop(context);
-                          },
-                        ),
-                      ],
+                      textAlign: TextAlign.center,
                     ),
                   ),
-                );
-              },
-              child: const Icon(Icons.settings),
-            )
-          : null,
+                ),
+            ],
+          ),
+          IconButton(
+            icon: Icon(
+              soundEnabled ? Icons.volume_up : Icons.volume_off,
+            ),
+            onPressed: () {
+              setState(() {
+                soundEnabled = !soundEnabled;
+              });
+              Get.snackbar(
+                soundEnabled ? "Sound Enabled" : "Sound Disabled",
+                soundEnabled
+                    ? "Success sounds will play"
+                    : "Success sounds are muted",
+                snackPosition: SnackPosition.TOP,
+                backgroundColor: soundEnabled ? Colors.green : Colors.grey,
+                colorText: Colors.white,
+                duration: const Duration(seconds: 1),
+              );
+            },
+          ),
+          IconButton(
+            icon: Icon(
+              cameraController.torchEnabled ? Icons.flash_on : Icons.flash_off,
+            ),
+            onPressed: () => cameraController.toggleTorch(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.flip_camera_ios),
+            onPressed: () => cameraController.switchCamera(),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -823,58 +705,57 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
               ],
             ),
           ),
-          // Bottom controls - only show in portrait mode
-          if (currentOrientation == Orientation.portrait)
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () => Get.back(),
-                    icon: const Icon(Icons.arrow_back),
-                    label: const Text('Done'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 75, 175, 9),
-                      foregroundColor: Colors.white,
-                    ),
+          // Bottom controls
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => Get.back(),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Done'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color.fromARGB(255, 75, 175, 9),
+                    foregroundColor: Colors.white,
                   ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        isScanning = true;
-                      });
-                    },
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Rescan'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      isScanning = true;
+                    });
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Rescan'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
                   ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        productsAddedInSession = 0;
-                      });
-                      Get.snackbar(
-                        "Session Reset",
-                        "Product counter has been reset",
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: Colors.orange,
-                        colorText: Colors.white,
-                      );
-                    },
-                    icon: const Icon(Icons.clear),
-                    label: const Text('Reset'),
-                    style: ElevatedButton.styleFrom(
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      productsAddedInSession = 0;
+                    });
+                    Get.snackbar(
+                      "Session Reset",
+                      "Product counter has been reset",
+                      snackPosition: SnackPosition.BOTTOM,
                       backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                    ),
+                      colorText: Colors.white,
+                    );
+                  },
+                  icon: const Icon(Icons.clear),
+                  label: const Text('Reset'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
+          ),
         ],
       ),
     );

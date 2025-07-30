@@ -673,9 +673,7 @@ class SaleScreen extends GetView {
                 Expanded(child: Container(child: Obx(() {
                   return GridView.builder(
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: cartController.currencyList.length > 0
-                          ? cartController.currencyList.length.clamp(1, 10)
-                          : 1,
+                      crossAxisCount: cartController.currencyList.length,
                       mainAxisSpacing: 10.0,
                       crossAxisSpacing: 2.0,
                       // childAspectRatio: 2.0, // Adjust aspect ratio as needed
@@ -1145,11 +1143,8 @@ class SaleScreen extends GetView {
                     child: Obx(() {
                       return GridView.builder(
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: saleController.categories.length > 0
-                              ? (saleController.categories.length / 2)
-                                  .round()
-                                  .clamp(1, 10)
-                              : 1,
+                          crossAxisCount:
+                              (saleController.categories.length / 2).round(),
                           mainAxisSpacing: 10.0,
                           crossAxisSpacing: 2.0,
                           // childAspectRatio: 2.0, // Adjust aspect ratio as needed
