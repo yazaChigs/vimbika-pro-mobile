@@ -1070,7 +1070,7 @@ class SaleScreen extends GetView {
                         menuBackgroundColor: Colors.pink[50],
                         searchFn:
                             (String searchTerm, List<DropdownMenuItem> items) {
-                          // Enhanced search: search by name, phone, or customer ID
+                          // Enhanced search: search by name, phone, customer ID, or account number
                           List<int> matches = [];
                           for (int i = 0; i < items.length; i++) {
                             CustomerModel customer =

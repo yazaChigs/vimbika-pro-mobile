@@ -21,7 +21,8 @@ class CustomerModel {
     this.accountNumber,
     this.isLoyalCustomer,
     this.points,
-    this.currencyBalance
+    this.currencyBalance,
+    this.updated = false
 
   });
 
@@ -39,6 +40,7 @@ class CustomerModel {
   bool? isLoyalCustomer;
   String? accountNumber;
   double? points;
+  bool updated;
   List<CustomerCurrencyAmount>? currencyBalance;
 
   factory CustomerModel.fromJson(String str) => CustomerModel.fromMap(json.decode(str));
