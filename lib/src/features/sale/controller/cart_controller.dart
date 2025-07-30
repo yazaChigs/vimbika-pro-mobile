@@ -852,9 +852,6 @@ class CartController extends GetxController {
   }
   void selectCorrectBank() {
     if (selectedCurrency.value != null && selectedPaymentType.value != null) {
-      // Debugging to verify values
-      print('Selected Currency: ${selectedCurrency.value}');
-      print('Selected Payment Type: ${selectedPaymentType.value}');
 
       final paymentType = selectedPaymentType.value;
       final currency = selectedCurrency.value;
@@ -863,7 +860,6 @@ class CartController extends GetxController {
         for (BankModel bank in paymentType!.banks!) {
           if (bank.currency?.id == currency!.id) {
             selectedBank.value = bank;
-            print('Selected Bank: ${bank}');
           }
         }
       } else {

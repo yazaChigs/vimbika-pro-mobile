@@ -990,9 +990,9 @@ class SaleScreen extends GetView {
                           for (int i = 0; i < items.length; i++) {
                             CustomerModel customer = items[i]
                                 .value as CustomerModel;
-                            if (customer.name != null &&
+                            if ((customer.name != null &&
                                 customer.name!.toLowerCase().contains(
-                                    searchTerm.toLowerCase())) {
+                                    searchTerm.toLowerCase())) || (customer.accountNumber!=null && customer.accountNumber == searchTerm)) {
                               matches.add(i);
                             }
                           }

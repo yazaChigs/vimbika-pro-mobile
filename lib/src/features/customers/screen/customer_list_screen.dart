@@ -76,49 +76,79 @@ class CustomerListScreen extends StatelessWidget {
             ),
             Expanded(
               child: Obx(() {
-                return ListView.builder(
+                return GridView.builder(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                    crossAxisSpacing: 3.0,
+                    mainAxisSpacing: 3.0,
+                    childAspectRatio: 3.0,
+                  ),
+                  // shrinkWrap: true,
                   itemCount: customerController.filteredCustomers.length,
                   itemBuilder: (context, index) {
                     var customer = customerController.filteredCustomers[index];
                     return Card(
+                      color: Colors.pinkAccent[100],
                       elevation: 4,
-                      margin: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              customer.name ?? 'Unknown Name',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Customer No.: ${customer.accountNumber ?? 'N/A'}',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Customer Balance: ${customer.currencyBalance?.map((balance)=> (balance.currency.symbol??"") + "${balance.balance}" + ",").join("") ?? 'N/A'}',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                            // SizedBox(height: 4),
-                            // Text(
-                            //   'Email: ${customer.email ?? 'N/A'}',
-                            //   style: TextStyle(fontSize: 16),
-                            // ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Branch: ${customer.branch?.name ?? 'N/A'}',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                          ],
+                      // margin: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                    child: ListTile(
+                      title:
+                        Text(
+                          customer.name ?? 'Unknown Name',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.indigo,
+                          ),
                         ),
+                      subtitle:
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Customer No.: ${customer.accountNumber ?? 'N/A'}',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          Text(
+                            'Customer Balance: ${customer.currencyBalance?.map((balance)=> (balance.currency.symbol??"") + "${balance.balance}" + ",").join("") ?? 'N/A'}',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          Text(
+                            'Branch: ${customer.branch?.name ?? 'N/A'}',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ],
                       ),
+                      trailing:
+                      PopupMenuButton(
+                        onSelected: (result){
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            child: Text("Edit"),
+                            value: 0,
+                            onTap: () {
+                              customerController.nameEditingController.text = customer.name ??"";
+                              customerController.addressEditingController.text = customer.street ??"";
+                              customerController.emailEditingController.text = customer.email ??"";
+                              customerController.mobileNumberEditingController.text = customer.mobilePhone ??"";
+                              customerController.accNoEditingController.text = customer.accountNumber ??"";
+                              customerController.selectedCustomer.value = customer;
+                              customerController.editCustomer.value = true;
+                              Get.toNamed(AppRoutes.CUSTOMER_FORM);
+                            },
+                          ),
+                          PopupMenuItem(
+                            child: Text("Credit Account"),
+                            value: 1,
+                            onTap: () {
+                              Get.toNamed(AppRoutes.PAY_ACC_FORM);
+                            },
+
+                          ),
+                        ],
+                      ),
+                    ),
                     );
                   },
                 );

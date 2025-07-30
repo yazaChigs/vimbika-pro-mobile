@@ -7,6 +7,7 @@ import 'package:vimbika_pos_app/src/features/authentication/screen/login_screen.
 import 'package:vimbika_pos_app/src/features/authentication/screen/pin_screen.dart';
 import 'package:vimbika_pos_app/src/features/customers/screen/customer_form_screen.dart';
 import 'package:vimbika_pos_app/src/features/customers/screen/customer_list_screen.dart';
+import 'package:vimbika_pos_app/src/features/customers/screen/pay_account_form_screen.dart';
 import 'package:vimbika_pos_app/src/features/onboarding/screen/onboarding_screen.dart';
 import 'package:vimbika_pos_app/src/features/printers/screen/printer_search_screen.dart';
 import 'package:vimbika_pos_app/src/features/printers/screen/printer_settings_screen.dart';
@@ -48,6 +49,7 @@ class AppPages {
     GetPage(name: AppRoutes.SUBMIT_CASH, page: ()=>  SubmitCashScreen(),  transition: Transition.zoom ),
     GetPage(name: AppRoutes.CUSTOMER_LIST, page: ()=>  CustomerListScreen(),  transition: Transition.zoom ),
     GetPage(name: AppRoutes.CUSTOMER_FORM, page: ()=>  CustomerFormScreen(),  transition: Transition.zoom ),
+    GetPage(name: AppRoutes.PAY_ACC_FORM, page: ()=>  PayAccountFormScreen(),  transition: Transition.zoom ),
     GetPage(name: AppRoutes.TICKET_LIST, page: ()=>  TicketListScreen(),  transition: Transition.zoom ),
     GetPage(name: AppRoutes.TICKET_FORM, page: ()=>  TicketFormScreen(),  transition: Transition.zoom ),
     GetPage(name: AppRoutes.NETWORK_PRINTERS, page: ()=>  NetworkPrintersScreen(),  transition: Transition.zoom ),

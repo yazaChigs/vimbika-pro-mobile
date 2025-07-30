@@ -14,6 +14,7 @@ class AppRoutes {
   static const NETWORK_PRINTERS = "/network_printers";
   static const CUSTOMER_LIST = "/customer_list";
   static const CUSTOMER_FORM = "/customer_form";
+  static const PAY_ACC_FORM = "/pay_acc_form";
   static const TICKET_LIST = "/ticket_list";
   static const TICKET_FORM = "/ticket_form";
   static const SUBMIT_CASH = "/submit_cash";
