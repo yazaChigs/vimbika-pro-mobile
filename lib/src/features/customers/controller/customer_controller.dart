@@ -26,12 +26,15 @@ class CustomerController extends GetxController {
   late GetStorage box;
   final LocalStorageService _localStorageService = LocalStorageService();
   final TextEditingController nameEditingController = TextEditingController();
-  final TextEditingController mobileNumberEditingController = TextEditingController();
+  final TextEditingController mobileNumberEditingController =
+      TextEditingController();
   final TextEditingController emailEditingController = TextEditingController();
-  final TextEditingController descriptionEditingController = TextEditingController();
+  final TextEditingController descriptionEditingController =
+      TextEditingController();
   final TextEditingController vatEditingController = TextEditingController();
   final TextEditingController tinEditingController = TextEditingController();
-  final TextEditingController addressEditingController = TextEditingController();
+  final TextEditingController addressEditingController =
+      TextEditingController();
   final CartController cartController = Get.put(CartController());
   var name = "".obs;
   var mobilePhone = "".obs;
@@ -43,18 +46,18 @@ class CustomerController extends GetxController {
   var address = "".obs;
   GlobalKey<FormState> formKeyForm = GlobalKey<FormState>();
 
-
   @override
   Future<void> onInit() async {
     super.onInit();
     box = GetStorage();
     var model = box.read(AppConstants.USER_INFO) ?? {};
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
-    isInternetAccess.value =  await _connectivityService.checkServerConnection();
+    isInternetAccess.value = await _connectivityService.checkServerConnection();
     List<CustomerModel> customers = loadCustomers(box);
     allCustomers.value = customers;
     filteredCustomers.value = customers;
   }
+
   void filterCustomers(String query) {
     print(query);
     searchQuery.value = query;
@@ -62,38 +65,68 @@ class CustomerController extends GetxController {
       final name = cus.name!.toLowerCase() ?? '';
 
       var mobilePhone = '';
-      if(cus.mobilePhone != null){
-         mobilePhone = cus.mobilePhone!.toString().toLowerCase();
+      if (cus.mobilePhone != null) {
+        mobilePhone = cus.mobilePhone!.toString().toLowerCase();
       }
+
+      var customerId = '';
+      if (cus.customerId != null) {
+        customerId = cus.customerId!.toString().toLowerCase();
+      }
+
+      var accountNumber = '';
+      if (cus.accountNumber != null) {
+        accountNumber = cus.accountNumber!.toString().toLowerCase();
+      }
+
       final lowerQuery = query.toLowerCase();
-      return name.contains(lowerQuery) || mobilePhone.contains(lowerQuery);
+      return name.contains(lowerQuery) ||
+          mobilePhone.contains(lowerQuery) ||
+          customerId.contains(lowerQuery) ||
+          accountNumber.contains(lowerQuery);
     }).toList();
   }
-  List<CustomerModel> loadCustomers( GetStorage box) {
-    List<CustomerModel> list = _localStorageService.getOfflineList<CustomerModel>(
-        AppConstants.CUSTOMER_LIST,
+
+  List<CustomerModel> loadCustomers(GetStorage box) {
+    List<CustomerModel> list =
+        _localStorageService.getOfflineList<CustomerModel>(
+            AppConstants.CUSTOMER_LIST,
             (map) => CustomerModel.fromMap(map),
-        box);
+            box);
     return list;
   }
 
-  saveCustomerInfo(){
+  saveCustomerInfo() {
     GetStorage bb = GetStorage();
     var branchModel = bb.read(AppConstants.SELECTED_BRANCH) ?? {};
-    int count  = allCustomers.length + 1;
+    int count = allCustomers.length + 1;
     String ref = AppConstants.getDateNowRef("CUS", count);
-    BaseNameModel branch = BaseNameModel.fromMap(Map<String, dynamic>.from(branchModel));
-    CustomerModel customerModel = CustomerModel(id: null, customerId: ref, name: name.value, companyName: "", email: email.value, mobilePhone: mobilePhone.value, description: description.value, branch: branch, taxNumber: vat.value, street: address.value, tinNumber: tin.value);
+    BaseNameModel branch =
+        BaseNameModel.fromMap(Map<String, dynamic>.from(branchModel));
+    CustomerModel customerModel = CustomerModel(
+        id: null,
+        customerId: ref,
+        name: name.value,
+        companyName: "",
+        email: email.value,
+        mobilePhone: mobilePhone.value,
+        description: description.value,
+        branch: branch,
+        taxNumber: vat.value,
+        street: address.value,
+        tinNumber: tin.value);
     List<CustomerModel> customers = allCustomers.value;
     customers.add(customerModel);
     allCustomers.value = customers;
-    List<Map<String, dynamic>> itemsListMap = customers.map((item) => item.toMap()).toList();
+    List<Map<String, dynamic>> itemsListMap =
+        customers.map((item) => item.toMap()).toList();
     bb.write(AppConstants.CUSTOMER_LIST, itemsListMap);
-    Get.snackbar("New Customer", "Customer Saved Successfully", snackPosition: SnackPosition.BOTTOM);
+    Get.snackbar("New Customer", "Customer Saved Successfully",
+        snackPosition: SnackPosition.BOTTOM);
     clearForm();
-   // Get.back();
-
+    // Get.back();
   }
+
   void showConfirmDialogToSaveCustomer() {
     Get.defaultDialog(
       title: "Confirmation",
@@ -107,14 +140,14 @@ class CustomerController extends GetxController {
         saveCustomerInfo();
         cartController.refreshCustomers();
         Navigator.of(Get.overlayContext!).pop();
-       // Get.back();
+        // Get.back();
       },
     );
   }
 
-
-  Future<void>  getCustomers(UserModel user, GetStorage box, String companyId) async{
-    if(isInternetAccess.value==true) {
+  Future<void> getCustomers(
+      UserModel user, GetStorage box, String companyId) async {
+    if (isInternetAccess.value == true) {
       var response = await BaseHttpClient()
           .getAuthWithCompanyHeader("/customer/get-all", companyId)
           .catchError((onError) {
@@ -135,13 +168,11 @@ class CustomerController extends GetxController {
         // showSnackBar("Message", "Customers downloaded successfully");
         box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
       }
-    }
-    else {
-      allCustomers = _localStorageService.getOfflineList<CustomerModel>(
-          AppConstants.CUSTOMER_LIST,
-          (map) => CustomerModel.fromMap(map),
-          box
-      ).obs;
+    } else {
+      allCustomers = _localStorageService
+          .getOfflineList<CustomerModel>(AppConstants.CUSTOMER_LIST,
+              (map) => CustomerModel.fromMap(map), box)
+          .obs;
     }
   }
 
@@ -155,5 +186,4 @@ class CustomerController extends GetxController {
     // Reset the form's state
     formKeyForm.currentState?.reset();
   }
-
 }

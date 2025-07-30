@@ -143,7 +143,11 @@ class AppPages {
         transition: Transition.zoom),
     GetPage(
         name: AppRoutes.BARCODE_SCANNER,
-        page: () => const BarcodeScannerScreen(),
+        page: () {
+          final args = Get.arguments as Map<String, dynamic>?;
+          final scanMode = args?['scanMode'] as String?;
+          return BarcodeScannerScreen(scanMode: scanMode);
+        },
         transition: Transition.zoom)
   ];
 }

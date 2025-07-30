@@ -7,9 +7,12 @@ import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/sale/controller/sale_controller.dart';
 import 'package:vimbika_pos_app/src/features/sale/controller/cart_controller.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/product_full_info_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
 
 class BarcodeScannerScreen extends StatefulWidget {
-  const BarcodeScannerScreen({super.key});
+  final String? scanMode; // 'product' or 'customer'
+
+  const BarcodeScannerScreen({super.key, this.scanMode});
 
   @override
   State<BarcodeScannerScreen> createState() => _BarcodeScannerScreenState();
@@ -159,6 +162,12 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
 
     // Update scan history
     _updateScanHistory(scannedCode);
+
+    // Check if this is customer scanning mode
+    if (widget.scanMode == 'customer') {
+      _processCustomerBarcode(scannedCode);
+      return;
+    }
 
     // Process the barcode similar to the existing logic
     String exp = scannedCode;
@@ -498,6 +507,54 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     });
   }
 
+  void _processCustomerBarcode(String scannedCode) {
+    // Search for customer by account number
+    var customerIndex = cartController.allCustomers
+        .indexWhere((customer) => customer.accountNumber == scannedCode);
+
+    if (customerIndex != -1) {
+      CustomerModel foundCustomer = cartController.allCustomers[customerIndex];
+
+      // Set the selected customer
+      cartController.onCustomerChange(foundCustomer);
+
+      // Show success message
+      Get.snackbar(
+        "Customer Found",
+        "Customer: ${foundCustomer.name}",
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
+
+      // Play success sound
+      _playSuccessSound();
+
+      // Navigate back to sale screen
+      Future.delayed(const Duration(seconds: 1), () {
+        Get.back();
+      });
+    } else {
+      // Customer not found
+      Get.snackbar(
+        "Customer Not Found",
+        "No customer found with account number: $scannedCode",
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+      );
+
+      // Reset scanning after a short delay
+      Future.delayed(const Duration(seconds: 2), () {
+        setState(() {
+          isScanning = true;
+        });
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!hasPermission) {
@@ -539,7 +596,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Barcode Scanner'),
+        title: Text(widget.scanMode == 'customer'
+            ? 'Customer Scanner'
+            : 'Barcode Scanner'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
@@ -662,10 +721,12 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        const Text(
-                          'Position barcode within the frame to scan',
+                        Text(
+                          widget.scanMode == 'customer'
+                              ? 'Position customer loyalty card within the frame to scan'
+                              : 'Position barcode within the frame to scan',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

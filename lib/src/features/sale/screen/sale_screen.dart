@@ -1064,20 +1064,39 @@ class SaleScreen extends GetView {
                         value: cartController.selectedCustomer.value,
                         // onTap: cartController.reGetCustomers(),
                         // initial selected value if needed
-                        hint: "Select Customer",
-                        searchHint: "Search Customer",
+                        hint: "🔍 Search or Select Customer",
+                        searchHint:
+                            "Type customer name, phone, ID, or account number...",
                         menuBackgroundColor: Colors.pink[50],
                         searchFn:
                             (String searchTerm, List<DropdownMenuItem> items) {
-                          // Filter by customer name, returning the indices of matching items
+                          // Enhanced search: search by name, phone, or customer ID
                           List<int> matches = [];
                           for (int i = 0; i < items.length; i++) {
                             CustomerModel customer =
                                 items[i].value as CustomerModel;
-                            if (customer.name != null &&
+                            bool nameMatch = customer.name != null &&
                                 customer.name!
                                     .toLowerCase()
-                                    .contains(searchTerm.toLowerCase())) {
+                                    .contains(searchTerm.toLowerCase());
+                            bool phoneMatch = customer.mobilePhone != null &&
+                                customer.mobilePhone!
+                                    .toLowerCase()
+                                    .contains(searchTerm.toLowerCase());
+                            bool customerIdMatch =
+                                customer.customerId != null &&
+                                    customer.customerId!
+                                        .toLowerCase()
+                                        .contains(searchTerm.toLowerCase());
+                            bool accountNumberMatch =
+                                customer.accountNumber != null &&
+                                    customer.accountNumber!
+                                        .toLowerCase()
+                                        .contains(searchTerm.toLowerCase());
+                            if (nameMatch ||
+                                phoneMatch ||
+                                customerIdMatch ||
+                                accountNumberMatch) {
                               matches.add(i);
                             }
                           }
@@ -1106,11 +1125,32 @@ class SaleScreen extends GetView {
                 IconButton(
                   icon: Icon(
                     Icons.refresh,
+                    color: Colors.blue,
                   ),
                   onPressed: () {
-                    //Get.toNamed(AppRoutes.CUSTOMER_FORM);
                     saleController.syncData();
+                    Get.snackbar(
+                      "Syncing",
+                      "Refreshing customer data...",
+                      snackPosition: SnackPosition.TOP,
+                      backgroundColor: Colors.blue,
+                      colorText: Colors.white,
+                      duration: Duration(seconds: 1),
+                    );
                   },
+                  tooltip: "Refresh Customer Data",
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.camera_alt,
+                    color: Colors.orange,
+                  ),
+                  onPressed: () {
+                    // Open customer scanner
+                    Get.toNamed(AppRoutes.BARCODE_SCANNER,
+                        arguments: {'scanMode': 'customer'});
+                  },
+                  tooltip: "Scan Customer Loyalty Card with Camera",
                 ),
               ],
             ),
