@@ -86,6 +86,7 @@ class CustomerController extends GetxController {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     isInternetAccess.value = await _connectivityService.checkServerConnection();
     List<CustomerModel> customers = loadCustomers(box);
+
     allCustomers.value = customers;
     filteredCustomers.value = customers;
 
@@ -98,7 +99,6 @@ class CustomerController extends GetxController {
   }
 
   void filterCustomers(String query) {
-    print(query);
     searchQuery.value = query;
     filteredCustomers.value = allCustomers.value.where((cus) {
       final name = cus.name!.toLowerCase() ?? '';
@@ -119,10 +119,23 @@ class CustomerController extends GetxController {
       }
 
       final lowerQuery = query.toLowerCase();
-      return name.contains(lowerQuery) ||
-          mobilePhone.contains(lowerQuery) ||
-          customerId.contains(lowerQuery) ||
-          accountNumber.contains(lowerQuery);
+
+      var id = '';
+      if (cus.id != null) {
+        id = cus.id!.toString().toLowerCase();
+      }
+
+      bool nameMatch = name.contains(lowerQuery);
+      bool phoneMatch = mobilePhone.contains(lowerQuery);
+      bool idMatch = id.contains(lowerQuery);
+      bool customerIdMatch = customerId.contains(lowerQuery);
+      bool accountNumberMatch = accountNumber.contains(lowerQuery);
+
+      return nameMatch ||
+          phoneMatch ||
+          idMatch ||
+          customerIdMatch ||
+          accountNumberMatch;
     }).toList();
   }
 

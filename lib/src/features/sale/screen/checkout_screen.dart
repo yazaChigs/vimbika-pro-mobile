@@ -75,10 +75,11 @@ class CheckoutScreen extends StatelessWidget {
                               // onTap: cartController.reGetCustomers(),
                               // initial selected value if needed
                               hint: "Select Customer",
-                              searchHint: "Search Customer",
+                              searchHint:
+                                  "Type customer name, phone, ID, customer ID, or account number...",
                               searchFn: (String searchTerm,
                                   List<DropdownMenuItem> items) {
-                                // Enhanced search: search by name, phone, or customer ID
+                                // Enhanced search: search by name, phone, ID, customer ID, or account number
                                 List<int> matches = [];
                                 for (int i = 0; i < items.length; i++) {
                                   CustomerModel customer =
@@ -90,6 +91,10 @@ class CheckoutScreen extends StatelessWidget {
                                   bool phoneMatch = customer.mobilePhone !=
                                           null &&
                                       customer.mobilePhone!
+                                          .toLowerCase()
+                                          .contains(searchTerm.toLowerCase());
+                                  bool idMatch = customer.id != null &&
+                                      customer.id!
                                           .toLowerCase()
                                           .contains(searchTerm.toLowerCase());
                                   bool customerIdMatch = customer.customerId !=
@@ -105,6 +110,7 @@ class CheckoutScreen extends StatelessWidget {
                                           .contains(searchTerm.toLowerCase());
                                   if (nameMatch ||
                                       phoneMatch ||
+                                      idMatch ||
                                       customerIdMatch ||
                                       accountNumberMatch) {
                                     matches.add(i);

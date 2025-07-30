@@ -1066,21 +1066,26 @@ class SaleScreen extends GetView {
                         // initial selected value if needed
                         hint: "🔍 Search or Select Customer",
                         searchHint:
-                            "Type customer name, phone, ID, or account number...",
+                            "Type customer name, phone, ID, customer ID, or account number...",
                         menuBackgroundColor: Colors.pink[50],
                         searchFn:
                             (String searchTerm, List<DropdownMenuItem> items) {
-                          // Enhanced search: search by name, phone, customer ID, or account number
+                          // Enhanced search: search by name, phone, ID, customer ID, or account number
                           List<int> matches = [];
                           for (int i = 0; i < items.length; i++) {
                             CustomerModel customer =
                                 items[i].value as CustomerModel;
+
                             bool nameMatch = customer.name != null &&
                                 customer.name!
                                     .toLowerCase()
                                     .contains(searchTerm.toLowerCase());
                             bool phoneMatch = customer.mobilePhone != null &&
                                 customer.mobilePhone!
+                                    .toLowerCase()
+                                    .contains(searchTerm.toLowerCase());
+                            bool idMatch = customer.id != null &&
+                                customer.id!
                                     .toLowerCase()
                                     .contains(searchTerm.toLowerCase());
                             bool customerIdMatch =
@@ -1093,13 +1098,16 @@ class SaleScreen extends GetView {
                                     customer.accountNumber!
                                         .toLowerCase()
                                         .contains(searchTerm.toLowerCase());
+
                             if (nameMatch ||
                                 phoneMatch ||
+                                idMatch ||
                                 customerIdMatch ||
                                 accountNumberMatch) {
                               matches.add(i);
                             }
                           }
+
                           return matches;
                         },
                         validator: (value) {

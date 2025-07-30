@@ -43,7 +43,6 @@ import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
 import '../../../shared/models/settings_model.dart';
 
-
 class CartController extends GetxController {
   var cartItems = <CartItemModel>[].obs;
   var sale = <SaleModel>[].obs;
@@ -60,7 +59,8 @@ class CartController extends GetxController {
   var isCurrencySelected = false.obs;
   var isUserSelected = false.obs;
   var isPrinterAvailable = false.obs;
-  final TextEditingController customerSearchController = TextEditingController();
+  final TextEditingController customerSearchController =
+      TextEditingController();
   RxString searchText = ''.obs;
   RxString selectedTicketRef = ''.obs;
   RxDouble totalAmountPaid = 0.0.obs;
@@ -72,7 +72,8 @@ class CartController extends GetxController {
   RxList<PaymentTypeModel> paymentTypesList = <PaymentTypeModel>[].obs;
   RxList<PaymentTypeModel> filteredPaymentTypesList = <PaymentTypeModel>[].obs;
   var isPaymentTypeSelected = false.obs;
-  final TextEditingController amountPaidTextEditingController = TextEditingController();
+  final TextEditingController amountPaidTextEditingController =
+      TextEditingController();
 
   RxDouble totalCostInBaseCurrency = 0.0.obs;
   RxDouble totalCostInSelectedCurrency = 0.0.obs;
@@ -85,15 +86,16 @@ class CartController extends GetxController {
 
   RxList<CustomerModel> allCustomers = <CustomerModel>[].obs;
   Rx<CustomerModel?> selectedCustomer = CustomerModel().obs;
-  Rx<UserModel?> user = UserModel(firstName: "", lastName: "", userName: "").obs;
+  Rx<UserModel?> user =
+      UserModel(firstName: "", lastName: "", userName: "").obs;
   var isCustomerSelected = false.obs;
-   GlobalKey<FormState> formKey = GlobalKey<FormState>();
+  GlobalKey<FormState> formKey = GlobalKey<FormState>();
   var activeShift = ShiftModel();
   var shiftAvailable = false.obs;
   RxList<ShiftModel> shiftList = <ShiftModel>[].obs;
   // RxList<BankModel> bankList = <BankModel>[].obs;
   final LocalStorageService _localStorageService = LocalStorageService();
-   late  GetStorage box;
+  late GetStorage box;
 
   bool sellNilItems = false;
   RxBool isPrintEnabled = false.obs; // Observing the state of the checkbox
@@ -112,11 +114,13 @@ class CartController extends GetxController {
 
   final TextEditingController vatEditingController = TextEditingController();
   final TextEditingController tinEditingController = TextEditingController();
-  final TextEditingController addressEditingController = TextEditingController();
+  final TextEditingController addressEditingController =
+      TextEditingController();
   // Form key to validate the form
   var formKeyAddCustomer = GlobalKey<FormState>();
   final PrinterService _printerService = Get.put(PrinterService());
-  RxList<AvailablePrinterModel> availablePrinters = <AvailablePrinterModel>[].obs;
+  RxList<AvailablePrinterModel> availablePrinters =
+      <AvailablePrinterModel>[].obs;
   var saleTicketId = "".obs;
 
   get formKeyAddAmount => null;
@@ -124,48 +128,49 @@ class CartController extends GetxController {
   @override
   Future<void> onInit() async {
     super.onInit();
-   // isInternetAccess.value =  await _connectivityService.checkConnection();
-     box = GetStorage();
-     var print = box.read(AppConstants.ALWAYS_PRINT) ?? false;
-     if(print){
-        isPrintEnabled.value = true;
-      } else{
-        isPrintEnabled.value = false;
-     }
+    // isInternetAccess.value =  await _connectivityService.checkConnection();
+    box = GetStorage();
+    var print = box.read(AppConstants.ALWAYS_PRINT) ?? false;
+    if (print) {
+      isPrintEnabled.value = true;
+    } else {
+      isPrintEnabled.value = false;
+    }
     List<SaleInfoModel> sales = getExistingOfflineSales(box);
     List<SaleInfoModel> actualSales = [];
-    for(SaleInfoModel s in sales){
-      if(s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING"){
+    for (SaleInfoModel s in sales) {
+      if (s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING") {
         actualSales.add(s);
       }
     }
-    actualSales = actualSales.where((sale)=> sale.syncStatus == false).toList();
-     offlineSales = actualSales;
+    actualSales =
+        actualSales.where((sale) => sale.syncStatus == false).toList();
+    offlineSales = actualSales;
     allSales = actualSales;
     var model = box.read(AppConstants.USER_INFO) ?? {};
-     user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
+    user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
     isUserSelected.value = true;
 
     // syncOfflineSales();
     var fiscalStatus = box.read(AppConstants.IS_FISCALISATION_ENABLED) ?? false;
-    var deviceFiscalSetting = box.read(AppConstants.DEFAULT_FISCAL_SETTING) ?? false;
-    if(fiscalStatus){
+    var deviceFiscalSetting =
+        box.read(AppConstants.DEFAULT_FISCAL_SETTING) ?? false;
+    if (fiscalStatus) {
       // fiscalizeReceipt.value = true;
-      if(deviceFiscalSetting) {
+      if (deviceFiscalSetting) {
         isFiscaliseReceiptEnabled.value = true;
         zimraFiscalizeReceipt.value = true;
-      }else{
+      } else {
         isFiscaliseReceiptEnabled.value = false;
         zimraFiscalizeReceipt.value = false;
       }
-    }
-    else {
+    } else {
       fiscalizeReceipt.value = false;
       isFiscaliseReceiptEnabled.value = false;
     }
     var settings = box.read(AppConstants.COMPANY_SETTINGS) ?? {};
     settingsModel = SettingsModel.fromMap(Map<String, dynamic>.from(settings));
-    sellNilItems= settingsModel.sellNilItems ?? false;
+    sellNilItems = settingsModel.sellNilItems ?? false;
 
     var branchModel = box.read(AppConstants.SELECTED_BRANCH) ?? {};
     branch.value = BranchModel.fromMap(Map<String, dynamic>.from(branchModel));
@@ -173,15 +178,17 @@ class CartController extends GetxController {
     userList.value = tempUserList;
     List<ShiftModel> tempShiftList = loadShifts(box);
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
-    company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
+    company.value =
+        CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
 
     shiftList.value = tempShiftList;
-    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, user.value!, true);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
+        tempShiftList, box, user.value!, true);
 
-    if(tempActiveShift != null) {
+    if (tempActiveShift != null) {
       activeShift = tempActiveShift;
       shiftAvailable.value = true;
-    } else{
+    } else {
       shiftAvailable.value = false;
     }
     getOfflineCurrencyList(box);
@@ -190,11 +197,14 @@ class CartController extends GetxController {
     filteredPaymentTypesList.value = tempList;
 
     List<CustomerModel> customers = loadCustomers(box);
+
     allCustomers.value = customers;
 
     // Use firstWhereOrNull to find a customer with "WalkIn" in their name (case-insensitive)
     CustomerModel? defaultCustomer = customers.firstWhereOrNull(
-          (customer) => customer.name != null && customer.name!.toLowerCase().contains('walkin'),
+      (customer) =>
+          customer.name != null &&
+          customer.name!.toLowerCase().contains('walkin'),
     );
 
     if (defaultCustomer == null) {
@@ -211,7 +221,7 @@ class CartController extends GetxController {
     availablePrinters.value = tempPrinterList;
     //select default payment method
     var paymentTypeId = box.read(AppConstants.DEFAULT_PAYMENT_METHOD_ID) ?? "";
-    for(var cur in tempList) {
+    for (var cur in tempList) {
       if (cur.id == paymentTypeId) {
         selectedPaymentType.value = cur;
         selectedPaymentTypes.add(cur);
@@ -219,37 +229,38 @@ class CartController extends GetxController {
         selectCorrectBank();
       }
     }
-
   }
-  List<ShiftModel> loadShifts( GetStorage box) {
+
+  List<ShiftModel> loadShifts(GetStorage box) {
     List<ShiftModel> list = _localStorageService.getOfflineList<ShiftModel>(
-        AppConstants.SHIFT_LIST,
-            (map) => ShiftModel.fromMap(map),
-        box);
-    return list;
-  }
-  List<BankModel> loadBanks( GetStorage box) {
-    List<BankModel> list = _localStorageService.getOfflineList<BankModel>(
-        AppConstants.BANK_LIST,
-            (map) => BankModel.fromMap(map),
-        box);
-    return list;
-  }
-  List<AvailablePrinterModel> loadAvailablePrinters( GetStorage box) {
-    List<AvailablePrinterModel> list = _localStorageService.getOfflineList<AvailablePrinterModel>(
-        AppConstants.AVAILABLE_PRINTERS,
-            (map) => AvailablePrinterModel.fromMap(map),
-        box);
+        AppConstants.SHIFT_LIST, (map) => ShiftModel.fromMap(map), box);
     return list;
   }
 
-  refreshCustomers(){
+  List<BankModel> loadBanks(GetStorage box) {
+    List<BankModel> list = _localStorageService.getOfflineList<BankModel>(
+        AppConstants.BANK_LIST, (map) => BankModel.fromMap(map), box);
+    return list;
+  }
+
+  List<AvailablePrinterModel> loadAvailablePrinters(GetStorage box) {
+    List<AvailablePrinterModel> list =
+        _localStorageService.getOfflineList<AvailablePrinterModel>(
+            AppConstants.AVAILABLE_PRINTERS,
+            (map) => AvailablePrinterModel.fromMap(map),
+            box);
+    return list;
+  }
+
+  refreshCustomers() {
     List<CustomerModel> customers = loadCustomers(box);
     allCustomers.value = customers;
 
     // Use firstWhereOrNull to find a customer with "WalkIn" in their name (case-insensitive)
     CustomerModel? defaultCustomer = customers.firstWhereOrNull(
-          (customer) => customer.name != null && customer.name!.toLowerCase().contains('walkin'),
+      (customer) =>
+          customer.name != null &&
+          customer.name!.toLowerCase().contains('walkin'),
     );
 
     if (defaultCustomer == null) {
@@ -261,13 +272,12 @@ class CartController extends GetxController {
     // Set "WalkIn" as the default selected customer
     selectedCustomer.value = defaultCustomer;
     isCustomerSelected.value = true;
-
   }
 
   reGetCustomers() {
     List<CustomerModel> newCustomers = loadCustomers(box);
     print("New Customers: ${newCustomers.length}");
-    if(newCustomers.isNotEmpty && allCustomers.length<newCustomers.length) {
+    if (newCustomers.isNotEmpty && allCustomers.length < newCustomers.length) {
       allCustomers.value = newCustomers;
 
       // Use firstWhereOrNull to find a customer with "WalkIn" in their name (case-insensitive)
@@ -286,19 +296,18 @@ class CartController extends GetxController {
       // Set "WalkIn" as the default selected customer
       selectedCustomer.value = defaultCustomer;
       isCustomerSelected.value = true;
-    } else{
+    } else {
       allCustomers.value = newCustomers;
     }
     print("All Customers: ${allCustomers.length}");
   }
 
-  onCustomerChange(CustomerModel? newValue){
+  onCustomerChange(CustomerModel? newValue) {
     isCustomerSelected.value = true;
     selectedCustomer.value = newValue!;
     validateEmail(newValue.email);
     //filterPaymentTypesForCustomer(newValue);
     filterPaymentTypes(selectedCurrency.value!, newValue);
-
   }
   // filterPaymentTypesForCustomer(CustomerModel? newValue, ){
   //   if(newValue!.name == 'WalkIn'){
@@ -310,7 +319,8 @@ class CartController extends GetxController {
   //   }
   // }
 
-  void filterPaymentTypes(CurrencyModel selectedCurrency, CustomerModel selectedCus) {
+  void filterPaymentTypes(
+      CurrencyModel selectedCurrency, CustomerModel selectedCus) {
     List<PaymentTypeModel> tempList = [];
 
     if (selectedCurrency.name != null) {
@@ -323,14 +333,12 @@ class CartController extends GetxController {
     }
 
     // If the customer is 'WalkIn', filter out payment types containing 'credit'
-    if (selectedCus.name != null && selectedCus.name!.toLowerCase() == 'walkin') {
-
+    if (selectedCus.name != null &&
+        selectedCus.name!.toLowerCase() == 'walkin') {
       // tempList = tempList
       //     .where((type) => !type.name!.toLowerCase().contains('credit'))
       //     .toList();
-      tempList = tempList
-          .where((type) => !type.isCredit!)
-          .toList();
+      tempList = tempList.where((type) => !type.isCredit!).toList();
     }
 
     // Assign the filtered results to the reactive list
@@ -338,14 +346,15 @@ class CartController extends GetxController {
     filteredPaymentTypesList.refresh();
   }
 
-
-
   void addToCart(ProductFullInfoModel product, double quantity) {
     var index = cartItems.indexWhere((item) => item.product.id == product.id);
-      if (index!=-1 && cartItems[index].quantity+1 > product.stock!.toDouble() && !sellNilItems) {
-        Get.snackbar("Check your Quantity", "Quantity can not be greater than stock available!!!",
-            snackPosition: SnackPosition.BOTTOM);
-    }else {
+    if (index != -1 &&
+        cartItems[index].quantity + 1 > product.stock!.toDouble() &&
+        !sellNilItems) {
+      Get.snackbar("Check your Quantity",
+          "Quantity can not be greater than stock available!!!",
+          snackPosition: SnackPosition.BOTTOM);
+    } else {
       if (quantity == 0.001) {
         quantity = 1.00;
       }
@@ -359,13 +368,18 @@ class CartController extends GetxController {
       calculateTotalAmounts(cartItems);
     }
   }
-  void addToCartWithBarCode(ProductFullInfoModel product, double quantity,String usedCode) {
+
+  void addToCartWithBarCode(
+      ProductFullInfoModel product, double quantity, String usedCode) {
     Set<String> itemCodes = {};
     var index = cartItems.indexWhere((item) => item.product.id == product.id);
-      if (index!=-1 && cartItems[index].quantity+1 > product.stock!.toDouble() && !sellNilItems) {
-        Get.snackbar("Check your Quantity", "Quantity can not be greater than stock available!!!",
-            snackPosition: SnackPosition.BOTTOM);
-    }else {
+    if (index != -1 &&
+        cartItems[index].quantity + 1 > product.stock!.toDouble() &&
+        !sellNilItems) {
+      Get.snackbar("Check your Quantity",
+          "Quantity can not be greater than stock available!!!",
+          snackPosition: SnackPosition.BOTTOM);
+    } else {
       if (quantity == 0.001) {
         quantity = 1.00;
       }
@@ -377,7 +391,8 @@ class CartController extends GetxController {
         // cartItems[index].quantity++;
       } else {
         itemCodes.add(usedCode);
-        cartItems.add(CartItemModel(product: product, quantity: quantity,usedCodes: itemCodes));
+        cartItems.add(CartItemModel(
+            product: product, quantity: quantity, usedCodes: itemCodes));
       }
       calculateTotalAmounts(cartItems);
     }
@@ -390,12 +405,13 @@ class CartController extends GetxController {
 
   void incrementQuantity(CartItemModel cartItem) {
     cartItem.quantity++;
-    if (cartItem.quantity > cartItem.product.stock!.toDouble()  && !sellNilItems) {
-      Get.snackbar("Check your Quantity", "Quantity can not be greater than stock available!!!",
+    if (cartItem.quantity > cartItem.product.stock!.toDouble() &&
+        !sellNilItems) {
+      Get.snackbar("Check your Quantity",
+          "Quantity can not be greater than stock available!!!",
           snackPosition: SnackPosition.BOTTOM);
       cartItem.quantity = cartItem.product.stock!.toDouble();
-    }
-    else{
+    } else {
       calculateTotalAmounts(cartItems);
       cartItems.refresh();
     }
@@ -411,20 +427,22 @@ class CartController extends GetxController {
     cartItems.refresh();
   }
 
-
-   calculateTotalAmounts(List<CartItemModel> items) {
-    double totalCostInBCurrency = items.fold(0.0, (sum, item) => sum + item.totalPrice);
+  calculateTotalAmounts(List<CartItemModel> items) {
+    double totalCostInBCurrency =
+        items.fold(0.0, (sum, item) => sum + item.totalPrice);
     double? rate = selectedCurrency.value?.rate! ?? 1;
-    totalCostInBaseCurrency.value =  totalCostInBCurrency;
+    totalCostInBaseCurrency.value = totalCostInBCurrency;
     totalCostInSelectedCurrency.value = totalCostInBCurrency * rate;
-    totalTaxInBaseCurrency.value = items.fold(0, (sum, item) => sum + item.totalTaxAmount);
-    amountPaidTextEditingController.text = totalCostInSelectedCurrency.value.toStringAsFixed(2);
+    totalTaxInBaseCurrency.value =
+        items.fold(0, (sum, item) => sum + item.totalTaxAmount);
+    amountPaidTextEditingController.text =
+        totalCostInSelectedCurrency.value.toStringAsFixed(2);
     amountPaid.value = totalCostInSelectedCurrency.value;
-    customerAmountPaid.value =totalCostInSelectedCurrency.value;
+    customerAmountPaid.value = totalCostInSelectedCurrency.value;
   }
 
   void validateEmail(String? value) {
-    if(value != null) {
+    if (value != null) {
       if (value.isEmpty) {
         isCustomerEmailValid.value = false;
       } else if (!GetUtils.isEmail(value)) {
@@ -432,21 +450,21 @@ class CartController extends GetxController {
       } else {
         isCustomerEmailValid.value = true;
       }
-    } else{
+    } else {
       isCustomerEmailValid.value = false;
     }
   }
 
   // double get totalAmount => cartItems.fold(0, (sum, item) => sum + item.totalPrice);
   // double get totalTaxAmount => cartItems.fold(0, (sum, item) => sum + item.totalTaxAmount);
-  
+
   Future<void> checkout() async {
-    if(shiftAvailable.isFalse){
+    if (shiftAvailable.isFalse) {
       openShift();
-    } else{
-      if(activeShift!=null && activeShift.isShiftClosed == false){
+    } else {
+      if (activeShift != null && activeShift.isShiftClosed == false) {
         Get.toNamed(AppRoutes.CHECKOUT);
-      }else {
+      } else {
         List<ShiftModel> tempShiftList = loadShifts(box);
         shiftList.value = tempShiftList;
         ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
@@ -458,12 +476,12 @@ class CartController extends GetxController {
           openShift();
         }
       }
-
     }
-
   }
-  openShift(){
-    Get.snackbar("Create Shift", "Open a shift to proceed", snackPosition: SnackPosition.BOTTOM);
+
+  openShift() {
+    Get.snackbar("Create Shift", "Open a shift to proceed",
+        snackPosition: SnackPosition.BOTTOM);
     Get.delete<CartController>();
     Get.delete<SaleController>();
     Get.offNamed(AppRoutes.OPEN_SHIFT);
@@ -471,25 +489,27 @@ class CartController extends GetxController {
 
   List<CurrencyModel> getOfflineCurrencyList(GetStorage box) {
     // Read the data as a List<dynamic>
-    List<dynamic>? itemsListDynamic = box.read<List<dynamic>>(AppConstants.CURRENCY_LIST);
+    List<dynamic>? itemsListDynamic =
+        box.read<List<dynamic>>(AppConstants.CURRENCY_LIST);
     // Check if the read data is not null
     if (itemsListDynamic != null) {
       // Convert the List<dynamic> to List<Map<String, dynamic>>
       List<Map<String, dynamic>> itemsListMap = itemsListDynamic.map((item) {
         return item as Map<String, dynamic>;
       }).toList();
-      List<CurrencyModel> currencies   =  List<CurrencyModel>.from(itemsListMap.map((map) => CurrencyModel.fromMap(map)));
+      List<CurrencyModel> currencies = List<CurrencyModel>.from(
+          itemsListMap.map((map) => CurrencyModel.fromMap(map)));
       currencyList.value = currencies;
       var currencyId = box.read(AppConstants.DEFAULT_CURRENCY_ID) ?? "";
-      for(var cur in currencies)  {
-        if(cur.isBaseCurrency!){
+      for (var cur in currencies) {
+        if (cur.isBaseCurrency!) {
           selectedCurrency.value = cur;
           baseCurrency.value = cur;
           isCurrencySelected.value = true;
         }
       }
-      for(var cur in currencies)  {
-        if(cur.id == currencyId){
+      for (var cur in currencies) {
+        if (cur.id == currencyId) {
           selectedCurrency.value = cur;
           isCurrencySelected.value = true;
         }
@@ -499,16 +519,19 @@ class CartController extends GetxController {
       return [];
     }
   }
+
   List<PaymentTypeModel> getOfflinePaymentTypeList(GetStorage box) {
     // Read the data as a List<dynamic>
-    List<dynamic>? itemsListDynamic = box.read<List<dynamic>>(AppConstants.PAYMENT_TYPE_LIST);
+    List<dynamic>? itemsListDynamic =
+        box.read<List<dynamic>>(AppConstants.PAYMENT_TYPE_LIST);
     // Check if the read data is not null
     if (itemsListDynamic != null) {
       // Convert the List<dynamic> to List<Map<String, dynamic>>
       List<Map<String, dynamic>> itemsListMap = itemsListDynamic.map((item) {
         return item as Map<String, dynamic>;
       }).toList();
-      List<PaymentTypeModel>  list =  List<PaymentTypeModel>.from(itemsListMap.map((map) => PaymentTypeModel.fromMap(map)));
+      List<PaymentTypeModel> list = List<PaymentTypeModel>.from(
+          itemsListMap.map((map) => PaymentTypeModel.fromMap(map)));
 
       return list;
     } else {
@@ -516,24 +539,21 @@ class CartController extends GetxController {
     }
   }
 
-  List<UserModel> loadUsers( GetStorage box) {
+  List<UserModel> loadUsers(GetStorage box) {
     List<UserModel> list = _localStorageService.getOfflineList<UserModel>(
-        AppConstants.USER_LIST,
-            (map) => UserModel.fromMap(map),
-        box);
-     list.add(user.value!);
+        AppConstants.USER_LIST, (map) => UserModel.fromMap(map), box);
+    list.add(user.value!);
     return list;
   }
 
-
-  amountPaidChange(String val){
-     double amountPaid =  double.parse(val);
-     customerAmountPaid.value = amountPaid;
-     if(amountPaid>=totalCostInSelectedCurrency.value){
-       change.value = amountPaid - totalCostInSelectedCurrency.value;
-     } else{
-       change.value = 0.0;
-     }
+  amountPaidChange(String val) {
+    double amountPaid = double.parse(val);
+    customerAmountPaid.value = amountPaid;
+    if (amountPaid >= totalCostInSelectedCurrency.value) {
+      change.value = amountPaid - totalCostInSelectedCurrency.value;
+    } else {
+      change.value = 0.0;
+    }
   }
 
   void showConfirmDialogChargeSale() {
@@ -553,19 +573,24 @@ class CartController extends GetxController {
     // );
   }
 
-
-
-
-  chargeSale(String saleStatus, bool isOnHold, String ref, String ticketName, String ticketComment, List<CartItemModel> saleCartItems, String saleId) async{
+  chargeSale(
+      String saleStatus,
+      bool isOnHold,
+      String ref,
+      String ticketName,
+      String ticketComment,
+      List<CartItemModel> saleCartItems,
+      String saleId) async {
     print("SelectedTicket: ${selectedTicketRef.value}");
     bool stat = await _connectivityService.checkServerConnection();
     calculateTotalAmounts(saleCartItems);
     double totalSaleQuantity = 0;
     List<SaleItemModel> saleItems = [];
-    String timeInit = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
+    String timeInit =
+        DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
     List<SaleInfoModel> infos = getExistingOfflineSales(box);
     int count = infos.length + 1;
-    if(!isOnHold){
+    if (!isOnHold) {
       ref = AppConstants.getDateNowRef("OFF", count);
     }
     AppHelper.showLoading("Saving new sale..");
@@ -578,24 +603,37 @@ class CartController extends GetxController {
       productItem.quantity = cartItem.quantity;
       productItem.total = cartItem.totalPrice;
       var rate = selectedCurrency.value?.rate ?? 1.0;
-      
-      SaleItemModel saleItem = SaleItemModel(sellingPrice: productItem.sellingPrice*rate, baseCurrencySellingPrice: productItem.sellingPrice, quantity:  cartItem.quantity, total: cartItem.totalPrice*rate, baseCurrencyTotal: cartItem.totalPrice, taxAmount: double.parse((cartItem.totalTaxAmount*rate).toStringAsFixed(2)), baseTaxAmount: double.parse(cartItem.totalTaxAmount.toStringAsFixed(2)), inventoryItem: productItem, branch: branch.value, usedCodesString: cartItem.usedCodes);
+
+      SaleItemModel saleItem = SaleItemModel(
+          sellingPrice: productItem.sellingPrice * rate,
+          baseCurrencySellingPrice: productItem.sellingPrice,
+          quantity: cartItem.quantity,
+          total: cartItem.totalPrice * rate,
+          baseCurrencyTotal: cartItem.totalPrice,
+          taxAmount:
+              double.parse((cartItem.totalTaxAmount * rate).toStringAsFixed(2)),
+          baseTaxAmount:
+              double.parse(cartItem.totalTaxAmount.toStringAsFixed(2)),
+          inventoryItem: productItem,
+          branch: branch.value,
+          usedCodesString: cartItem.usedCodes);
       saleItem.id = saleCartItems.indexOf(cartItem).toString();
-      if(saleItem.inventoryItem != null){
-        if(saleItem.inventoryItem!.productImages != null){
+      if (saleItem.inventoryItem != null) {
+        if (saleItem.inventoryItem!.productImages != null) {
           saleItem.inventoryItem!.productImages = [];
         }
-        if(saleItem.inventoryItem!.image != null){
+        if (saleItem.inventoryItem!.image != null) {
           saleItem.inventoryItem!.image = "";
         }
       }
       saleItems.add(saleItem);
     }
-    bool isWalkIn = selectedCustomer.value!.name!.contains("WalkIn") ? true : false;
+    bool isWalkIn =
+        selectedCustomer.value!.name!.contains("WalkIn") ? true : false;
     List<PaymentReceivedModel> paymentTypes = [];
-    for(PaymentTypeModel paymentType in selectedPaymentTypes) {
+    for (PaymentTypeModel paymentType in selectedPaymentTypes) {
       PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
-        id: selectedPaymentTypes.indexOf(paymentType).toString(),
+          id: selectedPaymentTypes.indexOf(paymentType).toString(),
           amount: paymentType.amount,
           paymentType: paymentType,
           paymentDescription: "SALE",
@@ -603,38 +641,74 @@ class CartController extends GetxController {
           currency: selectedCurrency.value,
           bank: selectedBank.value);
       paymentTypes.add(paymentReceivedModel);
-    if(isOnHold){
-      paymentTypes = [];
+      if (isOnHold) {
+        paymentTypes = [];
+      }
     }
-  }
-    var totalTaxInSelectedCurrency = saleItems.fold<double>(0.0, (sum, item) => sum + item.taxAmount!);
+    var totalTaxInSelectedCurrency =
+        saleItems.fold<double>(0.0, (sum, item) => sum + item.taxAmount!);
     String fullName = user.value!.firstName + " " + user.value!.lastName;
-    var saleTotal =  saleItems.fold<double>(0.0,(sum,item)=>sum +item.total!);
-    SaleModel sale = SaleModel(id: saleTicketId.value.length > 2 ? saleTicketId.value: null, active: true, createdByName: user.value!.userName, cashierFullName: fullName, paymentTypes: paymentTypes, saleStatus: saleStatus, onHold: isOnHold,taxAmount: totalTaxInSelectedCurrency,
-        amountPaid: amountPaid.value, totalQuantity: totalSaleQuantity, saleCost: 0.0, totalTaxAmount: totalTaxInSelectedCurrency, baseSaleAmount: saleTotal, referenceNumber: ref, change: change.value, customerAmountPaid: customerAmountPaid.value, timeIniated: timeInit,
-        timeInit: timeInit, currency: selectedCurrency.value, baseCurrency: baseCurrency.value, paymentType: isOnHold? null : selectedPaymentType.value, items: saleItems, branch: branch.value, amountAfterDiscount: saleTotal, shiftReference: activeShift.shiftReference,
-        posReference: ref, customer: isWalkIn ? null :  selectedCustomer.value, isWalkInCustomer: isWalkIn, taxInvoice: fiscalizeReceipt.value, fiscalized: zimraFiscalizeReceipt.value, emailReceipt: emailReceipt.value, totalDiscount: 0, ticketName: ticketName, ticketComment: ticketComment);
+    var saleTotal =
+        saleItems.fold<double>(0.0, (sum, item) => sum + item.total!);
+    SaleModel sale = SaleModel(
+        id: saleTicketId.value.length > 2 ? saleTicketId.value : null,
+        active: true,
+        createdByName: user.value!.userName,
+        cashierFullName: fullName,
+        paymentTypes: paymentTypes,
+        saleStatus: saleStatus,
+        onHold: isOnHold,
+        taxAmount: totalTaxInSelectedCurrency,
+        amountPaid: amountPaid.value,
+        totalQuantity: totalSaleQuantity,
+        saleCost: 0.0,
+        totalTaxAmount: totalTaxInSelectedCurrency,
+        baseSaleAmount: saleTotal,
+        referenceNumber: ref,
+        change: change.value,
+        customerAmountPaid: customerAmountPaid.value,
+        timeIniated: timeInit,
+        timeInit: timeInit,
+        currency: selectedCurrency.value,
+        baseCurrency: baseCurrency.value,
+        paymentType: isOnHold ? null : selectedPaymentType.value,
+        items: saleItems,
+        branch: branch.value,
+        amountAfterDiscount: saleTotal,
+        shiftReference: activeShift.shiftReference,
+        posReference: ref,
+        customer: isWalkIn ? null : selectedCustomer.value,
+        isWalkInCustomer: isWalkIn,
+        taxInvoice: fiscalizeReceipt.value,
+        fiscalized: zimraFiscalizeReceipt.value,
+        emailReceipt: emailReceipt.value,
+        totalDiscount: 0,
+        ticketName: ticketName,
+        ticketComment: ticketComment);
     SaleInfoModel saleInfoModel;
-    if(isOnHold){
+    if (isOnHold) {
       saleInfoModel = SaleInfoModel(sale: sale, syncStatus: true);
       infos.add(saleInfoModel);
       print("infos: ${infos.length}");
       writeSaleInfor(box, infos);
     }
-    if(stat && fiscalizeReceipt.value) {
-      SaleModel? responseFromServerSale = await SyncService.saveSale(sale, user.value!, box, company.value!);
+    if (stat && fiscalizeReceipt.value) {
+      SaleModel? responseFromServerSale =
+          await SyncService.saveSale(sale, user.value!, box, company.value!);
       print("RESPONSE FROM SERVER SALE: " + responseFromServerSale.toString());
-      if(responseFromServerSale != null) {
-        if(!isOnHold){
-          saleInfoModel = SaleInfoModel(sale: responseFromServerSale, syncStatus: true);
-        } else{
+      if (responseFromServerSale != null) {
+        if (!isOnHold) {
+          saleInfoModel =
+              SaleInfoModel(sale: responseFromServerSale, syncStatus: true);
+        } else {
           SaleInfoModel? infoModel = await getSale(responseFromServerSale.id!);
-          if(infoModel != null){
+          if (infoModel != null) {
             saleInfoModel = infoModel;
             print("QR LINK2");
             print(saleInfoModel.sale!.receiptQrCode);
-          } else{
-            saleInfoModel = SaleInfoModel(sale: responseFromServerSale, syncStatus: true);
+          } else {
+            saleInfoModel =
+                SaleInfoModel(sale: responseFromServerSale, syncStatus: true);
           }
         }
         // SaleController saleController = Get.find<SaleController>();
@@ -642,16 +716,18 @@ class CartController extends GetxController {
       } else {
         saleInfoModel = SaleInfoModel(sale: sale, syncStatus: false);
       }
-    } else{
+    } else {
       saleInfoModel = SaleInfoModel(sale: sale, syncStatus: false);
     }
-    if(!isOnHold) {
+    if (!isOnHold) {
       deductStock();
       var isCash = selectedPaymentType.value!.name!.startsWith("CASH");
-      updateShiftWithNewSale(ref, timeInit, totalCostInSelectedCurrency.value, stat, saleInfoModel.sale!.referenceNumber!,isCash,paymentTypes);
+      updateShiftWithNewSale(ref, timeInit, totalCostInSelectedCurrency.value,
+          stat, saleInfoModel.sale!.referenceNumber!, isCash, paymentTypes);
       infos.add(saleInfoModel);
-      if(selectedTicketRef.isNotEmpty){
-        infos.removeWhere((ticket) => ticket.sale!.referenceNumber == selectedTicketRef.value);
+      if (selectedTicketRef.isNotEmpty) {
+        infos.removeWhere((ticket) =>
+            ticket.sale!.referenceNumber == selectedTicketRef.value);
         selectedTicketRef.value = '';
       }
       writeSaleInfor(box, infos);
@@ -659,23 +735,26 @@ class CartController extends GetxController {
     }
     AppHelper.hideLoading();
     cancelSale();
-
   }
 
-
   List<SaleInfoModel> getExistingOfflineSales2(GetStorage box) {
-
-    List<SaleInfoModel> sales = _localStorageService.getOfflineList<SaleInfoModel>(
-        AppConstants.SALE_LIST,
-            (map) => SaleInfoModel.fromMap(map),
-        box);
+    List<SaleInfoModel> sales =
+        _localStorageService.getOfflineList<SaleInfoModel>(
+            AppConstants.SALE_LIST, (map) => SaleInfoModel.fromMap(map), box);
     return sales;
   }
 
-  addPaymentType(){
-    PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(amount: double.parse(amountPaidTextEditingController.text) , paymentType: selectedPaymentType.value, paymentDescription: "SALE", isPaid: true, currency: selectedCurrency.value, bank: selectedBank.value);
+  addPaymentType() {
+    PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
+        amount: double.parse(amountPaidTextEditingController.text),
+        paymentType: selectedPaymentType.value,
+        paymentDescription: "SALE",
+        isPaid: true,
+        currency: selectedCurrency.value,
+        bank: selectedBank.value);
     paymentTypes.value.add(paymentReceivedModel);
-    totalAmountPaid.value = totalAmountPaid.value + paymentReceivedModel.amount!;
+    totalAmountPaid.value =
+        totalAmountPaid.value + paymentReceivedModel.amount!;
     paymentTypes.refresh();
     amountPaidTextEditingController.clear();
     filteredPaymentTypesList.value = [];
@@ -684,29 +763,31 @@ class CartController extends GetxController {
     currencyList.refresh();
   }
 
-  removePaymentMethod(index){
+  removePaymentMethod(index) {
     totalAmountPaid.value = totalAmountPaid.value - paymentTypes[index].amount!;
     paymentTypes.removeAt(index);
     paymentTypes.refresh();
   }
 
-  void deductStock(){
+  void deductStock() {
     List<ProductFullInfoModel> storageProductList = getProductList(box);
-    for(CartItemModel cart in cartItems){
-       for(ProductFullInfoModel pro in storageProductList){
-         if(cart.product.id == pro.id){
-           double qty = pro.stock! - cart.quantity;
-           pro.stock = qty;
-         }
-       }
+    for (CartItemModel cart in cartItems) {
+      for (ProductFullInfoModel pro in storageProductList) {
+        if (cart.product.id == pro.id) {
+          double qty = pro.stock! - cart.quantity;
+          pro.stock = qty;
+        }
+      }
     }
-    List<Map<String, dynamic>> itemsListMap = storageProductList.map((item) =>
-        item.toMap()).toList();
+    List<Map<String, dynamic>> itemsListMap =
+        storageProductList.map((item) => item.toMap()).toList();
     box.write(AppConstants.BRANCH_PRODUCTS, itemsListMap);
   }
+
   List<ProductFullInfoModel> getProductList(GetStorage box) {
     // Read the data as a List<dynamic>
-    List<dynamic>? itemsListDynamic = box.read<List<dynamic>>(AppConstants.BRANCH_PRODUCTS);
+    List<dynamic>? itemsListDynamic =
+        box.read<List<dynamic>>(AppConstants.BRANCH_PRODUCTS);
 
     // Check if the read data is not null
     if (itemsListDynamic != null) {
@@ -716,19 +797,25 @@ class CartController extends GetxController {
       }).toList();
 
       // Convert List<Map<String, dynamic>> to List<ProductFullInfoModel>
-      return List<ProductFullInfoModel>.from(itemsListMap.map((map) => ProductFullInfoModel.fromMap(map)));
+      return List<ProductFullInfoModel>.from(
+          itemsListMap.map((map) => ProductFullInfoModel.fromMap(map)));
     } else {
       return [];
     }
   }
+
   void printCurrentSale(SaleInfoModel saleInfo, GetStorage box) async {
-    if(isPrintEnabled.isTrue) {
+    if (isPrintEnabled.isTrue) {
       _printerService.printCurrentSale(saleInfo, box, _localStorageService);
     }
   }
-  Future<SaleInfoModel?> getSale(String saleId) async{
+
+  Future<SaleInfoModel?> getSale(String saleId) async {
     await Future.delayed(Duration(seconds: 2));
-    var response = await BaseHttpClient().getAuthWithCompanyHeader("/sale/get-item/" + saleId, user.value!.companyId!).catchError((onError){
+    var response = await BaseHttpClient()
+        .getAuthWithCompanyHeader(
+            "/sale/get-item/" + saleId, user.value!.companyId!)
+        .catchError((onError) {
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
         AppHelper.showErroDialog(description: apiError["reason"]);
@@ -736,23 +823,33 @@ class CartController extends GetxController {
         AppHelper.handleError(onError);
       }
     });
-    if(response != null) {
+    if (response != null) {
       print("Fetched sale..");
       print(response);
       // SaleModel itemConverted = SaleModel.fromJson(response);
       SaleModel itemConverted = SaleModel.fromJson(json.decode(response));
 
-      SaleInfoModel saleInfoModel = SaleInfoModel(sale: itemConverted, syncStatus: true);
+      SaleInfoModel saleInfoModel =
+          SaleInfoModel(sale: itemConverted, syncStatus: true);
       return saleInfoModel;
     }
     return null;
   }
-  updateShiftWithNewSale(String ref, String timeCreated, double amt, bool stat,String posReference,bool isCash,List<PaymentReceivedModel> paymentTypes) async {
-    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(loadShifts(box), box, user.value!, true);
-    if(tempActiveShift != null) {
+
+  updateShiftWithNewSale(
+      String ref,
+      String timeCreated,
+      double amt,
+      bool stat,
+      String posReference,
+      bool isCash,
+      List<PaymentReceivedModel> paymentTypes) async {
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
+        loadShifts(box), box, user.value!, true);
+    if (tempActiveShift != null) {
       activeShift = tempActiveShift;
       shiftAvailable.value = true;
-      for(PaymentReceivedModel paymentTypeModel in paymentTypes) {
+      for (PaymentReceivedModel paymentTypeModel in paymentTypes) {
         int count = activeShift.shiftCurrencyAmounts!.length + 1;
         String ref = AppConstants.getDateNowRef("SL_", count);
         CurrencyAmount currencyAmount = CurrencyAmount(
@@ -775,32 +872,34 @@ class CartController extends GetxController {
           SyncService.syncOfflineShifts(user.value!, box);
         }
       }
-    } else{
-  shiftAvailable.value = false;
-  }
+    } else {
+      shiftAvailable.value = false;
+    }
   }
 
-  List<SaleInfoModel> getExistingOfflineSales(GetStorage box){
-    List<dynamic>? itemsListDynamic = box.read<List<dynamic>>(AppConstants.SALE_LIST);
-    if(itemsListDynamic != null) {
+  List<SaleInfoModel> getExistingOfflineSales(GetStorage box) {
+    List<dynamic>? itemsListDynamic =
+        box.read<List<dynamic>>(AppConstants.SALE_LIST);
+    if (itemsListDynamic != null) {
       List<Map<String, dynamic>> itemsListMap = itemsListDynamic.map((item) {
         return item as Map<String, dynamic>;
       }).toList();
       List<SaleInfoModel> infos = List<SaleInfoModel>.from(
           itemsListMap.map((map) => SaleInfoModel.fromMap(map)));
       return infos;
-    } else{
+    } else {
       List<SaleInfoModel> itemsList = <SaleInfoModel>[];
       return itemsList;
     }
   }
 
-  writeSaleInfor(GetStorage box, List<SaleInfoModel> itemsList){
-    List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
-        item.toMap()).toList();
+  writeSaleInfor(GetStorage box, List<SaleInfoModel> itemsList) {
+    List<Map<String, dynamic>> itemsListMap =
+        itemsList.map((item) => item.toMap()).toList();
     box.write(AppConstants.SALE_LIST, itemsListMap);
   }
-  cancelSale(){
+
+  cancelSale() {
     cartItems.value = [];
     selectedPaymentTypes.value = [];
     selectedPaymentTypes.clear();
@@ -812,16 +911,16 @@ class CartController extends GetxController {
     change.value = 0.0;
     resetFormKey();
     Get.delete<SaleController>();
-     Get.delete<CartController>();
-     Get.delete<ShiftController>();
+    Get.delete<CartController>();
+    Get.delete<ShiftController>();
     Get.delete<ReceiptController>();
     Get.delete<TicketController>();
-    Get.snackbar("Success", "Sale saved Successfully",);
-    Navigator.pushReplacement(
-        Get.context!,
-        MaterialPageRoute(
-            builder: (BuildContext context) =>
-                SaleScreen()));
+    Get.snackbar(
+      "Success",
+      "Sale saved Successfully",
+    );
+    Navigator.pushReplacement(Get.context!,
+        MaterialPageRoute(builder: (BuildContext context) => SaleScreen()));
     Get.reload();
   }
 
@@ -829,30 +928,32 @@ class CartController extends GetxController {
     formKey = GlobalKey<FormState>();
   }
 
-  onChangePaymentType(PaymentTypeModel paymentType, bool multiple){
+  onChangePaymentType(PaymentTypeModel paymentType, bool multiple) {
     isPaymentTypeSelected.value = true;
     selectedPaymentType.value = paymentType;
-    if(!multiple) {
+    if (!multiple) {
       selectedPaymentTypes.clear();
     }
     selectedPaymentTypes.add(paymentType);
     selectCorrectBank();
   }
-  onCurrencyChange(CurrencyModel newValue){
+
+  onCurrencyChange(CurrencyModel newValue) {
     isCurrencySelected.value = true;
     selectedCurrency.value = newValue;
     isPaymentTypeSelected.value = false;
-    double totalCostInSelCurrency = totalCostInBaseCurrency.value * newValue.rate!;
-    double totalTaxInSelCurrency = totalTaxInBaseCurrency.value * newValue.rate!;
+    double totalCostInSelCurrency =
+        totalCostInBaseCurrency.value * newValue.rate!;
+    double totalTaxInSelCurrency =
+        totalTaxInBaseCurrency.value * newValue.rate!;
     totalCostInSelectedCurrency.value = totalCostInSelCurrency;
     totalTaxInSelectedCurrency.value = totalTaxInSelCurrency;
     filterPaymentTypes(newValue, selectedCustomer.value!);
     selectCorrectBank();
-
   }
+
   void selectCorrectBank() {
     if (selectedCurrency.value != null && selectedPaymentType.value != null) {
-
       final paymentType = selectedPaymentType.value;
       final currency = selectedCurrency.value;
 
@@ -870,16 +971,15 @@ class CartController extends GetxController {
     }
   }
 
-
-
-
-  List<CustomerModel> loadCustomers( GetStorage box) {
-    List<CustomerModel> list = _localStorageService.getOfflineList<CustomerModel>(
-        AppConstants.CUSTOMER_LIST,
+  List<CustomerModel> loadCustomers(GetStorage box) {
+    List<CustomerModel> list =
+        _localStorageService.getOfflineList<CustomerModel>(
+            AppConstants.CUSTOMER_LIST,
             (map) => CustomerModel.fromMap(map),
-        box);
+            box);
     return list;
   }
+
   void addNewCustomer() {
     String name = nameController.text.trim();
     String phone = phoneController.text.trim();
@@ -889,12 +989,19 @@ class CartController extends GetxController {
     String tin = tinEditingController.text.trim();
     String address = addressEditingController.text;
 
-    CustomerModel newCustomer = CustomerModel(id: null, name: name, mobilePhone: phone, email: email, taxNumber: taxNumber, tinNumber: tin, street: address);
+    CustomerModel newCustomer = CustomerModel(
+        id: null,
+        name: name,
+        mobilePhone: phone,
+        email: email,
+        taxNumber: taxNumber,
+        tinNumber: tin,
+        street: address);
     allCustomers.add(newCustomer);
     selectedCustomer.value = newCustomer;
     List<CustomerModel> itemsList = allCustomers;
     List<Map<String, dynamic>> itemsListMap =
-    itemsList.map((item) => item.toMap()).toList();
+        itemsList.map((item) => item.toMap()).toList();
     // showSnackBar("Message", "Customers downloaded successfully");
     box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
 
@@ -915,7 +1022,8 @@ class CartController extends GetxController {
         vatEditingController.clear();
         // formKeyAddAmount = GlobalKey<FormState>();
       } else {
-        Get.snackbar("Invalid Amount", "Please enter a valid amount greater than zero.",
+        Get.snackbar(
+            "Invalid Amount", "Please enter a valid amount greater than zero.",
             snackPosition: SnackPosition.BOTTOM);
       }
     }

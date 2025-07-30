@@ -508,9 +508,15 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   }
 
   void _processCustomerBarcode(String scannedCode) {
-    // Search for customer by account number
+    // Search for customer by ID first, then by account number
     var customerIndex = cartController.allCustomers
-        .indexWhere((customer) => customer.accountNumber == scannedCode);
+        .indexWhere((customer) => customer.id == scannedCode);
+
+    if (customerIndex == -1) {
+      // If not found by ID, search by account number
+      customerIndex = cartController.allCustomers
+          .indexWhere((customer) => customer.accountNumber == scannedCode);
+    }
 
     if (customerIndex != -1) {
       CustomerModel foundCustomer = cartController.allCustomers[customerIndex];
@@ -539,7 +545,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       // Customer not found
       Get.snackbar(
         "Customer Not Found",
-        "No customer found with account number: $scannedCode",
+        "No customer found with ID or account number: $scannedCode",
         snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red,
         colorText: Colors.white,
