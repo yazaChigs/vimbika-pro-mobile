@@ -27,10 +27,7 @@ class CheckoutScreen extends StatelessWidget {
           elevation: 0,
           title: Text('Checkout'),
         ),
-
-        body:
-
-        Form(
+        body: Form(
           key: cartController.formKey,
           child: SingleChildScrollView(
             child: Column(
@@ -39,11 +36,13 @@ class CheckoutScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(8.0),
                   child: Container(
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey, width: 1.5), // Border color and width
+                      border: Border.all(
+                          color: Colors.grey,
+                          width: 1.5), // Border color and width
                       borderRadius: BorderRadius.circular(8), // Rounded corners
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 4),
-                     // height: 60,
+                    // height: 60,
                     child: Row(
                       children: [
                         GestureDetector(
@@ -52,9 +51,11 @@ class CheckoutScreen extends StatelessWidget {
                             getCustomerForm();
                           },
                           child: Padding(
-                            padding: const EdgeInsets.only(left: 8.0, right: 20),
+                            padding:
+                                const EdgeInsets.only(left: 8.0, right: 20),
                             child: Icon(
-                              Icons.person_add, // Change this to the icon you want
+                              Icons
+                                  .person_add, // Change this to the icon you want
                               color: Colors.indigo, // Set icon color
                             ),
                           ),
@@ -62,9 +63,9 @@ class CheckoutScreen extends StatelessWidget {
                         Expanded(
                           child: Obx(() {
                             return SearchChoices.single(
-                             padding: 0,
-                              items: cartController.allCustomers.map((
-                                  CustomerModel customer) {
+                              padding: 0,
+                              items: cartController.allCustomers
+                                  .map((CustomerModel customer) {
                                 return DropdownMenuItem<CustomerModel>(
                                   value: customer,
                                   child: Text(customer.name ?? ''),
@@ -74,13 +75,44 @@ class CheckoutScreen extends StatelessWidget {
                               // onTap: cartController.reGetCustomers(),
                               // initial selected value if needed
                               hint: "Select Customer",
-                              searchHint: "Search Customer",
-                              searchFn: (String searchTerm, List<DropdownMenuItem> items) {
-                                // Filter by customer name, returning the indices of matching items
+                              searchHint:
+                                  "Type customer name, phone, ID, customer ID, or account number...",
+                              searchFn: (String searchTerm,
+                                  List<DropdownMenuItem> items) {
+                                // Enhanced search: search by name, phone, ID, customer ID, or account number
                                 List<int> matches = [];
                                 for (int i = 0; i < items.length; i++) {
-                                  CustomerModel customer = items[i].value as CustomerModel;
-                                  if (customer.name != null && customer.name!.toLowerCase().contains(searchTerm.toLowerCase())) {
+                                  CustomerModel customer =
+                                      items[i].value as CustomerModel;
+                                  bool nameMatch = customer.name != null &&
+                                      customer.name!
+                                          .toLowerCase()
+                                          .contains(searchTerm.toLowerCase());
+                                  bool phoneMatch = customer.mobilePhone !=
+                                          null &&
+                                      customer.mobilePhone!
+                                          .toLowerCase()
+                                          .contains(searchTerm.toLowerCase());
+                                  bool idMatch = customer.id != null &&
+                                      customer.id!
+                                          .toLowerCase()
+                                          .contains(searchTerm.toLowerCase());
+                                  bool customerIdMatch = customer.customerId !=
+                                          null &&
+                                      customer.customerId!
+                                          .toLowerCase()
+                                          .contains(searchTerm.toLowerCase());
+                                  bool accountNumberMatch = customer
+                                              .accountNumber !=
+                                          null &&
+                                      customer.accountNumber!
+                                          .toLowerCase()
+                                          .contains(searchTerm.toLowerCase());
+                                  if (nameMatch ||
+                                      phoneMatch ||
+                                      idMatch ||
+                                      customerIdMatch ||
+                                      accountNumberMatch) {
                                     matches.add(i);
                                   }
                                 }
@@ -96,19 +128,20 @@ class CheckoutScreen extends StatelessWidget {
                                 cartController.onCustomerChange(selected);
                               },
                               underline: SizedBox.shrink(),
-                              style: TextStyle(fontSize: 15, color: Colors.black87),
+                              style: TextStyle(
+                                  fontSize: 15, color: Colors.black87),
                               isExpanded: true,
                             );
                           }),
                         ),
-
                         GestureDetector(
                           onTap: () {
                             // Get.toNamed(AppRoutes.CUSTOMER_FORM);
                             cartController.reGetCustomers();
                           },
                           child: Padding(
-                            padding: const EdgeInsets.only(left: 8.0, right: 20),
+                            padding:
+                                const EdgeInsets.only(left: 8.0, right: 20),
                             child: Icon(
                               Icons.refresh, // Change this to the icon you want
                               color: Colors.deepOrange, // Set icon color
@@ -119,8 +152,6 @@ class CheckoutScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-
-
                 const SizedBox(height: 20),
                 Padding(
                   padding: const EdgeInsets.all(8.0),
@@ -142,14 +173,14 @@ class CheckoutScreen extends StatelessWidget {
                         }
                         return null;
                       },
-                      itemBuilder: (UserModel value) => Text(value.firstName! + " "+ value.lastName!),
+                      itemBuilder: (UserModel value) =>
+                          Text(value.firstName! + " " + value.lastName!),
                     );
                   }),
                 ),
-
                 const SizedBox(height: 20),
 
-                 /*   Padding(
+                /*   Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16.0, vertical: 8.0),
                       child: Row(
@@ -310,7 +341,7 @@ class CheckoutScreen extends StatelessWidget {
                 ),
                   ),
 
-*//*   Padding(
+*/ /*   Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16.0, vertical: 8.0),
                       child: Row(
@@ -492,7 +523,8 @@ class CheckoutScreen extends StatelessWidget {
                         }
                         return null;
                       },
-                      itemBuilder: (CurrencyModel value) => Text(value.name! + " (" + value.rate!.toString() + ")"),
+                      itemBuilder: (CurrencyModel value) => Text(
+                          value.name! + " (" + value.rate!.toString() + ")"),
                     );
                   }),
                 ),
@@ -508,7 +540,7 @@ class CheckoutScreen extends StatelessWidget {
                       selectedValue: cartController.selectedPaymentType,
                       icon: Icons.payments,
                       onChanged: (PaymentTypeModel? newValue) {
-                       cartController.onChangePaymentType(newValue!,false);
+                        cartController.onChangePaymentType(newValue!, false);
                       },
                       validator: (value) {
                         if (cartController.isPaymentTypeSelected.isFalse) {
@@ -525,10 +557,9 @@ class CheckoutScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: TextFormField(
-                    controller:
-                    cartController.amountPaidTextEditingController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
+                    controller: cartController.amountPaidTextEditingController,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: <TextInputFormatter>[
                       FilteringTextInputFormatter.allow(
                           RegExp(r'^\d+\.?\d{0,2}')),
@@ -554,7 +585,9 @@ class CheckoutScreen extends StatelessWidget {
                       }
 
                       if (enteredAmount <
-                          double.parse(cartController.totalCostInSelectedCurrency.value.toStringAsFixed(2))) {
+                          double.parse(cartController
+                              .totalCostInSelectedCurrency.value
+                              .toStringAsFixed(2))) {
                         return 'Amount paid cannot be less than the total amount';
                       }
                       return null;
@@ -580,33 +613,33 @@ class CheckoutScreen extends StatelessWidget {
                       // }),
                       Obx(() {
                         return Text(
-                          'Base Amount : ${cartController.baseCurrency
-                              .value!.symbol} ${cartController
-                              .totalCostInBaseCurrency.toStringAsFixed(2)}',
+                          'Base Amount : ${cartController.baseCurrency.value!.symbol} ${cartController.totalCostInBaseCurrency.toStringAsFixed(2)}',
                           style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold,color: Colors.indigo),
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo),
                         );
                       }),
                       Obx(() {
                         return Text(
-                          'Total : ${cartController.selectedCurrency.value!
-                              .symbol} ${cartController
-                              .totalCostInSelectedCurrency.toStringAsFixed(2)}',
+                          'Total : ${cartController.selectedCurrency.value!.symbol} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
                           style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold,color: Colors.indigo),
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo),
                         );
                       }),
                       Obx(() {
                         return Text(
-                          'Change : ${cartController.selectedCurrency.value!
-                              .symbol} ${cartController.change.value.toStringAsFixed(2)}',
+                          'Change : ${cartController.selectedCurrency.value!.symbol} ${cartController.change.value.toStringAsFixed(2)}',
                           style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold,color: Colors.indigo),
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo),
                         );
                       }),
                       SizedBox(height: 5),
-                      Obx(() =>
-                          CheckboxListTile(
+                      Obx(() => CheckboxListTile(
                             title: Text('Print Receipt'),
                             value: cartController.isPrintEnabled.value,
                             onChanged: (bool? value) {
@@ -619,12 +652,13 @@ class CheckoutScreen extends StatelessWidget {
                         if (cartController.fiscalizeReceipt.value) {
                           return CheckboxListTile(
                             title: Text('Fiscalize Receipt'),
-                            value: cartController.isFiscaliseReceiptEnabled
-                                .value,
+                            value:
+                                cartController.isFiscaliseReceiptEnabled.value,
                             onChanged: (bool? value) {
                               cartController.isFiscaliseReceiptEnabled.value =
                                   value ?? false;
-                              cartController.zimraFiscalizeReceipt.value = value!;
+                              cartController.zimraFiscalizeReceipt.value =
+                                  value!;
                             },
                           );
                         } else {
@@ -649,34 +683,40 @@ class CheckoutScreen extends StatelessWidget {
                       SizedBox(height: 10),
                       ElevatedButton(
                         onPressed: () {
-                          if (cartController.formKey.currentState!
-                              .validate()) {
+                          if (cartController.formKey.currentState!.validate()) {
                             cartController.formKey.currentState!
                                 .save(); // Save the form fields
                             cartController.showConfirmDialogChargeSale();
                           }
                         },
-
                         style: TextButton.styleFrom(
-                          backgroundColor: Colors.lightGreenAccent, // Set button color to red
-                          foregroundColor: Colors.black, // Set text color to red
-                          textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                          backgroundColor: Colors
+                              .lightGreenAccent, // Set button color to red
+                          foregroundColor:
+                              Colors.black, // Set text color to red
+                          textStyle: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold), // Set text size
                         ),
-                        child:
-                            Text('Charge'),
+                        child: Text('Charge'),
                       ),
                       SizedBox(height: 10),
                       ElevatedButton(
                         style: TextButton.styleFrom(
-                          backgroundColor: Colors.red[800], // Set button color to red
-                          foregroundColor: Colors.black, // Set text color to red
-                          textStyle: TextStyle(fontSize: 16,color: Colors.white,fontWeight: FontWeight.bold), // Set text size
+                          backgroundColor:
+                              Colors.red[800], // Set button color to red
+                          foregroundColor:
+                              Colors.black, // Set text color to red
+                          textStyle: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold), // Set text size
                         ),
                         onPressed: () {
                           cartController.cancelSale();
                         },
                         child: Text('Cancel Sale'),
-
                       ),
                     ],
                   ),
@@ -695,7 +735,8 @@ class CheckoutScreen extends StatelessWidget {
         title: Text("Add New Customer"),
         content: SingleChildScrollView(
           child: Form(
-            key: cartController.formKeyAddCustomer, // Add a GlobalKey to the form
+            key: cartController
+                .formKeyAddCustomer, // Add a GlobalKey to the form
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -745,15 +786,14 @@ class CheckoutScreen extends StatelessWidget {
           TextButton(
             style: TextButton.styleFrom(
               foregroundColor: Colors.red, // Set text color to red
-              textStyle: TextStyle(fontSize: 16,color: Colors.white), // Set text size
+              textStyle:
+                  TextStyle(fontSize: 16, color: Colors.white), // Set text size
             ),
             onPressed: () {
               // Close dialog without adding a customer
               Get.back();
             },
-
             child: Text("Cancel"),
-
           ),
           TextButton(
             onPressed: () {
@@ -769,5 +809,4 @@ class CheckoutScreen extends StatelessWidget {
       ),
     );
   }
-
 }

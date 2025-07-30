@@ -28,4 +28,5 @@ class AppRoutes {
   static const TRANSFER_HISTORY_SCREEN= "/transfer_history_screen";
   static const REQUISITION_LIST_SCREEN= "/requisition_list_screen";
   static const REQUISITION_HISTORY_SCREEN= "/requisition_history_screen";
+  static const BARCODE_SCANNER = "/barcode_scanner";
 }
