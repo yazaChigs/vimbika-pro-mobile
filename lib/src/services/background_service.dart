@@ -26,6 +26,7 @@ class BackgroundService extends GetxService {
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
   late ShiftSettingModel shiftSetting = ShiftSettingModel();
   List<SaleInfoModel> offlineSales = <SaleInfoModel>[];
+  List<SaleInfoModel> reversedSales = <SaleInfoModel>[];
   Rx<CompanyModel?> company = CompanyModel().obs;
   late  GetStorage box;
   @override
@@ -36,7 +37,7 @@ class BackgroundService extends GetxService {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     var shiftModel = box.read(AppConstants.SHIFT_SETTING) ?? {};
     shiftSetting = ShiftSettingModel.fromMap(Map<String, dynamic>.from(shiftModel));
-    Timer.periodic(Duration(minutes: 10), (timer) async {
+    Timer.periodic(Duration(minutes: 1), (timer) async {
       print("Background task running every 10 minutes");
         await syncOfflineSales();
       });
@@ -84,6 +85,7 @@ class BackgroundService extends GetxService {
     if(stat) {
       List<SaleInfoModel> sales = getExistingOfflineSales(box);
       List<SaleInfoModel> actualSales = [];
+      List<SaleInfoModel> reversed = [];
       List<CurrencyAmount> currencyAmounts = [];
       List<ShiftModel> shiftList = loadShiftInfo(box);
       bool synced =  false;
@@ -97,16 +99,51 @@ class BackgroundService extends GetxService {
         if(s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING"){
           actualSales.add(s);
         }
+        if(s.sale!.saleStatus == "REVERSED"){
+          reversed.add(s);
+        }
       }
 
       actualSales = actualSales.where((sale)=> sale.syncStatus == false).toList();
+      actualSales = actualSales.where((sale)=> sale.syncStatus == false).toList();
       offlineSales = actualSales;
+      reversedSales = reversed;
 
       List<SaleInfoModel> syncedSales = [];
       for (SaleInfoModel saleInfo in offlineSales) {
         CurrencyAmount saleCurrencyAmount =  currencyAmounts.firstWhere((test)=> test.posReference==saleInfo.sale!.posReference!, orElse: () => CurrencyAmount(currency: CurrencyModel(), amountType: "", ref: "", timeCreated: "", notes: "", amount: 0.0, shiftReference: null));
         if (!saleInfo.syncStatus!) {
           SaleModel? saleModel = await SyncService.saveSale(
+              saleInfo.sale!, user, box, company.value!);
+          if (saleModel != null) {
+            // synced = true;
+            syncedSales.add(saleInfo);
+            SaleInfoModel? infoModel = await getSale(saleModel.id!);
+            if(infoModel != null){
+              saleInfoModel = infoModel;
+            } else{
+              saleInfoModel = SaleInfoModel(sale: saleModel, syncStatus: true);
+            }
+            saleCurrencyAmount.posReference = saleInfoModel.sale?.posReference;
+            var list = [saleCurrencyAmount];
+            shiftList.firstWhere((shift)=>shift.shiftReference==saleInfoModel.sale!.shiftReference).shiftCurrencyAmounts = [...list];
+            print(shiftList.firstWhere((shift)=>shift.shiftReference==saleInfoModel.sale!.shiftReference).toJson());
+            // Update the sale in the local storage
+            if(sales.any((saleInfo)=> saleInfo.sale?.posReference == saleInfo.sale?.posReference)){
+              print("Updating existing sale...");
+              sales.remove(saleInfo);
+              sales.add(saleInfoModel);
+            }
+            writeSaleInfor(box, sales);
+
+          }
+        }
+      }
+      List<SaleInfoModel> syncedReversedSales = [];
+      for (SaleInfoModel saleInfo in reversedSales) {
+        CurrencyAmount saleCurrencyAmount =  currencyAmounts.firstWhere((test)=> test.posReference==saleInfo.sale!.posReference!, orElse: () => CurrencyAmount(currency: CurrencyModel(), amountType: "", ref: "", timeCreated: "", notes: "", amount: 0.0, shiftReference: null));
+        if (!saleInfo.syncStatus!) {
+          SaleModel? saleModel = await SyncService.reverseSale(
               saleInfo.sale!, user, box, company.value!);
           if (saleModel != null) {
             // synced = true;

@@ -67,15 +67,16 @@ class ReceiptController extends GetxController {
     List<SaleInfoModel> sales = getExistingOfflineSales(box);
     List<SaleInfoModel> actualSales = [];
     for(SaleInfoModel s in sales){
-       if(s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING"){
+       // if(s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING"){
          actualSales.add(s);
-       }
+       // }
     }
     allReceipts.value = actualSales;
     filteredReceipts.value = actualSales;
     sortSalesByDate();
     allReceipts.refresh();
     filteredReceipts.refresh();
+    print(filteredReceipts.any((f)=>f.sale!.saleStatus == "ON_HOLD" ));
     print("All Receipts: ${allReceipts.length}");
   }
 
@@ -108,7 +109,7 @@ class ReceiptController extends GetxController {
       List<SaleInfoModel> items = allReceipts;
       List<SaleInfoModel> actualItems = [];
       for (SaleInfoModel s in items) {
-        if (!s.syncStatus!) {
+        if (!s.syncStatus! || s.sale!.saleStatus == "ON_HOLD") {
           actualItems.add(s);
         }
       }
@@ -133,8 +134,8 @@ class ReceiptController extends GetxController {
                 sale: sale, syncStatus: true);
             actualItems.add(saleInfoModel);
           }
-          allReceipts.value = actualItems;
-          filteredReceipts.value = actualItems;
+          allReceipts.value = actualItems.where((sale)=> sale.sale!.saleStatus=="ON_HOLD").toList();
+          filteredReceipts.value = actualItems.where((sale)=> sale.sale!.saleStatus=="ON_HOLD").toList();
           sortSalesByDate();
           allReceipts.refresh();
           filteredReceipts.refresh();
@@ -190,6 +191,22 @@ class ReceiptController extends GetxController {
             (map) => SaleInfoModel.fromMap(map),
         box);
     return sales;
+  }
+
+  saveSales(){
+    List<SaleInfoModel> actualItems = [];
+    for(var sale in allReceipts){
+      actualItems.add(sale);
+    }
+    List<Map<String, dynamic>> itemsListMap = actualItems.map((item) =>
+        item.toMap()).toList();
+
+    box.write(AppConstants.SALE_LIST, itemsListMap);
+    allReceipts.value = actualItems;
+    filteredReceipts.value = actualItems;
+    allReceipts.refresh();
+    filteredReceipts.refresh();
+    getSales();
   }
 
   Map<String, double> calculateTotalByCurrency() {

@@ -62,6 +62,7 @@ class CartController extends GetxController {
   var isPrinterAvailable = false.obs;
   final TextEditingController customerSearchController = TextEditingController();
   RxString searchText = ''.obs;
+  RxString selectedTicketRef = ''.obs;
   RxDouble totalAmountPaid = 0.0.obs;
 
   Rx<PaymentTypeModel?> selectedPaymentType = PaymentTypeModel().obs;
@@ -242,6 +243,27 @@ class CartController extends GetxController {
     return list;
   }
 
+  refreshCustomers(){
+    List<CustomerModel> customers = loadCustomers(box);
+    allCustomers.value = customers;
+
+    // Use firstWhereOrNull to find a customer with "WalkIn" in their name (case-insensitive)
+    CustomerModel? defaultCustomer = customers.firstWhereOrNull(
+          (customer) => customer.name != null && customer.name!.toLowerCase().contains('walkin'),
+    );
+
+    if (defaultCustomer == null) {
+      // If "WalkIn" is not in the list, create and add it
+      defaultCustomer = CustomerModel(id: null, name: 'WalkIn');
+      allCustomers.add(defaultCustomer);
+    }
+
+    // Set "WalkIn" as the default selected customer
+    selectedCustomer.value = defaultCustomer;
+    isCustomerSelected.value = true;
+
+  }
+
   reGetCustomers() {
     List<CustomerModel> newCustomers = loadCustomers(box);
     print("New Customers: ${newCustomers.length}");
@@ -396,6 +418,9 @@ class CartController extends GetxController {
     totalCostInBaseCurrency.value =  totalCostInBCurrency;
     totalCostInSelectedCurrency.value = totalCostInBCurrency * rate;
     totalTaxInBaseCurrency.value = items.fold(0, (sum, item) => sum + item.totalTaxAmount);
+    amountPaidTextEditingController.text = totalCostInSelectedCurrency.value.toStringAsFixed(2);
+    amountPaid.value = totalCostInSelectedCurrency.value;
+    customerAmountPaid.value =totalCostInSelectedCurrency.value;
   }
 
   void validateEmail(String? value) {
@@ -532,6 +557,7 @@ class CartController extends GetxController {
 
 
   chargeSale(String saleStatus, bool isOnHold, String ref, String ticketName, String ticketComment, List<CartItemModel> saleCartItems, String saleId) async{
+    print("SelectedTicket: ${selectedTicketRef.value}");
     bool stat = await _connectivityService.checkServerConnection();
     calculateTotalAmounts(saleCartItems);
     double totalSaleQuantity = 0;
@@ -589,15 +615,17 @@ class CartController extends GetxController {
         timeInit: timeInit, currency: selectedCurrency.value, baseCurrency: baseCurrency.value, paymentType: isOnHold? null : selectedPaymentType.value, items: saleItems, branch: branch.value, amountAfterDiscount: saleTotal, shiftReference: activeShift.shiftReference,
         posReference: ref, customer: isWalkIn ? null :  selectedCustomer.value, isWalkInCustomer: isWalkIn, taxInvoice: fiscalizeReceipt.value, fiscalized: zimraFiscalizeReceipt.value, emailReceipt: emailReceipt.value, totalDiscount: 0, ticketName: ticketName, ticketComment: ticketComment);
     SaleInfoModel saleInfoModel;
-    print("SAVING SALE.. ${fiscalizeReceipt.value}");
+    if(isOnHold){
+      saleInfoModel = SaleInfoModel(sale: sale, syncStatus: true);
+      infos.add(saleInfoModel);
+      print("infos: ${infos.length}");
+      writeSaleInfor(box, infos);
+    }
     if(stat && fiscalizeReceipt.value) {
       SaleModel? responseFromServerSale = await SyncService.saveSale(sale, user.value!, box, company.value!);
       print("RESPONSE FROM SERVER SALE: " + responseFromServerSale.toString());
       if(responseFromServerSale != null) {
-
-        print("QR LINK1");
-        print(responseFromServerSale.receiptQrCode);
-        if(isOnHold){
+        if(!isOnHold){
           saleInfoModel = SaleInfoModel(sale: responseFromServerSale, syncStatus: true);
         } else{
           SaleInfoModel? infoModel = await getSale(responseFromServerSale.id!);
@@ -622,6 +650,10 @@ class CartController extends GetxController {
       var isCash = selectedPaymentType.value!.name!.startsWith("CASH");
       updateShiftWithNewSale(ref, timeInit, totalCostInSelectedCurrency.value, stat, saleInfoModel.sale!.referenceNumber!,isCash,paymentTypes);
       infos.add(saleInfoModel);
+      if(selectedTicketRef.isNotEmpty){
+        infos.removeWhere((ticket) => ticket.sale!.referenceNumber == selectedTicketRef.value);
+        selectedTicketRef.value = '';
+      }
       writeSaleInfor(box, infos);
       printCurrentSale(saleInfoModel, box);
     }
@@ -784,6 +816,7 @@ class CartController extends GetxController {
      Get.delete<ShiftController>();
     Get.delete<ReceiptController>();
     Get.delete<TicketController>();
+    Get.snackbar("Success", "Sale saved Successfully",);
     Navigator.pushReplacement(
         Get.context!,
         MaterialPageRoute(

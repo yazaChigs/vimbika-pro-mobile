@@ -98,19 +98,19 @@ class CustomerListScreen extends StatelessWidget {
                             ),
                             SizedBox(height: 8),
                             Text(
-                              'Customer ID: ${customer.customerId ?? 'N/A'}',
+                              'Customer No.: ${customer.accountNumber ?? 'N/A'}',
                               style: TextStyle(fontSize: 16),
                             ),
                             SizedBox(height: 4),
                             Text(
-                              'Mobile Phone: ${customer.mobilePhone ?? 'N/A'}',
+                              'Customer Balance: ${customer.currencyBalance?.map((balance)=> (balance.currency.symbol??"") + "${balance.balance}" + ",").join("") ?? 'N/A'}',
                               style: TextStyle(fontSize: 16),
                             ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Email: ${customer.email ?? 'N/A'}',
-                              style: TextStyle(fontSize: 16),
-                            ),
+                            // SizedBox(height: 4),
+                            // Text(
+                            //   'Email: ${customer.email ?? 'N/A'}',
+                            //   style: TextStyle(fontSize: 16),
+                            // ),
                             SizedBox(height: 4),
                             Text(
                               'Branch: ${customer.branch?.name ?? 'N/A'}',

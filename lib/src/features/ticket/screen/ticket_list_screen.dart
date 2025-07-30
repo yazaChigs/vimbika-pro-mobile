@@ -22,7 +22,7 @@ class TicketListScreen extends StatelessWidget {
             IconButton(
               icon: Icon(Icons.refresh),
               onPressed: () {
-                 // ticketController.getTickets();
+                 ticketController.getTickets();
               },
             ),
           ],
@@ -50,6 +50,7 @@ class TicketListScreen extends StatelessWidget {
                   itemCount: ticketController.filteredTickets.length,
                   itemBuilder: (context, index) {
                     var item = ticketController.filteredTickets[index];
+                    var itemsText = item.sale!.items?.map((element)=>"-"+element.inventoryItem!.name! +" X "+ element.quantity.toString() + "\n");
                     return Card(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.zero, // Sharp corners for square card
@@ -96,30 +97,41 @@ class TicketListScreen extends StatelessWidget {
                             ),
                             SizedBox(height: 4),
 
-                            Text(
-                              'Opened At: ${item.sale!.timeIniated ?? 'N/A'}',
-                              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                            ),
-                            SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "${itemsText?.join(' ')}",
+                                  style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold,fontStyle: FontStyle.italic,color: Colors.indigo),
+                                ),
+                                Column(
+                                  children: [
+                                    Text(
+                                      'Opened At: ${item.sale!.timeIniated ?? 'N/A'}',
+                                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                    ),
+                                    SizedBox(height: 4),
 
-                            Text(
-                              'Sale Status: ${item.sale!.saleStatus ?? 'N/A'}',
-                              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                            ),
+                                    Text(
+                                      'Sale Status: ${item.sale!.saleStatus ?? 'N/A'}',
+                                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                    ),
+                                    SizedBox(height: 4),
+                                    if (item.sale!.ticketComment != null && item.sale!.ticketComment!.isNotEmpty)
+                                      Text(
+                                        'Comment: ${item.sale!.ticketComment}',
+                                        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                      ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Reference: ${item.sale!.referenceNumber ?? 'N/A'}',
+                                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                    ),
+                                  ],
 
+                                ),
 
-
-                            SizedBox(height: 4),
-                            if (item.sale!.ticketComment != null && item.sale!.ticketComment!.isNotEmpty)
-                              Text(
-                                'Comment: ${item.sale!.ticketComment}',
-                                style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                              ),
-
-                            SizedBox(height: 4),
-                            Text(
-                              'Reference: ${item.sale!.referenceNumber ?? 'N/A'}',
-                              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                              ],
                             ),
                             Divider(thickness: 1, height: 20),
                             Row(
@@ -128,7 +140,7 @@ class TicketListScreen extends StatelessWidget {
                                 TextButton(
                                   onPressed: () {
                                     // Add delete action here
-                                    ticketController.showConfirmDialogToDeleteItem(item.sale!.referenceNumber ?? '', item.sale!.id!);
+                                    ticketController.showConfirmDialogToDeleteItem(item.sale!.referenceNumber ?? "", item.sale!.id ?? "");
                                   },
                                   child: Text(
                                     'Delete',

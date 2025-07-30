@@ -914,7 +914,7 @@ class PrinterService extends GetxService {
 
 
   // Print Shift Details
-   Future<void> printShiftDetails(ShiftModel shift,RxList<SaleInfoModel> allReceipts, List<Map<String, dynamic>> totalAmountsByCurrency, List<Map<String, dynamic>> totalAmountsByPaymentType, List<Map<String, dynamic>> totalCashIn, List<Map<String, dynamic>> totalCashOut, List<Map<String, dynamic>> totalSubmitted) async {
+   Future<void> printShiftDetails(ShiftModel shift,RxList<SaleInfoModel> allReceipts, List<Map<String, dynamic>> totalAmountsByCurrency, List<Map<String, dynamic>> totalAmountsByPaymentType, List<Map<String, dynamic>> totalCashIn, List<Map<String, dynamic>> totalCashOut, List<Map<String, dynamic>> totalSubmitted, List<Map<String, dynamic>> totalSales) async {
      await SunmiPrinter.initPrinter();
      await SunmiPrinter.startTransactionPrint(true);
 
@@ -948,6 +948,15 @@ class PrinterService extends GetxService {
        await SunmiPrinter.printText("\nAmounts by Payment Method:\n");
        for (var total in totalAmountsByPaymentType) {
          await SunmiPrinter.printText(" ${total['paymentTypeName']}:\t\t\t\t${total['currencySymbol']}${total['totalAmount']}");
+       }
+       await SunmiPrinter.printText("--------------------------------");
+     }
+
+     // Amounts by total sales
+     if (totalAmountsByPaymentType.isNotEmpty) {
+       await SunmiPrinter.printText("\nTotal Sales:\n");
+       for (var total in totalSales) {
+         await SunmiPrinter.printText(" ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
        }
        await SunmiPrinter.printText("--------------------------------");
      }

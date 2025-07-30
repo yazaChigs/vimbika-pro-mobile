@@ -26,13 +26,14 @@ import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 import '../../../constants/app_constants.dart';
 
 class TicketController extends GetxController {
-  final SaleController saleController = Get.find();
+  // final SaleController saleController = Get.find();
   final CartController cartController = Get.find();
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
   final ConnectivityService _connectivityService = ConnectivityService();
   RxList<SaleInfoModel> allTickets = <SaleInfoModel>[].obs;
   RxList<SaleInfoModel> filteredTickets = <SaleInfoModel>[].obs;
   Rx<String> searchQuery = "".obs;
+  Rx<String> customerOrTable = "".obs;
   var isInternetAccess = false.obs;
   late GetStorage box;
   final LocalStorageService _localStorageService = LocalStorageService();
@@ -57,19 +58,19 @@ class TicketController extends GetxController {
 
     var branchModel = box.read(AppConstants.SELECTED_BRANCH) ?? {};
     branch.value = BranchModel.fromMap(Map<String, dynamic>.from(branchModel));
-    // getTickets();
+    getTickets();
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
     // Start a periodic timer to sync tickets every 5 seconds
-    _syncTimer = Timer.periodic(Duration(seconds: 9), (timer) async {
+    // _syncTimer = Timer.periodic(Duration(seconds: 9), (timer) async {
       // getTickets();
-    });
+    // });
   }
 
   @override
   void onClose() {
     // Cancel the timer when the controller is disposed
-    _syncTimer?.cancel();
+    // _syncTimer?.cancel();
     super.onClose();
   }
 
@@ -79,7 +80,9 @@ class TicketController extends GetxController {
         AppConstants.SALE_LIST,
             (map) => SaleInfoModel.fromMap(map),
         box);
+    print("list: ${list.length}");
     for(SaleInfoModel sale in list){
+      print(sale.sale!.saleStatus!);
       if(sale.sale!.saleStatus == "ON_HOLD" && sale.sale!.active!){
         tickets.add(sale);
       }
@@ -88,22 +91,24 @@ class TicketController extends GetxController {
   }
   getTickets()async{
     //AppHelper.showLoading("Loading....");
-    bool stat = await _connectivityService.checkServerConnection();
+    // bool stat = await _connectivityService.checkServerConnection();
     List<SaleInfoModel> tickets = [];
-    if(stat) {
-      List<SaleInfoModel>? items =  await SyncService.syncTickets(user, box, company.value!.id!, branch.value!.id!);
-      if(items != null){
-        for(SaleInfoModel sale in items){
-          if(sale.sale!.saleStatus == "ON_HOLD" && sale.sale!.active!){
-            tickets.add(sale);
-          }
-        }
-      } else{
-        tickets = loadItems(box);
-      }
-    } else{
+    // if(stat) {
+    //   List<SaleInfoModel>? items =  await SyncService.syncTickets(user, box, company.value!.id!, branch.value!.id!);
+    //   if(items != null){
+    //     for(SaleInfoModel sale in items){
+    //       if(sale.sale!.saleStatus == "ON_HOLD" && sale.sale!.active!){
+    //         tickets.add(sale);
+    //       }
+    //     }
+    //   } else{
+    //     tickets = loadItems(box);
+    //   }
+    // } else{
       tickets = loadItems(box);
-    }
+    // }
+
+
 
     openedTicketsCount.value = tickets.length;
     allTickets.value = tickets;
@@ -155,10 +160,11 @@ class TicketController extends GetxController {
 
   }
 
-  ticketActionButton(CurrencyModel currency, int cartLength){
+  ticketActionButton(CurrencyModel currency, int cartLength,String customerOrTable){
+    if(customerOrTable.isNotEmpty){
+      ticketNameEditingController.text = customerOrTable;
+    }
     this.selectedCurrency.value = currency;
-    print("Length");
-    print(cartLength);
     if (cartLength > 0) {
       Get.toNamed(AppRoutes.TICKET_FORM);
     } else {
@@ -166,6 +172,7 @@ class TicketController extends GetxController {
     }
   }
   void showConfirmDialogToDeleteItem(String reference, String saleId) {
+    print("reference: ${reference} saleID: ${saleId}");
     Get.defaultDialog(
       title: "Confirmation",
       middleText: "Are you sure you want to proceed?",
@@ -200,11 +207,11 @@ class TicketController extends GetxController {
     box.write(AppConstants.SALE_LIST, itemsListMap);
     Get.snackbar("Ticket", "Ticket Deleted Successfully", snackPosition: SnackPosition.BOTTOM);
     bool stat = await _connectivityService.checkServerConnection();
-    if(stat){
-      if(saleId != null) {
-        SyncService.deleteTicket(user, box, saleId);
-      }
-    }
+    // if(stat){
+    //   if(saleId != null) {
+    //     SyncService.deleteTicket(user, box, saleId);
+    //   }
+    // }
     Navigator.of(Get.context!).pop();
   }
 
@@ -230,15 +237,14 @@ class TicketController extends GetxController {
          }
        }
     }
-    print("TOTAL..");
-    print(saleCartItems.length);
      cartController.cartItems.value = saleCartItems;
     cartController.cartItems.refresh();
      cartController.selectedCurrency.value = ticket.sale!.currency;
      cartController.isCurrencySelected.value = true;
-     cartController.saleTicketId.value = ticket.sale!.id!;
-     cartController.calculateTotalAmounts(saleCartItems);
-     Get.offNamed(AppRoutes.SALE);
+     cartController.saleTicketId.value = ticket.sale!.id??'';
+     cartController.selectedTicketRef.value = ticket.sale!.referenceNumber??'';
+    Get.offNamed(AppRoutes.SALE);
+    cartController.calculateTotalAmounts(saleCartItems);
   }
   //
   //  Future<TicketModel?> saveTicket(TicketModel ticket, UserModel user, GetStorage box) async{

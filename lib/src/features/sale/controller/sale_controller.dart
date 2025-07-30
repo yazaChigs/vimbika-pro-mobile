@@ -11,6 +11,7 @@ import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
+import 'package:vimbika_pos_app/src/features/sale/controller/cart_controller.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/product_full_info_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_model.dart';
@@ -53,10 +54,12 @@ class SaleController extends GetxController {
   List<PaymentTypeModel> selectedPaymentTypes = <PaymentTypeModel>[];
   RxList<SaleInfoModel> allReceipts = <SaleInfoModel>[].obs;
   RxList<SaleInfoModel> filteredReceipts = <SaleInfoModel>[].obs;
+  final CartController cartController = Get.put(CartController());
   bool useSerialNumbers = false;
   var isServerReachable = false.obs;
   var isBrandSelected = false.obs;
   var isCatSelected = false.obs;
+  var chargeClicked = false.obs;
 
   final ConnectivityService _connectivityService = ConnectivityService();
   final LocalStorageService _localStorageService = LocalStorageService();
@@ -110,6 +113,7 @@ class SaleController extends GetxController {
     }
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
+    cartController.refreshCustomers();
   }
   @override
   void onClose() {
@@ -259,6 +263,7 @@ class SaleController extends GetxController {
     }
   }
 
+
   calculatePrice() {
     price.value = 0.0;
     for (var element in allProducts) {
@@ -391,7 +396,7 @@ class SaleController extends GetxController {
     }
   }
   getOfflineProducts(GetStorage box){
-    AppHelper.showLoading();
+    // AppHelper.showLoading();
     List<ProductFullInfoModel> storageProductList = _localStorageService.getProductList(box, false);
     allProducts.value = storageProductList;
     filteredProducts.value = storageProductList;
@@ -399,7 +404,7 @@ class SaleController extends GetxController {
     if(allProducts.isEmpty) {
       getBranchStock(box);
     }
-    AppHelper.hideLoading();
+    // AppHelper.hideLoading();
 
   }
 

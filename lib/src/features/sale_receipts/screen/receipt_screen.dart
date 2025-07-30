@@ -7,6 +7,7 @@ import 'package:vimbika_pos_app/src/features/sale_receipts/controller/receipt_co
 import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
+import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 import 'package:vimbika_pos_app/src/widgets/nav_drawer_widget.dart';
 
 
@@ -155,6 +156,9 @@ class ReceiptScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.indigo
+                    ),
                     onPressed: () {
                       receiptController.searchSales();
                     },
@@ -229,13 +233,37 @@ class ReceiptScreen extends StatelessWidget {
                     final sale = saleInfo.sale;
 
                     return Card(
+                      color: sale!.saleStatus=="REVERSED"?Colors.redAccent[100]:Colors.grey[300],
                       child: ListTile(
-                        leading: Text(
-                          '${sale!.currency?.symbol ?? ''} ${sale.amountAfterDiscount!.toStringAsFixed(2).toString()}',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        leading:
+                            Expanded(
+                              child: Text(
+                                '${sale!.currency?.symbol ?? ''} ${sale.amountAfterDiscount!.toStringAsFixed(2).toString()}',
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold,color: Colors.lightGreen),
+                              ),
+                            ),
+                        title: Text(sale.referenceNumber!,
+                          style: TextStyle(
+                          fontSize: 20,color: Colors.indigo,fontWeight: FontWeight.bold
+                        ),),
+                        subtitle: Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            Column(
+                              children: [
+                                Text(sale.paymentTypes!.map((paymentType)=>paymentType.paymentType!.name).join()),
+                                Text(sale.timeIniated!),
+                              ],
+                                ),
+                              Expanded(child:
+                            IconButton(onPressed: (){},
+                                icon: saleInfo.syncStatus == true
+                                    ?Icon(Icons.check,color: Colors.green,size: 40)
+                                    :Icon(Icons.sync_problem_outlined,color: Colors.red,size: 40)
+                            )
+                            ),
+                          ],
                         ),
-                        title: Text(sale.timeIniated!),
-                        subtitle: Text(sale.referenceNumber ?? ""),
                         trailing: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -244,26 +272,47 @@ class ReceiptScreen extends StatelessWidget {
                               style: sale.saleStatus!='REVERSED'? TextStyle(fontSize: 14, color: Colors.grey[700]):TextStyle(fontSize: 14, color: Colors.red[700]),
                             ),
                             SizedBox(
-                              width: 60,
+                              width: 100,
                               height: 24,
-                              child: ElevatedButton(
-                                onPressed: () async {
-                                  // if (saleInfo.syncStatus == true) {
-                                  //   // Handle online logic
-                                  // } else {
-                                  //   Future<Uint8List> pdf = GenerateFlutterPdf.generateReceipt(saleInfo.sale!);
-                                  //   Get.to(() => PdfPreviewScreen(pdf: pdf));
-                                  // }
-                                  sale.saleStatus != 'REVERSED'?receiptController.printSale(saleInfo):null;
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  backgroundColor: saleInfo.syncStatus == true
-                                      ? sale.saleStatus != 'REVERSED'?Colors.green:Colors.red
-                                      : Theme.of(context).primaryColor,
-                                  textStyle: TextStyle(fontSize: 10),
-                                ),
-                                child: sale.saleStatus != 'REVERSED'?Text('Print'):Text('X'),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: IconButton(
+                                      icon: Icon(Icons.print_outlined,color: Colors.indigoAccent,size: 32),
+                                      onPressed: () async {
+                                        // if (saleInfo.syncStatus == true) {
+                                        //   // Handle online logic
+                                        // } else {
+                                        //   Future<Uint8List> pdf = GenerateFlutterPdf.generateReceipt(saleInfo.sale!);
+                                        //   Get.to(() => PdfPreviewScreen(pdf: pdf));
+                                        // }
+                                        sale.saleStatus != 'REVERSED'?receiptController.printSale(saleInfo):null;
+                                      },
+                                    ),
+                                  ),
+                                  Container(
+                                    child: sale.saleStatus != 'REVERSED'?IconButton(
+                                      enableFeedback: true,
+                                      icon: Icon(Icons.backspace_outlined,color: Colors.redAccent,size: 32,),
+                                      onPressed: () {
+                                        AppHelper.showLoading();
+                                        saleInfo.sale!.saleStatus="REVERSED";
+                                        saleInfo.syncStatus = false;
+                                        var i = receiptController.allReceipts.indexOf(saleInfo);
+                                        receiptController.allReceipts[i] = saleInfo;
+                                        receiptController.filteredReceipts[index].sale!.saleStatus = "REVERSED";
+                                        receiptController.allReceipts[i] = saleInfo;
+                                        receiptController.saveSales();
+                                        receiptController.allReceipts.refresh();
+                                        receiptController.filteredReceipts.refresh();
+                                        print(receiptController.allReceipts.any((test)=>test.sale!.saleStatus=="REVERSED"));
+                                        AppHelper.hideLoading();
+                                        Get.snackbar("Success", "Sale reversed");
+                                      },
+                                    ):SizedBox(),
+                                  ),
+                                ],
                               ),
                             ),
                           ],

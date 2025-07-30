@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:ffi';
+import '../../features/customers/model/customer_currency_amount.dart';
 import 'base_name_model.dart';
 
 CustomerModel customerModelFromJson(String str) => CustomerModel.fromJson(json.decode(str));
@@ -15,7 +17,11 @@ class CustomerModel {
     this.description,
     this.tinNumber,
     this.taxNumber,
-    this.street
+    this.street,
+    this.accountNumber,
+    this.isLoyalCustomer,
+    this.points,
+    this.currencyBalance
 
   });
 
@@ -30,6 +36,10 @@ class CustomerModel {
   String? tinNumber;
   String? taxNumber;
   String? street;
+  bool? isLoyalCustomer;
+  String? accountNumber;
+  double? points;
+  List<CustomerCurrencyAmount>? currencyBalance;
 
   factory CustomerModel.fromJson(String str) => CustomerModel.fromMap(json.decode(str));
 
@@ -44,10 +54,13 @@ class CustomerModel {
     customerId: json["customerId"],
     branch: json["branch"] != null ? BaseNameModel.fromMap(json["branch"]) : null,
     description: json["description"],
-
+    currencyBalance: List<CustomerCurrencyAmount>.from(json["currencyBalance"].map((x) => CustomerCurrencyAmount.fromMap(x))),
     tinNumber: json["tinNumber"],
     taxNumber: json["taxNumber"],
     street: json["street"],
+    isLoyalCustomer: json["isLoyalCustomer"],
+    accountNumber: json["accountNumber"],
+    points: json["points"],
   );
 
   Map<String, dynamic> toMap() => {
@@ -59,9 +72,12 @@ class CustomerModel {
     "customerId": customerId,
     "branch": branch?.toMap(),
     "description": description,
-
+    "currencyBalance": List<dynamic>.from(currencyBalance!.map((x) => x.toMap())),
     "tinNumber": tinNumber,
     "taxNumber": taxNumber,
     "street": street,
+    "points": points,
+    "accountNumber": accountNumber,
+    "isLoyalCustomer": isLoyalCustomer,
   };
 }

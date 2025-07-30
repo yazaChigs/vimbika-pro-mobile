@@ -14,6 +14,7 @@ import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
 import '../../../services/app_exceptions.dart';
 import '../../../services/base_http_client.dart';
 import '../../../utils/app_helper.dart';
+import '../../sale/controller/cart_controller.dart';
 
 class CustomerController extends GetxController {
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
@@ -31,6 +32,7 @@ class CustomerController extends GetxController {
   final TextEditingController vatEditingController = TextEditingController();
   final TextEditingController tinEditingController = TextEditingController();
   final TextEditingController addressEditingController = TextEditingController();
+  final CartController cartController = Get.put(CartController());
   var name = "".obs;
   var mobilePhone = "".obs;
   var email = "".obs;
@@ -103,6 +105,7 @@ class CustomerController extends GetxController {
       },
       onConfirm: () {
         saveCustomerInfo();
+        cartController.refreshCustomers();
         Navigator.of(Get.overlayContext!).pop();
        // Get.back();
       },

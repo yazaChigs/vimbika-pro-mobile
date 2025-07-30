@@ -406,7 +406,7 @@ class ShiftController extends GetxController {
     AvailablePrinterModel? ap = _localStorageService.findActivePrinter(box);
     if(ap != null) {
       if(ap.type == 'SUNMI_INBUILT_PRINTER') {
-        await printerService.printShiftDetails(shift,allReceipts, totalAmountsByCurrency,totalAmountsByPaymentType,totalCashIn, totalCashOut, totalCashSubmittedList);
+        await printerService.printShiftDetails(shift,allReceipts, totalAmountsByCurrency,totalAmountsByPaymentType,totalCashIn, totalCashOut, totalCashSubmittedList, totalSales);
       }
       if(ap.type == "bluetooth") {
         await printerService.printShiftDetailsBluetooth(shift, ap, totalAmountsByCurrency);

@@ -194,7 +194,7 @@ class SaleScreen extends GetView {
                             // ticketController.getTickets();
                             ticketController.ticketActionButton(
                                 cartController.selectedCurrency.value!,
-                                cartController.cartItems.length);
+                                cartController.cartItems.length,"");
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.cyan,
@@ -577,38 +577,57 @@ class SaleScreen extends GetView {
             elevation: 0,
             title: Row(
               children: [
-                GestureDetector(
-                  onTap: () {
-                    // Define the action when "Ticket" is clicked
-                    // Get.toNamed(AppRoutes.OPEN_TICKETS);
-                  },
-                  child: Text(
-                    'Ticket',
-                    style: TextStyle(color: Colors.black),
+                Container(
+                  padding: EdgeInsets.all(8),
+                  height: 40,
+                  decoration:
+                  BoxDecoration(
+                    border: Border.all(
+                      color: Colors.indigo,
+                      width: 2.0,
+                    ),
+                    color: Colors.deepOrange,
+                    // Set the background color for the count
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
-                SizedBox(width: 4),
-                GestureDetector(
-                  onTap: () {
-                    // Define the action when the count is clicked
-                    //  Get.toNamed(AppRoutes.OPEN_TICKETS);
-                  },
-                  child: Obx(() {
-                    final count = ticketController.openedTicketsCount;
-                    return Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        // Set the background color for the count
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        count.toString(),
-                        style: TextStyle(color: Colors.white,
-                            fontSize: 10), // Text color
-                      ),
-                    );
-                  }),
+                  child: Row(
+                    children: [
+                              GestureDetector(
+                              onTap: () {
+                                // Define the action when "Ticket" is clicked
+                                Get.toNamed(AppRoutes.TICKET_LIST);
+                          },
+                            child: Text(
+                              'Ticket',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                            SizedBox(width: 4),
+                            GestureDetector(
+                              onTap: () {
+                                // Define the action when the count is clicked
+                                Get.toNamed(AppRoutes.TICKET_LIST);
+                              },
+                              child: Obx(() {
+                                final count = ticketController.openedTicketsCount;
+                                return Container(
+                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    // Set the background color for the count
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    count.toString(),
+                    style: TextStyle(color: Colors.white,
+                        fontSize: 10), // Text color
+                  ),
+                                );
+                              }),
+                            ),
+
+                            ]
+                  ),
                 ),
                 SizedBox(width: 6),
                 Expanded(child:
@@ -1017,6 +1036,7 @@ class SaleScreen extends GetView {
                 icon: Icon(Icons.person_add),
                 onPressed: () {
                   Get.toNamed(AppRoutes.CUSTOMER_FORM);
+
                 },
               ),
 
@@ -1112,27 +1132,16 @@ class SaleScreen extends GetView {
                                 onTap: () {
                                   if (saleController.filteredProducts[index]
                                       .item?.itemType == 'SERVICE') {
-                                    cartController.addToCart(
-                                        saleController.filteredProducts[index],
-                                        1);
+                                    cartController.addToCart(saleController.filteredProducts[index],1);
+                                    cartController.amountPaidTextEditingController.text = cartController.totalCostInSelectedCurrency.value.toStringAsFixed(2);
+                                    cartController.amountPaid.value = cartController.totalCostInSelectedCurrency.value;
+                                    cartController.customerAmountPaid.value =cartController.totalCostInSelectedCurrency.value;
                                   } else
-                                  if (saleController.filteredProducts[index]
-                                      .stock! > 0 ||
-                                      saleController.sellNilItems) {
-                                    cartController.addToCart(
-                                        saleController.filteredProducts[index],
-                                        1);
-                                    cartController
-                                        .amountPaidTextEditingController.text =
-                                        cartController
-                                            .totalCostInSelectedCurrency.value
-                                            .toStringAsFixed(2);
-                                    cartController.amountPaid.value =
-                                        cartController
-                                            .totalCostInSelectedCurrency.value;
-                                    cartController.customerAmountPaid.value =
-                                        cartController
-                                            .totalCostInSelectedCurrency.value;
+                                  if (saleController.filteredProducts[index].stock! > 0 || saleController.sellNilItems) {
+                                    cartController.addToCart(saleController.filteredProducts[index],1);
+                                    cartController.amountPaidTextEditingController.text = cartController.totalCostInSelectedCurrency.value.toStringAsFixed(2);
+                                    cartController.amountPaid.value = cartController.totalCostInSelectedCurrency.value;
+                                    cartController.customerAmountPaid.value =cartController.totalCostInSelectedCurrency.value;
                                   } else {
                                     Get.snackbar("Check your stock",
                                         "Stock not available!!!",
@@ -1715,7 +1724,9 @@ class SaleScreen extends GetView {
                                                 // ticketController.getTickets();
                                                 ticketController.ticketActionButton(
                                                 cartController.selectedCurrency.value!,
-                                                cartController.cartItems.length);
+                                                cartController.cartItems.length,
+                                                    cartController.selectedCustomer.value!.name!="WalkIn"?cartController.selectedCustomer.value!.name.toString()
+                                                        :"Table ${ticketController.openedTicketsCount}");
                                                 },
                                                 style: ElevatedButton.styleFrom(
                                                 backgroundColor: Colors.deepOrange,
@@ -1760,7 +1771,12 @@ class SaleScreen extends GetView {
                                                         snackPosition: SnackPosition.TOP);
                                                     return;
                                                   }
-                                                  cartController.showConfirmDialogChargeSale();
+                                                  if(!saleController.chargeClicked.value) {
+                                                    print("clicked once");
+                                                    cartController
+                                                        .showConfirmDialogChargeSale();
+                                                    saleController.chargeClicked.value = true;
+                                                  }
                                                 },
 
                                                 style: TextButton.styleFrom(

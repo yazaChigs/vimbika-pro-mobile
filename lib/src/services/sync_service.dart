@@ -202,6 +202,38 @@ class SyncService {
       return null;
     }
   }
+  static Future<SaleModel?> reverseSale(SaleModel sale, UserModel user, GetStorage box, CompanyModel company) async{
+    String jsonSaleItems = sale.toJson();
+    if(company.id==null){
+      var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
+      company = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
+    }
+    var response = await BaseHttpClient().postAuthWithCompanyHeader("/sale/reverse", jsonSaleItems, company.id!, "POST").catchError((onError){
+      //AppHelper.hideLoading();
+      if (onError is BadRequestException) {
+        var apiError = json.decode(onError.message!);
+        print(apiError);
+        AppHelper.showErroDialog(description: apiError["reason"]);
+      } else if (onError is UnAuthorizedException) {
+        AppHelper.showErroDialog(title: "Error", description: "Unauthorized access");
+      }
+      else {
+        print(onError);
+        AppHelper.handleError(onError);
+      }
+    });
+    // AppHelper.hideLoading();
+    if(response != null){
+      SaleItemResponseModel saleResponseModel = SaleItemResponseModel.fromJson(response);
+
+      return saleResponseModel.item;
+
+
+    } else{
+      //failed to save sale
+      return null;
+    }
+  }
 
   static Future<RequisitionModel?> saveStockRequest(String url, RequisitionModel stockRequest, UserModel user, GetStorage box, String method) async{
     String jsonSaleItems = stockRequest.toJson();
