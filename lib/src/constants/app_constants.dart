@@ -30,6 +30,7 @@ class AppConstants {
   static const BANK_LIST = "BANK_LIST";
   static const PAYMENT_TYPE_LIST = "PAYMENT_TYPE_LIST";
   static const SALE_LIST = "SALE_LIST";
+  static const PAYMENT_RECEIVED_LIST = "PAYMENT_RECEIVED_LIST";
   static const SHIFT_LIST = "SHIFT_LIST";
   static const USER_LIST = "USER_LIST";
   static const AVAILABLE_PRINTERS = "AVAILABLE_PRINTERS";

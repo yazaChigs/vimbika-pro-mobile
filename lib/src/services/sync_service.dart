@@ -29,6 +29,7 @@ import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/dynamic_query_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/payment_received_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
@@ -337,6 +338,51 @@ class SyncService {
     box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
     return null;
   }
+
+  static Future<PaymentReceivedModel?> savePaymentReceived( UserModel user, GetStorage box) async{
+    final LocalStorageService _localStorageService = LocalStorageService();
+    List<PaymentReceivedModel> savedPayments = [];
+    List<PaymentReceivedModel> payments = _localStorageService.getOfflineList<PaymentReceivedModel>(
+        AppConstants.PAYMENT_RECEIVED_LIST,
+            (map) => PaymentReceivedModel.fromMap(map),
+        box);
+    payments = payments.where((customer) => customer.id == null).toList();
+    for(PaymentReceivedModel paymentsModel in payments) {
+      String jsonSaleItems = paymentsModel.toJson();
+      var response = await BaseHttpClient()
+          .postAuthWithCompanyHeader("/payments/received/receive-payment",
+              jsonSaleItems, user.companyId!, "POST")
+          .catchError((onError) {
+        //AppHelper.hideLoading();
+        if (onError is BadRequestException) {
+          var apiError = json.decode(onError.message!);
+          print(apiError);
+          AppHelper.showErroDialog(description: apiError["reason"]);
+        } else if (onError is UnAuthorizedException) {
+          AppHelper.showErroDialog(
+              title: "Error", description: "Unauthorized access");
+        } else {
+          print(onError);
+          AppHelper.handleError(onError);
+        }
+      });
+      // AppHelper.hideLoading();
+      if (response != null) {
+        savedPayments.add(paymentsModel);
+        // return responseModel.item;
+      } else {
+        //failed to save sale
+        return null;
+      }
+    }
+    payments.removeWhere((payment)=> savedPayments.contains(payment));
+    List<Map<String, dynamic>> itemsListMap = payments.map((item) =>
+        item.toMap()).toList();
+    box.write(AppConstants.PAYMENT_RECEIVED_LIST, itemsListMap);
+    return null;
+  }
+
+
   static Future<List<SaleInfoModel>?>  syncTickets(UserModel user, GetStorage box, String companyId, String branchId) async{
     LocalStorageService _localStorageService = LocalStorageService();
     //print("Getting tickets...");

@@ -279,7 +279,7 @@ class SaleController extends GetxController {
     getBranchStock(box);
     // print("syncing offline sales..");
     // await syncOfflineSales();
-    print("syncing tickets..");
+    // print("syncing tickets..");
      //await SyncService.syncOfflineTickets(user, box);
     print("syncing shifts..");
     await SyncService.syncOfflineShifts(user, box);
@@ -289,13 +289,15 @@ class SaleController extends GetxController {
     await SyncService.getPaymentTypes(user, box);
     print("syncing new Customers..");
     await SyncService.saveCustomer(user, box);
+    print("syncing new Payments..");
+    await SyncService.savePaymentReceived(user, box);
     await SyncService.getCustomers(user, box,user.companyId!);
     AppHelper.hideLoading();
   }
   void clearFilters() {
     selectedCategory.value = BaseNameModel();
     isCatSelected.value = false;
-    selectedBrand.value = BaseNameModel();;
+    selectedBrand.value = BaseNameModel();
     isBrandSelected.value = false;
     searchQuery.value = "";
     filteredProducts.value = allProducts.value;

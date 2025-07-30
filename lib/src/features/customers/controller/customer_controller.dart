@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:intl/intl.dart';
 import 'package:meta/meta.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
@@ -34,7 +35,7 @@ class CustomerController extends GetxController {
   Rx<PaymentTypeModel?> selectedPaymentType = PaymentTypeModel().obs;
   RxList<PaymentTypeModel> selectedPaymentTypes = <PaymentTypeModel>[].obs;
   Rx<BankModel?> selectedBank = BankModel().obs;
-  RxList<PaymentReceivedModel> paymentTypes = <PaymentReceivedModel>[].obs;
+  RxList<PaymentReceivedModel> paymentReceivedList = <PaymentReceivedModel>[].obs;
   RxList<PaymentTypeModel> paymentTypesList = <PaymentTypeModel>[].obs;
   RxList<PaymentTypeModel> filteredPaymentTypesList = <PaymentTypeModel>[].obs;
   var isPaymentTypeSelected = false.obs;
@@ -84,6 +85,8 @@ class CustomerController extends GetxController {
     List<CustomerModel> customers = loadCustomers(box);
     allCustomers.value = customers;
     filteredCustomers.value = customers;
+    List<PaymentReceivedModel> paymentReceiveds = loadPaymentReceived(box);
+    paymentReceivedList.value = paymentReceiveds;
 
     getOfflineCurrencyList(box);
     List<PaymentTypeModel> tempList = getOfflinePaymentTypeList(box);
@@ -111,6 +114,13 @@ class CustomerController extends GetxController {
     List<CustomerModel> list = _localStorageService.getOfflineList<CustomerModel>(
         AppConstants.CUSTOMER_LIST,
             (map) => CustomerModel.fromMap(map),
+        box);
+    return list;
+  }
+  List<PaymentReceivedModel> loadPaymentReceived( GetStorage box) {
+    List<PaymentReceivedModel> list = _localStorageService.getOfflineList<PaymentReceivedModel>(
+        AppConstants.PAYMENT_RECEIVED_LIST,
+            (map) => PaymentReceivedModel.fromMap(map),
         box);
     return list;
   }
@@ -152,14 +162,25 @@ class CustomerController extends GetxController {
   }
 
   savePayment(){
+    GetStorage bb = GetStorage();
     PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
         id: null,
+        dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
         amount: payAccAMt.value,
         paymentType: selectedPaymentType.value,
         paymentDescription: "Pay To Account",
         isPaid: true,
         currency: selectedCurrency.value,
         bank: selectedBank.value);
+    List<PaymentReceivedModel> prlist = paymentReceivedList.value;
+    prlist.add(paymentReceivedModel);
+    paymentReceivedList.value = prlist;
+    List<Map<String, dynamic>> itemsListMap =
+    prlist.map((item) => item.toMap()).toList();
+    bb.write(AppConstants.PAYMENT_RECEIVED_LIST, itemsListMap);
+    Get.snackbar("New Payment", "Payment Saved Successfully",
+        snackPosition: SnackPosition.BOTTOM);
+    clearForm();
 
   }
 
@@ -289,6 +310,7 @@ class CustomerController extends GetxController {
     mobileNumberEditingController.clear();
     emailEditingController.clear();
     descriptionEditingController.clear();
+    accNoEditingController.clear();
 
     // Reset the form's state
     formKeyForm.currentState?.reset();
