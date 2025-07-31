@@ -42,6 +42,7 @@ import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
 import '../../../shared/models/settings_model.dart';
+import '../../../services/nfc_service.dart';
 
 class CartController extends GetxController {
   var cartItems = <CartItemModel>[].obs;
@@ -72,8 +73,10 @@ class CartController extends GetxController {
   RxList<PaymentTypeModel> paymentTypesList = <PaymentTypeModel>[].obs;
   RxList<PaymentTypeModel> filteredPaymentTypesList = <PaymentTypeModel>[].obs;
   var isPaymentTypeSelected = false.obs;
-  final TextEditingController amountPaidTextEditingController = TextEditingController();
-  final TextEditingController amtToAccTextEditingController = TextEditingController();
+  final TextEditingController amountPaidTextEditingController =
+      TextEditingController();
+  final TextEditingController amtToAccTextEditingController =
+      TextEditingController();
 
   RxDouble totalCostInBaseCurrency = 0.0.obs;
   RxDouble totalCostInSelectedCurrency = 0.0.obs;
@@ -98,6 +101,10 @@ class CartController extends GetxController {
   late GetStorage box;
 
   bool sellNilItems = false;
+
+  // NFC Service
+  final NfcService _nfcService = Get.put(NfcService());
+  var isNfcReading = false.obs;
   RxBool isPrintEnabled = false.obs; // Observing the state of the checkbox
   RxBool addAmtToAcc = false.obs; // Observing the state of the checkbox
   late SettingsModel settingsModel = SettingsModel(sellNilItems: false);
@@ -332,8 +339,9 @@ class CartController extends GetxController {
         }
       }
     }
-    if(!selectedCus.isLoyalCustomer!??false) {
-      tempList = tempList.where((type)=>!type.name!.startsWith("ACC-")).toList();
+    if (!selectedCus.isLoyalCustomer! ?? false) {
+      tempList =
+          tempList.where((type) => !type.name!.startsWith("ACC-")).toList();
     }
 
     // If the customer is 'WalkIn', filter out payment types containing 'credit'
@@ -687,10 +695,11 @@ class CartController extends GetxController {
         totalDiscount: 0,
         ticketName: ticketName,
         ticketComment: ticketComment,
-      accountPayType: null,
-      pointsUsed: null,
-      amtToAcc: addAmtToAcc.value?double.parse(amtToAccTextEditingController.text):null
-    );
+        accountPayType: null,
+        pointsUsed: null,
+        amtToAcc: addAmtToAcc.value
+            ? double.parse(amtToAccTextEditingController.text)
+            : null);
     SaleInfoModel saleInfoModel;
     if (isOnHold) {
       saleInfoModel = SaleInfoModel(sale: sale, syncStatus: true);
@@ -728,7 +737,7 @@ class CartController extends GetxController {
     if (!isOnHold) {
       deductStock();
       updateShiftWithNewSale(ref, timeInit, totalCostInSelectedCurrency.value,
-          stat, saleInfoModel.sale!.referenceNumber!,  paymentTypes);
+          stat, saleInfoModel.sale!.referenceNumber!, paymentTypes);
       infos.add(saleInfoModel);
       if (selectedTicketRef.isNotEmpty) {
         infos.removeWhere((ticket) =>
@@ -737,9 +746,12 @@ class CartController extends GetxController {
       }
       writeSaleInfor(box, infos);
       printCurrentSale(saleInfoModel, box);
-      if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && paymentTypes.any((pt)=> pt.paymentType!.name!.startsWith("ACC-"))){
-        CustomerModel customer = allCustomers.firstWhere((cust)=>cust.name == sale.customer!.name);
-        if(customer!=null) {
+      if ((sale.customer != null) &&
+          (sale.customer!.isLoyalCustomer ?? false) &&
+          paymentTypes.any((pt) => pt.paymentType!.name!.startsWith("ACC-"))) {
+        CustomerModel customer =
+            allCustomers.firstWhere((cust) => cust.name == sale.customer!.name);
+        if (customer != null) {
           allCustomers.removeWhere((cust) => cust.name == sale.customer!.name);
           customer.currencyBalance!
                   .firstWhere((cb) => cb.currency.id == sale.currency!.id)
@@ -859,13 +871,8 @@ class CartController extends GetxController {
     return null;
   }
 
-  updateShiftWithNewSale(
-      String ref,
-      String timeCreated,
-      double amt,
-      bool stat,
-      String posReference,
-      List<PaymentReceivedModel> paymentTypes) async {
+  updateShiftWithNewSale(String ref, String timeCreated, double amt, bool stat,
+      String posReference, List<PaymentReceivedModel> paymentTypes) async {
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
         loadShifts(box), box, user.value!, true);
     if (tempActiveShift != null) {
@@ -1049,6 +1056,73 @@ class CartController extends GetxController {
             "Invalid Amount", "Please enter a valid amount greater than zero.",
             snackPosition: SnackPosition.BOTTOM);
       }
+    }
+  }
+
+  // NFC Customer Selection
+  Future<void> selectCustomerByNfc() async {
+    if (!_nfcService.isNfcAvailable.value) {
+      Get.snackbar(
+        'NFC Not Available',
+        'NFC is not available on this device',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    isNfcReading.value = true;
+
+    try {
+      String? cardId = await _nfcService.readNfcCard();
+
+      if (cardId != null) {
+        // Find customer with this NFC card ID
+        CustomerModel? customer = allCustomers.firstWhereOrNull(
+          (customer) => customer.nfcCardId == cardId,
+        );
+
+        if (customer != null) {
+          selectedCustomer.value = customer;
+          isCustomerSelected.value = true;
+          customerSearchController.text = customer.name ?? '';
+
+          Get.snackbar(
+            'Customer Selected',
+            'Customer ${customer.name} selected via NFC',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+          );
+        } else {
+          Get.snackbar(
+            'Customer Not Found',
+            'No customer found with this NFC card',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+          );
+        }
+      } else {
+        Get.snackbar(
+          'No Card Detected',
+          'Please hold your device near the NFC card',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to read NFC card',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isNfcReading.value = false;
     }
   }
 }
