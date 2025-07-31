@@ -22,6 +22,8 @@ import '../../../shared/models/payment_received_model.dart';
 import '../../../shared/models/payment_type_model.dart';
 import '../../../utils/app_helper.dart';
 import '../../sale/controller/cart_controller.dart';
+import '../../../services/nfc_service.dart';
+import '../../../constants/app_routes.dart';
 
 class CustomerController extends GetxController {
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
@@ -37,11 +39,13 @@ class CustomerController extends GetxController {
   Rx<PaymentTypeModel?> selectedPaymentType = PaymentTypeModel().obs;
   RxList<PaymentTypeModel> selectedPaymentTypes = <PaymentTypeModel>[].obs;
   Rx<BankModel?> selectedBank = BankModel().obs;
-  RxList<PaymentReceivedModel> paymentReceivedList = <PaymentReceivedModel>[].obs;
+  RxList<PaymentReceivedModel> paymentReceivedList =
+      <PaymentReceivedModel>[].obs;
   RxList<PaymentTypeModel> paymentTypesList = <PaymentTypeModel>[].obs;
   RxList<PaymentTypeModel> filteredPaymentTypesList = <PaymentTypeModel>[].obs;
   var isPaymentTypeSelected = false.obs;
-  final TextEditingController amountPaidTextEditingController = TextEditingController();
+  final TextEditingController amountPaidTextEditingController =
+      TextEditingController();
   RxDouble totalCostInBaseCurrency = 0.0.obs;
   RxDouble totalCostInSelectedCurrency = 0.0.obs;
   RxDouble totalTaxInBaseCurrency = 0.0.obs;
@@ -53,14 +57,18 @@ class CustomerController extends GetxController {
   late GetStorage box;
   final LocalStorageService _localStorageService = LocalStorageService();
   final TextEditingController nameEditingController = TextEditingController();
-  final TextEditingController payAccAmtEditingController = TextEditingController();
+  final TextEditingController payAccAmtEditingController =
+      TextEditingController();
   final TextEditingController accNoEditingController = TextEditingController();
-  final TextEditingController mobileNumberEditingController = TextEditingController();
+  final TextEditingController mobileNumberEditingController =
+      TextEditingController();
   final TextEditingController emailEditingController = TextEditingController();
-  final TextEditingController descriptionEditingController = TextEditingController();
+  final TextEditingController descriptionEditingController =
+      TextEditingController();
   final TextEditingController vatEditingController = TextEditingController();
   final TextEditingController tinEditingController = TextEditingController();
-  final TextEditingController addressEditingController = TextEditingController();
+  final TextEditingController addressEditingController =
+      TextEditingController();
   final CartController cartController = Get.put(CartController());
   Rx<CustomerModel?> selectedCustomer = CustomerModel().obs;
   var payAccAMt = 0.00.obs;
@@ -74,8 +82,12 @@ class CustomerController extends GetxController {
   var vat = "".obs;
   var tin = "".obs;
   var address = "".obs;
+  var nfcCardId = "".obs;
+  var nfcCardType = "".obs;
   GlobalKey<FormState> formKeyForm = GlobalKey<FormState>();
 
+  // NFC Service
+  final NfcService _nfcService = Get.put(NfcService());
 
   @override
   Future<void> onInit() async {
@@ -83,7 +95,7 @@ class CustomerController extends GetxController {
     box = GetStorage();
     var model = box.read(AppConstants.USER_INFO) ?? {};
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
-    isInternetAccess.value =  await _connectivityService.checkServerConnection();
+    isInternetAccess.value = await _connectivityService.checkServerConnection();
     List<CustomerModel> customers = loadCustomers(box);
     allCustomers.value = customers;
     filteredCustomers.value = customers;
@@ -94,10 +106,10 @@ class CustomerController extends GetxController {
     List<PaymentTypeModel> tempList = getOfflinePaymentTypeList(box);
     paymentTypesList.value = tempList;
     filteredPaymentTypesList.value = tempList;
-    print(filteredPaymentTypesList.map((f)=> f.name! + ","));
+    print(filteredPaymentTypesList.map((f) => f.name! + ","));
     onCurrencyChange(selectedCurrency.value!);
-
   }
+
   void filterCustomers(String query) {
     print(query);
     searchQuery.value = query;
@@ -105,33 +117,37 @@ class CustomerController extends GetxController {
       final name = cus.name!.toLowerCase() ?? '';
 
       var mobilePhone = '';
-      if(cus.mobilePhone != null){
-         mobilePhone = cus.mobilePhone!.toString().toLowerCase();
+      if (cus.mobilePhone != null) {
+        mobilePhone = cus.mobilePhone!.toString().toLowerCase();
       }
       final lowerQuery = query.toLowerCase();
       return name.contains(lowerQuery) || mobilePhone.contains(lowerQuery);
     }).toList();
   }
-  List<CustomerModel> loadCustomers( GetStorage box) {
-    List<CustomerModel> list = _localStorageService.getOfflineList<CustomerModel>(
-        AppConstants.CUSTOMER_LIST,
+
+  List<CustomerModel> loadCustomers(GetStorage box) {
+    List<CustomerModel> list =
+        _localStorageService.getOfflineList<CustomerModel>(
+            AppConstants.CUSTOMER_LIST,
             (map) => CustomerModel.fromMap(map),
-        box);
-    return list;
-  }
-  List<PaymentReceivedModel> loadPaymentReceived( GetStorage box) {
-    List<PaymentReceivedModel> list = _localStorageService.getOfflineList<PaymentReceivedModel>(
-        AppConstants.PAYMENT_RECEIVED_LIST,
-            (map) => PaymentReceivedModel.fromMap(map),
-        box);
+            box);
     return list;
   }
 
-  saveCustomerInfo(){
+  List<PaymentReceivedModel> loadPaymentReceived(GetStorage box) {
+    List<PaymentReceivedModel> list =
+        _localStorageService.getOfflineList<PaymentReceivedModel>(
+            AppConstants.PAYMENT_RECEIVED_LIST,
+            (map) => PaymentReceivedModel.fromMap(map),
+            box);
+    return list;
+  }
+
+  saveCustomerInfo() {
     GetStorage bb = GetStorage();
     var branchModel = bb.read(AppConstants.SELECTED_BRANCH) ?? {};
-    int count  = allCustomers.length + 1;
-    if(!allCustomers.any((customer)=>customer.name == name.value)) {
+    int count = allCustomers.length + 1;
+    if (!allCustomers.any((customer) => customer.name == name.value)) {
       String ref = AppConstants.getDateNowRef("CUS", count);
       BaseNameModel branch =
           BaseNameModel.fromMap(Map<String, dynamic>.from(branchModel));
@@ -147,7 +163,9 @@ class CustomerController extends GetxController {
           taxNumber: vat.value,
           street: address.value,
           tinNumber: tin.value,
-          accountNumber: accountNumber.value);
+          accountNumber: accountNumber.value,
+          nfcCardId: nfcCardId.value,
+          nfcCardType: nfcCardType.value);
       List<CustomerModel> customers = allCustomers.value;
       customers.add(customerModel);
       allCustomers.value = customers;
@@ -157,19 +175,20 @@ class CustomerController extends GetxController {
       Get.snackbar("New Customer", "Customer Saved Successfully",
           snackPosition: SnackPosition.BOTTOM);
       clearForm();
-    }else{
+    } else {
       Get.snackbar("Error", "Customer Already Exists",
           snackPosition: SnackPosition.BOTTOM);
     }
   }
 
-  savePayment(){
+  savePayment() {
     print("Saving payment");
     CustomerModel customer = selectedCustomer.value!;
     GetStorage bb = GetStorage();
     PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
         id: null,
-        dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
+        dateTime:
+            DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
         amount: payAccAMt.value,
         amountPaid: double.parse(payAccAmtEditingController.text),
         paymentType: selectedPaymentType.value,
@@ -182,24 +201,30 @@ class CustomerController extends GetxController {
     prlist.add(paymentReceivedModel);
     paymentReceivedList.value = prlist;
     List<Map<String, dynamic>> itemsListMap =
-    prlist.map((item) => item.toMap()).toList();
+        prlist.map((item) => item.toMap()).toList();
     bb.write(AppConstants.PAYMENT_RECEIVED_LIST, itemsListMap);
     Get.snackbar("New Payment", "Payment Saved Successfully",
         snackPosition: SnackPosition.BOTTOM);
     var index = allCustomers.indexOf(customer);
     print(double.parse(payAccAmtEditingController.text));
-    if(customer.currencyBalance==null || customer.currencyBalance!.isEmpty) {
-      CustomerCurrencyAmount currencyAmount = CustomerCurrencyAmount(currency: selectedCurrency.value!, balance: double.parse(payAccAmtEditingController.text),
+    if (customer.currencyBalance == null || customer.currencyBalance!.isEmpty) {
+      CustomerCurrencyAmount currencyAmount = CustomerCurrencyAmount(
+        currency: selectedCurrency.value!,
+        balance: double.parse(payAccAmtEditingController.text),
       );
       customer.currencyBalance!.add(currencyAmount);
-    } else{
-      var prev = customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance;
-      customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance = (prev! + double.parse(payAccAmtEditingController.text));
+    } else {
+      var prev = customer.currencyBalance!
+          .firstWhere((cd) => cd.currency.id == selectedCurrency.value!.id)
+          .balance;
+      customer.currencyBalance!
+          .firstWhere((cd) => cd.currency.id == selectedCurrency.value!.id)
+          .balance = (prev! + double.parse(payAccAmtEditingController.text));
     }
     allCustomers[index] = customer;
     List<CustomerModel> customers = allCustomers.value;
     List<Map<String, dynamic>> customersListMap =
-    customers.map((item) => item.toMap()).toList();
+        customers.map((item) => item.toMap()).toList();
     box.write(AppConstants.CUSTOMER_LIST, customersListMap);
     cartController.refreshCustomers();
     Navigator.of(Get.overlayContext!).pop();
@@ -211,34 +236,41 @@ class CustomerController extends GetxController {
     clearForm();
   }
 
-  setLoyalCustomer( CustomerModel customer){
+  setLoyalCustomer(CustomerModel customer) {
     GetStorage bb = GetStorage();
-    int? index =  allCustomers.indexOf((customer));
+    int? index = allCustomers.indexOf((customer));
     customer.isLoyalCustomer = true;
     customer.updated = true;
     List<CustomerModel> customers = allCustomers.value;
     customers[index] = customer;
     allCustomers.value = customers;
     filteredCustomers.value = customers;
-    List<Map<String, dynamic>> itemsListMap = customers.map((item) => item.toMap()).toList();
+    List<Map<String, dynamic>> itemsListMap =
+        customers.map((item) => item.toMap()).toList();
     bb.write(AppConstants.CUSTOMER_LIST, itemsListMap);
     allCustomers.refresh();
     filteredCustomers.refresh();
-    Get.snackbar("Edit Customer", "Customer updated Successfully", snackPosition: SnackPosition.BOTTOM);
+    Get.snackbar("Edit Customer", "Customer updated Successfully",
+        snackPosition: SnackPosition.BOTTOM);
     clearForm();
   }
-  updateCustomerInfo(){
+
+  updateCustomerInfo() {
     GetStorage bb = GetStorage();
-    CustomerModel? customer =  allCustomers.firstWhereOrNull((customer)=> customer.name == name.value);
+    CustomerModel? customer = allCustomers
+        .firstWhereOrNull((customer) => customer.name == name.value);
     var index = allCustomers.indexOf(customer);
     print(customer!.name);
-    if(customer!=null && allCustomers.any((customer)=>customer.name == name.value)){
+    if (customer != null &&
+        allCustomers.any((customer) => customer.name == name.value)) {
       customer.name = name.value;
       customer.accountNumber = accountNumber.value;
       customer.taxNumber = vat.value;
       customer.tinNumber = tin.value;
       customer.email = email.value;
       customer.mobilePhone = mobilePhone.value;
+      customer.nfcCardId = nfcCardId.value;
+      customer.nfcCardType = nfcCardType.value;
       customer.updated = true;
     }
     print(customer.accountNumber);
@@ -248,12 +280,15 @@ class CustomerController extends GetxController {
     filteredCustomers.value = customers;
     allCustomers.refresh();
     filteredCustomers.refresh();
-    List<Map<String, dynamic>> itemsListMap = customers.map((item) => item.toMap()).toList();
+    List<Map<String, dynamic>> itemsListMap =
+        customers.map((item) => item.toMap()).toList();
     bb.write(AppConstants.CUSTOMER_LIST, itemsListMap);
-    Get.snackbar("Edit Customer", "Customer updated Successfully", snackPosition: SnackPosition.BOTTOM);
+    Get.snackbar("Edit Customer", "Customer updated Successfully",
+        snackPosition: SnackPosition.BOTTOM);
     Navigator.of(Get.overlayContext!).pop();
     clearForm();
   }
+
   void showConfirmDialogToSaveCustomer() {
     Get.defaultDialog(
       title: "Confirmation",
@@ -267,14 +302,14 @@ class CustomerController extends GetxController {
         saveCustomerInfo();
         cartController.refreshCustomers();
         Navigator.of(Get.overlayContext!).pop();
-       // Get.back();
+        // Get.back();
       },
     );
   }
 
-
-  Future<void>  getCustomers(UserModel user, GetStorage box, String companyId) async{
-    if(isInternetAccess.value==true) {
+  Future<void> getCustomers(
+      UserModel user, GetStorage box, String companyId) async {
+    if (isInternetAccess.value == true) {
       var response = await BaseHttpClient()
           .getAuthWithCompanyHeader("/customer/get-all", companyId)
           .catchError((onError) {
@@ -295,42 +330,41 @@ class CustomerController extends GetxController {
         // showSnackBar("Message", "Customers downloaded successfully");
         box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
       }
-    }
-    else {
-      allCustomers = _localStorageService.getOfflineList<CustomerModel>(
-          AppConstants.CUSTOMER_LIST,
-          (map) => CustomerModel.fromMap(map),
-          box
-      ).obs;
+    } else {
+      allCustomers = _localStorageService
+          .getOfflineList<CustomerModel>(AppConstants.CUSTOMER_LIST,
+              (map) => CustomerModel.fromMap(map), box)
+          .obs;
     }
     allCustomers.refresh();
     filteredCustomers = allCustomers;
     filteredCustomers.refresh();
   }
 
-
   List<CurrencyModel> getOfflineCurrencyList(GetStorage box) {
     // Read the data as a List<dynamic>
-    List<dynamic>? itemsListDynamic = box.read<List<dynamic>>(AppConstants.CURRENCY_LIST);
+    List<dynamic>? itemsListDynamic =
+        box.read<List<dynamic>>(AppConstants.CURRENCY_LIST);
     // Check if the read data is not null
     if (itemsListDynamic != null) {
       // Convert the List<dynamic> to List<Map<String, dynamic>>
       List<Map<String, dynamic>> itemsListMap = itemsListDynamic.map((item) {
         return item as Map<String, dynamic>;
       }).toList();
-      List<CurrencyModel> currencies   =  List<CurrencyModel>.from(itemsListMap.map((map) => CurrencyModel.fromMap(map)));
+      List<CurrencyModel> currencies = List<CurrencyModel>.from(
+          itemsListMap.map((map) => CurrencyModel.fromMap(map)));
       currencyList.value = currencies;
       var currencyId = box.read(AppConstants.DEFAULT_CURRENCY_ID) ?? "";
-      for(var cur in currencies)  {
-        if(cur.isBaseCurrency!){
+      for (var cur in currencies) {
+        if (cur.isBaseCurrency!) {
           selectedCurrency.value = cur;
           baseCurrency.value = cur;
           isCurrencySelected.value = true;
           // onCurrencyChange(cur);
         }
       }
-      for(var cur in currencies)  {
-        if(cur.id == currencyId){
+      for (var cur in currencies) {
+        if (cur.id == currencyId) {
           selectedCurrency.value = cur;
           isCurrencySelected.value = true;
         }
@@ -340,16 +374,19 @@ class CustomerController extends GetxController {
       return [];
     }
   }
+
   List<PaymentTypeModel> getOfflinePaymentTypeList(GetStorage box) {
     // Read the data as a List<dynamic>
-    List<dynamic>? itemsListDynamic = box.read<List<dynamic>>(AppConstants.PAYMENT_TYPE_LIST);
+    List<dynamic>? itemsListDynamic =
+        box.read<List<dynamic>>(AppConstants.PAYMENT_TYPE_LIST);
     // Check if the read data is not null
     if (itemsListDynamic != null) {
       // Convert the List<dynamic> to List<Map<String, dynamic>>
       List<Map<String, dynamic>> itemsListMap = itemsListDynamic.map((item) {
         return item as Map<String, dynamic>;
       }).toList();
-      List<PaymentTypeModel>  list =  List<PaymentTypeModel>.from(itemsListMap.map((map) => PaymentTypeModel.fromMap(map)));
+      List<PaymentTypeModel> list = List<PaymentTypeModel>.from(
+          itemsListMap.map((map) => PaymentTypeModel.fromMap(map)));
 
       return list;
     } else {
@@ -369,31 +406,34 @@ class CustomerController extends GetxController {
     formKeyForm.currentState?.reset();
   }
 
-
-  onChangePaymentType(PaymentTypeModel paymentType, bool multiple){
+  onChangePaymentType(PaymentTypeModel paymentType, bool multiple) {
     isPaymentTypeSelected.value = true;
     selectedPaymentType.value = paymentType;
-    if(!multiple) {
+    if (!multiple) {
       selectedPaymentTypes.clear();
     }
     selectedPaymentTypes.add(paymentType);
     selectCorrectBank();
   }
-  onCurrencyChange(CurrencyModel newValue){
+
+  onCurrencyChange(CurrencyModel newValue) {
     isCurrencySelected.value = true;
     selectedCurrency.value = newValue;
     isPaymentTypeSelected.value = false;
-    double totalCostInSelCurrency = totalCostInBaseCurrency.value * newValue.rate!;
-    double totalTaxInSelCurrency = totalTaxInBaseCurrency.value * newValue.rate!;
+    double totalCostInSelCurrency =
+        totalCostInBaseCurrency.value * newValue.rate!;
+    double totalTaxInSelCurrency =
+        totalTaxInBaseCurrency.value * newValue.rate!;
     totalCostInSelectedCurrency.value = totalCostInSelCurrency;
     totalTaxInSelectedCurrency.value = totalTaxInSelCurrency;
     filterPaymentTypes(newValue, selectedCustomer.value!);
-    selectedPaymentType.value = filteredPaymentTypesList.firstWhere((pt)=> pt.name == "ACC-${newValue.name}");
+    selectedPaymentType.value = filteredPaymentTypesList
+        .firstWhere((pt) => pt.name == "ACC-${newValue.name}");
     selectCorrectBank();
-
   }
 
-  void filterPaymentTypes(CurrencyModel selectedCurrency, CustomerModel selectedCus) {
+  void filterPaymentTypes(
+      CurrencyModel selectedCurrency, CustomerModel selectedCus) {
     List<PaymentTypeModel> tempList = [];
     if (selectedCurrency.name != null) {
       for (PaymentTypeModel pt in paymentTypesList) {
@@ -404,15 +444,15 @@ class CustomerController extends GetxController {
       }
     }
     // If the customer is 'WalkIn', filter out payment types containing 'credit'
-    if (selectedCus.name != null && selectedCus.name!.toLowerCase() == 'walkin') {
-      tempList = tempList
-          .where((type) => !type.isCredit!)
-          .toList();
+    if (selectedCus.name != null &&
+        selectedCus.name!.toLowerCase() == 'walkin') {
+      tempList = tempList.where((type) => !type.isCredit!).toList();
     }
     // Assign the filtered results to the reactive list
     filteredPaymentTypesList.value = tempList;
     filteredPaymentTypesList.refresh();
   }
+
   void selectCorrectBank() {
     if (selectedCurrency.value != null && selectedPaymentType.value != null) {
       // Debugging to verify values
@@ -437,6 +477,186 @@ class CustomerController extends GetxController {
     }
   }
 
+  void loadCustomerData(CustomerModel customer) {
+    name.value = customer.name ?? '';
+    email.value = customer.email ?? '';
+    mobilePhone.value = customer.mobilePhone ?? '';
+    accountNumber.value = customer.accountNumber ?? '';
+    description.value = customer.description ?? '';
+    tin.value = customer.tinNumber ?? '';
+    vat.value = customer.taxNumber ?? '';
+    address.value = customer.street ?? '';
+    nfcCardId.value = customer.nfcCardId ?? '';
+    nfcCardType.value = customer.nfcCardType ?? '';
 
+    // Update text controllers
+    nameEditingController.text = name.value;
+    emailEditingController.text = email.value;
+    mobileNumberEditingController.text = mobilePhone.value;
+    accNoEditingController.text = accountNumber.value;
+    descriptionEditingController.text = description.value;
+    tinEditingController.text = tin.value;
+    vatEditingController.text = vat.value;
+    addressEditingController.text = address.value;
+  }
 
+  // NFC Methods
+  Future<void> addCardToCustomer() async {
+    // Check if NFC is available first
+    if (!_nfcService.isNfcAvailable.value) {
+      showCustomerSelectionDialog();
+      return;
+    }
+
+    try {
+      String? cardId = await _nfcService.readNfcCard();
+
+      if (cardId != null) {
+        // Set the card ID as the customer's account number
+        accNoEditingController.text = cardId;
+        nfcCardId.value = cardId;
+        nfcCardType.value = _determineCardType(cardId);
+
+        Get.snackbar(
+          'Card Added',
+          'NFC card ID has been added to customer account number',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: Duration(seconds: 2),
+        );
+      } else {
+        Get.snackbar(
+          'No Card Detected',
+          'Please hold your device near the NFC card',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to read NFC card',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  String _determineCardType(String cardId) {
+    // Determine card type based on card ID pattern
+    if (cardId.startsWith('M1')) {
+      return 'M1';
+    } else if (cardId.startsWith('0202C1')) {
+      return '0202C1';
+    } else {
+      return 'Unknown';
+    }
+  }
+
+  void clearNfcData() {
+    nfcCardId.value = '';
+    nfcCardType.value = '';
+  }
+
+  // Alternative customer selection methods for devices without NFC
+  void showCustomerSelectionDialog() {
+    Get.dialog(
+      AlertDialog(
+        title: Text('Customer Selection'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('NFC is not available on this device.'),
+            SizedBox(height: 10),
+            Text('Please use one of these alternatives:'),
+            SizedBox(height: 10),
+            ListTile(
+              leading: Icon(Icons.search),
+              title: Text('Search Customer'),
+              subtitle: Text('Use the search bar above'),
+              onTap: () => Get.back(),
+            ),
+            ListTile(
+              leading: Icon(Icons.qr_code_scanner),
+              title: Text('Scan Barcode'),
+              subtitle: Text('Use camera to scan customer card'),
+              onTap: () {
+                Get.back();
+                // Navigate to barcode scanner
+                Get.toNamed(AppRoutes.BARCODE_SCANNER,
+                    arguments: {'scanMode': 'customer'});
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.person_add),
+              title: Text('Add New Customer'),
+              subtitle: Text('Create a new customer'),
+              onTap: () {
+                Get.back();
+                Get.toNamed(AppRoutes.CUSTOMER_FORM);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Test NFC availability
+  Future<void> testNfcAvailability() async {
+    try {
+      Map<String, dynamic> nfcInfo = await _nfcService.getNfcHardwareInfo();
+
+      String title = 'NFC Hardware Check';
+      String message = '';
+
+      if (nfcInfo['available']) {
+        if (nfcInfo['enabled']) {
+          title = '✅ NFC Working';
+          message =
+              'NFC is available and enabled on your device.\n\nYou can now use NFC cards for customer selection.';
+        } else {
+          title = '⚠️ NFC Disabled';
+          message =
+              'NFC hardware is detected but not enabled.\n\nPlease enable NFC in your device settings:\n\n1. Settings > Connections > NFC\n2. Settings > Connected devices > NFC\n3. Turn ON "NFC and contactless payments"';
+        }
+      } else {
+        title = '❌ NFC Not Available';
+        message =
+            'Your device does not have NFC hardware or NFC is completely disabled.\n\nThis V2 SE device may not support NFC functionality.\n\nAlternative solutions:\n• Use manual customer search\n• Use barcode scanning\n• Contact your device manufacturer';
+      }
+
+      Get.dialog(
+        AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(
+            child: Text(message),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(),
+              child: Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      Get.snackbar(
+        'NFC Test Error',
+        'Error checking NFC availability',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
 }
