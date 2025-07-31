@@ -1609,6 +1609,96 @@ class SaleScreen extends GetView {
                                                               color: Colors
                                                                   .orange),
                                                         ),
+                                                        cartController.selectedCustomer.value!.isLoyalCustomer == true?
+                                                        Row(
+                                                          children: [
+                                                            Expanded(
+                                                              child: Container(
+                                                                height: 30,
+                                                                child: Obx(() =>
+                                                                    CheckboxListTile(
+                                                                      value: cartController
+                                                                          .addAmtToAcc
+                                                                          .value,
+                                                                      onChanged:
+                                                                          (bool?
+                                                                      value) {
+                                                                        cartController
+                                                                            .addAmtToAcc
+                                                                            .value =
+                                                                            value ??
+                                                                                false;
+                                                                      },
+                                                                    )),
+                                                              ),
+                                                            ),
+                                                            Expanded(
+                                                              child: TextField(
+                                                                controller: cartController
+                                                                    .amtToAccTextEditingController,
+                                                                keyboardType:
+                                                                const TextInputType
+                                                                    .numberWithOptions(
+                                                                    decimal: true),
+                                                                decoration:
+                                                                InputDecoration(
+                                                                    enabledBorder:
+                                                                    OutlineInputBorder(
+                                                                      borderRadius:
+                                                                      BorderRadius
+                                                                          .circular(
+                                                                          8.0),
+                                                                      borderSide:
+                                                                      const BorderSide(
+                                                                        color: Colors
+                                                                            .redAccent,
+                                                                        width: 2.0,
+                                                                      ),
+                                                                    ),
+                                                                    focusedBorder:
+                                                                    OutlineInputBorder(
+                                                                      borderRadius:
+                                                                      BorderRadius
+                                                                          .circular(
+                                                                          8.0),
+                                                                      borderSide:
+                                                                      const BorderSide(
+                                                                        color: Colors
+                                                                            .redAccent,
+                                                                        width: 2.0,
+                                                                      ),
+                                                                    ),
+                                                                    prefixIcon:
+                                                                    const Icon(Icons.monetization_on_outlined
+                                                                        ),
+                                                                    labelText:
+                                                                    "Change TO Acc",
+                                                                    hintText:
+                                                                    "Change TO Acc"),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ):SizedBox(),
+                                                        cartController.selectedCustomer.value!.isLoyalCustomer==true?
+                                                          Row(
+                                                            children: [
+                                                              Text("ACC Bal:",
+                                                            style: TextStyle(
+                                                                fontSize: 20,
+                                                                fontWeight:
+                                                                FontWeight
+                                                                    .bold,
+                                                                color: Colors
+                                                                    .red),
+                                                          ),
+                                                              Text(cartController.selectedCustomer.value!.currencyBalance!.map((bal)=> "${bal.currency.symbol} ${bal.balance!.toStringAsFixed(2)} \n").join(""),
+                                                                style:
+                                                                TextStyle(fontWeight: FontWeight.bold),
+                                                              ),
+                                                            ],
+                                                          )
+                                                            :SizedBox(),
+                                                        // }
                                                       ],
                                                     ),
                                                     Column(

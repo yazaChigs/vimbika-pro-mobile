@@ -72,8 +72,8 @@ class PayAccountFormScreen extends StatelessWidget {
                               }
                               return null;
                             },
-                            onSaved: (value) {
-                              controller.payAccAMt.value = value! as double;
+                            onChanged: (value) {
+                              controller.payAccAMt.value = double.parse(value);
                             }
                         ),
                       ),
@@ -86,10 +86,9 @@ class PayAccountFormScreen extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        if (controller.formKeyForm.currentState!.validate()) {
-                          controller.formKeyForm.currentState!.save(); // Save the form fields
+                        if (controller.selectedCurrency!=null && controller.payAccAmtEditingController.text.isNotEmpty) {
+                          // controller.formKeyForm.currentState!.save(); // Save the form fields
                           controller.savePayment();
-
                         }
                       },
                       child: Text('SAVE'),

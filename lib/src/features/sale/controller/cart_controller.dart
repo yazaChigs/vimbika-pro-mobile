@@ -72,8 +72,8 @@ class CartController extends GetxController {
   RxList<PaymentTypeModel> paymentTypesList = <PaymentTypeModel>[].obs;
   RxList<PaymentTypeModel> filteredPaymentTypesList = <PaymentTypeModel>[].obs;
   var isPaymentTypeSelected = false.obs;
-  final TextEditingController amountPaidTextEditingController =
-      TextEditingController();
+  final TextEditingController amountPaidTextEditingController = TextEditingController();
+  final TextEditingController amtToAccTextEditingController = TextEditingController();
 
   RxDouble totalCostInBaseCurrency = 0.0.obs;
   RxDouble totalCostInSelectedCurrency = 0.0.obs;
@@ -99,6 +99,7 @@ class CartController extends GetxController {
 
   bool sellNilItems = false;
   RxBool isPrintEnabled = false.obs; // Observing the state of the checkbox
+  RxBool addAmtToAcc = false.obs; // Observing the state of the checkbox
   late SettingsModel settingsModel = SettingsModel(sellNilItems: false);
   RxBool isFiscaliseReceiptEnabled = true.obs;
   RxBool isCustomerEmailValid = false.obs;
@@ -331,13 +332,13 @@ class CartController extends GetxController {
         }
       }
     }
+    if(!selectedCus.isLoyalCustomer!??false) {
+      tempList = tempList.where((type)=>!type.name!.startsWith("ACC-")).toList();
+    }
 
     // If the customer is 'WalkIn', filter out payment types containing 'credit'
     if (selectedCus.name != null &&
         selectedCus.name!.toLowerCase() == 'walkin') {
-      // tempList = tempList
-      //     .where((type) => !type.name!.toLowerCase().contains('credit'))
-      //     .toList();
       tempList = tempList.where((type) => !type.isCredit!).toList();
     }
 
@@ -554,6 +555,7 @@ class CartController extends GetxController {
     } else {
       change.value = 0.0;
     }
+    amtToAccTextEditingController.text = change.toStringAsFixed(2);
   }
 
   void showConfirmDialogChargeSale() {
@@ -684,7 +686,11 @@ class CartController extends GetxController {
         emailReceipt: emailReceipt.value,
         totalDiscount: 0,
         ticketName: ticketName,
-        ticketComment: ticketComment);
+        ticketComment: ticketComment,
+      accountPayType: null,
+      pointsUsed: null,
+      amtToAcc: addAmtToAcc.value?double.parse(amtToAccTextEditingController.text):null
+    );
     SaleInfoModel saleInfoModel;
     if (isOnHold) {
       saleInfoModel = SaleInfoModel(sale: sale, syncStatus: true);
@@ -721,9 +727,8 @@ class CartController extends GetxController {
     }
     if (!isOnHold) {
       deductStock();
-      var isCash = selectedPaymentType.value!.name!.startsWith("CASH");
       updateShiftWithNewSale(ref, timeInit, totalCostInSelectedCurrency.value,
-          stat, saleInfoModel.sale!.referenceNumber!, isCash, paymentTypes);
+          stat, saleInfoModel.sale!.referenceNumber!,  paymentTypes);
       infos.add(saleInfoModel);
       if (selectedTicketRef.isNotEmpty) {
         infos.removeWhere((ticket) =>
@@ -732,6 +737,24 @@ class CartController extends GetxController {
       }
       writeSaleInfor(box, infos);
       printCurrentSale(saleInfoModel, box);
+      if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && paymentTypes.any((pt)=> pt.paymentType!.name!.startsWith("ACC-"))){
+        CustomerModel customer = allCustomers.firstWhere((cust)=>cust.name == sale.customer!.name);
+        if(customer!=null) {
+          allCustomers.removeWhere((cust) => cust.name == sale.customer!.name);
+          customer.currencyBalance!
+                  .firstWhere((cb) => cb.currency.id == sale.currency!.id)
+                  .balance =
+              (-paymentTypes
+                  .firstWhere((pt) => pt.paymentType!.name!.startsWith("ACC-"))
+                  .amount!);
+          customer.updated = true;
+          allCustomers.add(customer);
+          List<CustomerModel> customers = allCustomers.value;
+          List<Map<String, dynamic>> itemsListMap =
+              customers.map((item) => item.toMap()).toList();
+          box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
+        }
+      }
     }
     AppHelper.hideLoading();
     cancelSale();
@@ -842,7 +865,6 @@ class CartController extends GetxController {
       double amt,
       bool stat,
       String posReference,
-      bool isCash,
       List<PaymentReceivedModel> paymentTypes) async {
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
         loadShifts(box), box, user.value!, true);
@@ -850,6 +872,7 @@ class CartController extends GetxController {
       activeShift = tempActiveShift;
       shiftAvailable.value = true;
       for (PaymentReceivedModel paymentTypeModel in paymentTypes) {
+        var isCash = paymentTypeModel.paymentType!.name!.startsWith("CASH");
         int count = activeShift.shiftCurrencyAmounts!.length + 1;
         String ref = AppConstants.getDateNowRef("SL_", count);
         CurrencyAmount currencyAmount = CurrencyAmount(

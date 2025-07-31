@@ -10,7 +10,7 @@ class CustomerCurrencyAmount {
     this.active,
     required this.currency,
     this.balance = 0.0,
-    required this.lastTranxDate,
+    this.lastTranxDate,
   });
   String? id;
   String? createdByName;

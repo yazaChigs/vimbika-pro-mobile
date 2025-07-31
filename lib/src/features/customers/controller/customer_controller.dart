@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ffi';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -7,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:meta/meta.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
+import 'package:vimbika_pos_app/src/features/customers/model/customer_currency_amount.dart';
 import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
@@ -162,14 +164,18 @@ class CustomerController extends GetxController {
   }
 
   savePayment(){
+    print("Saving payment");
+    CustomerModel customer = selectedCustomer.value!;
     GetStorage bb = GetStorage();
     PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
         id: null,
         dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
         amount: payAccAMt.value,
+        amountPaid: double.parse(payAccAmtEditingController.text),
         paymentType: selectedPaymentType.value,
-        paymentDescription: "Pay To Account",
+        // paymentDescription: "PAY_ACCOUNT",
         isPaid: true,
+        payer: customer,
         currency: selectedCurrency.value,
         bank: selectedBank.value);
     List<PaymentReceivedModel> prlist = paymentReceivedList.value;
@@ -180,28 +186,72 @@ class CustomerController extends GetxController {
     bb.write(AppConstants.PAYMENT_RECEIVED_LIST, itemsListMap);
     Get.snackbar("New Payment", "Payment Saved Successfully",
         snackPosition: SnackPosition.BOTTOM);
+    var index = allCustomers.indexOf(customer);
+    print(double.parse(payAccAmtEditingController.text));
+    if(customer.currencyBalance==null || customer.currencyBalance!.isEmpty) {
+      CustomerCurrencyAmount currencyAmount = CustomerCurrencyAmount(currency: selectedCurrency.value!, balance: double.parse(payAccAmtEditingController.text),
+      );
+      customer.currencyBalance!.add(currencyAmount);
+    } else{
+      var prev = customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance;
+      customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance = (prev! + double.parse(payAccAmtEditingController.text));
+    }
+    allCustomers[index] = customer;
+    List<CustomerModel> customers = allCustomers.value;
+    List<Map<String, dynamic>> customersListMap =
+    customers.map((item) => item.toMap()).toList();
+    box.write(AppConstants.CUSTOMER_LIST, customersListMap);
+    cartController.refreshCustomers();
+    Navigator.of(Get.overlayContext!).pop();
+    print("new acc: ${customer.toJson()}");
+    allCustomers.refresh();
+    filteredCustomers.value = allCustomers.value;
+    filteredCustomers.refresh();
+    selectedCustomer.value = null;
     clearForm();
-
   }
 
+  setLoyalCustomer( CustomerModel customer){
+    GetStorage bb = GetStorage();
+    int? index =  allCustomers.indexOf((customer));
+    customer.isLoyalCustomer = true;
+    customer.updated = true;
+    List<CustomerModel> customers = allCustomers.value;
+    customers[index] = customer;
+    allCustomers.value = customers;
+    filteredCustomers.value = customers;
+    List<Map<String, dynamic>> itemsListMap = customers.map((item) => item.toMap()).toList();
+    bb.write(AppConstants.CUSTOMER_LIST, itemsListMap);
+    allCustomers.refresh();
+    filteredCustomers.refresh();
+    Get.snackbar("Edit Customer", "Customer updated Successfully", snackPosition: SnackPosition.BOTTOM);
+    clearForm();
+  }
   updateCustomerInfo(){
     GetStorage bb = GetStorage();
-    var branchModel = bb.read(AppConstants.SELECTED_BRANCH) ?? {};
     CustomerModel? customer =  allCustomers.firstWhereOrNull((customer)=> customer.name == name.value);
-    if(customer!=null && !allCustomers.any((customer)=>customer.name == name.value)){
+    var index = allCustomers.indexOf(customer);
+    print(customer!.name);
+    if(customer!=null && allCustomers.any((customer)=>customer.name == name.value)){
       customer.name = name.value;
       customer.accountNumber = accountNumber.value;
       customer.taxNumber = vat.value;
       customer.tinNumber = tin.value;
       customer.email = email.value;
       customer.mobilePhone = mobilePhone.value;
+      customer.updated = true;
     }
+    print(customer.accountNumber);
+    allCustomers[index] = customer;
     List<CustomerModel> customers = allCustomers.value;
-    customers.add(customer!);
     allCustomers.value = customers;
+    filteredCustomers.value = customers;
+    allCustomers.refresh();
+    filteredCustomers.refresh();
     List<Map<String, dynamic>> itemsListMap = customers.map((item) => item.toMap()).toList();
     bb.write(AppConstants.CUSTOMER_LIST, itemsListMap);
     Get.snackbar("Edit Customer", "Customer updated Successfully", snackPosition: SnackPosition.BOTTOM);
+    Navigator.of(Get.overlayContext!).pop();
     clearForm();
   }
   void showConfirmDialogToSaveCustomer() {
@@ -253,6 +303,9 @@ class CustomerController extends GetxController {
           box
       ).obs;
     }
+    allCustomers.refresh();
+    filteredCustomers = allCustomers;
+    filteredCustomers.refresh();
   }
 
 

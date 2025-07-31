@@ -46,7 +46,12 @@ class TicketListScreen extends StatelessWidget {
             ),
             Expanded(
               child: Obx(() {
-                return ListView.builder(
+                return GridView.builder(gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 3.0,
+                    mainAxisSpacing: 3.0,
+                    childAspectRatio: 1.6,
+                ),
                   itemCount: ticketController.filteredTickets.length,
                   itemBuilder: (context, index) {
                     var item = ticketController.filteredTickets[index];
@@ -59,111 +64,120 @@ class TicketListScreen extends StatelessWidget {
                       margin: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  item.sale!.ticketName ?? 'Unknown Name',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                                Column(
+                        child: Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      "OPEN",
+                                      item.sale!.ticketName ?? 'Unknown Name',
                                       style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.black,
                                       ),
                                     ),
-                                    Text(
-                                      '${item.sale!.currency?.symbol} ${item!.sale!.amountPaid!.toStringAsFixed(2) ?? 0} ',  // Assuming amount is added to the TicketModel
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.green,
+                                    Expanded(
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            "OPEN",
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${item.sale!.currency?.symbol} ${item!.sale!.amountPaid!.toStringAsFixed(2) ?? 0} ',  // Assuming amount is added to the TicketModel
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.green,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
-                            SizedBox(height: 4),
+                              ),
+                              SizedBox(height: 4),
 
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  "${itemsText?.join(' ')}",
-                                  style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold,fontStyle: FontStyle.italic,color: Colors.indigo),
-                                ),
-                                Column(
+                              Expanded(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      'Opened At: ${item.sale!.timeIniated ?? 'N/A'}',
-                                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                      "${itemsText?.join(' ')}",
+                                      style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold,fontStyle: FontStyle.italic,color: Colors.indigo),
                                     ),
-                                    SizedBox(height: 4),
+                                    Expanded(
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            'Opened At: ${item.sale!.timeIniated ?? 'N/A'}',
+                                            style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                          ),
 
-                                    Text(
-                                      'Sale Status: ${item.sale!.saleStatus ?? 'N/A'}',
-                                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                                    ),
-                                    SizedBox(height: 4),
-                                    if (item.sale!.ticketComment != null && item.sale!.ticketComment!.isNotEmpty)
-                                      Text(
-                                        'Comment: ${item.sale!.ticketComment}',
-                                        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                          Text(
+                                            'Sale Status: ${item.sale!.saleStatus ?? 'N/A'}',
+                                            style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                          ),
+                                          if (item.sale!.ticketComment != null && item.sale!.ticketComment!.isNotEmpty)
+                                            Text(
+                                              'Comment: ${item.sale!.ticketComment}',
+                                              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                            ),
+                                          Text(
+                                            'Reference: ${item.sale!.referenceNumber ?? 'N/A'}',
+                                            style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                          ),
+                                        ],
+
                                       ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'Reference: ${item.sale!.referenceNumber ?? 'N/A'}',
-                                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                    ),
+
+                                  ],
+                                ),
+                              ),
+                              Divider(thickness: 1, height: 20),
+                              Expanded(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    TextButton(
+                                      onPressed: () {
+                                        // Add delete action here
+                                        ticketController.showConfirmDialogToDeleteItem(item.sale!.referenceNumber ?? "", item.sale!.id ?? "");
+                                      },
+                                      child: Text(
+                                        'Delete',
+                                        style: TextStyle(color: Colors.redAccent),
+                                      ),
+                                    ),
+                                    SizedBox(width: 10),
+
+                                    Visibility(
+                                      visible:  item.sale!.saleStatus == "ON_HOLD",
+                                      child: ElevatedButton(
+                                        onPressed: () {
+                                          ticketController.selectTicketAction(item);
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                                        ),
+                                        child: Text('Select'),
+                                      ),
                                     ),
                                   ],
-
                                 ),
-
-                              ],
-                            ),
-                            Divider(thickness: 1, height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                TextButton(
-                                  onPressed: () {
-                                    // Add delete action here
-                                    ticketController.showConfirmDialogToDeleteItem(item.sale!.referenceNumber ?? "", item.sale!.id ?? "");
-                                  },
-                                  child: Text(
-                                    'Delete',
-                                    style: TextStyle(color: Colors.redAccent),
-                                  ),
-                                ),
-                                SizedBox(width: 10),
-
-                                Visibility(
-                                  visible:  item.sale!.saleStatus == "ON_HOLD",
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      ticketController.selectTicketAction(item);
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-                                    ),
-                                    child: Text('Select'),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );

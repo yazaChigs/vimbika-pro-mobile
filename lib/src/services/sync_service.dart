@@ -5,6 +5,7 @@ import 'dart:ffi';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:http/http.dart';
 import 'package:intl/intl.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
@@ -299,13 +300,22 @@ class SyncService {
         AppConstants.CUSTOMER_LIST,
             (map) => CustomerModel.fromMap(map),
         box);
-    customers = customers.where((customer) => customer.id == null).toList();
-    print(customers.length);
+    print("updated customers: ${customers.any((c)=>c.updated ?? false)}");
+    customers = customers.where((customer) => customer.id == null || (customer.updated ?? false)).toList();
     for(CustomerModel customerModel in customers) {
+      var url = "";
+      var method = "";
+      if(customerModel.updated ?? false) {
+        url = "/customer/update";
+        method ="PUT";
+      } else {
+        url = "/customer/save";
+        method ="POST";
+      }
       String jsonSaleItems = customerModel.toJson();
       var response = await BaseHttpClient()
-          .postAuthWithCompanyHeader("/customer/save",
-              jsonSaleItems, user.companyId!, "POST")
+          .postAuthWithCompanyHeader(url,
+              jsonSaleItems, user.companyId!, method)
           .catchError((onError) {
         //AppHelper.hideLoading();
         if (onError is BadRequestException) {

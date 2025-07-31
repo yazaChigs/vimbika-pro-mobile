@@ -59,7 +59,10 @@ class SaleModel {
     this.zeroRatedTotal,
     this.receiptQrCode,
     this.receiptQrData,
-    this.paymentTypes
+    this.paymentTypes,
+    this.accountPayType,
+    this.amtToAcc,
+    this.pointsUsed,
 
   });
 
@@ -101,6 +104,9 @@ class SaleModel {
   bool? fiscalized;
   bool? onHold;
   double? taxAmount;
+  double? amtToAcc;
+  double? pointsUsed;
+  String? accountPayType;
   bool? emailReceipt;
   bool? isWalkInCustomer;
   String? receiptQrData;
@@ -118,6 +124,9 @@ class SaleModel {
     saleStatus: json["saleStatus"],
     onHold: json["onHold"],
     amountPaid: json["amountPaid"],
+    amtToAcc: json["amtToAcc"],
+    pointsUsed: json["pointsUsed"],
+    accountPayType: json["accountPayType"],
     totalQuantity: json["totalQuantity"],
     saleCost: json["saleCost"],
     totalTaxAmount: json["totalTaxAmount"],
@@ -166,6 +175,9 @@ class SaleModel {
     "amountPaid": amountPaid,
     "totalTaxAmount": totalTaxAmount,
     "taxAmount": taxAmount,
+    "accountPayType": accountPayType,
+    "pointsUsed": pointsUsed,
+    "amtToAcc": amtToAcc,
     "zeroRatedTotal": zeroRatedTotal,
     "baseSaleAmount": baseSaleAmount,
     "totalDiscount": totalDiscount,

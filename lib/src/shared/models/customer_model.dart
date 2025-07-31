@@ -40,7 +40,7 @@ class CustomerModel {
   bool? isLoyalCustomer;
   String? accountNumber;
   double? points;
-  bool updated;
+  bool? updated;
   List<CustomerCurrencyAmount>? currencyBalance;
 
   factory CustomerModel.fromJson(String str) => CustomerModel.fromMap(json.decode(str));
@@ -60,6 +60,7 @@ class CustomerModel {
     tinNumber: json["tinNumber"],
     taxNumber: json["taxNumber"],
     street: json["street"],
+    updated: json["updated"],
     isLoyalCustomer: json["isLoyalCustomer"],
     accountNumber: json["accountNumber"],
     points: json["points"],
@@ -78,6 +79,7 @@ class CustomerModel {
     "tinNumber": tinNumber,
     "taxNumber": taxNumber,
     "street": street,
+    "updated": updated,
     "points": points,
     "accountNumber": accountNumber,
     "isLoyalCustomer": isLoyalCustomer,

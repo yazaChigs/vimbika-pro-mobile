@@ -281,6 +281,7 @@ class SaleController extends GetxController {
     // await syncOfflineSales();
     // print("syncing tickets..");
      //await SyncService.syncOfflineTickets(user, box);
+    await SyncService.savePaymentReceived(user, box);
     print("syncing shifts..");
     await SyncService.syncOfflineShifts(user, box);
     print("syncing currencies..");
@@ -290,9 +291,9 @@ class SaleController extends GetxController {
     print("syncing new Customers..");
     await SyncService.saveCustomer(user, box);
     print("syncing new Payments..");
-    await SyncService.savePaymentReceived(user, box);
     await SyncService.getCustomers(user, box,user.companyId!);
     AppHelper.hideLoading();
+    cartController.refreshCustomers();
   }
   void clearFilters() {
     selectedCategory.value = BaseNameModel();

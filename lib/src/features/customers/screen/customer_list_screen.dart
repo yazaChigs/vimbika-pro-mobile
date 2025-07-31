@@ -92,6 +92,8 @@ class CustomerListScreen extends StatelessWidget {
                       elevation: 4,
                       // margin: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                     child: ListTile(
+                      leading: customer.isLoyalCustomer! ?
+                      Expanded(child: IconButton(onPressed: (){}, icon: Icon(Icons.check,size: 40,color: Colors.green,))) : SizedBox(),
                       title:
                         Text(
                           customer.name ?? 'Unknown Name',
@@ -120,33 +122,51 @@ class CustomerListScreen extends StatelessWidget {
                         ],
                       ),
                       trailing:
-                      PopupMenuButton(
-                        onSelected: (result){
-                        },
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                            child: Text("Edit"),
-                            value: 0,
-                            onTap: () {
-                              customerController.nameEditingController.text = customer.name ??"";
-                              customerController.addressEditingController.text = customer.street ??"";
-                              customerController.emailEditingController.text = customer.email ??"";
-                              customerController.mobileNumberEditingController.text = customer.mobilePhone ??"";
-                              customerController.accNoEditingController.text = customer.accountNumber ??"";
-                              customerController.selectedCustomer.value = customer;
-                              customerController.editCustomer.value = true;
-                              Get.toNamed(AppRoutes.CUSTOMER_FORM);
-                            },
-                          ),
-                          PopupMenuItem(
-                            child: Text("Credit Account"),
-                            value: 1,
-                            onTap: () {
-                              Get.toNamed(AppRoutes.PAY_ACC_FORM);
-                            },
-
-                          ),
-                        ],
+                      Expanded(
+                        child: PopupMenuButton(
+                          onSelected: (result){
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              child: ListTile(
+                                leading: Icon(Icons.edit),
+                                  title: Text("Edit")
+                              ),
+                              value: 0,
+                              onTap: () {
+                                customerController.nameEditingController.text = customer.name ??"";
+                                customerController.addressEditingController.text = customer.street ??"";
+                                customerController.emailEditingController.text = customer.email ??"";
+                                customerController.mobileNumberEditingController.text = customer.mobilePhone ??"";
+                                customerController.accNoEditingController.text = customer.accountNumber ??"";
+                                customerController.selectedCustomer.value = customer;
+                                customerController.editCustomer.value = true;
+                                Get.toNamed(AppRoutes.CUSTOMER_FORM);
+                              },
+                            ),
+                            !customer.isLoyalCustomer! ? PopupMenuItem(
+                              child: ListTile(
+                                  leading: Icon(Icons.account_box),
+                                  title: Text("Set AS Loyal Customer")
+                              ),
+                              value: 1,
+                              onTap: () {
+                                customerController.setLoyalCustomer(customer);
+                              },
+                            ):
+                            PopupMenuItem(
+                              child: ListTile(
+                                leading: Icon(Icons.credit_card_outlined),
+                                  title: Text("Credit Account")
+                              ),
+                              value: 1,
+                              onTap: () {
+                                customerController.selectedCustomer.value = customer;
+                                Get.toNamed(AppRoutes.PAY_ACC_FORM);
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     );
