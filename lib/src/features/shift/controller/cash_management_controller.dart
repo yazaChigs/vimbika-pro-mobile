@@ -32,6 +32,8 @@ class CashManagementController extends GetxController {
   RxDouble amount = 0.0.obs;
   var activeShift = ShiftModel();
   var shiftAvailable = false.obs;
+  var cashInClicked = false.obs;
+  var cashOutClicked = false.obs;
   var comments = "".obs;
   late GetStorage box;
   var shouldViewReceipt = false.obs;
@@ -117,8 +119,11 @@ class CashManagementController extends GetxController {
         Get.back(); // Close the dialog
       },
       onConfirm: () {
-        payInPayOutAction(payType);
-        Get.snackbar("Confirmed", "${payType} is confirmed");
+        if(cashInClicked.isFalse) {
+          cashInClicked.value = true;
+          payInPayOutAction(payType);
+          Get.snackbar("Confirmed", "${payType} is confirmed");
+        }
       },
     );
   }

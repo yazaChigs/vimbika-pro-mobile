@@ -52,6 +52,19 @@ class PrinterSettingsScreen extends StatelessWidget {
                 contentPadding: EdgeInsets.zero,
               )),
 
+              Obx(() => CheckboxListTile(
+                title: Text(
+                  'Use KOT Print',
+                  style: TextStyle(fontSize: 16),
+                ),
+                value: _controller.useKOT.value,
+                onChanged: (value) {
+                  _controller.toggleKOTSettings();
+                },
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              )),
+
               Spacer(),
               Expanded(
                 child: Obx(() {

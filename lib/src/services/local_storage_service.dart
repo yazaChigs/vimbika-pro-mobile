@@ -10,6 +10,7 @@ import 'package:vimbika_pos_app/src/features/stock_requests/model/requisition_mo
 import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_history_model.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
 
 class LocalStorageService {
 
@@ -203,6 +204,20 @@ class LocalStorageService {
       return infos;
     } else{
       List<RequisitionModel> itemsList = <RequisitionModel>[];
+      return itemsList;
+    }
+  }
+  List<CustomerModel> getCustomers(GetStorage box){
+    List<dynamic>? itemsListDynamic = box.read<List<dynamic>>(AppConstants.CUSTOMER_LIST);
+    if(itemsListDynamic != null) {
+      List<Map<String, dynamic>> itemsListMap = itemsListDynamic.map((item) {
+        return item as Map<String, dynamic>;
+      }).toList();
+      List<CustomerModel> infos = List<CustomerModel>.from(
+          itemsListMap.map((map) => CustomerModel.fromMap(map)));
+      return infos;
+    } else{
+      List<CustomerModel> itemsList = <CustomerModel>[];
       return itemsList;
     }
   }

@@ -154,7 +154,7 @@ class SyncService {
 
             List<dynamic> list = jsonDecode(response);
             List<ProductFullInfoModel> itemsList = List<ProductFullInfoModel>.from(list.map((i) => ProductFullInfoModel.fromMap(i)));
-            itemsList.sort((a, b) => b.stock!.compareTo(a.stock!));
+            itemsList.sort((a, b) => b.item!.name!.compareTo(a.item!.name!));
             List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
                 item.toMap()).toList();
             box.write(AppConstants.BRANCH_PRODUCTS, itemsListMap);
@@ -300,12 +300,11 @@ class SyncService {
         AppConstants.CUSTOMER_LIST,
             (map) => CustomerModel.fromMap(map),
         box);
-    print("updated customers: ${customers.any((c)=>c.updated ?? false)}");
     customers = customers.where((customer) => customer.id == null || (customer.updated ?? false)).toList();
     for(CustomerModel customerModel in customers) {
       var url = "";
       var method = "";
-      if(customerModel.updated ?? false) {
+      if((customerModel.updated ?? false) && customerModel.id != null) {
         url = "/customer/update";
         method ="PUT";
       } else {
@@ -395,7 +394,6 @@ class SyncService {
 
   static Future<List<SaleInfoModel>?>  syncTickets(UserModel user, GetStorage box, String companyId, String branchId) async{
     LocalStorageService _localStorageService = LocalStorageService();
-    //print("Getting tickets...");
     var response = await BaseHttpClient().getAuthWithCompanyHeader("/mobile/pos/ticket/list/" + branchId, companyId).catchError((onError){
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
@@ -427,7 +425,6 @@ class SyncService {
     return null;
   }
   static Future<List<TransferHistoryModel>?>  syncTransferHistory(UserModel user, GetStorage box, String companyId, String branchId) async{
-    LocalStorageService _localStorageService = LocalStorageService();
     print("Getting transfer history...");
     var response = await BaseHttpClient().getAuthWithCompanyHeader("/transfer-history/get-transfers/PENDING", companyId).catchError((onError){
       if (onError is BadRequestException) {

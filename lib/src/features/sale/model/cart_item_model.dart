@@ -7,11 +7,13 @@ class CartItemModel {
     required this.product,
     required this.quantity,
     this.usedCodes = const {},
+    this.notes = '',
   });
 
   final ProductFullInfoModel product;
   double quantity;
   Set<String> usedCodes = {};
+  String notes;
 
   double get totalPrice => product.item!.sellingPrice * quantity;
 
@@ -19,6 +21,7 @@ class CartItemModel {
 
   factory CartItemModel.fromMap(Map<String, dynamic> json) => CartItemModel(
     quantity: json["quantity"],
+    notes: json["notes"],
     product: ProductFullInfoModel.fromMap(json["product"]),
     usedCodes: json["usedCodes"] != null
         ? Set<String>.from(json["usedCodes"].map((x) => x.toString()))
@@ -26,6 +29,7 @@ class CartItemModel {
   );
   Map<String, dynamic> toMap() => {
     "quantity": quantity,
+    "notes": notes,
     "product": product.toMap(),
     "usedCodes": usedCodes.isNotEmpty
         ? List<String>.from(usedCodes.map((x) => x.toString()))

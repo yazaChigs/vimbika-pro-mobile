@@ -17,6 +17,7 @@ import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
 import '../../../services/app_exceptions.dart';
 import '../../../services/base_http_client.dart';
 import '../../../shared/models/bank_model.dart';
+import '../../../shared/models/branch_model.dart';
 import '../../../shared/models/currency_model.dart';
 import '../../../shared/models/payment_received_model.dart';
 import '../../../shared/models/payment_type_model.dart';
@@ -82,11 +83,15 @@ class CustomerController extends GetxController {
     super.onInit();
     box = GetStorage();
     var model = box.read(AppConstants.USER_INFO) ?? {};
+    // BranchModel branch = box.read(AppConstants.SELECTED_BRANCH)!;
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     isInternetAccess.value =  await _connectivityService.checkServerConnection();
     List<CustomerModel> customers = loadCustomers(box);
     allCustomers.value = customers;
-    filteredCustomers.value = customers;
+    // if(branch!= null)
+    //   filteredCustomers.value = customers.where((cus) => cus.branch!.name == branch.name).toList();
+    // else
+      filteredCustomers.value = customers;
     List<PaymentReceivedModel> paymentReceiveds = loadPaymentReceived(box);
     paymentReceivedList.value = paymentReceiveds;
 
@@ -108,8 +113,12 @@ class CustomerController extends GetxController {
       if(cus.mobilePhone != null){
          mobilePhone = cus.mobilePhone!.toString().toLowerCase();
       }
+      var accNo = '';
+      if(cus.accountNumber != null){
+         accNo = cus.accountNumber!.toString().toLowerCase();
+      }
       final lowerQuery = query.toLowerCase();
-      return name.contains(lowerQuery) || mobilePhone.contains(lowerQuery);
+      return name.contains(lowerQuery) || mobilePhone.contains(lowerQuery) || accNo.contains(lowerQuery);
     }).toList();
   }
   List<CustomerModel> loadCustomers( GetStorage box) {
@@ -127,7 +136,7 @@ class CustomerController extends GetxController {
     return list;
   }
 
-  saveCustomerInfo(){
+  saveCustomerInfo() async{
     GetStorage bb = GetStorage();
     var branchModel = bb.read(AppConstants.SELECTED_BRANCH) ?? {};
     int count  = allCustomers.length + 1;
@@ -147,16 +156,23 @@ class CustomerController extends GetxController {
           taxNumber: vat.value,
           street: address.value,
           tinNumber: tin.value,
-          accountNumber: accountNumber.value);
-      List<CustomerModel> customers = allCustomers.value;
+          accountNumber: accountNumber.value,
+        currencyBalance: [],
+        updated: true,
+      );
+      List<CustomerModel> customers = _localStorageService.getCustomers(box);
       customers.add(customerModel);
       allCustomers.value = customers;
-      List<Map<String, dynamic>> itemsListMap =
-          customers.map((item) => item.toMap()).toList();
-      bb.write(AppConstants.CUSTOMER_LIST, itemsListMap);
+      filteredCustomers.value = customers;
+      allCustomers.refresh();
+      filteredCustomers.refresh();
+      _localStorageService.writeItems(AppConstants.CUSTOMER_LIST, customers, box);
+      clearForm();
       Get.snackbar("New Customer", "Customer Saved Successfully",
           snackPosition: SnackPosition.BOTTOM);
-      clearForm();
+      Navigator.of(Get.overlayContext!).pop();
+      Get.back();
+      cartController.refreshCustomers();
     }else{
       Get.snackbar("Error", "Customer Already Exists",
           snackPosition: SnackPosition.BOTTOM);
@@ -166,18 +182,25 @@ class CustomerController extends GetxController {
   savePayment(){
     print("Saving payment");
     CustomerModel customer = selectedCustomer.value!;
+    cartController.selectedCustomer.value = selectedCustomer.value;
     GetStorage bb = GetStorage();
+    onCurrencyChange(selectedCurrency.value!);
+    // int count = _localStorageService.getPaymentReceivedList(box).length + 1;
+     var ref = AppConstants.getDateNowRef("OFF", 1);
+     // print(double.parse(payAccAmtEditingController.text));
+
     PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
         id: null,
         dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
-        amount: payAccAMt.value,
+        amount: double.parse(payAccAmtEditingController.text),
         amountPaid: double.parse(payAccAmtEditingController.text),
         paymentType: selectedPaymentType.value,
-        // paymentDescription: "PAY_ACCOUNT",
         isPaid: true,
         payer: customer,
         currency: selectedCurrency.value,
-        bank: selectedBank.value);
+        bank: selectedBank.value
+    );
+    print(paymentReceivedModel.toJson());
     List<PaymentReceivedModel> prlist = paymentReceivedList.value;
     prlist.add(paymentReceivedModel);
     paymentReceivedList.value = prlist;
@@ -187,7 +210,6 @@ class CustomerController extends GetxController {
     Get.snackbar("New Payment", "Payment Saved Successfully",
         snackPosition: SnackPosition.BOTTOM);
     var index = allCustomers.indexOf(customer);
-    print(double.parse(payAccAmtEditingController.text));
     if(customer.currencyBalance==null || customer.currencyBalance!.isEmpty) {
       CustomerCurrencyAmount currencyAmount = CustomerCurrencyAmount(currency: selectedCurrency.value!, balance: double.parse(payAccAmtEditingController.text),
       );
@@ -202,12 +224,17 @@ class CustomerController extends GetxController {
     customers.map((item) => item.toMap()).toList();
     box.write(AppConstants.CUSTOMER_LIST, customersListMap);
     cartController.refreshCustomers();
+    List<PaymentReceivedModel> paymentTypes =[];
+    paymentTypes.add(paymentReceivedModel);
+    print(paymentTypes.length);
+    cartController.updateShiftWithNewSale(ref, paymentReceivedModel.dateTime!, paymentReceivedModel.amount!, isInternetAccess.value,
+        customer.name!, paymentTypes,"CASH_IN",customer.name!);
     Navigator.of(Get.overlayContext!).pop();
-    print("new acc: ${customer.toJson()}");
     allCustomers.refresh();
     filteredCustomers.value = allCustomers.value;
     filteredCustomers.refresh();
     selectedCustomer.value = null;
+    amountPaidTextEditingController.clear();
     clearForm();
   }
 
@@ -222,6 +249,7 @@ class CustomerController extends GetxController {
     filteredCustomers.value = customers;
     List<Map<String, dynamic>> itemsListMap = customers.map((item) => item.toMap()).toList();
     bb.write(AppConstants.CUSTOMER_LIST, itemsListMap);
+    cartController.refreshCustomers();
     allCustomers.refresh();
     filteredCustomers.refresh();
     Get.snackbar("Edit Customer", "Customer updated Successfully", snackPosition: SnackPosition.BOTTOM);
@@ -241,7 +269,6 @@ class CustomerController extends GetxController {
       customer.mobilePhone = mobilePhone.value;
       customer.updated = true;
     }
-    print(customer.accountNumber);
     allCustomers[index] = customer;
     List<CustomerModel> customers = allCustomers.value;
     allCustomers.value = customers;
@@ -264,16 +291,19 @@ class CustomerController extends GetxController {
         Get.back(); // Close the dialog
       },
       onConfirm: () {
+        print("CLICKED");
         saveCustomerInfo();
         cartController.refreshCustomers();
         Navigator.of(Get.overlayContext!).pop();
-       // Get.back();
+       Get.back();
       },
     );
   }
 
 
   Future<void>  getCustomers(UserModel user, GetStorage box, String companyId) async{
+    List<CustomerModel> newCustomer = _localStorageService.getCustomers(box);
+    newCustomer = newCustomer.where((cust)=>cust.updated ?? false).toList();
     if(isInternetAccess.value==true) {
       var response = await BaseHttpClient()
           .getAuthWithCompanyHeader("/customer/get-all", companyId)
@@ -289,6 +319,7 @@ class CustomerController extends GetxController {
         List<dynamic> list = jsonDecode(response);
         List<CustomerModel> itemsList =
             List<CustomerModel>.from(list.map((i) => CustomerModel.fromMap(i)));
+        itemsList.addAll(newCustomer);
         allCustomers.value = itemsList;
         List<Map<String, dynamic>> itemsListMap =
             itemsList.map((item) => item.toMap()).toList();
@@ -304,7 +335,7 @@ class CustomerController extends GetxController {
       ).obs;
     }
     allCustomers.refresh();
-    filteredCustomers = allCustomers;
+    filteredCustomers.value = allCustomers.value;
     filteredCustomers.refresh();
   }
 

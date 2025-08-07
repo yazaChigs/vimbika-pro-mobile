@@ -26,6 +26,7 @@ class PrinterSettingsController extends GetxController {
   var isSearching = false.obs;
 
   RxBool isAlwaysPrintEnabled = false.obs;
+  RxBool useKOT = false.obs;
 
   // PrinterManager _printerManager = PrinterManager.instance;
   var isConnected = false.obs; // Add this to track connection status
@@ -59,6 +60,10 @@ class PrinterSettingsController extends GetxController {
   void toggleDefaultPrintingSettings() {
     isAlwaysPrintEnabled.value = !isAlwaysPrintEnabled.value;
     storage.write(AppConstants.ALWAYS_PRINT,isAlwaysPrintEnabled.value);
+  }
+  void toggleKOTSettings() {
+    useKOT.value = !useKOT.value;
+    storage.write(AppConstants.USE_KOT,useKOT.value);
   }
 
   navigateToNetworkPrinter(PrinterType type)async{

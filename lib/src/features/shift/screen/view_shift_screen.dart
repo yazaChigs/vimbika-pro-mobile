@@ -53,61 +53,68 @@ class ViewShiftScreen extends StatelessWidget {
           body: SingleChildScrollView( // Wrapping with SingleChildScrollView to make content scrollable
             child: Column(
               children: [
-                SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Get.delete<ShiftController>();
-                        Get.toNamed(AppRoutes.CASH_MANAGEMENT);
-                      },
-                      style: TextButton.styleFrom(
-                      backgroundColor: Colors.indigo, // Set button color to red
-                      foregroundColor: Colors.white, // Set text color to red
-                      textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
-                    ),
-                      child: Text('CASH MANAGEMENT'),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Get.delete<ShiftController>();
-                        Get.toNamed(AppRoutes.SUBMIT_CASH);
-                      },
-                      style: TextButton.styleFrom(
-                        backgroundColor: Colors.indigo, // Set button color to red
-                        foregroundColor: Colors.white, // Set text color to red
-                        textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                Row(
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Get.delete<ShiftController>();
+                              Get.toNamed(AppRoutes.CASH_MANAGEMENT);
+                            },
+                            style: TextButton.styleFrom(
+                            backgroundColor: Colors.indigo, // Set button color to red
+                            foregroundColor: Colors.white, // Set text color to red
+                            textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                          ),
+                            child: Text('CASH MANAGEMENT'),
+                          ),
+                        ),
                       ),
-                      child: Text('SUBMIT CASH'),
                     ),
-                  ),
-                ),
-                SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        shiftController.showConfirmDialogCloseShift();
-                      },
-                      style: TextButton.styleFrom(
-                        backgroundColor: Colors.red, // Set button color to red
-                        foregroundColor: Colors.white, // Set text color to red
-                        textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Get.delete<ShiftController>();
+                              Get.toNamed(AppRoutes.SUBMIT_CASH);
+                            },
+                            style: TextButton.styleFrom(
+                              backgroundColor: Colors.indigo, // Set button color to red
+                              foregroundColor: Colors.white, // Set text color to red
+                              textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                            ),
+                            child: Text('SUBMIT CASH'),
+                          ),
+                        ),
                       ),
-                      child: Text('CLOSE SHIFT'),
                     ),
-                  ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              shiftController.showConfirmDialogCloseShift();
+                            },
+                            style: TextButton.styleFrom(
+                              backgroundColor: Colors.red, // Set button color to red
+                              foregroundColor: Colors.white, // Set text color to red
+                              textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                            ),
+                            child: Text('CLOSE SHIFT'),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 SizedBox(height: 10),
                 // Display opening time, user full name, and shift reference centered
@@ -158,20 +165,13 @@ class ViewShiftScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  currencyAmount.timeCreated,
+                                  "${currencyAmount.timeCreated} \t\t\t ${currencyAmount.paymentType}",
                                   style: TextStyle(fontSize: 14),
                                 ),
-                                // Text(
-                                //   currencyAmount.ref!,
-                                //   style: TextStyle(fontSize: 14),
-                                // ),
                                 Text(
-                                  currencyAmount.amountType == "CASH_IN" || currencyAmount.amountType == "CASH_OUT"
-                                      ? currencyAmount.notes ?? ""
-                                      : currencyAmount.ref!,
+                                  currencyAmount.ref!,
                                   style: TextStyle(fontSize: 14),
                                 ),
-
                               ],
                             ),
                             // Right side: amount and amount type
@@ -406,21 +406,44 @@ class ViewShiftScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min, // Ensures it only takes needed space
               children: [
-                SizedBox(
-                  width: double.infinity, // Makes the button take full width
-                  child: ElevatedButton(
-                    onPressed: () {
-                      shiftController.printShift(shiftController.activeShift.value);
-                    },
-                    style: TextButton.styleFrom(
-                      backgroundColor: Colors.lightBlue, // Set button color to red
-                      foregroundColor: Colors.black, // Set text color to red
-                      textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        width: double.infinity, // Makes the button take full width
+                        child: ElevatedButton(
+                          onPressed: () {
+                            shiftController.printShift(shiftController.activeShift.value);
+                          },
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.lightBlue, // Set button color to red
+                            foregroundColor: Colors.black, // Set text color to red
+                            textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                          ),
+                          child: Text('PRINT FULL SHIFT REPORT'),
+                        ),
+                      ),
                     ),
-                    child: Text('PRINT'),
-                  ),
+                    SizedBox(width: 10,),
+                    Expanded(
+                      child: SizedBox(
+                        width: double.infinity, // Makes the button take full width
+                        child: ElevatedButton(
+                          onPressed: () {
+                            shiftController.printShiftSummary(shiftController.activeShift.value);
+                          },
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.cyanAccent, // Set button color to red
+                            foregroundColor: Colors.black, // Set text color to red
+                            textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                          ),
+                          child: Text('PRINT SHIFT SUMMARY'),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 10), // Spacing between buttons
+                SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity, // Makes the button take full width
                   child: ElevatedButton(

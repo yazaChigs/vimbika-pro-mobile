@@ -10,7 +10,6 @@ import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_setting_model.dart';
-import 'package:vimbika_pos_app/src/features/ticket/model/ticket_model.dart';
 import 'package:vimbika_pos_app/src/services/app_exceptions.dart';
 import 'package:vimbika_pos_app/src/services/background_service.dart';
 import 'package:vimbika_pos_app/src/services/base_http_client.dart';
@@ -27,13 +26,15 @@ import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/settings_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 import 'package:http/http.dart' as http;
+
+import '../../../services/local_storage_service.dart';
 // import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
 
 class OfflineDataController extends GetxController {
   final ConnectivityService _connectivityService = ConnectivityService();
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
   Rx<BranchModel?> selectedBranch = BranchModel().obs;
-
+  final LocalStorageService _localStorageService = LocalStorageService();
   Rx<CompanyModel?> selectedCompany = CompanyModel(fiscalisationEnabled: false).obs;
   var isCompanySelected = false.obs;
   var isBranchSelected = false.obs;
@@ -67,7 +68,7 @@ class OfflineDataController extends GetxController {
       getPaymentTypes(user, box);
 
       getCustomers(user, box, user.companyId!);
-      getCategories(user, box, user.companyId!);
+      // getCategories(user, box, user.companyId!);
       getBrands(user, box, user.companyId!);
       getShiftSetting(user, box);
       getBanks(user, box);
@@ -77,6 +78,8 @@ class OfflineDataController extends GetxController {
       Timer.periodic(Duration(hours: 1), (timer) async {
         print("init syncing branchStock...");
         await SyncService.getBranchStock(box, user);
+        await SyncService.savePaymentReceived(user, box);
+        await SyncService.saveCustomer(user, box);
         await SyncService.getCustomers(user, box, user.companyId!);
         // syncOfflineSales();
       });
@@ -96,7 +99,7 @@ class OfflineDataController extends GetxController {
   }
   downloadBranchRelatedInfor(UserModel user, GetStorage box, String branchId){
     //getTickets(user, box, user.companyId!, branchId);
-    SyncService.syncTickets(user, box, user.companyId!, branchId);
+    // SyncService.syncTickets(user, box, user.companyId!, branchId);
   }
 
   Future<void> onCompanyChange(CompanyModel company) async{
@@ -169,7 +172,7 @@ class OfflineDataController extends GetxController {
   }
 
   Future<void>  getCategories(UserModel user, GetStorage box, String companyId) async{
-    var response = await BaseHttpClient().getAuthWithCompanyHeader("/product-category/get-by-company", companyId).catchError((onError){
+    var response = await BaseHttpClient().getAuthWithCompanyHeader("/product-category/get-by-branch-stock/${selectedBranch.value!.id}", companyId).catchError((onError){
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
         AppHelper.showErroDialog(description: apiError["reason"]);
@@ -191,6 +194,8 @@ class OfflineDataController extends GetxController {
 
 
   Future<void>  getCustomers(UserModel user, GetStorage box, String companyId) async{
+    List<CustomerModel> newCustomers = _localStorageService.getCustomers(box);
+    newCustomers = newCustomers.where((cust)=>cust.updated ?? false).toList();
     var response = await BaseHttpClient().getAuthWithCompanyHeader("/customer/get-all", companyId).catchError((onError){
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
@@ -202,6 +207,7 @@ class OfflineDataController extends GetxController {
     if(response != null) {
       List<dynamic> list = jsonDecode(response);
       List<CustomerModel> itemsList = List<CustomerModel>.from(list.map((i) => CustomerModel.fromMap(i)));
+      itemsList.addAll(newCustomers);
       customerList.value = itemsList;
       List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
           item.toMap()).toList();
@@ -265,6 +271,7 @@ class OfflineDataController extends GetxController {
   }
 
   onChangeBranch(String? branchId){
+    getCategories(user, box, user.companyId!);
     getFiscalDevice(user, branchId!);
   }
 

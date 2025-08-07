@@ -24,10 +24,12 @@ class SaleItemModel {
     required this.inventoryItem,
     required this.branch,
     this.usedCodesString,
+    this.notes,
     this.isMobile = true,
   });
 
   String? id;
+  String? notes;
   double? sellingPrice;
   double? baseCurrencySellingPrice;
   double? quantity;
@@ -50,6 +52,7 @@ class SaleItemModel {
     baseCurrencySellingPrice: json["baseCurrencySellingPrice"],
     quantity: json["quantity"],
     total: json["total"],
+    notes: json["notes"],
 
     baseCurrencyTotal: json["baseCurrencyTotal"],
     taxAmount: json["taxAmount"],
@@ -77,5 +80,6 @@ class SaleItemModel {
     "branch": branch != null?  branch!.toMap() : null,
     "usedCodes": usedCodesString != null ? List<dynamic>.from(usedCodesString!.map((x) => x)) : [],
   "isMobile": isMobile,
+    "notes": notes
   };
 }

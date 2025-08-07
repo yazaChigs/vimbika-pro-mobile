@@ -19,6 +19,7 @@ import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/payment_received_model.dart';
 
 import '../../../services/app_exceptions.dart';
 import '../../../services/base_http_client.dart';
@@ -71,7 +72,6 @@ class ShiftController extends GetxController {
   }
   getSales() {
     List<SaleInfoModel> sales = getExistingOfflineSales(box);
-    print("saels: ${sales.length}");
     List<SaleInfoModel> actualSales = [];
     for(SaleInfoModel s in sales){
       if(s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING"){
@@ -101,7 +101,6 @@ class ShiftController extends GetxController {
     shifts = loadShifts(box);
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(shifts, box, user, true);
     if(tempActiveShift != null) {
-      print("Updating shift..");
       activeShift.value = tempActiveShift;
       shiftAvailable.value = true;
       activeShift.value.shiftCurrencyAmounts?.sort((a, b) => a.timeCreated.compareTo(b.timeCreated));
@@ -195,15 +194,19 @@ class ShiftController extends GetxController {
       final currencyId = currencyAmount.currency.id;
       bool isCash = false;
       if(allReceipts!=null && allReceipts.isNotEmpty) {
-        // for(var sale in allReceipts) {
-        //  print(sale.sale!.posReference!.toJson());
-        // }
         var sale = allReceipts
             .firstWhere((sale) =>
         sale.sale?.posReference == currencyAmount.posReference &&
             sale.sale?.currency?.id == currencyId,orElse: () => SaleInfoModel(sale: null,syncStatus: false))
             .sale;
         if(sale!=null){
+          for(PaymentReceivedModel paymentReceived in sale.paymentTypes!){
+            if(paymentReceived.paymentType!.name!.startsWith("CASH")){
+              totals[currencyId!] = (totals[currencyId] ?? 0.0) + (paymentReceived.amount ?? 0.00);
+            }
+          }
+        }
+       /* if(sale!=null){
           isCash = sale.paymentType!
               .name!
               .startsWith("CASH") ?? false;
@@ -212,19 +215,14 @@ class ShiftController extends GetxController {
             currencyAmount.amountType == 'OPENING_AMOUNT' ||
             currencyAmount.amountType == 'CASH_OUT') {
           isCash = true; // Default to true for these types
-        }
-        // else{
-        //   isCash = true; // Default to true if no sale found
-        // }
+        }*/
 
       }
-       if (((currencyAmount.amountType == 'CASH_IN' || currencyAmount.amountType == 'OPENING_AMOUNT' || currencyAmount.amountType == 'SALE')
-           && (isCash || currencyAmount.isCash! == true)) || (currencyAmount.paymentType!=null && currencyAmount.paymentType!.startsWith("CASH-"))) {
+      print("calculateTotalAmountsByCurrency ${currencyAmount.toJson()}");
+       if (currencyAmount.amountType == 'CASH_IN' && currencyAmount.paymentType!.startsWith("CASH") || currencyAmount.amountType == 'OPENING_AMOUNT'){
         totals[currencyId!] = (totals[currencyId] ?? 0.0) + currencyAmount.amount;
-        print("Adding to totals: ${currencyAmount.amount} for currency: ${currencyAmount.currency.symbol}");
       } else if (currencyAmount.amountType == 'CASH_OUT') {
         totals[currencyId!] = (totals[currencyId] ?? 0.0) - currencyAmount.amount;
-        print("Subtracting from totals: ${currencyAmount.amount} for currency: ${currencyAmount.currency.symbol}");
         cashOuts[currencyId] = (cashOuts[currencyId] ?? 0.0) + currencyAmount.amount;
       } else if (currencyAmount.amountType == 'CASH_SUBMIT') {
         totalCashSubmitted[currencyId!] = (totalCashSubmitted[currencyId] ?? 0.0) + currencyAmount.amount;
@@ -257,7 +255,6 @@ class ShiftController extends GetxController {
       final currency = activeShift.value.shiftCurrencyAmounts!
           .firstWhere((amount) => amount.currency.id == currencyId)
           .currency;
-      print("Currency: ${currency.symbol}, Total: $total, Cash Submitted: ${totalCashSubmitted[currencyId] ?? 0.0}");
       totalAmountsByCurrency.add({
         "currencyName": currency.symbol,
         "totalAmount": total-(totalCashSubmitted[currencyId] ?? 0.0),
@@ -294,21 +291,32 @@ class ShiftController extends GetxController {
 
   void calculateTotalAmountsByPaymentType() {
     Map<String, double> totals = {};
+    print("calculateTotalAmountsByPaymentType ${allReceipts.length}");
     for (var sale in allReceipts) {
-      final paymentTypeId = sale.sale?.paymentType?.id;
 
-      if ((sale.sale?.saleStatus == 'COMPLETE' || sale.sale?.saleStatus == 'PENDING') && sale.sale?.shiftReference==activeShift.value.shiftReference) {
-        totals[paymentTypeId!] = (totals[paymentTypeId] ?? 0.0) + (sale.sale!.amountAfterDiscount ?? 0.0);
+        if ((sale.sale?.saleStatus == 'COMPLETE' ||
+                sale.sale?.saleStatus == 'PENDING') &&
+            sale.sale?.shiftReference == activeShift.value.shiftReference) {
+          for(var paymentReceived in sale.sale!.paymentTypes!) {
+            final paymentTypeId = paymentReceived.paymentType?.id;
+          totals[paymentTypeId!] = (totals[paymentTypeId] ?? 0.0) +
+              (paymentReceived.amount ?? 0.0);
+        }
       }
     }
     totalAmountsByPaymentType.clear();
     totals.forEach((paymentTypeId, total) {
-      final sale = allReceipts
-          .firstWhere((sale) => sale.sale?.paymentType?.id == paymentTypeId)
-          .sale;
+      PaymentReceivedModel? paymentReceivedModel ;
+      for(SaleInfoModel sale in allReceipts){
+        if(sale.sale?.paymentTypes!.firstWhereOrNull((pt) => pt.paymentType?.id == paymentTypeId) != null){
+          paymentReceivedModel = sale.sale!.paymentTypes!.firstWhere((pt) => pt.paymentType?.id == paymentTypeId);
+          break;
+        }
+      }
+      if(paymentReceivedModel!=null)
       totalAmountsByPaymentType.add({
-        "paymentTypeName": sale?.paymentType?.name ?? 'Unknown',
-        "currencySymbol": sale?.currency?.symbol,
+        "paymentTypeName": paymentReceivedModel.paymentType?.name ?? 'Unknown',
+        "currencySymbol": paymentReceivedModel.paymentType!.currency?.symbol,
         "totalAmount": total,
       });
     });
@@ -407,6 +415,26 @@ class ShiftController extends GetxController {
     if(ap != null) {
       if(ap.type == 'SUNMI_INBUILT_PRINTER') {
         await printerService.printShiftDetails(shift,allReceipts, totalAmountsByCurrency,totalAmountsByPaymentType,totalCashIn, totalCashOut, totalCashSubmittedList, totalSales);
+      }
+      if(ap.type == "bluetooth") {
+        await printerService.printShiftDetailsBluetooth(shift, ap, totalAmountsByCurrency);
+      }
+      if(ap.type == "usb") {
+        await printerService.printShiftDetailsUsb(shift, ap, totalAmountsByCurrency);
+      }
+    }else{
+      Get.snackbar('Error', 'Default Printer Not Found. Please add printer.', snackPosition: SnackPosition.BOTTOM);
+      print("Default Printer Not Found. Please add printer.");
+    }
+
+  }
+
+  void printShiftSummary(ShiftModel shift) async {
+    GetStorage box = GetStorage();
+    AvailablePrinterModel? ap = _localStorageService.findActivePrinter(box);
+    if(ap != null) {
+      if(ap.type == 'SUNMI_INBUILT_PRINTER') {
+        await printerService.printShiftSummary(shift,allReceipts, totalAmountsByCurrency,totalAmountsByPaymentType,totalCashIn, totalCashOut, totalCashSubmittedList, totalSales);
       }
       if(ap.type == "bluetooth") {
         await printerService.printShiftDetailsBluetooth(shift, ap, totalAmountsByCurrency);

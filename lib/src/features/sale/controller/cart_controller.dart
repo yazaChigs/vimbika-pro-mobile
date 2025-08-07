@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
+import 'package:vimbika_pos_app/src/features/customers/model/customer_currency_amount.dart';
 import 'package:vimbika_pos_app/src/features/printers/model/available_printer_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/controller/sale_controller.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/cart_item_model.dart';
@@ -56,6 +57,7 @@ class CartController extends GetxController {
   RxList<UserModel> userList = <UserModel>[].obs;
   List<SaleInfoModel> offlineSales = <SaleInfoModel>[];
   List<SaleInfoModel> allSales = <SaleInfoModel>[];
+  RxList<PaymentReceivedModel> paymentReceivedList = <PaymentReceivedModel>[].obs;
   var isCurrencySelected = false.obs;
   var isUserSelected = false.obs;
   var isPrinterAvailable = false.obs;
@@ -99,6 +101,7 @@ class CartController extends GetxController {
 
   bool sellNilItems = false;
   RxBool isPrintEnabled = false.obs; // Observing the state of the checkbox
+  RxBool isKOTEnaabled = false.obs; // Observing the state of the checkbox
   RxBool addAmtToAcc = false.obs; // Observing the state of the checkbox
   late SettingsModel settingsModel = SettingsModel(sellNilItems: false);
   RxBool isFiscaliseReceiptEnabled = true.obs;
@@ -123,6 +126,7 @@ class CartController extends GetxController {
   RxList<AvailablePrinterModel> availablePrinters =
       <AvailablePrinterModel>[].obs;
   var saleTicketId = "".obs;
+  var accountPayType = "".obs;
 
   get formKeyAddAmount => null;
 
@@ -136,6 +140,12 @@ class CartController extends GetxController {
       isPrintEnabled.value = true;
     } else {
       isPrintEnabled.value = false;
+    }
+    var printKOT = box.read(AppConstants.USE_KOT) ?? false;
+    if (printKOT) {
+      isKOTEnaabled.value = true;
+    } else {
+      isKOTEnaabled.value = false;
     }
     List<SaleInfoModel> sales = getExistingOfflineSales(box);
     List<SaleInfoModel> actualSales = [];
@@ -169,6 +179,9 @@ class CartController extends GetxController {
       fiscalizeReceipt.value = false;
       isFiscaliseReceiptEnabled.value = false;
     }
+
+    List<PaymentReceivedModel> paymentReceiveds = loadPaymentReceived(box);
+    paymentReceivedList.value = paymentReceiveds;
     var settings = box.read(AppConstants.COMPANY_SETTINGS) ?? {};
     settingsModel = SettingsModel.fromMap(Map<String, dynamic>.from(settings));
     sellNilItems = settingsModel.sellNilItems ?? false;
@@ -273,6 +286,7 @@ class CartController extends GetxController {
     // Set "WalkIn" as the default selected customer
     selectedCustomer.value = defaultCustomer;
     isCustomerSelected.value = true;
+    allCustomers.refresh();
   }
 
   reGetCustomers() {
@@ -332,7 +346,7 @@ class CartController extends GetxController {
         }
       }
     }
-    if(!selectedCus.isLoyalCustomer!??false) {
+    if((!(selectedCus.isLoyalCustomer??false)) && (selectedCus.currencyBalance!.isNotEmpty)){
       tempList = tempList.where((type)=>!type.name!.startsWith("ACC-")).toList();
     }
 
@@ -583,7 +597,6 @@ class CartController extends GetxController {
       String ticketComment,
       List<CartItemModel> saleCartItems,
       String saleId) async {
-    print("SelectedTicket: ${selectedTicketRef.value}");
     bool stat = await _connectivityService.checkServerConnection();
     calculateTotalAmounts(saleCartItems);
     double totalSaleQuantity = 0;
@@ -608,6 +621,7 @@ class CartController extends GetxController {
 
       SaleItemModel saleItem = SaleItemModel(
           sellingPrice: productItem.sellingPrice * rate,
+          notes: cartItem.notes,
           baseCurrencySellingPrice: productItem.sellingPrice,
           quantity: cartItem.quantity,
           total: cartItem.totalPrice * rate,
@@ -637,11 +651,17 @@ class CartController extends GetxController {
       PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
           id: selectedPaymentTypes.indexOf(paymentType).toString(),
           amount: paymentType.amount,
+          amountPaid: paymentType.amount,
+          balance:paymentType.isCredit!?paymentType.amount:0.0,
           paymentType: paymentType,
           paymentDescription: "SALE",
           isPaid: true,
+          isMobile: true,
           currency: selectedCurrency.value,
-          bank: selectedBank.value);
+          bank: selectedBank.value,
+        payer: selectedCustomer.value,
+        branch: branch.value
+      );
       paymentTypes.add(paymentReceivedModel);
       if (isOnHold) {
         paymentTypes = [];
@@ -687,18 +707,19 @@ class CartController extends GetxController {
         totalDiscount: 0,
         ticketName: ticketName,
         ticketComment: ticketComment,
-      accountPayType: null,
-      pointsUsed: null,
-      amtToAcc: addAmtToAcc.value?double.parse(amtToAccTextEditingController.text):null
+        accountPayType: accountPayType.value,
+        pointsUsed: null,
+        amtToAcc: addAmtToAcc.value?double.parse(amtToAccTextEditingController.text):null
     );
     SaleInfoModel saleInfoModel;
     if (isOnHold) {
       saleInfoModel = SaleInfoModel(sale: sale, syncStatus: true);
       infos.add(saleInfoModel);
-      print("infos: ${infos.length}");
       writeSaleInfor(box, infos);
+      printTicket(saleInfoModel);
+
     }
-    if (stat && fiscalizeReceipt.value) {
+    if (stat && fiscalizeReceipt.value && !isOnHold) {
       SaleModel? responseFromServerSale =
           await SyncService.saveSale(sale, user.value!, box, company.value!);
       print("RESPONSE FROM SERVER SALE: " + responseFromServerSale.toString());
@@ -710,8 +731,6 @@ class CartController extends GetxController {
           SaleInfoModel? infoModel = await getSale(responseFromServerSale.id!);
           if (infoModel != null) {
             saleInfoModel = infoModel;
-            print("QR LINK2");
-            print(saleInfoModel.sale!.receiptQrCode);
           } else {
             saleInfoModel =
                 SaleInfoModel(sale: responseFromServerSale, syncStatus: true);
@@ -725,39 +744,79 @@ class CartController extends GetxController {
     } else {
       saleInfoModel = SaleInfoModel(sale: sale, syncStatus: false);
     }
+    /*if(addAmtToAcc.value??false){
+      PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
+        amount: double.parse(amtToAccTextEditingController.text),
+        paymentType: paymentTypesList.value.firstWhere((pt)=>pt.name!.startsWith("ACC-${selectedCurrency.value!.name!}")),
+      );
+      List<PaymentReceivedModel> prm = [paymentReceivedModel];
+      updateShiftWithNewSale(ref, timeInit, double.parse(amtToAccTextEditingController.text),
+          stat, selectedCustomer.value!.name!,  prm, "CASH_IN");
+    }*/
     if (!isOnHold) {
-      deductStock();
-      updateShiftWithNewSale(ref, timeInit, totalCostInSelectedCurrency.value,
-          stat, saleInfoModel.sale!.referenceNumber!,  paymentTypes);
       infos.add(saleInfoModel);
+      writeSaleInfor(box, infos);
+      deductStock();
+      if(addAmtToAcc.value??false){
+        PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
+          amount: double.parse(amtToAccTextEditingController.text),
+          paymentType: paymentTypesList.value.firstWhere((pt)=>pt.name!.startsWith("ACC-${selectedCurrency.value!.name!}")),
+        );
+        paymentTypes.add(paymentReceivedModel);
+      }
+      updateShiftWithNewSale(ref, timeInit, totalCostInSelectedCurrency.value,
+          stat, saleInfoModel.sale!.referenceNumber!,  paymentTypes, "SALE", selectedCustomer.value?.name ?? "");
       if (selectedTicketRef.isNotEmpty) {
         infos.removeWhere((ticket) =>
             ticket.sale!.referenceNumber == selectedTicketRef.value);
         selectedTicketRef.value = '';
+        writeSaleInfor(box, infos);
       }
-      writeSaleInfor(box, infos);
       printCurrentSale(saleInfoModel, box);
-      if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && paymentTypes.any((pt)=> pt.paymentType!.name!.startsWith("ACC-"))){
+      if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && (!addAmtToAcc.value??false) && paymentTypes.any((pt)=> pt.paymentType!.name!.startsWith("ACC-"))){
         CustomerModel customer = allCustomers.firstWhere((cust)=>cust.name == sale.customer!.name);
         if(customer!=null) {
           allCustomers.removeWhere((cust) => cust.name == sale.customer!.name);
-          customer.currencyBalance!
-                  .firstWhere((cb) => cb.currency.id == sale.currency!.id)
-                  .balance =
-              (-paymentTypes
-                  .firstWhere((pt) => pt.paymentType!.name!.startsWith("ACC-"))
-                  .amount!);
-          customer.updated = true;
+          if(customer.currencyBalance!.isNotEmpty) {
+            var balance  = 0.0;
+            balance = customer.currencyBalance!
+                    .firstWhere((cb) => cb.currency.id == sale.currency!.id)!
+                    .balance!;
+            customer.currencyBalance!
+                .firstWhere((cb) => cb.currency.id == sale.currency!.id)!
+                .balance = balance -
+                paymentTypes
+                    .firstWhere(
+                        (pt) => pt.paymentType!.name!.startsWith("ACC-"))
+                    .amount!;
+          }else{
+            customer.currencyBalance!.add(CustomerCurrencyAmount(
+                balance: paymentTypes
+                    .firstWhere(
+                        (pt) => pt.paymentType!.name!.startsWith("ACC-"))
+                    .amount!,
+                currency: sale.currency!));
+          }
+          // customer.updated = true;
           allCustomers.add(customer);
+          allCustomers.sort((a, b) => a.name!.compareTo(b.name!));
           List<CustomerModel> customers = allCustomers.value;
           List<Map<String, dynamic>> itemsListMap =
               customers.map((item) => item.toMap()).toList();
           box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
         }
       }
+      cancelSale();
+      AppHelper.hideLoading();
+      Get.snackbar(
+        "Success",
+        "Sale saved Successfully",
+      );
+    } else{
+
+      cancelSale();
+      AppHelper.hideLoading();
     }
-    AppHelper.hideLoading();
-    cancelSale();
   }
 
   List<SaleInfoModel> getExistingOfflineSales2(GetStorage box) {
@@ -767,24 +826,7 @@ class CartController extends GetxController {
     return sales;
   }
 
-  addPaymentType() {
-    PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
-        amount: double.parse(amountPaidTextEditingController.text),
-        paymentType: selectedPaymentType.value,
-        paymentDescription: "SALE",
-        isPaid: true,
-        currency: selectedCurrency.value,
-        bank: selectedBank.value);
-    paymentTypes.value.add(paymentReceivedModel);
-    totalAmountPaid.value =
-        totalAmountPaid.value + paymentReceivedModel.amount!;
-    paymentTypes.refresh();
-    amountPaidTextEditingController.clear();
-    filteredPaymentTypesList.value = [];
-    selectedCurrency.value = null;
-    filteredPaymentTypesList.refresh();
-    currencyList.refresh();
-  }
+
 
   removePaymentMethod(index) {
     totalAmountPaid.value = totalAmountPaid.value - paymentTypes[index].amount!;
@@ -832,6 +874,22 @@ class CartController extends GetxController {
       _printerService.printCurrentSale(saleInfo, box, _localStorageService);
     }
   }
+  void printTicket(SaleInfoModel saleInfo) async {
+    // if (isPrintEnabled.isTrue) {
+      _printerService.printKOT(saleInfo, box, _localStorageService);
+    // }
+  }
+  void printQuickTicket() async {
+    final NumberFormat formatter = NumberFormat('000');
+    final NumberFormat dateFormatter = NumberFormat('00');
+    String ref  = "${dateFormatter.format(DateTime.now().day)}${formatter.format((activeShift.kotNumber??0)+1)}";
+      _printerService.printQuickKOT(cartItems,user.value!.firstName,selectedCustomer.value!.name!,ref, box, _localStorageService);
+      activeShift.kotNumber = activeShift.kotNumber??0 + 1;
+    List<ShiftModel> updatedShifts =
+    _localStorageService.replaceShift(activeShift, shiftList);
+    _localStorageService.writeItems(
+        AppConstants.SHIFT_LIST, updatedShifts, box);
+  }
 
   Future<SaleInfoModel?> getSale(String saleId) async {
     await Future.delayed(Duration(seconds: 2));
@@ -865,7 +923,7 @@ class CartController extends GetxController {
       double amt,
       bool stat,
       String posReference,
-      List<PaymentReceivedModel> paymentTypes) async {
+      List<PaymentReceivedModel> paymentTypes, String type, String customerName) async {
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
         loadShifts(box), box, user.value!, true);
     if (tempActiveShift != null) {
@@ -877,8 +935,8 @@ class CartController extends GetxController {
         String ref = AppConstants.getDateNowRef("SL_", count);
         CurrencyAmount currencyAmount = CurrencyAmount(
             currency: selectedCurrency.value!,
-            amountType: "SALE",
-            ref: ref,
+            amountType: paymentTypeModel.branch==null?"CASH_IN":"SALE",
+            ref: paymentTypeModel.branch==null?ref + "_" +customerName.replaceAll(" ", "_"):ref,
             timeCreated: timeCreated,
             notes: "",
             amount: paymentTypeModel.amount!,
@@ -886,7 +944,11 @@ class CartController extends GetxController {
             posReference: posReference,
             isCash: isCash,
             paymentType: paymentTypeModel.paymentType!.name!);
+        print(activeShift.shiftCurrencyAmounts!.length);
         activeShift.shiftCurrencyAmounts!.add(currencyAmount);
+        print(currencyAmount.toJson());
+      }
+        print("Currency amounts Num: ${activeShift.shiftCurrencyAmounts!.length.toString()}");
         List<ShiftModel> updatedShifts =
             _localStorageService.replaceShift(activeShift, shiftList);
         _localStorageService.writeItems(
@@ -894,7 +956,6 @@ class CartController extends GetxController {
         if (stat) {
           SyncService.syncOfflineShifts(user.value!, box);
         }
-      }
     } else {
       shiftAvailable.value = false;
     }
@@ -917,6 +978,7 @@ class CartController extends GetxController {
   }
 
   writeSaleInfor(GetStorage box, List<SaleInfoModel> itemsList) {
+    print("Writing sale info.. ${itemsList.length}");
     List<Map<String, dynamic>> itemsListMap =
         itemsList.map((item) => item.toMap()).toList();
     box.write(AppConstants.SALE_LIST, itemsListMap);
@@ -932,16 +994,13 @@ class CartController extends GetxController {
     totalTaxInSelectedCurrency == 0.0;
     amountPaid.value = 0.0;
     change.value = 0.0;
+    accountPayType.value = "";
     resetFormKey();
     Get.delete<SaleController>();
     Get.delete<CartController>();
     Get.delete<ShiftController>();
     Get.delete<ReceiptController>();
     Get.delete<TicketController>();
-    Get.snackbar(
-      "Success",
-      "Sale saved Successfully",
-    );
     Navigator.pushReplacement(Get.context!,
         MaterialPageRoute(builder: (BuildContext context) => SaleScreen()));
     Get.reload();
@@ -953,6 +1012,9 @@ class CartController extends GetxController {
 
   onChangePaymentType(PaymentTypeModel paymentType, bool multiple) {
     isPaymentTypeSelected.value = true;
+    if(paymentType.name!.startsWith("ACC-")) {
+      accountPayType.value = "account";
+    }
     selectedPaymentType.value = paymentType;
     if (!multiple) {
       selectedPaymentTypes.clear();
@@ -967,10 +1029,12 @@ class CartController extends GetxController {
     isPaymentTypeSelected.value = false;
     double totalCostInSelCurrency =
         totalCostInBaseCurrency.value * newValue.rate!;
+    amountPaidTextEditingController.text = totalCostInSelCurrency.toStringAsFixed(2);
     double totalTaxInSelCurrency =
         totalTaxInBaseCurrency.value * newValue.rate!;
     totalCostInSelectedCurrency.value = totalCostInSelCurrency;
     totalTaxInSelectedCurrency.value = totalTaxInSelCurrency;
+    currencyList.refresh();
     filterPaymentTypes(newValue, selectedCustomer.value!);
     selectCorrectBank();
   }
@@ -1033,6 +1097,73 @@ class CartController extends GetxController {
     phoneController.clear();
     emailController.clear();
     formKeyAddCustomer = GlobalKey<FormState>();
+  }
+
+  savePayment() async {
+    print("Saving payment");
+    CustomerModel customer = selectedCustomer.value!;
+    GetStorage bb = GetStorage();
+    // int count = _localStorageService.getPaymentReceivedList(box).length + 1;
+    var ref = AppConstants.getDateNowRef("OFF", 1);
+    // print(double.parse(payAccAmtEditingController.text));
+    // selectedPaymentType.value = paymentTypesList.firstWhere((pt)=> pt.name!.startsWith("ACC-"));
+    selectCorrectBank();
+
+    PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
+        id: null,
+        dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
+        amount: amountPaid.value,
+        amountPaid: amountPaid.value,
+        paymentType: selectedPaymentType.value,
+        isPaid: true,
+        payer: customer,
+        currency: selectedCurrency.value,
+        bank: selectedBank.value,
+    );
+    print(paymentReceivedModel.toJson());
+    List<PaymentReceivedModel> prlist = paymentReceivedList.value;
+    prlist.add(paymentReceivedModel);
+    paymentReceivedList.value = prlist;
+    List<Map<String, dynamic>> itemsListMap =
+    prlist.map((item) => item.toMap()).toList();
+    bb.write(AppConstants.PAYMENT_RECEIVED_LIST, itemsListMap);
+    Get.snackbar("New Payment", "Payment Saved Successfully",
+        snackPosition: SnackPosition.BOTTOM);
+    var index = allCustomers.indexOf(customer);
+    if(customer.currencyBalance==null || customer.currencyBalance!.isEmpty) {
+      CustomerCurrencyAmount currencyAmount = CustomerCurrencyAmount(currency: selectedCurrency.value!, balance: amountPaid.value,
+      );
+      customer.currencyBalance!.add(currencyAmount);
+    } else{
+      var prev = customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance;
+      customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance = (prev! + amountPaid.value);
+    }
+    allCustomers[index] = customer;
+    List<CustomerModel> customers = allCustomers.value;
+    List<Map<String, dynamic>> customersListMap =
+    customers.map((item) => item.toMap()).toList();
+    box.write(AppConstants.CUSTOMER_LIST, customersListMap);
+    refreshCustomers();
+    List<PaymentReceivedModel> paymentTypes =[];
+    paymentTypes.add(paymentReceivedModel);
+    print(paymentTypes.length);
+    bool networkAvailable = await _connectivityService.checkServerConnection();
+    updateShiftWithNewSale(ref, paymentReceivedModel.dateTime!, paymentReceivedModel.amount!, networkAvailable,
+        customer.name!, paymentTypes,"CASH_IN",customer.name!);
+    Navigator.of(Get.overlayContext!).pop();
+    allCustomers.refresh();
+    // selectedCustomer;
+    // amountPaidTextEditingController.clear();
+    cancelSale();
+  }
+
+
+  List<PaymentReceivedModel> loadPaymentReceived( GetStorage box) {
+    List<PaymentReceivedModel> list = _localStorageService.getOfflineList<PaymentReceivedModel>(
+        AppConstants.PAYMENT_RECEIVED_LIST,
+            (map) => PaymentReceivedModel.fromMap(map),
+        box);
+    return list;
   }
 
   void addAmount() {

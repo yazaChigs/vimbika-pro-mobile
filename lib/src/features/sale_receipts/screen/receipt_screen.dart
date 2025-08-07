@@ -236,11 +236,9 @@ class ReceiptScreen extends StatelessWidget {
                       color: sale!.saleStatus=="REVERSED"?Colors.redAccent[100]:Colors.grey[300],
                       child: ListTile(
                         leading:
-                            Expanded(
-                              child: Text(
-                                '${sale!.currency?.symbol ?? ''} ${sale.amountAfterDiscount!.toStringAsFixed(2).toString()}',
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold,color: Colors.lightGreen),
-                              ),
+                            Text(
+                              '${sale!.currency?.symbol ?? ''} ${sale.amountAfterDiscount!.toStringAsFixed(2).toString()}',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold,color: Colors.lightGreen),
                             ),
                         title: Text(sale.referenceNumber!,
                           style: TextStyle(
@@ -287,7 +285,13 @@ class ReceiptScreen extends StatelessWidget {
                                         //   Future<Uint8List> pdf = GenerateFlutterPdf.generateReceipt(saleInfo.sale!);
                                         //   Get.to(() => PdfPreviewScreen(pdf: pdf));
                                         // }
-                                        sale.saleStatus != 'REVERSED'?receiptController.printSale(saleInfo):null;
+                                        if(receiptController.isPrintClicked.isFalse) {
+                                          sale.saleStatus != 'REVERSED'
+                                              ? receiptController
+                                                  .printSale(saleInfo)
+                                              : null;
+                                          receiptController.isPrintClicked.value = true;
+                                        }
                                       },
                                     ),
                                   ),
@@ -306,7 +310,6 @@ class ReceiptScreen extends StatelessWidget {
                                         receiptController.saveSales();
                                         receiptController.allReceipts.refresh();
                                         receiptController.filteredReceipts.refresh();
-                                        print(receiptController.allReceipts.any((test)=>test.sale!.saleStatus=="REVERSED"));
                                         AppHelper.hideLoading();
                                         Get.snackbar("Success", "Sale reversed");
                                       },

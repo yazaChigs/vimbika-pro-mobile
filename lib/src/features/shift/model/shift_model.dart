@@ -22,7 +22,8 @@ class ShiftModel {
     this.closingTime,
     this.shiftReference,
     this.synced = false,
-    this.stopSync = false
+    this.stopSync = false,
+    this.kotNumber,
   });
 
   String? id;
@@ -39,6 +40,7 @@ class ShiftModel {
   String? shiftReference;
   bool? synced = false;
   bool? stopSync = false;
+  int? kotNumber = 0;
 
 
   factory ShiftModel.fromJson(String str) => ShiftModel.fromMap(json.decode(str));
@@ -49,6 +51,7 @@ class ShiftModel {
     isShiftClosed: json["isShiftClosed"],
     userFullName: json["userFullName"] ?? "",
     dateCreated: json["dateCreated"],
+    kotNumber: json["kotNUmber"],
     createdByName: json["createdByName"],
     active: json["active"],
     shiftCurrencyAmounts: List<CurrencyAmount>.from(json["shiftCurrencyAmounts"].map((x) => CurrencyAmount.fromMap(x))),
@@ -75,6 +78,7 @@ class ShiftModel {
     "shiftReference": shiftReference,
     "synced": synced,
     "stopSync": stopSync,
+    "kotNUmber": kotNumber
   };
 
 

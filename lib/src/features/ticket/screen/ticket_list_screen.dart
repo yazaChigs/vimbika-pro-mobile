@@ -63,121 +63,144 @@ class TicketListScreen extends StatelessWidget {
                       elevation: 4,
                       margin: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                       child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      item.sale!.ticketName ?? 'Unknown Name',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black,
-                                      ),
+                        padding: const EdgeInsets.all(0.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          spacing: 0,
+                          children: [
+                            Flexible(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    item.sale!.ticketName ?? 'Unknown Name',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
                                     ),
-                                    Expanded(
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            "OPEN",
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                                          Text(
-                                            '${item.sale!.currency?.symbol} ${item!.sale!.amountPaid!.toStringAsFixed(2) ?? 0} ',  // Assuming amount is added to the TicketModel
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.green,
-                                            ),
-                                          ),
-                                        ],
+                                  ),
+                                  // Column(
+                                  //   children: [
+                                  //     Text(
+                                  //       "OPEN",
+                                  //       style: TextStyle(
+                                  //         fontSize: 18,
+                                  //         fontWeight: FontWeight.bold,
+                                  //         color: Colors.black,
+                                  //       ),
+                                  //     ),
+                                      Text(
+                                        '${item.sale!.currency?.symbol} ${item!.sale!.amountPaid!.toStringAsFixed(2) ?? 0} ',  // Assuming amount is added to the TicketModel
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.green,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
+                                  //   ],
+                                  // ),
+                                ],
                               ),
-                              SizedBox(height: 4),
+                            ),
+                            SizedBox(height: 4),
 
-                              Expanded(
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            Expanded(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                              Column(
+                                spacing:0,
+                              children: List.generate(item.sale!.items!.length,(index){
+                                return   Column(
                                   children: [
                                     Text(
-                                      "${itemsText?.join(' ')}",
+                                      "${item.sale!.items![index].inventoryItem!.name} X ${item.sale!.items![index].quantity}",
                                       style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold,fontStyle: FontStyle.italic,color: Colors.indigo),
                                     ),
-                                    Expanded(
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            'Opened At: ${item.sale!.timeIniated ?? 'N/A'}',
-                                            style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                                          ),
-
-                                          Text(
-                                            'Sale Status: ${item.sale!.saleStatus ?? 'N/A'}',
-                                            style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                                          ),
-                                          if (item.sale!.ticketComment != null && item.sale!.ticketComment!.isNotEmpty)
-                                            Text(
-                                              'Comment: ${item.sale!.ticketComment}',
-                                              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                                            ),
-                                          Text(
-                                            'Reference: ${item.sale!.referenceNumber ?? 'N/A'}',
-                                            style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                                          ),
-                                        ],
-
-                                      ),
+                                    if(item.sale!.items![index].notes!=null && item.sale!.items![index].notes!.isNotEmpty)
+                                    Text(
+                                      "${item.sale!.items![index].notes??""}",
+                                      style: TextStyle(fontSize: 12,fontStyle: FontStyle.italic,color: Colors.redAccent),
                                     ),
-
                                   ],
-                                ),
-                              ),
-                              Divider(thickness: 1, height: 20),
-                              Expanded(
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    TextButton(
-                                      onPressed: () {
-                                        // Add delete action here
-                                        ticketController.showConfirmDialogToDeleteItem(item.sale!.referenceNumber ?? "", item.sale!.id ?? "");
-                                      },
-                                      child: Text(
-                                        'Delete',
-                                        style: TextStyle(color: Colors.redAccent),
+                                );
+                              }),
+                            ),
+                                /*  for(var item in item.sale!.items!)
+                                  Column(
+                                    children: [
+                                      Text(
+                                        "${item.inventoryItem!.name} X ${item.quantity}\n",
+                                        style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold,fontStyle: FontStyle.italic,color: Colors.indigo),
                                       ),
-                                    ),
-                                    SizedBox(width: 10),
-
-                                    Visibility(
-                                      visible:  item.sale!.saleStatus == "ON_HOLD",
-                                      child: ElevatedButton(
-                                        onPressed: () {
-                                          ticketController.selectTicketAction(item);
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                                      Text(
+                                        "${item.notes??""} \n",
+                                        style: TextStyle(fontSize: 12,fontStyle: FontStyle.italic,color: Colors.redAccent),
+                                      ),
+                                    ],
+                                  ),*/
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          'Opened At: ${item.sale!.timeIniated ?? 'N/A'}',
+                                          style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                                         ),
-                                        child: Text('Select'),
-                                      ),
+
+                                        Text(
+                                          'Sale Status: ${item.sale!.saleStatus ?? 'N/A'}',
+                                          style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                        ),
+                                        if (item.sale!.ticketComment != null && item.sale!.ticketComment!.isNotEmpty)
+                                          Text(
+                                            'Comment: ${item.sale!.ticketComment}',
+                                            style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                          ),
+                                        Text(
+                                          'Reference: ${item.sale!.referenceNumber ?? 'N/A'}',
+                                          style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                        ),
+                                      ],
+
                                     ),
-                                  ],
-                                ),
+                                  ),
+
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                            Divider(thickness: 1, height: 20),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton(
+                                  onPressed: () {
+                                    // Add delete action here
+                                    ticketController.showConfirmDialogToDeleteItem(item.sale!.referenceNumber ?? "", item.sale!.id ?? "");
+                                  },
+                                  child: Text(
+                                    'Delete',
+                                    style: TextStyle(color: Colors.redAccent),
+                                  ),
+                                ),
+                                SizedBox(width: 10),
+
+                                Visibility(
+                                  visible:  item.sale!.saleStatus == "ON_HOLD",
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      ticketController.selectTicketAction(item);
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                                    ),
+                                    child: Text('Select'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     );

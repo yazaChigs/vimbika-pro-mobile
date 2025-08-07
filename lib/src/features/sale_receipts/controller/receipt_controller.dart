@@ -41,6 +41,7 @@ class ReceiptController extends GetxController {
   RxList<BaseNameModel> categories = <BaseNameModel>[].obs;
   Rx<BaseNameModel?> selectedCategory = BaseNameModel().obs;
   var isCatSelected = false.obs;
+  var isPrintClicked = false.obs;
   Rx<BranchModel?> branch = BranchModel().obs;
 
   @override
@@ -71,17 +72,15 @@ class ReceiptController extends GetxController {
          actualSales.add(s);
        // }
     }
-    allReceipts.value = actualSales;
-    filteredReceipts.value = actualSales;
+    allReceipts.value = actualSales.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
+    filteredReceipts.value = actualSales.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
     sortSalesByDate();
     allReceipts.refresh();
     filteredReceipts.refresh();
-    print(filteredReceipts.any((f)=>f.sale!.saleStatus == "ON_HOLD" ));
-    print("All Receipts: ${allReceipts.length}");
   }
 
-  refreshFilter(){
-    getSalesByDate(startDate.value, endDate.value, "", branch.value!.id!);
+  refreshFilter() async {
+    await getSalesByDate(todayDate.value, todayDate.value, "", branch.value!.id!);
   }
   cancelFilter(){
     startDate.value = "";
@@ -90,8 +89,6 @@ class ReceiptController extends GetxController {
     selectedCategory.value = BaseNameModel();
     startDateController.text = "";
     endDateController.text = "";
-    // allReceipts.value = [];
-    // filteredReceipts.value = [];
   }
 
 
@@ -105,22 +102,33 @@ class ReceiptController extends GetxController {
     bool stat = await _connectivityService.checkServerConnection();
     if(stat) {
       // AppHelper.showLoading("Loading...");
-      getSales();
-      List<SaleInfoModel> items = allReceipts;
+      // getSales();
+      List<SaleInfoModel> items = getExistingOfflineSales(box);
       List<SaleInfoModel> actualItems = [];
-      for (SaleInfoModel s in items) {
-        if (!s.syncStatus! || s.sale!.saleStatus == "ON_HOLD") {
-          actualItems.add(s);
-        }
+      actualItems = items.where((sale) => !sale.syncStatus!).toList();
+
+      allReceipts.value = actualItems.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
+      filteredReceipts.value = actualItems.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
+      allReceipts.refresh();
+      filteredReceipts.refresh();
+      print("all offline: ${items.length}");
+      /*if(!items.any((element) => !element.syncStatus!)){
+        allReceipts.value = items.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
+        filteredReceipts.value = items.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
+        allReceipts.refresh();
+        filteredReceipts.refresh();
       }
-      try {
+      else {*/
+        try {
 
         var response = await BaseHttpClient().getAuthWithCompanyHeader(
             "/sale/app-sale-filter?startDate=$startDate&endDate=$endDate&categoryId=$categoryId&branchId=$branchId", user.companyId!).catchError((
             onError) {
+              print(onError);
           if (onError is BadRequestException) {
             var apiError = json.decode(onError.message!);
             AppHelper.showErroDialog(description: apiError["reason"]);
+            print(apiError["reason"]);
           } else {
             AppHelper.handleError(onError);
           }
@@ -129,22 +137,25 @@ class ReceiptController extends GetxController {
         if (response != null) {
           List<dynamic> list = jsonDecode(response);
           List<SaleModel> itemsList = List<SaleModel>.from(list.map((i) => SaleModel.fromMap(i)));
+
           for (SaleModel sale in itemsList) {
             SaleInfoModel saleInfoModel = SaleInfoModel(
                 sale: sale, syncStatus: true);
-            actualItems.add(saleInfoModel);
+            if(!actualItems.any((element) => element.sale!.id == saleInfoModel.sale!.id)) {
+              actualItems.add(saleInfoModel);
+            }
+            if(!items.any((element) => element.sale!.id == saleInfoModel.sale!.id)) {
+              items.add(saleInfoModel);
+            }
           }
-          allReceipts.value = actualItems.where((sale)=> sale.sale!.saleStatus=="ON_HOLD").toList();
-          filteredReceipts.value = actualItems.where((sale)=> sale.sale!.saleStatus=="ON_HOLD").toList();
+          allReceipts.value = actualItems.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
+          filteredReceipts.value = actualItems.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
           sortSalesByDate();
           allReceipts.refresh();
           filteredReceipts.refresh();
-          List<Map<String, dynamic>> itemsListMap = actualItems.map((item) =>
+          List<Map<String, dynamic>> itemsListMap = items.map((item) =>
               item.toMap()).toList();
-
           box.write(AppConstants.SALE_LIST, itemsListMap);
-        } else {
-          getSales();
         }
         AppHelper.hideLoading();
       } catch (e) {

@@ -29,6 +29,7 @@ class SubmitCashController extends GetxController {
   final TextEditingController amountTextEditingController = TextEditingController();
   var activeShift = ShiftModel().obs;
   var shiftAvailable = false.obs;
+  var cashSubmitCLicked = false.obs;
   late GetStorage box;
   var totalAmountsByCurrency = <Map<String, dynamic>>[].obs;
   final PrinterService _printerService = Get.put(PrinterService());
@@ -121,8 +122,11 @@ class SubmitCashController extends GetxController {
         Get.back(); // Close the dialog
       },
       onConfirm: () {
-        submitCash();
-        Get.snackbar("Confirmed", "Cash submitted successfully");
+        if(cashSubmitCLicked.isFalse) {
+          cashSubmitCLicked.value = true;
+          submitCash();
+          Get.snackbar("Confirmed", "Cash submitted successfully");
+        }
       },
     );
   }

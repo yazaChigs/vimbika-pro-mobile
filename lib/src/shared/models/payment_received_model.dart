@@ -5,6 +5,8 @@ import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
 
+import 'branch_model.dart';
+
 PaymentReceivedModel paymentReceivedModelFromJson(String str) => PaymentReceivedModel.fromJson(json.decode(str));
 String paymentReceivedModelToJson(PaymentReceivedModel data) => json.encode(data.toJson());
 class PaymentReceivedModel {
@@ -20,6 +22,8 @@ class PaymentReceivedModel {
     this.dateTime,
     this.bank,
     this.payer,
+    this.branch,
+    this.balance,
     this.isMobile = true,
   });
 
@@ -28,8 +32,10 @@ class PaymentReceivedModel {
   String? reference;
   double? amount = 0.0;
   double? amountPaid = 0.0;
+  double? balance = 0.0;
   bool? isPaid = false;
   CurrencyModel? currency;
+  BranchModel? branch;
   BankModel? bank;
   String? paymentDescription = "SALE";
   String? dateTime;
@@ -47,8 +53,10 @@ class PaymentReceivedModel {
     amount: json["amount"] != null ? json["amount"].toDouble() : 0.0,
     amountPaid: json["amountPaid"] != null ? json["amountPaid"].toDouble() : 0.0,
     isPaid: json["isPaid"],
+    balance: json["balance"] != null ? json["balance"].toDouble() : 0.0,
     currency: json["currency"] != null ? CurrencyModel.fromMap(json["currency"]) : null,
     payer: json["payer"] != null ? CustomerModel.fromMap(json["payer"]) : null,
+    branch: json["branch"] != null ? BranchModel.fromMap(json["branch"]) : null,
     paymentType: json["paymentType"] != null ? PaymentTypeModel.fromMap(json["paymentType"]) : null,
     bank: json["bank"] != null ? BankModel.fromMap(json["bank"]) : null,
     dateTime: json["dateTime"],
@@ -67,6 +75,8 @@ class PaymentReceivedModel {
     "payer": payer?.toMap(),
     "bank": bank?.toMap(),
     "dateTime": dateTime,
+    "balance": balance,
     "isMobile": isMobile,
+    "branch": branch?.toMap(),
   };
 }

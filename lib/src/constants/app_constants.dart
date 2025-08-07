@@ -7,9 +7,9 @@ import 'package:path_provider/path_provider.dart';
 
 class AppConstants {
   static const CACHED_ACCESS_TOKEN = "CACHED_ACCESS_TOKEN";
-  // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
+  static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
   // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.africa/vimbika-africa/api";
-  static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
+  // static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
   // static const VIMBIKA_BACKEND_URL = "https://mashwede.vimbika.africa/mashwede/api";
   //     static const VIMBIKA_BACKEND_URL = "http://192.168.0.124:8080/vimbika-pro/api";
   // static const VIMBIKA_BACKEND_URL = "http://192.168.1.134:8080/vimbika-pro/api";
@@ -40,6 +40,7 @@ class AppConstants {
   static const FISCAL_DEVICE = "FISCAL_DEVICE";
   static const IS_FISCALISATION_ENABLED = "IS_FISCALISATION_ENABLED";
   static const ALWAYS_PRINT = "ALWAYS_PRINT";
+  static const USE_KOT = "USE_KOT";
   static const DEFAULT_CURRENCY_ID = "DEFAULT_CURRENCY_ID";
   static const DEFAULT_PAYMENT_METHOD_ID = "DEFAULT_PAYMENT_METHOD_ID";
 

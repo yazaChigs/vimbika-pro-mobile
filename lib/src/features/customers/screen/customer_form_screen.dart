@@ -191,8 +191,7 @@ class CustomerFormScreen extends StatelessWidget {
                           if(controller.editCustomer.value)
                             controller.updateCustomerInfo();
                           else
-                            controller.showConfirmDialogToSaveCustomer();
-
+                            controller.saveCustomerInfo();
                         }
                       },
                       child: Text('SAVE CUSTOMER'),

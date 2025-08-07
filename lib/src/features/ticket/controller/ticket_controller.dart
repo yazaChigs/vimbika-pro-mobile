@@ -26,7 +26,7 @@ import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 import '../../../constants/app_constants.dart';
 
 class TicketController extends GetxController {
-  // final SaleController saleController = Get.find();
+  final SaleController saleController = Get.find();
   final CartController cartController = Get.find();
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
   final ConnectivityService _connectivityService = ConnectivityService();
@@ -133,7 +133,7 @@ class TicketController extends GetxController {
     saveItem();
   }
 
-  saveItem() async{
+  saveItem() {
 
     List<SaleInfoModel> tickets = allTickets;
 
@@ -156,6 +156,7 @@ class TicketController extends GetxController {
     cartController.cartItems.value = [];
     cartController.calculateTotalAmounts([]);
     //Get.lazyPut(()=>TicketController());
+    // Navigator.of(Get.overlayContext!).pop();
     Get.offNamed(AppRoutes.SALE);
 
   }
@@ -203,7 +204,8 @@ class TicketController extends GetxController {
     allTickets.removeWhere((ticket) => ticket.sale!.referenceNumber == reference);
     filteredTickets.removeWhere((ticket) => ticket.sale!.referenceNumber  == reference);
     // Update storage with the new list
-    List<Map<String, dynamic>> itemsListMap = allTickets.map((item) => item.toMap()).toList();
+    List<SaleInfoModel> list = allTickets.value;
+    List<Map<String, dynamic>> itemsListMap = list.map((item) => item.toMap()).toList();
     box.write(AppConstants.SALE_LIST, itemsListMap);
     Get.snackbar("Ticket", "Ticket Deleted Successfully", snackPosition: SnackPosition.BOTTOM);
     bool stat = await _connectivityService.checkServerConnection();

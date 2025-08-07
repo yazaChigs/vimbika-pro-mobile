@@ -60,6 +60,8 @@ class SaleController extends GetxController {
   var isBrandSelected = false.obs;
   var isCatSelected = false.obs;
   var chargeClicked = false.obs;
+  var addAccClicked = false.obs;
+  var saveTicketClicked = false.obs;
 
   final ConnectivityService _connectivityService = ConnectivityService();
   final LocalStorageService _localStorageService = LocalStorageService();
@@ -72,6 +74,7 @@ class SaleController extends GetxController {
 
   final TextEditingController barCodeTextEditingController = TextEditingController();
   final TextEditingController amountTextEditingController = TextEditingController();
+  final TextEditingController itemNotesTextEditingController = TextEditingController();
   RxInt barCode =0.obs;
   @override
   Future<void> onInit() async {
@@ -89,21 +92,20 @@ class SaleController extends GetxController {
     List<BaseNameModel> brandList = loadItems(box, AppConstants.BRAND_LIST);
     brands.value = brandList;
     List<BaseNameModel> catList = loadItems(box, AppConstants.CATEGORY_LIST);
+    // catList = catList.where((cat) => {filterProducts(category: cat.name!),return filteredProducts.isNotEmpty}).toList();
     List<BaseNameModel> removedList =[];
-    // for(var cat in catList){
-    //   filterProducts(category: cat.name!);
-    //   print("Category: ${cat.name} has ${filteredProducts.length} products");
-    //   if(filteredProducts.isEmpty)
-    //   {
-    //     removedList.remove(cat);
-    //   }
-    // }
-    // print("Removed loaded: ${removedList.length}");
-    // catList.removeWhere((cat)=> removedList.contains(cat));
-    // print("Categories loaded: ${catList.length}");
+    for(var cat in catList){
+      filterProducts(category: cat.name!);
+      if(filteredProducts.isEmpty)
+      {
+        removedList.remove(cat);
+      }
+    }
+    catList.removeWhere((cat)=> removedList.contains(cat));
     catList.insert(0, BaseNameModel(id: "All Items", name: "All Items"));
     selectedCategory.value = catList[0];
     categories.value = catList;
+    categories.refresh();
       getOfflineProducts(box);
     bool? result = await SunmiPrinter.bindingPrinter();
     result = result ?? false;
@@ -121,66 +123,7 @@ class SaleController extends GetxController {
    // _syncTimer?.cancel();
     super.onClose();
   }
-  syncOfflineSales() async{
-    print("syncing offline sales...");
-    bool stat = await _connectivityService.checkServerConnection();
-    if(stat) {
-      List<SaleInfoModel> sales = getExistingOfflineSales(box);
-      List<SaleInfoModel> actualSales = [];
-      List<CurrencyAmount> currencyAmounts = [];
-      List<ShiftModel> shiftList = loadShiftInfo(box);
-      for(ShiftModel sh in shiftList){
-        if(sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty){
-          currencyAmounts.addAll(sh.shiftCurrencyAmounts!);
-        }
-      }
-      SaleInfoModel saleInfoModel;
-        for(SaleInfoModel s in sales){
-          if(s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING"){
-            actualSales.add(s);
-          }
-        }
 
-      actualSales = actualSales.where((sale)=> sale.syncStatus == false).toList();
-      offlineSales = actualSales;
-
-    List<SaleInfoModel> syncedSales = [];
-    for (SaleInfoModel saleInfo in offlineSales) {
-      CurrencyAmount saleCurrencyAmount =  currencyAmounts.firstWhere((test)=> test.posReference==saleInfo.sale!.posReference!, orElse: () => CurrencyAmount(currency: CurrencyModel(), amountType: "", ref: "", timeCreated: "", notes: "", amount: 0.0, shiftReference: null));
-      if (!saleInfo.syncStatus!) {
-        print(saleInfo.sale!.posReference);
-        SaleModel? saleModel = await SyncService.saveSale(
-            saleInfo.sale!, user, box, company.value!);
-        if (saleModel != null) {
-          syncedSales.add(saleInfo);
-          SaleInfoModel? infoModel = await getSale(saleModel.id!);
-          if(infoModel != null){
-            saleInfoModel = infoModel;
-          } else{
-            saleInfoModel = SaleInfoModel(sale: saleModel, syncStatus: true);
-          }
-          saleCurrencyAmount.posReference = saleInfoModel.sale?.posReference;
-          var list = [saleCurrencyAmount];
-         shiftList.firstWhere((shift)=>shift.shiftReference==saleInfoModel.sale!.shiftReference).shiftCurrencyAmounts = [...list];
-          print(shiftList.firstWhere((shift)=>shift.shiftReference==saleInfoModel.sale!.shiftReference).toJson());
-          // Update the sale in the local storage
-          if(sales.any((saleInfo)=> saleInfo.sale?.posReference == saleInfo.sale?.posReference)){
-            print("Updating existing sale...");
-            sales.remove(saleInfo);
-            sales.add(saleInfoModel);
-          }
-          writeSaleInfor(box, sales);
-
-        }
-      }
-    }
-    writeSaleInfor(box, sales);
-    for(SaleInfoModel saleInfo in syncedSales) {
-      // Remove the synced sales from the offline list
-      print(offlineSales.remove(saleInfo));
-    }
-    }
-  }
 
 
   Future<SaleInfoModel?> getSale(String saleId) async{
@@ -207,11 +150,6 @@ class SaleController extends GetxController {
 
   addPaymentType(){}
 
-  writeSaleInfor(GetStorage box, List<SaleInfoModel> itemsList){
-    List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
-        item.toMap()).toList();
-    box.write(AppConstants.SALE_LIST, itemsListMap);
-  }
 
   List<SaleInfoModel> getExistingOfflineSales(GetStorage box){
     List<dynamic>? itemsListDynamic = box.read<List<dynamic>>(AppConstants.SALE_LIST);
@@ -401,14 +339,13 @@ class SaleController extends GetxController {
   getOfflineProducts(GetStorage box){
     // AppHelper.showLoading();
     List<ProductFullInfoModel> storageProductList = _localStorageService.getProductList(box, false);
+    storageProductList.sort((a, b) => a.item!.name!.trim().compareTo(b.item!.name!.trim()));
     allProducts.value = storageProductList;
     filteredProducts.value = storageProductList;
-    print("Offline products loaded: ${allProducts.length}");
+
     if(allProducts.isEmpty) {
       getBranchStock(box);
     }
-    // AppHelper.hideLoading();
-
   }
 
 
@@ -434,6 +371,7 @@ class SaleController extends GetxController {
     // Case 1: All items and no query (reset filter)
     if (lowerCategory == 'all items' && searchQuery.value.isEmpty) {
       filteredProducts.value = allProducts.value;
+      filteredProducts.value.sort((a, b) => a.item!.name!.trim().compareTo(b.item!.name!.trim()));
       return;
     }
 
@@ -443,6 +381,7 @@ class SaleController extends GetxController {
         final categoryName = product.item?.category?.id?.toLowerCase() ?? '';
         return categoryName.contains(lowerCategory!);
       }).toList();
+      filteredProducts.value.sort((a, b) => a.item!.name!.trim().compareTo(b.item!.name!.trim()));
       return;
     }
 
@@ -455,6 +394,7 @@ class SaleController extends GetxController {
         final itemCode = product.item?.itemCode?.toLowerCase() ?? '';
         return productName.contains(searchQuery.value) || brandName.contains(searchQuery.value) || categoryName.contains(searchQuery.value) || itemCode.contains(searchQuery.value);
       }).toList();
+      filteredProducts.value.sort((a, b) => a.item!.name!.trim().compareTo(b.item!.name!.trim()));
       return;
     }
 
@@ -470,6 +410,7 @@ class SaleController extends GetxController {
 
       return matchesCategory && matchesSearch;
     }).toList();
+    filteredProducts.value.sort((a, b) => a.item!.name!.trim().compareTo(b.item!.name!.trim()));
   }
 
 
