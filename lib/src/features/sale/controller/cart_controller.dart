@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:get/get_rx/get_rx.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:intl/intl.dart';
+import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
@@ -214,6 +215,7 @@ class CartController extends GetxController {
 
     allCustomers.value = customers;
 
+
     // Use firstWhereOrNull to find a customer with "WalkIn" in their name (case-insensitive)
     CustomerModel? defaultCustomer = customers.firstWhereOrNull(
       (customer) =>
@@ -223,13 +225,15 @@ class CartController extends GetxController {
 
     if (defaultCustomer == null) {
       // If "WalkIn" is not in the list, create and add it
-      defaultCustomer = CustomerModel(id: null, name: 'WalkIn');
+      defaultCustomer = CustomerModel(id: null, name: 'WalkIn', branch: BaseNameModel(id: branch.value!.id, name: branch.value!.name));
       allCustomers.add(defaultCustomer);
     }
 
     // Set "WalkIn" as the default selected customer
     selectedCustomer.value = defaultCustomer;
     isCustomerSelected.value = true;
+    allCustomers.value = allCustomers.where((cus) => (cus.branch != null && cus.branch!.name == branch.value!.name)|| cus.name == "WalkIn").toList();
+    allCustomers.refresh();
     filterPaymentTypes(selectedCurrency.value!, defaultCustomer);
     List<AvailablePrinterModel> tempPrinterList = loadAvailablePrinters(box);
     availablePrinters.value = tempPrinterList;
@@ -812,6 +816,7 @@ class CartController extends GetxController {
         "Success",
         "Sale saved Successfully",
       );
+      openCashDrawer();
     } else{
 
       cancelSale();
@@ -875,9 +880,10 @@ class CartController extends GetxController {
     }
   }
   void printTicket(SaleInfoModel saleInfo) async {
-    // if (isPrintEnabled.isTrue) {
       _printerService.printKOT(saleInfo, box, _localStorageService);
-    // }
+  }
+  void printCashIn(PaymentReceivedModel payment, String cashier) async {
+      _printerService.printCashIn(payment,cashier, box, _localStorageService);
   }
   void printQuickTicket() async {
     final NumberFormat formatter = NumberFormat('000');
@@ -944,20 +950,28 @@ class CartController extends GetxController {
             posReference: posReference,
             isCash: isCash,
             paymentType: paymentTypeModel.paymentType!.name!);
-        print(activeShift.shiftCurrencyAmounts!.length);
         activeShift.shiftCurrencyAmounts!.add(currencyAmount);
-        print(currencyAmount.toJson());
       }
-        print("Currency amounts Num: ${activeShift.shiftCurrencyAmounts!.length.toString()}");
         List<ShiftModel> updatedShifts =
             _localStorageService.replaceShift(activeShift, shiftList);
         _localStorageService.writeItems(
             AppConstants.SHIFT_LIST, updatedShifts, box);
+        if(type == "CASH_IN") {
+          printCashIn(paymentTypes[0], activeShift.userFullName!);
+        }
         if (stat) {
           SyncService.syncOfflineShifts(user.value!, box);
         }
     } else {
       shiftAvailable.value = false;
+    }
+  }
+
+  Future<void> openCashDrawer() async {
+    try {
+      await SunmiPrinter.openDrawer();
+    } catch (e) {
+      debugPrint("Error opening cash drawer: $e");
     }
   }
 

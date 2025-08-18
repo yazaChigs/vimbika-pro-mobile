@@ -279,12 +279,6 @@ class ReceiptScreen extends StatelessWidget {
                                     child: IconButton(
                                       icon: Icon(Icons.print_outlined,color: Colors.indigoAccent,size: 32),
                                       onPressed: () async {
-                                        // if (saleInfo.syncStatus == true) {
-                                        //   // Handle online logic
-                                        // } else {
-                                        //   Future<Uint8List> pdf = GenerateFlutterPdf.generateReceipt(saleInfo.sale!);
-                                        //   Get.to(() => PdfPreviewScreen(pdf: pdf));
-                                        // }
                                         if(receiptController.isPrintClicked.isFalse) {
                                           sale.saleStatus != 'REVERSED'
                                               ? receiptController
@@ -300,18 +294,19 @@ class ReceiptScreen extends StatelessWidget {
                                       enableFeedback: true,
                                       icon: Icon(Icons.backspace_outlined,color: Colors.redAccent,size: 32,),
                                       onPressed: () {
-                                        AppHelper.showLoading();
-                                        saleInfo.sale!.saleStatus="REVERSED";
-                                        saleInfo.syncStatus = false;
-                                        var i = receiptController.allReceipts.indexOf(saleInfo);
-                                        receiptController.allReceipts[i] = saleInfo;
-                                        receiptController.filteredReceipts[index].sale!.saleStatus = "REVERSED";
-                                        receiptController.allReceipts[i] = saleInfo;
-                                        receiptController.saveSales();
-                                        receiptController.allReceipts.refresh();
-                                        receiptController.filteredReceipts.refresh();
-                                        AppHelper.hideLoading();
-                                        Get.snackbar("Success", "Sale reversed");
+                                        receiptController.showConfirmDialogToDeleteItem(saleInfo,index);
+                                        // AppHelper.showLoading();
+                                        // saleInfo.sale!.saleStatus="REVERSED";
+                                        // saleInfo.syncStatus = false;
+                                        // var i = receiptController.allReceipts.indexOf(saleInfo);
+                                        // receiptController.allReceipts[i] = saleInfo;
+                                        // receiptController.filteredReceipts[index].sale!.saleStatus = "REVERSED";
+                                        // receiptController.allReceipts[i] = saleInfo;
+                                        // receiptController.saveSales();
+                                        // receiptController.allReceipts.refresh();
+                                        // receiptController.filteredReceipts.refresh();
+                                        // AppHelper.hideLoading();
+                                        // Get.snackbar("Success", "Sale reversed");
                                       },
                                     ):SizedBox(),
                                   ),

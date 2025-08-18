@@ -388,10 +388,11 @@ class ShiftController extends GetxController {
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
     Get.snackbar("Success", "Shift closed successfully", snackPosition: SnackPosition.BOTTOM);
     SyncService.syncOfflineShifts(user, box);
-    Get.delete<ShiftController>();
+    /*Get.delete<ShiftController>();
     Get.delete<SaleController>();
     Get.delete<CartController>();
-    Get.offNamed(AppRoutes.OPEN_SHIFT);
+    Get.offNamed(AppRoutes.OPEN_SHIFT);*/
+    signOut();
   }
   void showConfirmDialogCloseShift() {
     Get.defaultDialog(
@@ -447,6 +448,31 @@ class ShiftController extends GetxController {
       print("Default Printer Not Found. Please add printer.");
     }
 
+  }
+
+
+  signOut() async {
+    GetStorage box = GetStorage();
+    await box.erase();
+    Get.offAllNamed(AppRoutes.LOGIN);
+   /* box.remove(AppConstants.CACHED_ACCESS_TOKEN);
+    box.write(AppConstants.IS_AUTHENTICATED, false);
+    // box.remove(AppConstants.USER_INFO);
+    List<ShiftModel> tempShiftList = loadShifts(box, _localStorageService);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, UserModel(firstName: "", lastName: "", userName: ""), false);
+    if(tempActiveShift != null) {
+      DateTime now = DateTime.now();
+      String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+      tempActiveShift.isShiftClosed = true;
+      tempActiveShift.closingTime = closingTime;
+      List<ShiftModel> shi = _localStorageService.replaceShift(
+          tempActiveShift, tempShiftList);
+      _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
+      SyncService.syncOfflineShifts(user, box);
+    }
+    Get.delete<SaleController>();
+    Get.delete<BackgroundService>();
+    Get.offNamed(AppRoutes.LOGIN);*/
   }
 
 }

@@ -115,7 +115,7 @@ class SaleController extends GetxController {
     }
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
-    cartController.refreshCustomers();
+    // cartController.refreshCustomers();
   }
   @override
   void onClose() {

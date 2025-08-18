@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/get.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:search_choices/search_choices.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
@@ -1255,7 +1256,17 @@ class SaleScreen extends GetView {
                         ),
                         width: 0.5 * screenSize,
                         alignment: Alignment.topLeft,
-                        child: GridView.builder(
+                        child:
+                            saleController.filteredProducts.isEmpty ?
+                          Center(
+                            child: LoadingAnimationWidget.discreteCircle(
+                              secondRingColor: const Color(0xFF98EF17),
+                              color: const Color(0xFFEA3799),
+                              thirdRingColor: const Color(0xFFF14405),
+                              size: 200,
+                            ),
+                          ):
+                        GridView.builder(
                           gridDelegate:
                               SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 4,

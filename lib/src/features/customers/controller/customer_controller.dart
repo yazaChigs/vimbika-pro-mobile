@@ -26,6 +26,7 @@ import '../../sale/controller/cart_controller.dart';
 
 class CustomerController extends GetxController {
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
+  late BranchModel? branch;
   final ConnectivityService _connectivityService = ConnectivityService();
   RxList<CustomerModel> allCustomers = <CustomerModel>[].obs;
   RxList<CustomerModel> filteredCustomers = <CustomerModel>[].obs;
@@ -83,14 +84,18 @@ class CustomerController extends GetxController {
     super.onInit();
     box = GetStorage();
     var model = box.read(AppConstants.USER_INFO) ?? {};
-    // BranchModel branch = box.read(AppConstants.SELECTED_BRANCH)!;
+    var rowBranch = box.read(AppConstants.SELECTED_BRANCH)!;
+
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
+    branch = BranchModel.fromMap(Map<String, dynamic>.from(rowBranch));
     isInternetAccess.value =  await _connectivityService.checkServerConnection();
     List<CustomerModel> customers = loadCustomers(box);
     allCustomers.value = customers;
-    // if(branch!= null)
-    //   filteredCustomers.value = customers.where((cus) => cus.branch!.name == branch.name).toList();
-    // else
+    if(branch!= null) {
+          print(customers.any((cus) => cus.branch!.name == branch!.name));
+      filteredCustomers.value =
+          customers.where((cus) => cus.branch != null && cus.branch!.name == branch!.name).toList();
+    } else
       filteredCustomers.value = customers;
     List<PaymentReceivedModel> paymentReceiveds = loadPaymentReceived(box);
     paymentReceivedList.value = paymentReceiveds;
@@ -200,7 +205,6 @@ class CustomerController extends GetxController {
         currency: selectedCurrency.value,
         bank: selectedBank.value
     );
-    print(paymentReceivedModel.toJson());
     List<PaymentReceivedModel> prlist = paymentReceivedList.value;
     prlist.add(paymentReceivedModel);
     paymentReceivedList.value = prlist;
@@ -225,8 +229,8 @@ class CustomerController extends GetxController {
     box.write(AppConstants.CUSTOMER_LIST, customersListMap);
     cartController.refreshCustomers();
     List<PaymentReceivedModel> paymentTypes =[];
+    paymentReceivedModel.payer = customer;
     paymentTypes.add(paymentReceivedModel);
-    print(paymentTypes.length);
     cartController.updateShiftWithNewSale(ref, paymentReceivedModel.dateTime!, paymentReceivedModel.amount!, isInternetAccess.value,
         customer.name!, paymentTypes,"CASH_IN",customer.name!);
     Navigator.of(Get.overlayContext!).pop();

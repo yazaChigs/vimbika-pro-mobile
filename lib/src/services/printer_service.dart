@@ -27,6 +27,7 @@ import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_histo
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:image/image.dart' as img;
+import 'package:vimbika_pos_app/src/shared/models/payment_received_model.dart';
 
 class PrinterService extends GetxService {
   Future<void> printCurrentSale(SaleInfoModel saleInfo, GetStorage box,  LocalStorageService _localStorageService) async {
@@ -66,6 +67,28 @@ class PrinterService extends GetxService {
           if (prin.type == 'usb') {
             await generateUSBReceipt(saleInfo.sale!, prin);
           }
+        } else {
+          Get.snackbar('Error', 'Default Printer Not Found. Please add printer.',
+              snackPosition: SnackPosition.BOTTOM);
+          print("Default Printer Not Found. Please add printer.");
+        }
+
+  }
+  Future<void> printCashIn(PaymentReceivedModel payment,String? cashier, GetStorage box,  LocalStorageService _localStorageService) async {
+    AvailablePrinterModel? prin = _localStorageService.findActivePrinter(box);
+        if (prin != null) {
+          if(prin.type == 'SUNMI_INBUILT_PRINTER') {
+            await printSunmiCashIn(payment,cashier);
+          }
+         /* if(prin.type == 'TELPO_INBUILT_PRINTER') {
+            await printTelpoSaleReceipt(saleInfo.sale!);
+          }
+          if (prin.type == 'bluetooth') {
+            await generateBluetoothReceipt(saleInfo.sale!, prin);
+          }
+          if (prin.type == 'usb') {
+            await generateUSBReceipt(saleInfo.sale!, prin);
+          }*/
         } else {
           Get.snackbar('Error', 'Default Printer Not Found. Please add printer.',
               snackPosition: SnackPosition.BOTTOM);
@@ -723,6 +746,16 @@ class PrinterService extends GetxService {
      await SunmiPrinter.printText("Subtotal: ${cur?.symbol ?? ''} ${sale.amountAfterDiscount?.toStringAsFixed(2)}");
      await SunmiPrinter.printText("Amount Paid: ${cur?.symbol ?? ''} ${sale.amountPaid?.toStringAsFixed(2)} \t\t${sale.paymentTypes!.map((pt)=>pt.paymentType!.name!).join(', ')}");
      await SunmiPrinter.printText("Change: ${cur?.symbol ?? ''} ${sale.change?.toStringAsFixed(2)}");
+     if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false))
+       {
+         await SunmiPrinter.printText(
+             "Account Balance: ${cur?.symbol ?? ''} ${sale.customer!
+                 .currencyBalance!
+                 .firstWhere((cb) => cb.currency == cur)
+                 .balance!
+                 .toStringAsFixed(2)}");
+       }
+
 
      //qr code
 
@@ -791,7 +824,56 @@ class PrinterService extends GetxService {
      await SunmiPrinter.exitTransactionPrint(true);
    }
 
-   // Print Sale Receipt
+   // Print cash in Receipt
+   Future<void> printSunmiCashIn(PaymentReceivedModel payment, String? cashier) async {
+     CurrencyModel? cur = payment.currency;
+
+     Uint8List imageBytes = await readLocalFileBytes();
+     //print(imageBytes);
+
+     await SunmiPrinter.initPrinter();
+     await SunmiPrinter.startTransactionPrint(true);
+
+     // Header
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.printImage(imageBytes); // Directly print the image bytes
+
+     await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+     // await SunmiPrinter.printText("\n");
+     // await SunmiPrinter.printText("KOT");
+     await SunmiPrinter.resetFontSize();
+
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+     await SunmiPrinter.printText("Cashier: $cashier}");
+     await SunmiPrinter.printText("Date: ${payment.dateTime}");
+     await SunmiPrinter.printText("Reference: DEPOSIT");
+
+     // Customer Information
+       await SunmiPrinter.printText("Customer: ${payment.payer?.name}");
+
+     // Separator
+     await SunmiPrinter.printText("--------------------------------");
+
+     // Items
+     // for (var item in payment.items!) {
+       await SunmiPrinter.printText("Amount: ${cur?.symbol ?? ''} ${payment.amount?.toStringAsFixed(2)} ( ${payment.paymentType!.name})");
+       await SunmiPrinter.printText("New Balance: ${cur?.symbol ?? ''} ${payment.payer!.currencyBalance!.firstWhere((cb) => cb.currency.id == payment.currency?.id).balance?.toStringAsFixed(2)}");
+       // await SunmiPrinter.printText("${item.notes ?? ''}");
+       // await SunmiPrinter.printText("--------------------------------");
+     // }
+
+     // Separator
+     await SunmiPrinter.printText("--------------------------------");
+
+     //qr code
+     // Footer
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.printText("\n\n\n");
+     await SunmiPrinter.submitTransactionPrint();
+     await SunmiPrinter.exitTransactionPrint(true);
+   }
+
+   // Print KOT
    Future<void> printSunmiQuickKOT(List<CartItemModel> items, String? cashier, String? customer, String? reference) async {
 
      // Uint8List imageBytes = await readLocalFileBytes();

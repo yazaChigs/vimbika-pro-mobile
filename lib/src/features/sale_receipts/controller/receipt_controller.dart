@@ -20,6 +20,8 @@ import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
+import '../screen/receipt_screen.dart';
+
 
 class ReceiptController extends GetxController {
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
@@ -165,6 +167,39 @@ class ReceiptController extends GetxController {
     } else{
       getSales();
     }
+  }
+
+
+  void showConfirmDialogToDeleteItem(SaleInfoModel saleInfo, int index) {
+    Get.defaultDialog(
+      title: "Confirmation",
+      middleText: "Are you sure you want to reverse sale?",
+      textCancel: "No",
+      textConfirm: "Yes",
+      onCancel: () {
+        Navigator.pushReplacement(Get.context!,
+            MaterialPageRoute(builder: (BuildContext context) => ReceiptScreen()));
+        Get.reload();
+        // Navigator.of(Get.overlayContext!).pop();
+        // Get.back(); // Close the dialog
+      },
+      onConfirm: () {
+        AppHelper.showLoading();
+        saleInfo.sale!.saleStatus="REVERSED";
+        saleInfo.syncStatus = !saleInfo.syncStatus!;
+        var i = allReceipts.indexOf(saleInfo);
+        allReceipts[i] = saleInfo;
+        filteredReceipts[index].sale!.saleStatus = "REVERSED";
+        allReceipts[i] = saleInfo;
+        saveSales();
+        allReceipts.refresh();
+        filteredReceipts.refresh();
+        AppHelper.hideLoading();
+        Navigator.pushReplacement(Get.context!,
+            MaterialPageRoute(builder: (BuildContext context) => ReceiptScreen()));
+        Get.snackbar("Success", "Sale reversed");
+      },
+    );
   }
 
   printSale(SaleInfoModel saleInfo) async{

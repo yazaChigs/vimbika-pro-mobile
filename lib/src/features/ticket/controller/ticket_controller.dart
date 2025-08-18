@@ -173,7 +173,6 @@ class TicketController extends GetxController {
     }
   }
   void showConfirmDialogToDeleteItem(String reference, String saleId) {
-    print("reference: ${reference} saleID: ${saleId}");
     Get.defaultDialog(
       title: "Confirmation",
       middleText: "Are you sure you want to proceed?",
