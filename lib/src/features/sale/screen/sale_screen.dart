@@ -163,6 +163,22 @@ class SaleScreen extends GetView {
                   Get.toNamed(AppRoutes.CUSTOMER_FORM);
                 },
               ),
+              Obx(() => IconButton(
+                    icon: cartController.isNfcReading.value
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.blue),
+                            ),
+                          )
+                        : Icon(Icons.nfc),
+                    onPressed: () {
+                      cartController.selectCustomerByNfc();
+                    },
+                  )),
             ],
           ),
           drawer: NavDrawer(

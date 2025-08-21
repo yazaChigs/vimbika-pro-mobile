@@ -148,6 +148,30 @@ class CheckoutScreen extends StatelessWidget {
                             ),
                           ),
                         ),
+                        Obx(() => GestureDetector(
+                              onTap: () {
+                                cartController.selectCustomerByNfc();
+                              },
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.only(left: 8.0, right: 20),
+                                child: cartController.isNfcReading.value
+                                    ? SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                  Colors.blue),
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.nfc,
+                                        color: Colors.blue,
+                                      ),
+                              ),
+                            )),
                       ],
                     ),
                   ),
