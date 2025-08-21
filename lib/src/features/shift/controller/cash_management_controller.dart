@@ -7,6 +7,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart';
+import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
@@ -87,6 +88,15 @@ class CashManagementController extends GetxController {
 
 
   }
+
+
+  Future<void> openCashDrawer() async {
+    try {
+      await SunmiPrinter.openDrawer();
+    } catch (e) {
+      debugPrint("Error opening cash drawer: $e");
+    }
+  }
   payInPayOutAction(String payType) async {
 
     String timeCreated = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
@@ -98,8 +108,8 @@ class CashManagementController extends GetxController {
     activeShift.shiftCurrencyAmounts!.add(currencyAmount);
     List<ShiftModel> updatedShifts = _localStorageService.replaceShift(activeShift, shiftList);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, updatedShifts, box);
+    openCashDrawer();
     await SyncService.syncOfflineShifts(user.value!, box);
-
     Get.delete<CashManagementController>();
     Get.put(ShiftController());
     Get.offNamed(AppRoutes.VIEW_SHIFT);

@@ -823,7 +823,6 @@ class CartController extends GetxController {
         "Success",
         "Sale saved Successfully",
       );
-      openCashDrawer();
     } else{
 
       cancelSale();
@@ -959,7 +958,10 @@ class CartController extends GetxController {
             paymentType: paymentTypeModel.paymentType!.name!);
         activeShift.shiftCurrencyAmounts!.add(currencyAmount);
       }
-        List<ShiftModel> updatedShifts =
+      if(paymentTypes.any((pt)=> pt.paymentType!.name!.startsWith("CASH-"))) {
+        openCashDrawer();
+      }
+      List<ShiftModel> updatedShifts =
             _localStorageService.replaceShift(activeShift, shiftList);
         _localStorageService.writeItems(
             AppConstants.SHIFT_LIST, updatedShifts, box);

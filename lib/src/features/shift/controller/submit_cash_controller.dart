@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:meta/meta.dart';
+import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
@@ -125,10 +126,20 @@ class SubmitCashController extends GetxController {
         if(cashSubmitCLicked.isFalse) {
           cashSubmitCLicked.value = true;
           submitCash();
+          openCashDrawer();
           Get.snackbar("Confirmed", "Cash submitted successfully");
         }
       },
     );
+  }
+
+
+  Future<void> openCashDrawer() async {
+    try {
+      await SunmiPrinter.openDrawer();
+    } catch (e) {
+      debugPrint("Error opening cash drawer: $e");
+    }
   }
 
   Future<void> submitCash() async {
