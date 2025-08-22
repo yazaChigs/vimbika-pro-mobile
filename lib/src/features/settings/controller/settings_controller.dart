@@ -19,12 +19,14 @@ class SettingsController extends GetxController {
   var defaultCurrencyId = "".obs;
   var defaultPaymentMethodId = "".obs;
   RxBool isFiscalisationEnabled = false.obs;
+  RxBool useNfc = false.obs;
 
   @override
   void onInit() {
     super.onInit();
     box = GetStorage();
     isFiscalisationEnabled.value  = box.read(AppConstants.DEFAULT_FISCAL_SETTING) ?? false;
+    useNfc.value  = box.read(AppConstants.USE_NFC) ?? false;
     defaultPaymentMethodId.value  = box.read(AppConstants.DEFAULT_PAYMENT_METHOD_ID) ?? "";
     List<PaymentTypeModel> tempList = getOfflinePaymentTypeList(box);
     paymentTypesList.value = tempList;
@@ -35,6 +37,16 @@ class SettingsController extends GetxController {
 
   void toggleDefaultFiscalSetting() {
     isFiscalisationEnabled.value = !isFiscalisationEnabled.value;
+  }
+  void toggleUseNfcSetting() {
+    useNfc.value = !useNfc.value;
+    box.write(AppConstants.USE_NFC, useNfc.value);
+    Get.snackbar(
+      'Settings Saved',
+      'Your preference has been updated.',
+      snackPosition: SnackPosition.BOTTOM,
+    );
+
   }
 
    loadCurrencies(GetStorage box) {

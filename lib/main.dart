@@ -52,7 +52,10 @@ class MyApp extends StatelessWidget {
 
   // Initialize NFC check on app startup
   void _initializeNfcCheck() {
+    GetStorage storage = GetStorage();
+    bool useNFC  = storage.read(AppConstants.USE_NFC) ?? false;
     // Delay the NFC check to allow app to load first
+    if(useNFC)
     Future.delayed(Duration(seconds: 2), () async {
       try {
         final nfcService = Get.find<NfcService>();

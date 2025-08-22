@@ -44,7 +44,7 @@ class PrinterSettingsController extends GetxController {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     List<AvailablePrinterModel> tempList = loadAvailablePrinters(box);
     availablePrinters.value = tempList;
-    var print = box.read(AppConstants.ALWAYS_PRINT);
+    var print = box.read(AppConstants.ALWAYS_PRINT)??false;
     if(print){
       isAlwaysPrintEnabled.value = true;
     } else{

@@ -13,8 +13,11 @@ class CustomerListScreen extends StatelessWidget {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final InactivityController inactivityController = Get.put(InactivityController());
   final CustomerController customerController = Get.put(CustomerController());
+  static bool isMobile(BuildContext context) =>
+      MediaQuery.of(context).size.width < 950.0;
 
-
+  static bool isTablet(BuildContext context) =>
+      MediaQuery.of(context).size.width >= 950.0;
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +81,7 @@ class CustomerListScreen extends StatelessWidget {
               child: Obx(() {
                 return GridView.builder(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
+                      crossAxisCount: isMobile(context) ? 2 : 4,
                     // crossAxisSpacing: 3.0,
                     // mainAxisSpacing: 3.0,
                     childAspectRatio: 1.5,

@@ -3,7 +3,10 @@ import 'package:get/get.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/widgets/app_widgets.dart';
 
+import '../controller/settings_controller.dart';
+
 class SettingsScreen extends StatelessWidget {
+  final SettingsController controller = Get.put(SettingsController());
   @override
   Widget build(BuildContext context) {
     AppWidgets appWidgets = AppWidgets();
@@ -44,6 +47,21 @@ class SettingsScreen extends StatelessWidget {
               icon: Icons.monetization_on,
               onTap: () => Get.toNamed(AppRoutes.DEFAULT_CURRENCY_SCREEN),
             ),
+            const SizedBox(height: 20),
+            Obx(() => CheckboxListTile(
+              title: Text(
+                'Use NFC',
+                style: TextStyle(fontSize: 16),
+              ),
+              value: controller.isFiscalisationEnabled.value,
+              onChanged: (value) {
+                controller.toggleUseNfcSetting();
+              },
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+            )),
+
+            Spacer(),
           ],
         ),
       ),
