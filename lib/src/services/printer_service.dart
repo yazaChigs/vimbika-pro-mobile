@@ -654,7 +654,7 @@ class PrinterService extends GetxService {
     }
   }
 
-  Future<void> sendTextToLCD() async {
+  Future<void>  sendTextToLCD() async {
     try {
       await SunmiPrinter.lcdString("Hello");
       await SunmiPrinter.lcdString("World!");

@@ -5,6 +5,18 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+repositories {
+    flatDir {
+        dirs 'libs'
+    }
+}
+dependencies {
+    // ... existing dependencies
+    implementation(name: 'DS_Lib-1.0.2', ext: 'aar')
+//    implementation( 'com.sunmi:DS_Lib:1.0.9')
+//    implementation( 'com.google.code.gson:gson:2.6.2' ) //gson any version
+     }
+
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
