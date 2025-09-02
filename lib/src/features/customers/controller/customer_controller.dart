@@ -459,7 +459,7 @@ class CustomerController extends GetxController {
     totalTaxInSelectedCurrency.value = totalTaxInSelCurrency;
     filterPaymentTypes(newValue, selectedCustomer.value!);
     selectedPaymentType.value = filteredPaymentTypesList
-        .firstWhere((pt) => pt.name == "ACC-${newValue.name}");
+        .firstWhereOrNull((pt) => pt.name == "ACC-${newValue.name}");
     selectCorrectBank();
   }
 

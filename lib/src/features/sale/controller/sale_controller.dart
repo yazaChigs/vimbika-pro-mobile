@@ -30,6 +30,7 @@ import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/settings_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
+import '../../../services/printer_service.dart';
 import '../../shift/model/currency_amount.dart';
 import '../../shift/model/shift_model.dart';
 
@@ -51,7 +52,7 @@ class SaleController extends GetxController {
   bool sellNilItems = false;
   List<SaleInfoModel> offlineSales = <SaleInfoModel>[];
   PaymentTypeModel selectedPaymentType = PaymentTypeModel();
-  List<PaymentTypeModel> selectedPaymentTypes = <PaymentTypeModel>[];
+  List<PaymentTypeModel> selectedPaymentTypes = <PaymentTypeModel>[].obs;
   RxList<SaleInfoModel> allReceipts = <SaleInfoModel>[].obs;
   RxList<SaleInfoModel> filteredReceipts = <SaleInfoModel>[].obs;
   final CartController cartController = Get.put(CartController());
@@ -74,7 +75,10 @@ class SaleController extends GetxController {
 
   final TextEditingController barCodeTextEditingController = TextEditingController();
   final TextEditingController amountTextEditingController = TextEditingController();
+  final TextEditingController discountTextEditingController = TextEditingController();
   final TextEditingController itemNotesTextEditingController = TextEditingController();
+
+  final PrinterService _printerService = Get.put(PrinterService());
   RxInt barCode =0.obs;
   @override
   Future<void> onInit() async {
@@ -116,6 +120,10 @@ class SaleController extends GetxController {
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
     // cartController.refreshCustomers();
+    bool canPrintToDisplay = await _printerService.initializeSunmiLCD();
+    if(canPrintToDisplay){
+      await _printerService.sendTextToLCD();
+    }
   }
   @override
   void onClose() {

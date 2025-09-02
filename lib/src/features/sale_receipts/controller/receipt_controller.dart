@@ -204,6 +204,7 @@ class ReceiptController extends GetxController {
 
   printSale(SaleInfoModel saleInfo) async{
    await _printerService.printCurrentSale(saleInfo, box, _localStorageService);
+   isPrintClicked.value = false;
   }
   void sortSalesByDate() {
     allReceipts.sort((a, b) {

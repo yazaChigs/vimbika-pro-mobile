@@ -63,6 +63,9 @@ class SaleModel {
     this.accountPayType,
     this.amtToAcc,
     this.pointsUsed,
+    this.customerAccPayType,
+    this.customerAccBankType,
+    this.tableType,
 
   });
 
@@ -107,6 +110,9 @@ class SaleModel {
   double? amtToAcc;
   double? pointsUsed;
   String? accountPayType;
+  String? customerAccPayType;
+  String? customerAccBankType;
+  String? tableType;
   bool? emailReceipt;
   bool? isWalkInCustomer;
   String? receiptQrData;
@@ -126,6 +132,9 @@ class SaleModel {
     amountPaid: json["amountPaid"],
     amtToAcc: json["amtToAcc"],
     pointsUsed: json["pointsUsed"],
+    tableType: json["tableType"],
+    customerAccPayType: json["customerAccPayType"],
+    customerAccBankType: json["customerAccBankType"],
     accountPayType: json["accountPayType"],
     totalQuantity: json["totalQuantity"],
     saleCost: json["saleCost"],
@@ -172,6 +181,9 @@ class SaleModel {
 
     "saleStatus": saleStatus,
     "onHold": onHold,
+    "tableType": tableType,
+    "customerAccPayType": customerAccPayType,
+    "customerAccBankType": customerAccBankType,
     "amountPaid": amountPaid,
     "totalTaxAmount": totalTaxAmount,
     "taxAmount": taxAmount,

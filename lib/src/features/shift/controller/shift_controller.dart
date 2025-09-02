@@ -79,6 +79,8 @@ class ShiftController extends GetxController {
       }
     }
     allReceipts.value = actualSales;
+    print("allReceipts.value: ${allReceipts.length}");
+
     calculateTotalAmountsByCurrency();
     calculateTotalAmountsByPaymentType();
   }
@@ -190,36 +192,24 @@ class ShiftController extends GetxController {
     Map<String, double> cashOuts = {};
     Map<String, double> totalCashSubmitted = {};
 
-    for (var currencyAmount in activeShift.value.shiftCurrencyAmounts!) {
+    for (CurrencyAmount currencyAmount in activeShift.value.shiftCurrencyAmounts??[]) {
       final currencyId = currencyAmount.currency.id;
-      bool isCash = false;
       if(allReceipts!=null && allReceipts.isNotEmpty) {
         var sale = allReceipts
-            .firstWhere((sale) =>
+            .firstWhere((sale) => currencyAmount.paymentType!.startsWith("CASH-")&&
         sale.sale?.posReference == currencyAmount.posReference &&
             sale.sale?.currency?.id == currencyId,orElse: () => SaleInfoModel(sale: null,syncStatus: false))
             .sale;
         if(sale!=null){
+          print(sale.paymentTypes!.map((toElement)=>toElement.paymentType!.toJson()));
           for(PaymentReceivedModel paymentReceived in sale.paymentTypes!){
             if(paymentReceived.paymentType!.name!.startsWith("CASH")){
               totals[currencyId!] = (totals[currencyId] ?? 0.0) + (paymentReceived.amount ?? 0.00);
             }
           }
         }
-       /* if(sale!=null){
-          isCash = sale.paymentType!
-              .name!
-              .startsWith("CASH") ?? false;
-        }
-        if(currencyAmount.amountType == 'CASH_IN' ||
-            currencyAmount.amountType == 'OPENING_AMOUNT' ||
-            currencyAmount.amountType == 'CASH_OUT') {
-          isCash = true; // Default to true for these types
-        }*/
-
       }
-      print("calculateTotalAmountsByCurrency ${currencyAmount.toJson()}");
-       if (currencyAmount.amountType == 'CASH_IN' && currencyAmount.paymentType!.startsWith("CASH") || currencyAmount.amountType == 'OPENING_AMOUNT'){
+       if ((currencyAmount.amountType == 'CASH_IN' && (currencyAmount.paymentType!.startsWith("CASH") || currencyAmount.paymentType!.startsWith("ACC") ))|| currencyAmount.amountType == 'OPENING_AMOUNT'){
         totals[currencyId!] = (totals[currencyId] ?? 0.0) + currencyAmount.amount;
       } else if (currencyAmount.amountType == 'CASH_OUT') {
         totals[currencyId!] = (totals[currencyId] ?? 0.0) - currencyAmount.amount;
@@ -293,12 +283,15 @@ class ShiftController extends GetxController {
     Map<String, double> totals = {};
     print("calculateTotalAmountsByPaymentType ${allReceipts.length}");
     for (var sale in allReceipts) {
+      print(sale.sale!.saleStatus);
+      print(sale.sale!.shiftReference);
 
         if ((sale.sale?.saleStatus == 'COMPLETE' ||
                 sale.sale?.saleStatus == 'PENDING') &&
             sale.sale?.shiftReference == activeShift.value.shiftReference) {
           for(var paymentReceived in sale.sale!.paymentTypes!) {
             final paymentTypeId = paymentReceived.paymentType?.id;
+            print("${paymentReceived.amount}");
           totals[paymentTypeId!] = (totals[paymentTypeId] ?? 0.0) +
               (paymentReceived.amount ?? 0.0);
         }

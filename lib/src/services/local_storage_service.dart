@@ -154,6 +154,7 @@ class LocalStorageService {
     } else {
       // Optionally handle the case where the shift is not found
       print("Sale with reference ${newItem.sale!.posReference} not found.");
+      list.add(newItem);
     }
     return list;
   }

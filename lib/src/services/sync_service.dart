@@ -41,66 +41,6 @@ import '../shared/models/customer_model.dart';
 
 
 class SyncService {
-  // static Future<void> syncOfflineSales(UserModel user, GetStorage box) async {
-  //   List<SaleInfoModel> offlineSales = loadSales(box);
-  //   List<SaleInfoModel> failedSyncSales = [];
-  //   List<SaleModel> saleItems = [];
-  //   List<SaleInfoModel> offlineSalesUpdated = [];
-  //
-  //   for (SaleInfoModel saleInfo in offlineSales) {
-  //     if (!saleInfo.syncStatus!) {
-  //       try {
-  //         failedSyncSales.add(saleInfo);
-  //         saleItems.add(saleInfo.sale!);
-  //         print(saleInfo.sale!.items!.length);
-  //       } catch (e, stackTrace) {
-  //         print('Error occurred while processing saleInfo: $e');
-  //         print(stackTrace);
-  //       }
-  //
-  //       String jsonSaleItems = json.encode(saleItems.map((sale) => sale.toMap()).toList());
-  //       AppHelper.showLoading("Syncing sales....");
-  //
-  //       var response = await BaseHttpClient()
-  //           .postAuthWithCompanyHeader("/sale/sale-mobile", jsonSaleItems, user.companyId!, "POST")
-  //           .catchError((onError) {
-  //         print(onError);
-  //         AppHelper.hideLoading();
-  //         if (onError is BadRequestException) {
-  //           var apiError = json.decode(onError.message!);
-  //           AppHelper.showErroDialog(description: apiError["reason"]);
-  //         } else {
-  //           AppHelper.handleError(onError);
-  //         }
-  //         offlineSalesUpdated.addAll(failedSyncSales);
-  //       });
-  //
-  //       if (response != null) {
-  //         SaleResponseModel saleResponseModel = SaleResponseModel.fromJson(response);
-  //         for (SaleModel saleInfoFromServer in saleResponseModel.sales!) {
-  //           if (saleInfo.sale!.posReference == saleInfoFromServer.posReference) {
-  //             SaleInfoModel saleInfoMod = SaleInfoModel(sale: saleInfoFromServer, syncStatus: true);
-  //             offlineSalesUpdated.add(saleInfoMod);
-  //           }
-  //         }
-  //         AppHelper.hideLoading();
-  //         Get.snackbar("Success", "Data synced successfully");
-  //       } else {
-  //         Get.snackbar("Error", "No response from server");
-  //         AppHelper.hideLoading();
-  //       }
-  //     } else {
-  //       offlineSalesUpdated.add(saleInfo);
-  //     }
-  //   }
-  //   writeSaleInfor(box, offlineSalesUpdated);
-  // }
-  // static void writeSaleInfor(GetStorage box, List<SaleInfoModel> itemsList){
-  //   List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
-  //       item.toMap()).toList();
-  //   box.write(AppConstants.SALE_LIST, itemsListMap);
-  // }
-
 
   static Future<void>  getCustomers(UserModel user, GetStorage box, String companyId) async{
     var response = await BaseHttpClient().getAuthWithCompanyHeader("/customer/get-all", companyId).catchError((onError){
@@ -668,6 +608,8 @@ class SyncService {
     if(response != null) {
       ShiftItemResponseModel shiftResponseModel = ShiftItemResponseModel.fromJson(response);
       if (shiftResponseModel.available!) {
+        print("shift found");
+        print(shiftResponseModel.item!.shiftCurrencyAmounts!.length);
         return shiftResponseModel.item;
       }
     }

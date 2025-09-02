@@ -45,6 +45,7 @@ import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
 import '../../../shared/models/settings_model.dart';
 import '../../../services/nfc_service.dart';
+import '../../customers/controller/customer_controller.dart';
 
 class CartController extends GetxController {
   var cartItems = <CartItemModel>[].obs;
@@ -175,7 +176,7 @@ class CartController extends GetxController {
     var deviceFiscalSetting =
         box.read(AppConstants.DEFAULT_FISCAL_SETTING) ?? false;
     if (fiscalStatus) {
-      // fiscalizeReceipt.value = true;
+      fiscalizeReceipt.value = true;
       if (deviceFiscalSetting) {
         isFiscaliseReceiptEnabled.value = true;
         zimraFiscalizeReceipt.value = true;
@@ -357,7 +358,7 @@ class CartController extends GetxController {
         }
       }
     }
-    if((!(selectedCus.isLoyalCustomer??false)) && (selectedCus.currencyBalance!.isNotEmpty)){
+    if((!(selectedCus.isLoyalCustomer??false)) && (selectedCus.currencyBalance?.isNotEmpty??false)){
       tempList = tempList.where((type)=>!type.name!.startsWith("ACC-")).toList();
     }
 
@@ -585,19 +586,44 @@ class CartController extends GetxController {
 
   void showConfirmDialogChargeSale() {
     chargeSale("COMPLETE", false, "", "", "", cartItems, saleTicketId.value);
-    // Get.defaultDialog(
-    //   title: "Confirmation",
-    //   middleText: "Are you sure you want to proceed?",
-    //   textCancel: "No",
-    //   textConfirm: "Yes",
-    //   onCancel: () {
-    //     Get.back(); // Close the dialog
-    //   },
-    //   onConfirm: () {
-    //     chargeSale();
-    //
-    //   },
-    // );
+  }
+
+  List<SaleItemModel> cartItemsToSaleItems(List<CartItemModel> saleCartItems){
+    double totalSaleQuantity = 0;
+    List<SaleItemModel> saleItems = [];
+      for (var cartItem in saleCartItems) {
+        InventoryItemModel productItem = cartItem.product.item!;
+        totalSaleQuantity = totalSaleQuantity + cartItem.quantity;
+        productItem.quantity = cartItem.quantity;
+        productItem.total = cartItem.totalPrice;
+        var rate = selectedCurrency.value?.rate ?? 1.0;
+
+        SaleItemModel saleItem = SaleItemModel(
+        sellingPrice: productItem.sellingPrice * rate,
+        notes: cartItem.notes,
+        baseCurrencySellingPrice: productItem.sellingPrice,
+        quantity: cartItem.quantity,
+        total: cartItem.totalPrice * rate,
+        baseCurrencyTotal: cartItem.totalPrice,
+        taxAmount:
+        double.parse((cartItem.totalTaxAmount * rate).toStringAsFixed(2)),
+        baseTaxAmount:
+        double.parse(cartItem.totalTaxAmount.toStringAsFixed(2)),
+        inventoryItem: productItem,
+        branch: branch.value,
+        usedCodesString: cartItem.usedCodes);
+        saleItem.id = saleCartItems.indexOf(cartItem).toString();
+        if (saleItem.inventoryItem != null) {
+        if (saleItem.inventoryItem!.productImages != null) {
+            saleItem.inventoryItem!.productImages = [];
+          }
+          if (saleItem.inventoryItem!.image != null) {
+            saleItem.inventoryItem!.image = "";
+          }
+        }
+        saleItems.add(saleItem);
+      }
+      return saleItems;
   }
 
   chargeSale(
@@ -623,38 +649,7 @@ class CartController extends GetxController {
 
     saleTicketId.value = saleId;
 
-    for (var cartItem in saleCartItems) {
-      InventoryItemModel productItem = cartItem.product.item!;
-      totalSaleQuantity = totalSaleQuantity + cartItem.quantity;
-      productItem.quantity = cartItem.quantity;
-      productItem.total = cartItem.totalPrice;
-      var rate = selectedCurrency.value?.rate ?? 1.0;
-
-      SaleItemModel saleItem = SaleItemModel(
-          sellingPrice: productItem.sellingPrice * rate,
-          notes: cartItem.notes,
-          baseCurrencySellingPrice: productItem.sellingPrice,
-          quantity: cartItem.quantity,
-          total: cartItem.totalPrice * rate,
-          baseCurrencyTotal: cartItem.totalPrice,
-          taxAmount:
-              double.parse((cartItem.totalTaxAmount * rate).toStringAsFixed(2)),
-          baseTaxAmount:
-              double.parse(cartItem.totalTaxAmount.toStringAsFixed(2)),
-          inventoryItem: productItem,
-          branch: branch.value,
-          usedCodesString: cartItem.usedCodes);
-      saleItem.id = saleCartItems.indexOf(cartItem).toString();
-      if (saleItem.inventoryItem != null) {
-        if (saleItem.inventoryItem!.productImages != null) {
-          saleItem.inventoryItem!.productImages = [];
-        }
-        if (saleItem.inventoryItem!.image != null) {
-          saleItem.inventoryItem!.image = "";
-        }
-      }
-      saleItems.add(saleItem);
-    }
+    saleItems = cartItemsToSaleItems(saleCartItems);
     bool isWalkIn =
         selectedCustomer.value!.name!.contains("WalkIn") ? true : false;
     List<PaymentReceivedModel> paymentTypes = [];
@@ -712,7 +707,7 @@ class CartController extends GetxController {
         posReference: ref,
         customer: isWalkIn ? null : selectedCustomer.value,
         isWalkInCustomer: isWalkIn,
-        taxInvoice: fiscalizeReceipt.value,
+        taxInvoice: isFiscaliseReceiptEnabled.value,
         fiscalized: zimraFiscalizeReceipt.value,
         emailReceipt: emailReceipt.value,
         totalDiscount: 0,
@@ -720,17 +715,21 @@ class CartController extends GetxController {
         ticketComment: ticketComment,
         accountPayType: accountPayType.value,
         pointsUsed: null,
+        customerAccPayType: "CASH-${selectedCurrency.value?.name}",
+        customerAccBankType: "Cash-${selectedCurrency.value?.name}",
         amtToAcc: addAmtToAcc.value?double.parse(amtToAccTextEditingController.text):null
     );
     SaleInfoModel saleInfoModel;
     if (isOnHold) {
+      saleId = "";
       saleInfoModel = SaleInfoModel(sale: sale, syncStatus: true);
       infos.add(saleInfoModel);
       writeSaleInfor(box, infos);
-      printTicket(saleInfoModel);
+      String ref  = generateOrderNumber();
+      printTicket(saleInfoModel, ref);
 
     }
-    if (stat && fiscalizeReceipt.value && !isOnHold) {
+    if (stat && isFiscaliseReceiptEnabled.value && !isOnHold) {
       SaleModel? responseFromServerSale =
           await SyncService.saveSale(sale, user.value!, box, company.value!);
       print("RESPONSE FROM SERVER SALE: " + responseFromServerSale.toString());
@@ -747,23 +746,12 @@ class CartController extends GetxController {
                 SaleInfoModel(sale: responseFromServerSale, syncStatus: true);
           }
         }
-        // SaleController saleController = Get.find<SaleController>();
-        // saleController.syncOfflineSales();
       } else {
         saleInfoModel = SaleInfoModel(sale: sale, syncStatus: false);
       }
     } else {
       saleInfoModel = SaleInfoModel(sale: sale, syncStatus: false);
     }
-    /*if(addAmtToAcc.value??false){
-      PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
-        amount: double.parse(amtToAccTextEditingController.text),
-        paymentType: paymentTypesList.value.firstWhere((pt)=>pt.name!.startsWith("ACC-${selectedCurrency.value!.name!}")),
-      );
-      List<PaymentReceivedModel> prm = [paymentReceivedModel];
-      updateShiftWithNewSale(ref, timeInit, double.parse(amtToAccTextEditingController.text),
-          stat, selectedCustomer.value!.name!,  prm, "CASH_IN");
-    }*/
     if (!isOnHold) {
       infos.add(saleInfoModel);
       writeSaleInfor(box, infos);
@@ -771,7 +759,7 @@ class CartController extends GetxController {
       if(addAmtToAcc.value??false){
         PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
           amount: double.parse(amtToAccTextEditingController.text),
-          paymentType: paymentTypesList.value.firstWhere((pt)=>pt.name!.startsWith("ACC-${selectedCurrency.value!.name!}")),
+          paymentType:saleInfoModel.sale!.paymentTypes!.first.paymentType,
         );
         paymentTypes.add(paymentReceivedModel);
       }
@@ -784,37 +772,47 @@ class CartController extends GetxController {
         writeSaleInfor(box, infos);
       }
       printCurrentSale(saleInfoModel, box);
-      if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && (!addAmtToAcc.value??false) && paymentTypes.any((pt)=> pt.paymentType!.name!.startsWith("ACC-"))){
-        CustomerModel customer = allCustomers.firstWhere((cust)=>cust.name == sale.customer!.name);
-        if(customer!=null) {
-          allCustomers.removeWhere((cust) => cust.name == sale.customer!.name);
-          if(customer.currencyBalance!.isNotEmpty) {
-            var balance  = 0.0;
-            balance = customer.currencyBalance!
-                    .firstWhere((cb) => cb.currency.id == sale.currency!.id)!
-                    .balance!;
-            customer.currencyBalance!
-                .firstWhere((cb) => cb.currency.id == sale.currency!.id)!
-                .balance = balance -
-                paymentTypes
-                    .firstWhere(
-                        (pt) => pt.paymentType!.name!.startsWith("ACC-"))
-                    .amount!;
-          }else{
-            customer.currencyBalance!.add(CustomerCurrencyAmount(
-                balance: paymentTypes
-                    .firstWhere(
-                        (pt) => pt.paymentType!.name!.startsWith("ACC-"))
-                    .amount!,
-                currency: sale.currency!));
+      if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && (addAmtToAcc.value??false)) {
+        CustomerModel customer = allCustomers.firstWhere((cust) =>
+        cust.name == sale.customer!.name);
+        if (customer != null) {
+          var index = allCustomers.indexOf(customer);
+          if (customer.currencyBalance == null ||
+              customer.currencyBalance!.isEmpty) {
+            CustomerCurrencyAmount currencyAmount = CustomerCurrencyAmount(
+              currency: selectedCurrency.value!, balance: amountPaid.value,
+            );
+            customer.currencyBalance!.add(currencyAmount);
+          } else {
+            var prev = customer.currencyBalance!.firstWhere((cd) =>
+            cd.currency.id == selectedCurrency.value!.id).balance;
+            customer.currencyBalance!.firstWhere((cd) =>
+            cd.currency.id == selectedCurrency.value!.id).balance =
+            (prev! + double.parse(amtToAccTextEditingController.text));
           }
-          // customer.updated = true;
-          allCustomers.add(customer);
-          allCustomers.sort((a, b) => a.name!.compareTo(b.name!));
+          allCustomers[index] = customer;
           List<CustomerModel> customers = allCustomers.value;
-          List<Map<String, dynamic>> itemsListMap =
-              customers.map((item) => item.toMap()).toList();
-          box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
+          List<Map<String, dynamic>> customersListMap =
+          customers.map((item) => item.toMap()).toList();
+          box.write(AppConstants.CUSTOMER_LIST, customersListMap);
+          refreshCustomers();
+        }
+      }
+      if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && (!addAmtToAcc.value??false)){
+        CustomerModel customer = allCustomers.firstWhere((cust)=>cust.name == sale.customer!.name);
+        if(customer!=null){
+          var index = allCustomers.indexOf(customer);
+          if(customer.currencyBalance!=null || !customer.currencyBalance!.isEmpty) {
+            var prev = customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance;
+            customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance = (prev! -
+                paymentTypes.firstWhere((pt) => pt.paymentType!.name!.startsWith("ACC-")).amount!);
+          allCustomers[index] = customer;
+          List<CustomerModel> customers = allCustomers.value;
+          List<Map<String, dynamic>> customersListMap =
+          customers.map((item) => item.toMap()).toList();
+          box.write(AppConstants.CUSTOMER_LIST, customersListMap);
+          refreshCustomers();
+          }
         }
       }
       cancelSale();
@@ -885,22 +883,24 @@ class CartController extends GetxController {
       _printerService.printCurrentSale(saleInfo, box, _localStorageService);
     }
   }
-  void printTicket(SaleInfoModel saleInfo) async {
-      _printerService.printKOT(saleInfo, box, _localStorageService);
+  void printTicket(SaleInfoModel saleInfo, String orderNum) async {
+      _printerService.printKOT(saleInfo, orderNum, box, _localStorageService);
   }
   void printCashIn(PaymentReceivedModel payment, String cashier) async {
       _printerService.printCashIn(payment,cashier, box, _localStorageService);
   }
   void printQuickTicket() async {
+    String ref  = generateOrderNumber();
+      _printerService.printQuickKOT(cartItems,user.value!.firstName,selectedCustomer.value!.name!,ref, box, _localStorageService);
+  }
+
+  String generateOrderNumber() {
     final NumberFormat formatter = NumberFormat('000');
     final NumberFormat dateFormatter = NumberFormat('00');
     String ref  = "${dateFormatter.format(DateTime.now().day)}${formatter.format((activeShift.kotNumber??0)+1)}";
-      _printerService.printQuickKOT(cartItems,user.value!.firstName,selectedCustomer.value!.name!,ref, box, _localStorageService);
-      activeShift.kotNumber = activeShift.kotNumber??0 + 1;
-    List<ShiftModel> updatedShifts =
-    _localStorageService.replaceShift(activeShift, shiftList);
-    _localStorageService.writeItems(
-        AppConstants.SHIFT_LIST, updatedShifts, box);
+    List<ShiftModel> updatedShifts = _localStorageService.replaceShift(activeShift, shiftList);
+    _localStorageService.writeItems(AppConstants.SHIFT_LIST, updatedShifts, box);
+    return ref;
   }
 
   Future<SaleInfoModel?> getSale(String saleId) async {
@@ -1001,7 +1001,6 @@ class CartController extends GetxController {
   }
 
   writeSaleInfor(GetStorage box, List<SaleInfoModel> itemsList) {
-    print("Writing sale info.. ${itemsList.length}");
     List<Map<String, dynamic>> itemsListMap =
         itemsList.map((item) => item.toMap()).toList();
     box.write(AppConstants.SALE_LIST, itemsListMap);
@@ -1024,6 +1023,7 @@ class CartController extends GetxController {
     Get.delete<ShiftController>();
     Get.delete<ReceiptController>();
     Get.delete<TicketController>();
+    Get.delete<CustomerController>();
     Navigator.pushReplacement(Get.context!,
         MaterialPageRoute(builder: (BuildContext context) => SaleScreen()));
     Get.reload();
@@ -1038,6 +1038,7 @@ class CartController extends GetxController {
     if(paymentType.name!.startsWith("ACC-")) {
       accountPayType.value = "account";
     }
+    paymentType.amount = totalCostInSelectedCurrency.value;
     selectedPaymentType.value = paymentType;
     if (!multiple) {
       selectedPaymentTypes.clear();
@@ -1060,6 +1061,7 @@ class CartController extends GetxController {
     currencyList.refresh();
     filterPaymentTypes(newValue, selectedCustomer.value!);
     selectCorrectBank();
+    calculateTotalAmounts(cartItems);
   }
 
   void selectCorrectBank() {
@@ -1123,15 +1125,10 @@ class CartController extends GetxController {
   }
 
   savePayment() async {
-    print("Saving payment");
     CustomerModel customer = selectedCustomer.value!;
     GetStorage bb = GetStorage();
-    // int count = _localStorageService.getPaymentReceivedList(box).length + 1;
     var ref = AppConstants.getDateNowRef("OFF", 1);
-    // print(double.parse(payAccAmtEditingController.text));
-    // selectedPaymentType.value = paymentTypesList.firstWhere((pt)=> pt.name!.startsWith("ACC-"));
     selectCorrectBank();
-
     PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
         id: null,
         dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
@@ -1143,7 +1140,6 @@ class CartController extends GetxController {
         currency: selectedCurrency.value,
         bank: selectedBank.value,
     );
-    print(paymentReceivedModel.toJson());
     List<PaymentReceivedModel> prlist = paymentReceivedList.value;
     prlist.add(paymentReceivedModel);
     paymentReceivedList.value = prlist;
@@ -1154,8 +1150,7 @@ class CartController extends GetxController {
         snackPosition: SnackPosition.BOTTOM);
     var index = allCustomers.indexOf(customer);
     if(customer.currencyBalance==null || customer.currencyBalance!.isEmpty) {
-      CustomerCurrencyAmount currencyAmount = CustomerCurrencyAmount(currency: selectedCurrency.value!, balance: amountPaid.value,
-      );
+      CustomerCurrencyAmount currencyAmount = CustomerCurrencyAmount(currency: selectedCurrency.value!, balance: amountPaid.value,);
       customer.currencyBalance!.add(currencyAmount);
     } else{
       var prev = customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance;

@@ -47,18 +47,19 @@ class TicketListScreen extends StatelessWidget {
             Expanded(
               child: Obx(() {
                 return GridView.builder(gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
+                crossAxisCount: 3,
                 crossAxisSpacing: 3.0,
                     mainAxisSpacing: 3.0,
-                    childAspectRatio: 1.6,
+                    childAspectRatio: 1.5,
                 ),
                   itemCount: ticketController.filteredTickets.length,
                   itemBuilder: (context, index) {
                     var item = ticketController.filteredTickets[index];
                     var itemsText = item.sale!.items?.map((element)=>"-"+element.inventoryItem!.name! +" X "+ element.quantity.toString() + "\n");
                     return Card(
+                      color: Colors.grey[300],
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero, // Sharp corners for square card
+                        borderRadius: BorderRadius.circular(8), // Sharp corners for square card
                       ),
                       elevation: 4,
                       margin: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
@@ -66,7 +67,7 @@ class TicketListScreen extends StatelessWidget {
                         padding: const EdgeInsets.all(0.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           spacing: 0,
                           children: [
                             Flexible(
@@ -81,16 +82,10 @@ class TicketListScreen extends StatelessWidget {
                                       color: Colors.black,
                                     ),
                                   ),
-                                  // Column(
-                                  //   children: [
-                                  //     Text(
-                                  //       "OPEN",
-                                  //       style: TextStyle(
-                                  //         fontSize: 18,
-                                  //         fontWeight: FontWeight.bold,
-                                  //         color: Colors.black,
-                                  //       ),
-                                  //     ),
+                                  Text(
+                                    'Opened: ${item.sale!.timeIniated ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                  ),
                                       Text(
                                         '${item.sale!.currency?.symbol} ${item!.sale!.amountPaid!.toStringAsFixed(2) ?? 0} ',  // Assuming amount is added to the TicketModel
                                         style: TextStyle(
@@ -104,13 +99,9 @@ class TicketListScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            SizedBox(height: 4),
 
                             Expanded(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                              Column(
+                              child: Column(
                                 spacing:0,
                               children: List.generate(item.sale!.items!.length,(index){
                                 return   Column(
@@ -127,61 +118,48 @@ class TicketListScreen extends StatelessWidget {
                                   ],
                                 );
                               }),
+                                                          ),
                             ),
-                                /*  for(var item in item.sale!.items!)
-                                  Column(
-                                    children: [
-                                      Text(
-                                        "${item.inventoryItem!.name} X ${item.quantity}\n",
-                                        style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold,fontStyle: FontStyle.italic,color: Colors.indigo),
-                                      ),
-                                      Text(
-                                        "${item.notes??""} \n",
-                                        style: TextStyle(fontSize: 12,fontStyle: FontStyle.italic,color: Colors.redAccent),
-                                      ),
-                                    ],
-                                  ),*/
-                                  Expanded(
-                                    child: Column(
-                                      children: [
-                                        Text(
-                                          'Opened At: ${item.sale!.timeIniated ?? 'N/A'}',
-                                          style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                                        ),
-
-                                        Text(
-                                          'Sale Status: ${item.sale!.saleStatus ?? 'N/A'}',
-                                          style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                                        ),
-                                        if (item.sale!.ticketComment != null && item.sale!.ticketComment!.isNotEmpty)
-                                          Text(
-                                            'Comment: ${item.sale!.ticketComment}',
-                                            style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                                          ),
-                                        Text(
-                                          'Reference: ${item.sale!.referenceNumber ?? 'N/A'}',
-                                          style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                                        ),
-                                      ],
-
-                                    ),
-                                  ),
-
-                                ],
-                              ),
-                            ),
-                            Divider(thickness: 1, height: 20),
+                            Divider(thickness: 1, height: 10),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
+                                //
                                 TextButton(
                                   onPressed: () {
                                     // Add delete action here
                                     ticketController.showConfirmDialogToDeleteItem(item.sale!.referenceNumber ?? "", item.sale!.id ?? "");
                                   },
+                                  style: ButtonStyle(
+                                      shape: MaterialStateProperty.all(RoundedRectangleBorder(
+                                          side: BorderSide(
+                                            color: Colors.red, // your color here
+                                            width: 3,
+                                          ),
+                                          borderRadius: BorderRadius.circular(8)))),
                                   child: Text(
                                     'Delete',
                                     style: TextStyle(color: Colors.redAccent),
+                                  ),
+                                ),
+                                SizedBox(width: 10),
+
+                                TextButton(
+                                  onPressed: () {
+                                    // Add delete action here
+                                    ticketController.printBill(item);
+                                  },
+                                  style: ButtonStyle(
+                                      shape: MaterialStateProperty.all(RoundedRectangleBorder(
+                                          side: BorderSide(
+                                            color: Colors.indigo, // your color here
+                                            width: 3,
+                                          ),
+                                          borderRadius: BorderRadius.circular(8)))),
+                                  child: Text(
+                                    'Print Bill',
+                                    style: TextStyle(color: Colors.indigo),
                                   ),
                                 ),
                                 SizedBox(width: 10),

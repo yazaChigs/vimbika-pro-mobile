@@ -24,6 +24,7 @@ import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
 import '../../../constants/app_constants.dart';
+import '../../../services/printer_service.dart';
 
 class TicketController extends GetxController {
   final SaleController saleController = Get.find();
@@ -46,6 +47,7 @@ class TicketController extends GetxController {
   Rx<BranchModel?> branch = BranchModel().obs;
   Rx<CompanyModel?> company = CompanyModel().obs;
   RxInt openedTicketsCount = 0.obs;
+  final PrinterService _printerService = Get.put(PrinterService());
   Timer? _syncTimer; // Add a timer variable
 
   @override
@@ -80,7 +82,6 @@ class TicketController extends GetxController {
         AppConstants.SALE_LIST,
             (map) => SaleInfoModel.fromMap(map),
         box);
-    print("list: ${list.length}");
     for(SaleInfoModel sale in list){
       print(sale.sale!.saleStatus!);
       if(sale.sale!.saleStatus == "ON_HOLD" && sale.sale!.active!){
@@ -120,7 +121,6 @@ class TicketController extends GetxController {
     //AppHelper.hideLoading();
   }
   void filterItems(String query) {
-    print(query);
     searchQuery.value = query;
     filteredTickets.value = allTickets.where((item) {
       final name = item.sale!.ticketName!.toLowerCase() ?? '';
@@ -161,13 +161,35 @@ class TicketController extends GetxController {
 
   }
 
-  ticketActionButton(CurrencyModel currency, int cartLength,String customerOrTable){
+  ticketActionButton(CurrencyModel currency, List<CartItemModel> cartItems,String customerOrTable){
+
     if(customerOrTable.isNotEmpty){
       ticketNameEditingController.text = customerOrTable;
     }
     this.selectedCurrency.value = currency;
-    if (cartLength > 0) {
-      Get.toNamed(AppRoutes.TICKET_FORM);
+    if (cartItems.length > 0) {
+      if(cartController.saleTicketId.isNotEmpty || cartController.selectedTicketRef.isNotEmpty){
+        SaleInfoModel saleInfo = allTickets.firstWhere((ticket) => ticket.sale!.referenceNumber == cartController.selectedTicketRef.value);
+        saleInfo.sale!.items = cartController.cartItemsToSaleItems(cartItems);
+        double totalCostInBCurrency =
+        cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+        saleInfo.sale!.amountPaid = totalCostInBCurrency;
+        List<SaleInfoModel> allSales = _localStorageService.getOfflineList<SaleInfoModel>(
+            AppConstants.SALE_LIST,(map) => SaleInfoModel.fromMap(map),box);
+        List<SaleInfoModel> itemsList = _localStorageService.replaceSale(saleInfo, allSales);
+        List<Map<String, dynamic>> itemsListMap =
+        itemsList.map((item) => item.toMap()).toList();
+        box.write(AppConstants.SALE_LIST, itemsListMap);
+        Get.toNamed(AppRoutes.TICKET_LIST);
+        cartController.cartItems.clear();
+        cartController.calculateTotalAmounts([]);
+        cartController.cartItems.refresh();
+        cartController.saleTicketId.value = "";
+        cartController.selectedTicketRef.value = "";
+      }
+      else{
+        Get.toNamed(AppRoutes.TICKET_FORM);
+      }
     } else {
       Get.toNamed(AppRoutes.TICKET_LIST);
     }
@@ -186,6 +208,10 @@ class TicketController extends GetxController {
 
       },
     );
+  }
+
+  void printBill(SaleInfoModel saleInfo) async {
+    _printerService.printBill(saleInfo, box, _localStorageService);
   }
   void closeTicket(String reference){
     String timeClosed = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());

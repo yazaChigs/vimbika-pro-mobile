@@ -29,7 +29,28 @@ import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:image/image.dart' as img;
 import 'package:vimbika_pos_app/src/shared/models/payment_received_model.dart';
 
+import '../constants/app_constants.dart';
+
 class PrinterService extends GetxService {
+
+
+  List<CurrencyModel> getOfflineCurrencyList(GetStorage box) {
+    // Read the data as a List<dynamic>
+    List<dynamic>? itemsListDynamic =
+    box.read<List<dynamic>>(AppConstants.CURRENCY_LIST);
+    // Check if the read data is not null
+    if (itemsListDynamic != null) {
+      // Convert the List<dynamic> to List<Map<String, dynamic>>
+      List<Map<String, dynamic>> itemsListMap = itemsListDynamic.map((item) {
+        return item as Map<String, dynamic>;
+      }).toList();
+      List<CurrencyModel> currencies = List<CurrencyModel>.from(
+          itemsListMap.map((map) => CurrencyModel.fromMap(map)));
+      return currencies;
+    } else {
+      return [];
+    }
+  }
   Future<void> printCurrentSale(SaleInfoModel saleInfo, GetStorage box,  LocalStorageService _localStorageService) async {
     AvailablePrinterModel? prin = _localStorageService.findActivePrinter(box);
         if (prin != null) {
@@ -52,11 +73,34 @@ class PrinterService extends GetxService {
         }
 
   }
-  Future<void> printKOT(SaleInfoModel saleInfo, GetStorage box,  LocalStorageService _localStorageService) async {
+  Future<void> printKOT(SaleInfoModel saleInfo,String orderNum, GetStorage box,  LocalStorageService _localStorageService) async {
     AvailablePrinterModel? prin = _localStorageService.findActivePrinter(box);
         if (prin != null) {
           if(prin.type == 'SUNMI_INBUILT_PRINTER') {
-            await printSunmiKOT(saleInfo.sale!);
+            await printSunmiKOT(saleInfo.sale!, orderNum);
+          }
+          if(prin.type == 'TELPO_INBUILT_PRINTER') {
+            await printTelpoSaleReceipt(saleInfo.sale!);
+          }
+          if (prin.type == 'bluetooth') {
+            await generateBluetoothReceipt(saleInfo.sale!, prin);
+          }
+          if (prin.type == 'usb') {
+            await generateUSBReceipt(saleInfo.sale!, prin);
+          }
+        } else {
+          Get.snackbar('Error', 'Default Printer Not Found. Please add printer.',
+              snackPosition: SnackPosition.BOTTOM);
+          print("Default Printer Not Found. Please add printer.");
+        }
+
+  }
+  Future<void> printBill(SaleInfoModel saleInfo, GetStorage box,  LocalStorageService _localStorageService) async {
+    AvailablePrinterModel? prin = _localStorageService.findActivePrinter(box);
+
+        if (prin != null) {
+          if(prin.type == 'SUNMI_INBUILT_PRINTER') {
+            await printSunmiSaleBill(saleInfo.sale!,getOfflineCurrencyList(box));
           }
           if(prin.type == 'TELPO_INBUILT_PRINTER') {
             await printTelpoSaleReceipt(saleInfo.sale!);
@@ -584,6 +628,61 @@ class PrinterService extends GetxService {
      }
    }
 
+
+  Future<bool> initializeSunmiLCD() async {
+    try {
+      // 1. Bind to the native Sunmi service - MOST IMPORTANT STEP
+      bool? isBound = await SunmiPrinter.bindingPrinter();
+      if (isBound != true) {
+        print("Failed to bind to printer service");
+        return false;
+      }
+
+      // 2. Initialize the printer (required for LCD too)
+      await SunmiPrinter.initPrinter();
+
+      // 3. Power on and prepare the LCD display
+      await SunmiPrinter.lcdInitialize();
+      await SunmiPrinter.lcdWakeup(); // Ensure it's not in sleep mode
+
+      print("Sunmi LCD is ready for commands.");
+      return true;
+
+    } catch (e) {
+      print("Initialization error: $e");
+      return false;
+    }
+  }
+
+  Future<void> sendTextToLCD() async {
+    try {
+      await SunmiPrinter.lcdString("Hello");
+      await SunmiPrinter.lcdString("World!");
+    } catch (e) {
+      print("Failed to send text to LCD: $e");
+    }
+  }
+
+  Future<void> _showSaleOnLCD(String itemName, double price) async {
+    try {
+      // Format the first line: Left-aligned item, right-aligned price
+      // We have 20 characters total. Let's use 14 for the name, 6 for the price.
+      String formattedLine1 = itemName.padRight(14).substring(0, 14) +
+          '\$${price.toStringAsFixed(2)}'.padLeft(6);
+      await SunmiPrinter.lcdString(formattedLine1);
+
+      // Format the second line: A separator or a message
+      String formattedLine2 = '--------------------'; // 20 dashes
+      // or
+      // String formattedLine2 = 'Please pay...'.padLeft(16); // Roughly center
+
+      await SunmiPrinter.lcdString(formattedLine2);
+
+    } catch (e) {
+      print("Error displaying sale: $e");
+    }
+  }
+
     printShiftDetailsBluetooth(ShiftModel shift,  AvailablePrinterModel printer,  List<Map<String, dynamic>> totalAmountsByCurrency) async {
      BluetoothPrint bluetoothPrint = await BluetoothPrint.instance;
      BluetoothDevice bt = BluetoothDevice();
@@ -697,7 +796,6 @@ class PrinterService extends GetxService {
      CurrencyModel? cur = sale.currency;
 
      Uint8List imageBytes = await readLocalFileBytes();
-     //print(imageBytes);
 
      await SunmiPrinter.initPrinter();
      await SunmiPrinter.startTransactionPrint(true);
@@ -745,7 +843,7 @@ class PrinterService extends GetxService {
      // Totals
      await SunmiPrinter.printText("Subtotal: ${cur?.symbol ?? ''} ${sale.amountAfterDiscount?.toStringAsFixed(2)}");
      await SunmiPrinter.printText("Amount Paid: ${cur?.symbol ?? ''} ${sale.amountPaid?.toStringAsFixed(2)} \t\t${sale.paymentTypes!.map((pt)=>pt.paymentType!.name!).join(', ')}");
-     await SunmiPrinter.printText("Change: ${cur?.symbol ?? ''} ${sale.change?.toStringAsFixed(2)}");
+     await SunmiPrinter.printText("Change: ${cur?.symbol ?? ''} ${sale.change?.toStringAsFixed(2)}\n");
      if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false))
        {
          await SunmiPrinter.printText(
@@ -755,6 +853,94 @@ class PrinterService extends GetxService {
                  .balance!
                  .toStringAsFixed(2)}");
        }
+
+
+
+     //qr code
+
+     if(sale.receiptQrCode != null){
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+       await SunmiPrinter.printQRCode(sale.receiptQrCode!);
+       await SunmiPrinter.printText("Scan the QR Code above");
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+       await SunmiPrinter.printText(sale.receiptQrData! + "");
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+       await SunmiPrinter.printText("You can verify this receipt manually at ");
+       await SunmiPrinter.printText(sale.receiptQrCode! + "");
+     }
+
+     // Footer
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.printText("*** Thank you for your purchase! ***");
+     await SunmiPrinter.printText("\n\n\n");
+     await SunmiPrinter.submitTransactionPrint();
+     await SunmiPrinter.exitTransactionPrint(true);
+   }
+   Future<void> printSunmiSaleBill(SaleModel sale,List<CurrencyModel> currencies) async {
+     CurrencyModel? cur = sale.currency;
+     currencies.removeWhere((c) => c.id == cur!.id);
+
+     Uint8List imageBytes = await readLocalFileBytes();
+
+     await SunmiPrinter.initPrinter();
+     await SunmiPrinter.startTransactionPrint(true);
+
+
+
+     // Header
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.printImage(imageBytes); // Directly print the image bytes
+
+     await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+     await SunmiPrinter.printText("\n");
+     await SunmiPrinter.printText("RECEIPT");
+     await SunmiPrinter.resetFontSize();
+
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+     await SunmiPrinter.printText("Cashier: ${sale.cashierFullName}");
+     await SunmiPrinter.printText("Date: ${sale.timeIniated}");
+     await SunmiPrinter.printText("Reference: ${sale.referenceNumber}");
+
+     // Customer Information
+     if (sale.customer != null) {
+       await SunmiPrinter.printText("Customer: ${sale.customer!.name}");
+     }
+
+     // Separator
+     await SunmiPrinter.printText("--------------------------------");
+
+     // Items
+     for (var item in sale.items!) {
+       String itemName = item.inventoryItem?.name ?? "Item";
+       double quantity = item.quantity ?? 0;
+       double price = item.sellingPrice ?? 0;
+       double total = item.total ?? 0;
+       total = total * cur!.rate!;
+       price = price * cur!.rate!;
+       await SunmiPrinter.printText("$itemName");
+       await SunmiPrinter.printText("Qty: $quantity  Price: ${cur?.symbol ?? ''} ${price.toStringAsFixed(2)}");
+       await SunmiPrinter.printText("Total: ${cur?.symbol ?? ''} ${total.toStringAsFixed(2)}");
+       // await SunmiPrinter.printText("--------------------------------");
+     }
+
+     // Separator
+     await SunmiPrinter.printText("--------------------------------");
+     // Totals
+     await SunmiPrinter.printText("Subtotal: ${cur?.symbol ?? ''} ${sale.amountPaid?.toStringAsFixed(2)}");
+     for(var currency in currencies){
+       await SunmiPrinter.printText("${currency.name} Amount: ${(sale.amountPaid!*currency.rate!).toStringAsFixed(2)}");
+     }
+     await SunmiPrinter.printText("\nTip:.........................");
+     if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false))
+       {
+         await SunmiPrinter.printText(
+             "Account Balance: ${cur?.symbol ?? ''} ${sale.customer!
+                 .currencyBalance!
+                 .firstWhere((cb) => cb.currency == cur)
+                 .balance!
+                 .toStringAsFixed(2)}");
+       }
+
 
 
      //qr code
@@ -778,8 +964,8 @@ class PrinterService extends GetxService {
      await SunmiPrinter.exitTransactionPrint(true);
    }
 
-   // Print Sale Receipt
-   Future<void> printSunmiKOT(SaleModel sale) async {
+   // Print KOT
+   Future<void> printSunmiKOT(SaleModel sale, String orderNum) async {
      CurrencyModel? cur = sale.currency;
 
      // Uint8List imageBytes = await readLocalFileBytes();
@@ -788,27 +974,39 @@ class PrinterService extends GetxService {
      await SunmiPrinter.initPrinter();
      await SunmiPrinter.startTransactionPrint(true);
 
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
      await SunmiPrinter.setFontSize(SunmiFontSize.XL);
-     await SunmiPrinter.printText("\n");
      await SunmiPrinter.printText("KOT");
-     await SunmiPrinter.resetFontSize();
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+     await SunmiPrinter.printText(orderNum);
+     // await SunmiPrinter.resetFontSize();
 
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+     await SunmiPrinter.setFontSize(SunmiFontSize.XL);
      await SunmiPrinter.printText("Cashier: ${sale.cashierFullName}");
+     /*await SunmiPrinter.setFontSize(SunmiFontSize.XL);
      await SunmiPrinter.printText("Date: ${sale.timeIniated}");
-     await SunmiPrinter.printText("Reference: ${sale.referenceNumber}");
+     await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+     await SunmiPrinter.printText("Reference: ${sale.referenceNumber}");*/
 
      // Customer Information
-       await SunmiPrinter.printText("Customer: ${sale.customer?.name ?? sale.ticketName!}");
-       if(sale.ticketComment != null && sale.ticketComment!.isNotEmpty) await SunmiPrinter.printText("Comments: ${sale.ticketComment!}");
+     await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+       await SunmiPrinter.printText("Customer: ${sale.customer?.name ?? sale.ticketName!} \t\t  Sit-in");
+       if(sale.ticketComment != null && sale.ticketComment!.isNotEmpty) {
+         await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+          await SunmiPrinter.printText("Comments: ${sale.ticketComment!}");
+    }
 
-     // Separator
+    // Separator
      await SunmiPrinter.printText("--------------------------------");
 
      // Items
      for (var item in sale.items!) {
        String itemName = item.inventoryItem?.name ?? "Item";
-       await SunmiPrinter.printText("$itemName");
+       await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+       await SunmiPrinter.printText("$itemName x ${item.quantity}");
+       await SunmiPrinter.setFontSize(SunmiFontSize.XL);
        await SunmiPrinter.printText("${item.notes ?? ''}");
        // await SunmiPrinter.printText("--------------------------------");
      }
@@ -823,6 +1021,53 @@ class PrinterService extends GetxService {
      await SunmiPrinter.submitTransactionPrint();
      await SunmiPrinter.exitTransactionPrint(true);
    }
+  // Print Quick KOT
+  Future<void> printSunmiQuickKOT(List<CartItemModel> items, String? cashier, String? customer, String? reference) async {
+
+    // Uint8List imageBytes = await readLocalFileBytes();
+    //print(imageBytes);
+    String todayDate = DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now());
+
+    await SunmiPrinter.initPrinter();
+    await SunmiPrinter.startTransactionPrint(true);
+
+    await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+    await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+    await SunmiPrinter.printText(reference!);
+    // await SunmiPrinter.resetFontSize();
+
+    await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+    await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+    // await SunmiPrinter.printText("Cashier: $cashier");
+    // await SunmiPrinter.printText("Date: ${todayDate}");
+    // await SunmiPrinter.printText("Reference: $reference");
+
+    // Customer Information
+    await SunmiPrinter.printText("Customer: $customer \t\t Take-away");
+
+    // Separator
+    await SunmiPrinter.printText("--------------------------------");
+
+    // Items
+    for (var item in items) {
+      String itemName = item.product?.item!.name ?? "Item";
+      await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+      await SunmiPrinter.printText("$itemName x ${item.quantity}");
+      await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+      await SunmiPrinter.printText("${item.notes ?? ''}");
+      // await SunmiPrinter.printText("--------------------------------");
+    }
+
+    // Separator
+    await SunmiPrinter.printText("--------------------------------");
+
+    //qr code
+    // Footer
+    await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+    await SunmiPrinter.printText("\n\n\n");
+    await SunmiPrinter.submitTransactionPrint();
+    await SunmiPrinter.exitTransactionPrint(true);
+  }
 
    // Print cash in Receipt
    Future<void> printSunmiCashIn(PaymentReceivedModel payment, String? cashier) async {
@@ -873,49 +1118,6 @@ class PrinterService extends GetxService {
      await SunmiPrinter.exitTransactionPrint(true);
    }
 
-   // Print KOT
-   Future<void> printSunmiQuickKOT(List<CartItemModel> items, String? cashier, String? customer, String? reference) async {
-
-     // Uint8List imageBytes = await readLocalFileBytes();
-     //print(imageBytes);
-
-     await SunmiPrinter.initPrinter();
-     await SunmiPrinter.startTransactionPrint(true);
-
-     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-     await SunmiPrinter.setFontSize(SunmiFontSize.LG);
-     await SunmiPrinter.printText(reference!);
-     await SunmiPrinter.resetFontSize();
-
-     await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
-     await SunmiPrinter.printText("Cashier: $cashier");
-     await SunmiPrinter.printText("Date: ${DateTime.now().toString()}");
-     // await SunmiPrinter.printText("Reference: $reference");
-
-     // Customer Information
-       await SunmiPrinter.printText("Customer: $customer");
-
-     // Separator
-     await SunmiPrinter.printText("--------------------------------");
-
-     // Items
-     for (var item in items) {
-       String itemName = item.product?.item!.name ?? "Item";
-       await SunmiPrinter.printText("$itemName");
-       await SunmiPrinter.printText("${item.notes ?? ''}");
-       // await SunmiPrinter.printText("--------------------------------");
-     }
-
-     // Separator
-     await SunmiPrinter.printText("--------------------------------");
-
-     //qr code
-     // Footer
-     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-     await SunmiPrinter.printText("\n\n\n");
-     await SunmiPrinter.submitTransactionPrint();
-     await SunmiPrinter.exitTransactionPrint(true);
-   }
 
 
   Future<void> printSunmiGRV(TransferHistoryModel transfer) async {
@@ -1151,10 +1353,11 @@ class PrinterService extends GetxService {
      if (shift.shiftCurrencyAmounts != null && shift.shiftCurrencyAmounts!.isNotEmpty) {
        await SunmiPrinter.printText("\nTransactions:\n");
        for (var currencyAmount in shift.shiftCurrencyAmounts!) {
-         var sale = allReceipts.firstWhere((receipt) => receipt.sale!.posReference == currencyAmount.posReference, orElse: () => SaleInfoModel(sale: null,syncStatus: false));
-         await SunmiPrinter.printText("Type: ${currencyAmount.amountType ?? ''}\t\t\t\tRef: ${currencyAmount.ref}");
+         var sale = allReceipts.firstWhere((receipt) => receipt.sale!.posReference == currencyAmount.posReference || receipt.sale!.referenceNumber == currencyAmount.posReference
+             , orElse: () => SaleInfoModel(sale: null,syncStatus: false));
+         await SunmiPrinter.printText("Type:${currencyAmount.amountType ?? ''}\t\t\tRef: ${currencyAmount.ref}");
          await SunmiPrinter.printText("Time: ${currencyAmount.timeCreated}");
-         await SunmiPrinter.printText("Amount: ${currencyAmount.currency.name} ${currencyAmount.amount.toString()}\t\t\t\ ${sale.sale?.paymentType?.name ?? ''}");
+         await SunmiPrinter.printText("Amount: ${currencyAmount.currency.name} ${currencyAmount.amount.toString()}\t\t\t\ ${sale.sale?.paymentTypes!.firstWhereOrNull((element) => element.paymentType!.name == currencyAmount.paymentType)!.paymentType!.name ??currencyAmount.paymentType}");
          await SunmiPrinter.printText("--------------------------------");
        }
      } else {
@@ -1171,7 +1374,7 @@ class PrinterService extends GetxService {
 
      // Amounts by total sales
      if (totalAmountsByPaymentType.isNotEmpty) {
-       await SunmiPrinter.printText("\nTotal Sales:\n");
+       await SunmiPrinter.printText("Total Sales:");
        for (var total in totalSales) {
          await SunmiPrinter.printText(" ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
        }
@@ -1180,7 +1383,7 @@ class PrinterService extends GetxService {
 
       // Cash In
       if (totalCashIn.isNotEmpty) {
-        await SunmiPrinter.printText("\nCash In:\n");
+        await SunmiPrinter.printText("Cash In:");
         for (var total in totalCashIn) {
           await SunmiPrinter.printText(
               " ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
@@ -1190,7 +1393,7 @@ class PrinterService extends GetxService {
 
       // Cash Out
       if (totalCashOut.isNotEmpty) {
-        await SunmiPrinter.printText("\nCash Out:\n");
+        await SunmiPrinter.printText("Cash Out:");
         for (var total in totalCashOut) {
           await SunmiPrinter.printText(
               " ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
@@ -1200,7 +1403,7 @@ class PrinterService extends GetxService {
 
       // Total Submitted
       if (totalSubmitted.isNotEmpty) {
-        await SunmiPrinter.printText("\nTotal Submitted:\n");
+        await SunmiPrinter.printText("Total Submitted:");
         for (var total in totalSubmitted) {
           await SunmiPrinter.printText(
               " ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
@@ -1210,7 +1413,7 @@ class PrinterService extends GetxService {
 
      // Amounts by Currency
      if (totalAmountsByCurrency.isNotEmpty) {
-       await SunmiPrinter.printText("\Cash by Currency:\n");
+       await SunmiPrinter.printText("Cash by Currency:");
        for (var total in totalAmountsByCurrency) {
          await SunmiPrinter.printText(" ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
        }

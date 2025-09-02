@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
@@ -5,6 +7,10 @@ import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/sale/controller/cart_controller.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
+
+import '../../../services/connectivity_service.dart';
+import '../../../services/sync_service.dart';
+import '../../authentication/model/user_model.dart';
 
 
 class SettingsController extends GetxController {

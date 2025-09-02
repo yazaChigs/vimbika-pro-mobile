@@ -122,16 +122,15 @@ class BackgroundService extends GetxService {
             }
             saleCurrencyAmount.posReference = saleInfoModel.sale?.posReference;
             var list = [saleCurrencyAmount];
-            shiftList.firstWhere((shift)=>shift.shiftReference==saleInfoModel.sale!.shiftReference).shiftCurrencyAmounts = [...list];
-            print(shiftList.firstWhere((shift)=>shift.shiftReference==saleInfoModel.sale!.shiftReference).toJson());
-            // Update the sale in the local storage
+            shiftList.firstWhereOrNull((shift)=>shift.shiftReference==saleInfoModel.sale!.shiftReference)?.shiftCurrencyAmounts = [...list];
             if(sales.any((saleInfo)=> saleInfo.sale?.posReference == saleInfo.sale?.posReference)){
-              print("Updating existing sale...");
               sales.remove(saleInfo);
               sales.add(saleInfoModel);
             }
             writeSaleInfor(box, sales);
-
+          }
+          else{
+            print("sale not synced");
           }
         }
       }

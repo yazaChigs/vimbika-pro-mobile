@@ -87,7 +87,7 @@ class CustomerModel {
         "branch": branch?.toMap(),
         "description": description,
         "currencyBalance":
-            List<dynamic>.from(currencyBalance!.map((x) => x.toMap())),
+            List<dynamic>.from(currencyBalance?.map((x) => x.toMap())??[]),
         "tinNumber": tinNumber,
         "taxNumber": taxNumber,
         "street": street,

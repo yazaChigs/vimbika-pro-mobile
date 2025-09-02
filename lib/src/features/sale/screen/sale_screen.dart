@@ -72,339 +72,419 @@ class SaleScreen extends GetView {
         behavior: HitTestBehavior.translucent,
         onTap: inactivityController.resetInactivityTimer,
         onPanDown: (_) => inactivityController.resetInactivityTimer(),
-        child: Scaffold(
-          key: scaffoldKey,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            // Same as your app theme
-            elevation: 0,
-            title: Row(
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    // Define the action when "Ticket" is clicked
-                    // Get.toNamed(AppRoutes.OPEN_TICKETS);
-                  },
-                  child: Text(
-                    'Ticket',
-                    style: TextStyle(color: Colors.black),
+        child: PopScope(
+          canPop: false,
+          child: Scaffold(
+            key: scaffoldKey,
+            appBar: AppBar(
+              backgroundColor: Colors.white,
+              // Same as your app theme
+              elevation: 0,
+              title: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      // Define the action when "Ticket" is clicked
+                      // Get.toNamed(AppRoutes.OPEN_TICKETS);
+                    },
+                    child: Text(
+                      'Ticket',
+                      style: TextStyle(color: Colors.black),
+                    ),
                   ),
-                ),
-                SizedBox(width: 4),
-                GestureDetector(
-                  onTap: () {
-                    // Define the action when the count is clicked
-                    //  Get.toNamed(AppRoutes.OPEN_TICKETS);
-                  },
-                  child: Obx(() {
-                    final count = ticketController.openedTicketsCount;
-                    return Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        // Set the background color for the count
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        count.toString(),
-                        style: TextStyle(
-                            color: Colors.white, fontSize: 10), // Text color
-                      ),
+                  SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: () {
+                      // Define the action when the count is clicked
+                      //  Get.toNamed(AppRoutes.OPEN_TICKETS);
+                    },
+                    child: Obx(() {
+                      final count = ticketController.openedTicketsCount;
+                      return Container(
+                        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          // Set the background color for the count
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          count.toString(),
+                          style: TextStyle(
+                              color: Colors.white, fontSize: 10), // Text color
+                        ),
+                      );
+                    }),
+                  ),
+                  SizedBox(width: 6),
+                  Obx(() {
+                    CurrencyModel? cur = cartController.selectedCurrency.value;
+                    // Check if the selected currency exists in the list
+                    if (!cartController.currencyList.contains(cur) &&
+                        cartController.currencyList.isNotEmpty) {
+                      cur = cartController.currencyList.first;
+                      cartController.selectedCurrency.value =
+                          cur; // Set a default currency if not found
+                    }
+                    return DropdownButton<CurrencyModel>(
+                      value: cur,
+                      isExpanded: false,
+                      // Make the dropdown take full width
+                      items: cartController.currencyList.map((cur) {
+                        return DropdownMenuItem<CurrencyModel>(
+                          value: cur,
+                          child: Text(cur.symbol!),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        // Filter based on selected currency
+                        cartController.onCurrencyChange(value!);
+                      },
+                      hint: Text("Currency"),
                     );
                   }),
-                ),
-                SizedBox(width: 6),
-                Obx(() {
-                  CurrencyModel? cur = cartController.selectedCurrency.value;
-                  // Check if the selected currency exists in the list
-                  if (!cartController.currencyList.contains(cur) &&
-                      cartController.currencyList.isNotEmpty) {
-                    cur = cartController.currencyList.first;
-                    cartController.selectedCurrency.value =
-                        cur; // Set a default currency if not found
-                  }
-                  return DropdownButton<CurrencyModel>(
-                    value: cur,
-                    isExpanded: false,
-                    // Make the dropdown take full width
-                    items: cartController.currencyList.map((cur) {
-                      return DropdownMenuItem<CurrencyModel>(
-                        value: cur,
-                        child: Text(cur.symbol!),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      // Filter based on selected currency
-                      cartController.onCurrencyChange(value!);
+                  SizedBox(width: 3),
+                  IconButton(
+                    icon: Icon(Icons.refresh),
+                    onPressed: () {
+                      //Get.toNamed(AppRoutes.CUSTOMER_FORM);
+                      saleController.syncData();
                     },
-                    hint: Text("Currency"),
-                  );
-                }),
-                SizedBox(width: 3),
-                IconButton(
-                  icon: Icon(Icons.refresh),
-                  onPressed: () {
-                    //Get.toNamed(AppRoutes.CUSTOMER_FORM);
-                    saleController.syncData();
-                  },
-                ),
-              ],
-            ),
-            leading: IconButton(
-              icon: Icon(Icons.menu),
-              onPressed: () {
-                scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.person_add),
+                  ),
+                ],
+              ),
+              leading: IconButton(
+                icon: Icon(Icons.menu),
                 onPressed: () {
-                  Get.toNamed(AppRoutes.CUSTOMER_FORM);
+                  scaffoldKey.currentState?.openDrawer();
                 },
               ),
-              Obx(() => IconButton(
-                    icon: cartController.isNfcReading.value
-                        ? SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.blue),
+              actions: [
+                IconButton(
+                  icon: Icon(Icons.person_add),
+                  onPressed: () {
+                    Get.toNamed(AppRoutes.CUSTOMER_FORM);
+                  },
+                ),
+                Obx(() => IconButton(
+                      icon: cartController.isNfcReading.value
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.blue),
+                              ),
+                            )
+                          : Icon(Icons.nfc),
+                      onPressed: () {
+                        cartController.selectCustomerByNfc();
+                      },
+                    )),
+              ],
+            ),
+            drawer: NavDrawer(
+                fullName: fullName,
+                mobileNumber: saleController.user.mobilePhone ?? "",
+                nameInitials: initials),
+            body: Column(
+              children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // OPEN TICKETS button
+                      Expanded(
+                        child: Obx(() {
+                          return ElevatedButton(
+                            onPressed: () {
+                              // ticketController.getTickets();
+                              ticketController.ticketActionButton(
+                                  cartController.selectedCurrency.value!,
+                                  cartController.cartItems,
+                                  "");
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.cyan,
+                              padding: EdgeInsets.symmetric(vertical: 14.0),
+                              textStyle: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold),
                             ),
-                          )
-                        : Icon(Icons.nfc),
-                    onPressed: () {
-                      cartController.selectCustomerByNfc();
-                    },
-                  )),
-            ],
-          ),
-          drawer: NavDrawer(
-              fullName: fullName,
-              mobileNumber: saleController.user.mobilePhone ?? "",
-              nameInitials: initials),
-          body: Column(
-            children: [
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // OPEN TICKETS button
-                    Expanded(
-                      child: Obx(() {
-                        return ElevatedButton(
+                            child: Text(
+                              cartController.cartItems.length > 0
+                                  ? 'SAVE'
+                                  : 'OPEN TICKETS',
+                              style: TextStyle(color: Colors.white, fontSize: 16),
+                            ),
+                          );
+                        }),
+                      ),
+                      SizedBox(width: 8.0),
+                      Expanded(
+                        child: ElevatedButton(
                           onPressed: () {
-                            // ticketController.getTickets();
-                            ticketController.ticketActionButton(
-                                cartController.selectedCurrency.value!,
-                                cartController.cartItems.length,
-                                "");
+                            // Define action for charge
+                            // e.g., open checkout or payment screen
+                            Get.toNamed(AppRoutes.CART);
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.cyan,
+                            backgroundColor: Colors.green,
                             padding: EdgeInsets.symmetric(vertical: 14.0),
                             textStyle: TextStyle(
                                 fontSize: 12,
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold),
                           ),
-                          child: Text(
-                            cartController.cartItems.length > 0
-                                ? 'SAVE'
-                                : 'OPEN TICKETS',
-                            style: TextStyle(color: Colors.white, fontSize: 16),
-                          ),
-                        );
-                      }),
-                    ),
-                    SizedBox(width: 8.0),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // Define action for charge
-                          // e.g., open checkout or payment screen
-                          Get.toNamed(AppRoutes.CART);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          padding: EdgeInsets.symmetric(vertical: 14.0),
-                          textStyle: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        child: Obx(() {
-                          // Check if totalCostInSelectedCurrency is a number
-                          final totalCost =
-                              cartController.totalCostInSelectedCurrency;
-                          final formattedCost = totalCost != null
-                              ? totalCost.toStringAsFixed(
-                                  2) // Convert to 2 decimal places
-                              : '0.00';
+                          child: Obx(() {
+                            // Check if totalCostInSelectedCurrency is a number
+                            final totalCost =
+                                cartController.totalCostInSelectedCurrency;
+                            final formattedCost = totalCost != null
+                                ? totalCost.toStringAsFixed(
+                                    2) // Convert to 2 decimal places
+                                : '0.00';
 
-                          return Text(
-                            'CHARGE : ${cartController.selectedCurrency.value?.symbol ?? ''} $formattedCost',
-                            style: TextStyle(color: Colors.white, fontSize: 16),
-                          );
-                        }),
+                            return Text(
+                              'CHARGE : ${cartController.selectedCurrency.value?.symbol ?? ''} $formattedCost',
+                              style: TextStyle(color: Colors.white, fontSize: 16),
+                            );
+                          }),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Obx(() {
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Conditionally show either the DropdownButton or the Search TextField
-                      saleController.isSearching.value
-                          ? Expanded(
-                              child: TextField(
-                                controller:
-                                    saleController.searchTextEditingController,
-                                decoration: InputDecoration(
-                                  hintText: 'Search Items...',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: IconButton(
-                                    icon: Icon(Icons.close),
-                                    onPressed: () {
-                                      saleController.searchTextEditingController
-                                          .clear();
-                                      saleController.isSearching.value =
-                                          false; // Hide search field
-
-                                      final allItemsCategory =
-                                          saleController.categories.firstWhere(
-                                        (category) =>
-                                            category.id == "All Items",
-                                        orElse: () =>
-                                            saleController.categories.first,
-                                      );
-                                      saleController.selectedCategory.value =
-                                          allItemsCategory;
-
-                                      saleController.filterProducts(
-                                          query: '',
-                                          category: saleController
-                                              .selectedCategory.value?.id);
-                                    },
-                                  ),
-                                ),
-                                onChanged: (query) {
-                                  // saleController.filterProducts(query);
-                                  saleController.filterProducts(
-                                      query: query,
-                                      category: saleController
-                                          .selectedCategory
-                                          .value
-                                          ?.name); // Filter based on search query and category
-                                },
-                              ),
-                            )
-                          : Expanded(
-                              child: DropdownButton<BaseNameModel>(
-                                value: saleController.selectedCategory.value,
-                                isExpanded: true,
-                                // Make the dropdown take full width
-                                items:
-                                    saleController.categories.map((category) {
-                                  return DropdownMenuItem<BaseNameModel>(
-                                    value: category,
-                                    child: Text(category.name!),
-                                  );
-                                }).toList(),
-                                onChanged: (value) {
-                                  saleController.isCatSelected.value = true;
-                                  saleController.selectedCategory.value =
-                                      value!;
-                                  // saleController.filterProducts(value.name!);
-                                  saleController.filterProducts(
-                                      category: value
-                                          .id!); // Filter based on selected category
-                                },
-                                hint: Text("Select Category"),
-                              ),
-                            ),
-                      // Search Icon
-                      if (!saleController.isSearching
-                          .value) // Show search icon only when not searching
-                        IconButton(
-                          icon: Icon(Icons.search),
-                          onPressed: () {
-                            saleController.isSearching.value =
-                                true; // Show search field
-                            saleController.selectedCategory.value =
-                                BaseNameModel(
-                                    id: "All Items", name: "All Items");
-                            saleController.filterProducts(
-                                query: '',
-                                category:
-                                    saleController.selectedCategory.value?.id);
-                          },
-                        ),
                     ],
-                  );
-                }),
-              ),
-              const SizedBox(height: 5),
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: saleController.barCodeTextEditingController,
-                        autofocus: true,
-                        decoration: InputDecoration(
-                          prefixIcon: IconButton(
-                            icon: const Icon(Icons.camera_alt),
+                  ),
+                ),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Obx(() {
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Conditionally show either the DropdownButton or the Search TextField
+                        saleController.isSearching.value
+                            ? Expanded(
+                                child: TextField(
+                                  controller:
+                                      saleController.searchTextEditingController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Search Items...',
+                                    border: OutlineInputBorder(),
+                                    prefixIcon: IconButton(
+                                      icon: Icon(Icons.close),
+                                      onPressed: () {
+                                        saleController.searchTextEditingController
+                                            .clear();
+                                        saleController.isSearching.value =
+                                            false; // Hide search field
+
+                                        final allItemsCategory =
+                                            saleController.categories.firstWhere(
+                                          (category) =>
+                                              category.id == "All Items",
+                                          orElse: () =>
+                                              saleController.categories.first,
+                                        );
+                                        saleController.selectedCategory.value =
+                                            allItemsCategory;
+
+                                        saleController.filterProducts(
+                                            query: '',
+                                            category: saleController
+                                                .selectedCategory.value?.id);
+                                      },
+                                    ),
+                                  ),
+                                  onChanged: (query) {
+                                    // saleController.filterProducts(query);
+                                    saleController.filterProducts(
+                                        query: query,
+                                        category: saleController
+                                            .selectedCategory
+                                            .value
+                                            ?.name); // Filter based on search query and category
+                                  },
+                                ),
+                              )
+                            : Expanded(
+                                child: DropdownButton<BaseNameModel>(
+                                  value: saleController.selectedCategory.value,
+                                  isExpanded: true,
+                                  // Make the dropdown take full width
+                                  items:
+                                      saleController.categories.map((category) {
+                                    return DropdownMenuItem<BaseNameModel>(
+                                      value: category,
+                                      child: Text(category.name!),
+                                    );
+                                  }).toList(),
+                                  onChanged: (value) {
+                                    saleController.isCatSelected.value = true;
+                                    saleController.selectedCategory.value =
+                                        value!;
+                                    // saleController.filterProducts(value.name!);
+                                    saleController.filterProducts(
+                                        category: value
+                                            .id!); // Filter based on selected category
+                                  },
+                                  hint: Text("Select Category"),
+                                ),
+                              ),
+                        // Search Icon
+                        if (!saleController.isSearching
+                            .value) // Show search icon only when not searching
+                          IconButton(
+                            icon: Icon(Icons.search),
                             onPressed: () {
-                              Get.toNamed(AppRoutes.BARCODE_SCANNER);
+                              saleController.isSearching.value =
+                                  true; // Show search field
+                              saleController.selectedCategory.value =
+                                  BaseNameModel(
+                                      id: "All Items", name: "All Items");
+                              saleController.filterProducts(
+                                  query: '',
+                                  category:
+                                      saleController.selectedCategory.value?.id);
                             },
                           ),
-                          labelText: "Bar Code",
-                          hintText: "Bar Code",
-                        ),
-                        onChanged: (String val) {
-                          if (val.isNotEmpty) {
-                            String exp = val;
+                      ],
+                    );
+                  }),
+                ),
+                const SizedBox(height: 5),
+                Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: saleController.barCodeTextEditingController,
+                          autofocus: true,
+                          decoration: InputDecoration(
+                            prefixIcon: IconButton(
+                              icon: const Icon(Icons.camera_alt),
+                              onPressed: () {
+                                Get.toNamed(AppRoutes.BARCODE_SCANNER);
+                              },
+                            ),
+                            labelText: "Bar Code",
+                            hintText: "Bar Code",
+                          ),
+                          onChanged: (String val) {
+                            if (val.isNotEmpty) {
+                              String exp = val;
 
-                            if (saleController.useSerialNumbers) {
-                              var index = saleController.allProducts.indexWhere(
-                                  (item) =>
-                                      item.barCodes?.contains(exp) == true);
-                              if (index != -1) {
-                                ProductFullInfoModel foundItem =
-                                    saleController.allProducts[index];
-                                var indexC = cartController.cartItems
-                                    .indexWhere((item) =>
-                                        item.product.item?.id ==
-                                        foundItem.item?.id);
-                                if (indexC != -1) {
-                                  cartController.addToCartWithBarCode(
-                                      foundItem, 1, exp);
-                                  saleController.barCodeTextEditingController
-                                      .clear();
+                              if (saleController.useSerialNumbers) {
+                                var index = saleController.allProducts.indexWhere(
+                                    (item) =>
+                                        item.barCodes?.contains(exp) == true);
+                                if (index != -1) {
+                                  ProductFullInfoModel foundItem =
+                                      saleController.allProducts[index];
+                                  var indexC = cartController.cartItems
+                                      .indexWhere((item) =>
+                                          item.product.item?.id ==
+                                          foundItem.item?.id);
+                                  if (indexC != -1) {
+                                    cartController.addToCartWithBarCode(
+                                        foundItem, 1, exp);
+                                    saleController.barCodeTextEditingController
+                                        .clear();
+                                  } else {
+                                    Get.snackbar(
+                                        "Info", "Product added to cart !!!",
+                                        snackPosition: SnackPosition.BOTTOM);
+                                    cartController.addToCartWithBarCode(
+                                        foundItem, 1, exp);
+                                    saleController.barCodeTextEditingController
+                                        .clear();
+                                  }
                                 } else {
-                                  Get.snackbar(
-                                      "Info", "Product added to cart !!!",
-                                      snackPosition: SnackPosition.BOTTOM);
-                                  cartController.addToCartWithBarCode(
-                                      foundItem, 1, exp);
-                                  saleController.barCodeTextEditingController
-                                      .clear();
+                                  var index = saleController.allProducts
+                                      .indexWhere(
+                                          (item) => item.item?.itemCode == exp);
+                                  if (index != -1) {
+                                    ProductFullInfoModel foundItem =
+                                        saleController.allProducts[index];
+                                    var indexC = cartController.cartItems
+                                        .indexWhere((item) =>
+                                            item.product.item?.id ==
+                                            foundItem.item?.id);
+                                    if (indexC != -1) {
+                                      cartController.addToCart(foundItem, 1);
+                                      saleController.barCodeTextEditingController
+                                          .clear();
+                                    } else {
+                                      Get.snackbar(
+                                          "Info", "Product added to cart !!!",
+                                          snackPosition: SnackPosition.BOTTOM);
+                                      cartController.addToCart(foundItem, 1);
+                                      saleController.barCodeTextEditingController
+                                          .clear();
+                                    }
+                                  } else {
+                                    Get.snackbar(
+                                        "Not Found",
+                                        "Product with item  code " +
+                                            exp +
+                                            " is not found!!!",
+                                        snackPosition: SnackPosition.BOTTOM);
+                                  }
+                                }
+                              } else if (exp.length >= 12) {
+                                String chackCode =
+                                    exp.length > 2 ? exp.substring(0, 2) : '';
+                                String productCode =
+                                    exp.length > 6 ? exp.substring(2, 6) : '';
+                                String categoryCode =
+                                    exp.length > 7 ? exp.substring(6, 7) : '';
+                                String weight =
+                                    exp.length > 12 ? exp.substring(7, 12) : '0';
+
+                                double kgs = double.parse(weight) / 1000;
+                                double roundedValue =
+                                    double.parse(kgs.toStringAsFixed(3));
+                                if (kgs > 0) {
+                                  var index = saleController.allProducts
+                                      .indexWhere((item) =>
+                                          item.item?.itemCode == productCode);
+                                  if (index != -1) {
+                                    ProductFullInfoModel foundItem =
+                                        saleController.allProducts[index];
+                                    var indexC = cartController.cartItems
+                                        .indexWhere((item) =>
+                                            item.product.item?.id ==
+                                            foundItem.item?.id);
+                                    if (indexC != -1) {
+                                      cartController.addToCart(
+                                          foundItem, roundedValue);
+                                      saleController.barCodeTextEditingController
+                                          .clear();
+                                    } else {
+                                      Get.snackbar(
+                                          "Info", "Product added to cart !!!",
+                                          snackPosition: SnackPosition.BOTTOM);
+                                      cartController.addToCart(
+                                          foundItem, roundedValue);
+                                      saleController.barCodeTextEditingController
+                                          .clear();
+                                    }
+                                  } else {
+                                    Get.snackbar(
+                                        "Not Found",
+                                        "Product with item  code " +
+                                            productCode +
+                                            " is not found!!!",
+                                        snackPosition: SnackPosition.BOTTOM);
+                                  }
                                 }
                               } else {
-                                var index = saleController.allProducts
-                                    .indexWhere(
-                                        (item) => item.item?.itemCode == exp);
+                                var index = saleController.allProducts.indexWhere(
+                                    (item) => item.item?.itemCode == exp);
                                 if (index != -1) {
                                   ProductFullInfoModel foundItem =
                                       saleController.allProducts[index];
@@ -433,194 +513,129 @@ class SaleScreen extends GetView {
                                       snackPosition: SnackPosition.BOTTOM);
                                 }
                               }
-                            } else if (exp.length >= 12) {
-                              String chackCode =
-                                  exp.length > 2 ? exp.substring(0, 2) : '';
-                              String productCode =
-                                  exp.length > 6 ? exp.substring(2, 6) : '';
-                              String categoryCode =
-                                  exp.length > 7 ? exp.substring(6, 7) : '';
-                              String weight =
-                                  exp.length > 12 ? exp.substring(7, 12) : '0';
+                            }
+                          },
+                          validator: (value) {
+                            return null;
+                          },
+                          onSaved: (value) {
+                            // cartController.amountPaid.value = int.parse(value!);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: () {
+                          Get.toNamed(AppRoutes.BARCODE_SCANNER);
+                        },
+                        icon: const Icon(Icons.camera_alt),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.all(12),
+                        ),
+                        tooltip: 'Scan Barcode',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: Obx(() {
+                    return Container(
+                      child:
+                      saleController.filteredProducts.isEmpty ?
+                      Center(
+                        child: LoadingAnimationWidget.discreteCircle(
+                          secondRingColor: const Color(0xFF98EF17),
+                          color: const Color(0xFFEA3799),
+                          thirdRingColor: const Color(0xFFF14405),
+                          size: 200,
+                        ),
+                      ):
+                      ListView.builder(
+                        itemCount: saleController.filteredProducts.length,
+                        itemBuilder: (context, index) {
+                          final product = saleController.filteredProducts[index];
+                          String name = product.item!.name ?? 'no name';
+                          String brand = product.item!.brand?.name ?? '';
+                          String fullName = "${name}  ${brand}";
+                          String category = product.item!.category?.name ?? '';
+                          String itemName = fullName + ' ' + category;
+                          return Card(
+                              child: ListTile(
+                            tileColor: Colors.blue[100],
+                            /*  leading: CachedNetworkImage(
+                                  imageUrl: imageUrl,
+                                  placeholder: (context, url) =>
+                                      CircularProgressIndicator(),
 
-                              double kgs = double.parse(weight) / 1000;
-                              double roundedValue =
-                                  double.parse(kgs.toStringAsFixed(3));
-                              if (kgs > 0) {
-                                var index = saleController.allProducts
-                                    .indexWhere((item) =>
-                                        item.item?.itemCode == productCode);
-                                if (index != -1) {
-                                  ProductFullInfoModel foundItem =
-                                      saleController.allProducts[index];
-                                  var indexC = cartController.cartItems
-                                      .indexWhere((item) =>
-                                          item.product.item?.id ==
-                                          foundItem.item?.id);
-                                  if (indexC != -1) {
-                                    cartController.addToCart(
-                                        foundItem, roundedValue);
-                                    saleController.barCodeTextEditingController
-                                        .clear();
-                                  } else {
-                                    Get.snackbar(
-                                        "Info", "Product added to cart !!!",
-                                        snackPosition: SnackPosition.BOTTOM);
-                                    cartController.addToCart(
-                                        foundItem, roundedValue);
-                                    saleController.barCodeTextEditingController
-                                        .clear();
-                                  }
-                                } else {
-                                  Get.snackbar(
-                                      "Not Found",
-                                      "Product with item  code " +
-                                          productCode +
-                                          " is not found!!!",
-                                      snackPosition: SnackPosition.BOTTOM);
-                                }
-                              }
-                            } else {
-                              var index = saleController.allProducts.indexWhere(
-                                  (item) => item.item?.itemCode == exp);
-                              if (index != -1) {
-                                ProductFullInfoModel foundItem =
-                                    saleController.allProducts[index];
-                                var indexC = cartController.cartItems
-                                    .indexWhere((item) =>
-                                        item.product.item?.id ==
-                                        foundItem.item?.id);
-                                if (indexC != -1) {
-                                  cartController.addToCart(foundItem, 1);
-                                  saleController.barCodeTextEditingController
-                                      .clear();
-                                } else {
-                                  Get.snackbar(
-                                      "Info", "Product added to cart !!!",
-                                      snackPosition: SnackPosition.BOTTOM);
-                                  cartController.addToCart(foundItem, 1);
-                                  saleController.barCodeTextEditingController
-                                      .clear();
-                                }
+
+                                  errorWidget: (context, url, error) {
+                                    debugPrint('Image load failed: $error');
+                                    return Image.asset(
+                                      'assets/images/dummy/dummy.png',
+                                      // Path to your error image
+                                      fit: BoxFit.cover,
+                                    );
+                                  },
+                                ),*/
+                            title: Text(itemName),
+                            subtitle: Text('Available units ' +
+                                '(' +
+                                product.stock!.toInt().toString() +
+                                ')'),
+                            trailing: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                    "\$${product.item!.sellingPrice.toStringAsFixed(2)}"),
+                                SizedBox(
+                                  height: 4, // Space between price and button
+                                ),
+                                /*SizedBox(
+                                      width: 100,
+                                      // Adjust the width to fit the text
+                                      height: 30,
+                                      // Adjust the height to make the button smaller
+                                      child: ElevatedButton(
+                                        onPressed: () {
+                                          Get.to(() =>
+                                              ProductDescriptionScreen(
+                                                  productFullInfo: product));
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.indigo,
+                                          padding: EdgeInsets.all(5.0),
+                                          textStyle: TextStyle(
+                                              fontSize: 14, color: Colors.white),
+                                        ),
+                                        child: Text('View'),
+                                      ),
+                                    ),*/
+                              ],
+                            ),
+                            isThreeLine: true,
+                            onTap: () {
+                              if (product.item?.itemType == 'SERVICE') {
+                                cartController.addToCart(product, 1);
+                              } else if (product.stock! > 0 ||
+                                  saleController.sellNilItems) {
+                                cartController.addToCart(product, 1);
                               } else {
                                 Get.snackbar(
-                                    "Not Found",
-                                    "Product with item  code " +
-                                        exp +
-                                        " is not found!!!",
+                                    "Check your stock", "Stock not available!!!",
                                     snackPosition: SnackPosition.BOTTOM);
                               }
-                            }
-                          }
-                        },
-                        validator: (value) {
-                          return null;
-                        },
-                        onSaved: (value) {
-                          // cartController.amountPaid.value = int.parse(value!);
+                            },
+                          ));
                         },
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: () {
-                        Get.toNamed(AppRoutes.BARCODE_SCANNER);
-                      },
-                      icon: const Icon(Icons.camera_alt),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.all(12),
-                      ),
-                      tooltip: 'Scan Barcode',
-                    ),
-                  ],
+                    );
+                  }),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: Obx(() {
-                  return ListView.builder(
-                    itemCount: saleController.filteredProducts.length,
-                    itemBuilder: (context, index) {
-                      final product = saleController.filteredProducts[index];
-                      String name = product.item!.name ?? 'no name';
-                      String brand = product.item!.brand?.name ?? '';
-                      String fullName = "${name}  ${brand}";
-                      String category = product.item!.category?.name ?? '';
-                      String itemName = fullName + ' ' + category;
-                      return Card(
-                          child: ListTile(
-                        tileColor: Colors.blue[100],
-                        /*  leading: CachedNetworkImage(
-                              imageUrl: imageUrl,
-                              placeholder: (context, url) =>
-                                  CircularProgressIndicator(),
-
-
-                              errorWidget: (context, url, error) {
-                                debugPrint('Image load failed: $error');
-                                return Image.asset(
-                                  'assets/images/dummy/dummy.png',
-                                  // Path to your error image
-                                  fit: BoxFit.cover,
-                                );
-                              },
-                            ),*/
-                        title: Text(itemName),
-                        subtitle: Text('Available units ' +
-                            '(' +
-                            product.stock!.toInt().toString() +
-                            ')'),
-                        trailing: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                                "\$${product.item!.sellingPrice.toStringAsFixed(2)}"),
-                            SizedBox(
-                              height: 4, // Space between price and button
-                            ),
-                            /*SizedBox(
-                                  width: 100,
-                                  // Adjust the width to fit the text
-                                  height: 30,
-                                  // Adjust the height to make the button smaller
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      Get.to(() =>
-                                          ProductDescriptionScreen(
-                                              productFullInfo: product));
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.indigo,
-                                      padding: EdgeInsets.all(5.0),
-                                      textStyle: TextStyle(
-                                          fontSize: 14, color: Colors.white),
-                                    ),
-                                    child: Text('View'),
-                                  ),
-                                ),*/
-                          ],
-                        ),
-                        isThreeLine: true,
-                        onTap: () {
-                          if (product.item?.itemType == 'SERVICE') {
-                            cartController.addToCart(product, 1);
-                          } else if (product.stock! > 0 ||
-                              saleController.sellNilItems) {
-                            cartController.addToCart(product, 1);
-                          } else {
-                            Get.snackbar(
-                                "Check your stock", "Stock not available!!!",
-                                snackPosition: SnackPosition.BOTTOM);
-                          }
-                        },
-                      ));
-                    },
-                  );
-                }),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );
@@ -629,281 +644,237 @@ class SaleScreen extends GetView {
         behavior: HitTestBehavior.translucent,
         onTap: inactivityController.resetInactivityTimer,
         onPanDown: (_) => inactivityController.resetInactivityTimer(),
-        child: Scaffold(
-          resizeToAvoidBottomInset: true,
-          key: scaffoldKey,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            // Same as your app theme
-            elevation: 0,
-            title: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(8),
-                  height: 40,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Colors.indigo,
-                      width: 2.0,
-                    ),
-                    color: Colors.deepOrange,
-                    // Set the background color for the count
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(children: [
-                    GestureDetector(
-                      onTap: () {
-                        // Define the action when "Ticket" is clicked
-                        Get.toNamed(AppRoutes.TICKET_LIST);
-                      },
-                      child: Text(
-                        'Ticket',
-                        style: TextStyle(color: Colors.white),
+        child: PopScope(
+          canPop: false,
+          child: Scaffold(
+            resizeToAvoidBottomInset: true,
+            key: scaffoldKey,
+            appBar: AppBar(
+              backgroundColor: Colors.white,
+              // Same as your app theme
+              elevation: 0,
+              title: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(8),
+                    height: 40,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.indigo,
+                        width: 2.0,
                       ),
+                      color: Colors.deepOrange,
+                      // Set the background color for the count
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    SizedBox(width: 4),
-                    GestureDetector(
-                      onTap: () {
-                        // Define the action when the count is clicked
-                        Get.toNamed(AppRoutes.TICKET_LIST);
-                      },
-                      child: Obx(() {
-                        final count = ticketController.openedTicketsCount;
-                        return Container(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            // Set the background color for the count
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            count.toString(),
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10), // Text color
-                          ),
-                        );
-                      }),
-                    ),
-                  ]),
-                ),
-                SizedBox(width: 6),
-                Expanded(child: Container(child: Obx(() {
-                  return GridView.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: cartController.currencyList.length,
-                      mainAxisSpacing: 10.0,
-                      crossAxisSpacing: 2.0,
-                      // childAspectRatio: 2.0, // Adjust aspect ratio as needed
-                      mainAxisExtent: 40.0, // Adjust height of each item
-                    ),
-                    // scrollDirection: Axis.horizontal,
-                    physics: PageScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: cartController.currencyList.length,
-                    itemBuilder: (context, index) {
-                      final currency = cartController.currencyList[index];
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: cartController.isCurrencySelected.value &&
-                                  cartController.selectedCurrency.value?.id ==
-                                      currency.id
-                              ? Colors.purple[200]
-                              : Colors.white,
-                          border: Border.all(
-                            color: Colors.indigo,
-                            width: 2.0,
-                          ),
-                          borderRadius: BorderRadius.circular(8.0),
+                    child: Row(children: [
+                      GestureDetector(
+                        onTap: () {
+                          // Define the action when "Ticket" is clicked
+                          Get.toNamed(AppRoutes.TICKET_LIST);
+                        },
+                        child: Text(
+                          'Ticket',
+                          style: TextStyle(color: Colors.white),
                         ),
-                        // width: 100,
-                        child: InkWell(
-                          onTap: () {
-                            cartController.isCurrencySelected.value = true;
-                            cartController.selectedCurrency.value = currency;
-                            cartController.onCurrencyChange(currency);
-                          },
-                          child: Center(
+                      ),
+                      SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () {
+                          // Define the action when the count is clicked
+                          Get.toNamed(AppRoutes.TICKET_LIST);
+                        },
+                        child: Obx(() {
+                          final count = ticketController.openedTicketsCount;
+                          return Container(
+                            padding:
+                                EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              // Set the background color for the count
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                             child: Text(
-                              currency.name!,
+                              count.toString(),
                               style: TextStyle(
-                                  fontSize: 12.0,
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.bold),
-                              textAlign: TextAlign.center,
+                                  color: Colors.white,
+                                  fontSize: 10), // Text color
+                            ),
+                          );
+                        }),
+                      ),
+                    ]),
+                  ),
+                  SizedBox(width: 6),
+                  Expanded(child: Container(child: Obx(() {
+                    return GridView.builder(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: cartController.currencyList.length,
+                        mainAxisSpacing: 10.0,
+                        crossAxisSpacing: 2.0,
+                        // childAspectRatio: 2.0, // Adjust aspect ratio as needed
+                        mainAxisExtent: 40.0, // Adjust height of each item
+                      ),
+                      // scrollDirection: Axis.horizontal,
+                      physics: PageScrollPhysics(),
+                      shrinkWrap: true,
+                      itemCount: cartController.currencyList.length,
+                      itemBuilder: (context, index) {
+                        final currency = cartController.currencyList[index];
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: cartController.isCurrencySelected.value &&
+                                    cartController.selectedCurrency.value?.id ==
+                                        currency.id
+                                ? Colors.purple[200]
+                                : Colors.white,
+                            border: Border.all(
+                              color: Colors.indigo,
+                              width: 2.0,
+                            ),
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          // width: 100,
+                          child: InkWell(
+                            onTap: () {
+                              cartController.isCurrencySelected.value = true;
+                              cartController.selectedCurrency.value = currency;
+                              cartController.onCurrencyChange(currency);
+                            },
+                            child: Center(
+                              child: Text(
+                                currency.name!,
+                                style: TextStyle(
+                                    fontSize: 12.0,
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  );
-                }))),
-                SizedBox(width: 20),
-                Container(
-                  width: screenSize * 0.4,
-                  child: Obx(() {
-                    return Row(
-                      children: [
-                        saleController.isSearching.value
-                            ? Expanded(
-                                child: Container(
-                                  child: TextField(
-                                    controller: saleController
-                                        .searchTextEditingController,
-                                    decoration: InputDecoration(
-                                      hintText: 'Search Items...',
-                                      border: OutlineInputBorder(),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8.0),
-                                        borderSide: BorderSide(
-                                          color: Colors.indigo,
-                                          width: 2.0,
+                        );
+                      },
+                    );
+                  }))),
+                  SizedBox(width: 20),
+                  Container(
+                    width: screenSize * 0.4,
+                    child: Obx(() {
+                      return Row(
+                        children: [
+                          saleController.isSearching.value
+                              ? Expanded(
+                                  child: Container(
+                                    child: TextField(
+                                      controller: saleController
+                                          .searchTextEditingController,
+                                      decoration: InputDecoration(
+                                        hintText: 'Search Items...',
+                                        border: OutlineInputBorder(),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                          borderSide: BorderSide(
+                                            color: Colors.indigo,
+                                            width: 2.0,
+                                          ),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                          borderSide: const BorderSide(
+                                            color: Colors.pinkAccent,
+                                            width: 2.0,
+                                          ),
+                                        ),
+                                        prefixIcon: IconButton(
+                                          icon: Icon(Icons.close),
+                                          onPressed: () {
+                                            saleController
+                                                .searchTextEditingController
+                                                .clear();
+                                            saleController.isSearching.value =
+                                                false; // Hide search field
+
+                                            final allItemsCategory =
+                                                saleController.categories
+                                                    .firstWhere(
+                                              (category) =>
+                                                  category.id == "All Items",
+                                              orElse: () =>
+                                                  saleController.categories.first,
+                                            );
+                                            saleController.selectedCategory
+                                                .value = allItemsCategory;
+
+                                            saleController.filterProducts(
+                                                query: '',
+                                                category: saleController
+                                                    .selectedCategory.value?.id);
+                                          },
                                         ),
                                       ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8.0),
-                                        borderSide: const BorderSide(
-                                          color: Colors.pinkAccent,
-                                          width: 2.0,
-                                        ),
-                                      ),
-                                      prefixIcon: IconButton(
-                                        icon: Icon(Icons.close),
-                                        onPressed: () {
-                                          saleController
-                                              .searchTextEditingController
-                                              .clear();
-                                          saleController.isSearching.value =
-                                              false; // Hide search field
-
-                                          final allItemsCategory =
-                                              saleController.categories
-                                                  .firstWhere(
-                                            (category) =>
-                                                category.id == "All Items",
-                                            orElse: () =>
-                                                saleController.categories.first,
-                                          );
-                                          saleController.selectedCategory
-                                              .value = allItemsCategory;
-
-                                          saleController.filterProducts(
-                                              query: '',
-                                              category: saleController
-                                                  .selectedCategory.value?.id);
-                                        },
-                                      ),
+                                      onChanged: (query) {
+                                        // saleController.filterProducts(query);
+                                        saleController.filterProducts(
+                                            query: query,
+                                            category: saleController
+                                                .selectedCategory
+                                                .value
+                                                ?.name); // Filter based on search query and category
+                                      },
                                     ),
-                                    onChanged: (query) {
-                                      // saleController.filterProducts(query);
-                                      saleController.filterProducts(
-                                          query: query,
-                                          category: saleController
-                                              .selectedCategory
-                                              .value
-                                              ?.name); // Filter based on search query and category
-                                    },
                                   ),
-                                ),
-                              )
-                            : Expanded(
-                                child: Container(
-                                  width: screenSize * 0.4 * 0.7,
-                                  child: TextFormField(
-                                    controller: saleController
-                                        .barCodeTextEditingController,
-                                    decoration: InputDecoration(
-                                      iconColor: Colors.indigo,
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8.0),
-                                        borderSide: const BorderSide(
-                                          color: Colors.indigo,
-                                          width: 2.0,
+                                )
+                              : Expanded(
+                                  child: Container(
+                                    width: screenSize * 0.4 * 0.7,
+                                    child: TextFormField(
+                                      controller: saleController.barCodeTextEditingController,
+                                      decoration: InputDecoration(
+                                        iconColor: Colors.indigo,
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                          borderSide: const BorderSide(
+                                            color: Colors.indigo,
+                                            width: 2.0,
+                                          ),
                                         ),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8.0),
-                                        borderSide: const BorderSide(
-                                          color: Colors.pinkAccent,
-                                          width: 2.0,
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                          borderSide: const BorderSide(
+                                            color: Colors.pinkAccent,
+                                            width: 2.0,
+                                          ),
                                         ),
+                                        prefixIcon: IconButton(
+                                          icon: const Icon(Icons.camera_alt),
+                                          onPressed: () {
+                                            Get.toNamed(
+                                                AppRoutes.BARCODE_SCANNER);
+                                          },
+                                        ),
+                                        labelText: "Bar Code",
+                                        hintText: "Bar Code",
                                       ),
-                                      prefixIcon: IconButton(
-                                        icon: const Icon(Icons.camera_alt),
-                                        onPressed: () {
-                                          Get.toNamed(
-                                              AppRoutes.BARCODE_SCANNER);
-                                        },
-                                      ),
-                                      labelText: "Bar Code",
-                                      hintText: "Bar Code",
-                                    ),
-                                    onChanged: (String val) {
-                                      if (val.isNotEmpty) {
-                                        String exp = val;
+                                      onChanged: (String val) {
+                                        if (val.isNotEmpty) {
+                                          String exp = val;
 
-                                        if (saleController.useSerialNumbers) {
-                                          var index = saleController.allProducts
-                                              .indexWhere((item) =>
-                                                  item.barCodes
-                                                      ?.contains(exp) ==
-                                                  true);
-                                          if (index != -1) {
-                                            ProductFullInfoModel foundItem =
-                                                saleController
-                                                    .allProducts[index];
-                                            var indexC = cartController
-                                                .cartItems
-                                                .indexWhere((item) =>
-                                                    item.product.item?.id ==
-                                                    foundItem.item?.id);
-                                            if (indexC != -1) {
-                                              // Get.snackbar("Info",
-                                              //     "Product already added !!!",
-                                              //     snackPosition: SnackPosition.BOTTOM);
-                                              cartController
-                                                  .addToCartWithBarCode(
-                                                      foundItem, 1, exp);
-                                              saleController
-                                                  .barCodeTextEditingController
-                                                  .clear();
-                                            } else {
-                                              Get.snackbar("Info",
-                                                  "Product added to cart !!!",
-                                                  snackPosition:
-                                                      SnackPosition.BOTTOM);
-                                              cartController
-                                                  .addToCartWithBarCode(
-                                                      foundItem, 1, exp);
-                                              saleController
-                                                  .barCodeTextEditingController
-                                                  .clear();
-                                            }
-                                          } else {
-                                            var index = saleController
-                                                .allProducts
-                                                .indexWhere((item) =>
-                                                    item.item?.itemCode == exp);
+                                          if (saleController.useSerialNumbers) {
+                                            var index = saleController.allProducts.indexWhere((item) =>item.barCodes?.contains(exp) == true);
                                             if (index != -1) {
-                                              ProductFullInfoModel foundItem =
-                                                  saleController
-                                                      .allProducts[index];
-                                              var indexC = cartController
-                                                  .cartItems
-                                                  .indexWhere((item) =>
-                                                      item.product.item?.id ==
-                                                      foundItem.item?.id);
+                                              ProductFullInfoModel foundItem =saleController.allProducts[index];
+                                              var indexC = cartController.cartItems.indexWhere((item) =>item.product.item?.id == foundItem.item?.id);
                                               if (indexC != -1) {
                                                 // Get.snackbar("Info",
                                                 //     "Product already added !!!",
                                                 //     snackPosition: SnackPosition.BOTTOM);
-                                                cartController.addToCart(
-                                                    foundItem, 1);
+                                                cartController
+                                                    .addToCartWithBarCode(
+                                                        foundItem, 1, exp);
                                                 saleController
                                                     .barCodeTextEditingController
                                                     .clear();
@@ -912,1438 +883,1459 @@ class SaleScreen extends GetView {
                                                     "Product added to cart !!!",
                                                     snackPosition:
                                                         SnackPosition.BOTTOM);
-                                                cartController.addToCart(
-                                                    foundItem, 1);
+                                                cartController
+                                                    .addToCartWithBarCode(
+                                                        foundItem, 1, exp);
                                                 saleController
                                                     .barCodeTextEditingController
                                                     .clear();
                                               }
                                             } else {
-                                              // Item not found, handle this case
-                                              Get.snackbar(
-                                                  "Not Found",
-                                                  "Product with item  code " +
-                                                      exp +
-                                                      " is not found!!!",
-                                                  snackPosition:
-                                                      SnackPosition.BOTTOM);
-                                            }
-                                          }
-                                        } else if (exp.length >= 12) {
-                                          String chackCode = exp.length > 2
-                                              ? exp.substring(0, 2)
-                                              : '';
-                                          String productCode = exp.length > 6
-                                              ? exp.substring(2, 6)
-                                              : '';
-                                          String categoryCode = exp.length > 7
-                                              ? exp.substring(6, 7)
-                                              : '';
-                                          String weight = exp.length > 12
-                                              ? exp.substring(7, 12)
-                                              : '0';
-
-                                          double kgs =
-                                              double.parse(weight) / 1000;
-                                          double roundedValue = double.parse(
-                                              kgs.toStringAsFixed(3));
-                                          if (kgs > 0) {
-                                            // print(weight);
-                                            // print(kgs);
-                                            // print(roundedValue);
-                                            var index = saleController
-                                                .allProducts
-                                                .indexWhere((item) =>
-                                                    item.item?.itemCode ==
-                                                    productCode);
-                                            if (index != -1) {
-                                              ProductFullInfoModel foundItem =
-                                                  saleController
-                                                      .allProducts[index];
-                                              var indexC = cartController
-                                                  .cartItems
+                                              var index = saleController
+                                                  .allProducts
                                                   .indexWhere((item) =>
-                                                      item.product.item?.id ==
-                                                      foundItem.item?.id);
-                                              if (indexC != -1) {
-                                                // Get.snackbar("Info",
-                                                //     "Product already added !!!",
-                                                //     snackPosition: SnackPosition.BOTTOM);
-                                                cartController.addToCart(
-                                                    foundItem, roundedValue);
-                                                saleController
-                                                    .barCodeTextEditingController
-                                                    .clear();
+                                                      item.item?.itemCode == exp);
+                                              if (index != -1) {
+                                                ProductFullInfoModel foundItem =
+                                                    saleController
+                                                        .allProducts[index];
+                                                var indexC = cartController
+                                                    .cartItems
+                                                    .indexWhere((item) =>
+                                                        item.product.item?.id ==
+                                                        foundItem.item?.id);
+                                                if (indexC != -1) {
+                                                  // Get.snackbar("Info",
+                                                  //     "Product already added !!!",
+                                                  //     snackPosition: SnackPosition.BOTTOM);
+                                                  cartController.addToCart(
+                                                      foundItem, 1);
+                                                  saleController
+                                                      .barCodeTextEditingController
+                                                      .clear();
+                                                } else {
+                                                  Get.snackbar("Info",
+                                                      "Product added to cart !!!",
+                                                      snackPosition:
+                                                          SnackPosition.BOTTOM);
+                                                  cartController.addToCart(
+                                                      foundItem, 1);
+                                                  saleController
+                                                      .barCodeTextEditingController
+                                                      .clear();
+                                                }
                                               } else {
-                                                Get.snackbar("Info",
-                                                    "Product added to cart !!!",
+                                                // Item not found, handle this case
+                                                Get.snackbar(
+                                                    "Not Found",
+                                                    "Product with item  code " +
+                                                        exp +
+                                                        " is not found!!!",
                                                     snackPosition:
                                                         SnackPosition.BOTTOM);
-                                                cartController.addToCart(
-                                                    foundItem, roundedValue);
-                                                saleController
-                                                    .barCodeTextEditingController
-                                                    .clear();
                                               }
-                                            } else {
-                                              // Item not found, handle this case
-                                              Get.snackbar(
-                                                  "Not Found",
-                                                  "Product with item  code " +
-                                                      productCode +
-                                                      " is not found!!!",
-                                                  snackPosition:
-                                                      SnackPosition.BOTTOM);
+                                            }
+                                          } else if (exp.length >= 12) {
+                                            String chackCode = exp.length > 2
+                                                ? exp.substring(0, 2)
+                                                : '';
+                                            String productCode = exp.length > 6
+                                                ? exp.substring(2, 6)
+                                                : '';
+                                            String categoryCode = exp.length > 7
+                                                ? exp.substring(6, 7)
+                                                : '';
+                                            String weight = exp.length > 12
+                                                ? exp.substring(7, 12)
+                                                : '0';
+
+                                            double kgs =
+                                                double.parse(weight) / 1000;
+                                            double roundedValue = double.parse(
+                                                kgs.toStringAsFixed(3));
+                                            if (kgs > 0) {
+                                              // print(weight);
+                                              // print(kgs);
+                                              // print(roundedValue);
+                                              var index = saleController
+                                                  .allProducts
+                                                  .indexWhere((item) =>
+                                                      item.item?.itemCode ==
+                                                      productCode);
+                                              if (index != -1) {
+                                                ProductFullInfoModel foundItem =
+                                                    saleController
+                                                        .allProducts[index];
+                                                var indexC = cartController
+                                                    .cartItems
+                                                    .indexWhere((item) =>
+                                                        item.product.item?.id ==
+                                                        foundItem.item?.id);
+                                                if (indexC != -1) {
+                                                  // Get.snackbar("Info",
+                                                  //     "Product already added !!!",
+                                                  //     snackPosition: SnackPosition.BOTTOM);
+                                                  cartController.addToCart(
+                                                      foundItem, roundedValue);
+                                                  saleController
+                                                      .barCodeTextEditingController
+                                                      .clear();
+                                                } else {
+                                                  Get.snackbar("Info",
+                                                      "Product added to cart !!!",
+                                                      snackPosition:
+                                                          SnackPosition.BOTTOM);
+                                                  cartController.addToCart(
+                                                      foundItem, roundedValue);
+                                                  saleController
+                                                      .barCodeTextEditingController
+                                                      .clear();
+                                                }
+                                              } else {
+                                                // Item not found, handle this case
+                                                Get.snackbar(
+                                                    "Not Found",
+                                                    "Product with item  code " +
+                                                        productCode +
+                                                        " is not found!!!",
+                                                    snackPosition:
+                                                        SnackPosition.BOTTOM);
+                                              }
                                             }
                                           }
                                         }
-                                      }
-                                    },
-                                    validator: (value) {
-                                      return null;
-                                    },
-                                    onSaved: (value) {
-                                      // cartController.amountPaid.value = int.parse(value!); // Store as integer
-                                    },
+                                      },
+                                      validator: (value) {
+                                        return null;
+                                      },
+                                      onSaved: (value) {
+                                        // cartController.amountPaid.value = int.parse(value!); // Store as integer
+                                      },
+                                    ),
                                   ),
                                 ),
-                              ),
-                        Container(
-                          child: CupertinoButton(
-                            minSize: 20,
-                            padding: const EdgeInsets.all(0),
-                            // remove button padding
-                            color: CupertinoColors.white.withOpacity(0),
-                            // use this to make default color to transparent
-                            child: Container(
-                              // wrap the text/widget using container
-                              padding: const EdgeInsets.all(10), // add padding
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: Colors.indigo,
-                                  width: 2,
-                                ),
-                                borderRadius: const BorderRadius.all(
-                                    Radius.circular(10)), // radius as you wish
-                              ),
-                              child: Wrap(
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: const [
-                                  Icon(
-                                    CupertinoIcons.search,
+                          Container(
+                            child: CupertinoButton(
+                              minSize: 20,
+                              padding: const EdgeInsets.all(0),
+                              // remove button padding
+                              color: CupertinoColors.white.withOpacity(0),
+                              // use this to make default color to transparent
+                              child: Container(
+                                // wrap the text/widget using container
+                                padding: const EdgeInsets.all(10), // add padding
+                                decoration: BoxDecoration(
+                                  border: Border.all(
                                     color: Colors.indigo,
-                                    size: 30,
+                                    width: 2,
                                   ),
-                                  Text(
-                                    " Search item",
-                                    style: TextStyle(
-                                        color: Colors.indigo, fontSize: 12),
-                                  )
-                                ],
+                                  borderRadius: const BorderRadius.all(
+                                      Radius.circular(10)), // radius as you wish
+                                ),
+                                child: Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: const [
+                                    Icon(
+                                      CupertinoIcons.search,
+                                      color: Colors.indigo,
+                                      size: 30,
+                                    ),
+                                    Text(
+                                      " Search item",
+                                      style: TextStyle(
+                                          color: Colors.indigo, fontSize: 12),
+                                    )
+                                  ],
+                                ),
                               ),
+                              onPressed: () {
+                                // on press action
+                                saleController.isSearching.value =
+                                    true; // Show search field
+                                saleController.selectedCategory.value =
+                                    BaseNameModel(
+                                        id: "All Items", name: "All Items");
+                                saleController.filterProducts(
+                                    query: '',
+                                    category: saleController
+                                        .selectedCategory.value?.id);
+                              },
                             ),
-                            onPressed: () {
-                              // on press action
-                              saleController.isSearching.value =
-                                  true; // Show search field
-                              saleController.selectedCategory.value =
-                                  BaseNameModel(
-                                      id: "All Items", name: "All Items");
-                              saleController.filterProducts(
-                                  query: '',
-                                  category: saleController
-                                      .selectedCategory.value?.id);
-                            },
                           ),
-                        ),
-                      ],
-                    );
-                  }),
-                ),
-                SizedBox(
-                  width: 5,
-                ),
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.pink[50],
-                      border: Border.all(color: Colors.pinkAccent, width: 5.0),
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                    child: Obx(() {
-                      return SearchChoices.single(
-                        padding: 0,
-                        items: cartController.allCustomers
-                            .map((CustomerModel customer) {
-                          return DropdownMenuItem<CustomerModel>(
-                            value: customer,
-                            child: Text(customer.name ?? ''),
-                          );
-                        }).toList(),
-                        value: cartController.selectedCustomer.value,
-                        // onTap: cartController.reGetCustomers(),
-                        // initial selected value if needed
-                        hint: "🔍 Search or Select Customer",
-                        searchHint:
-                            "Type customer name, phone, ID, customer ID, or account number...",
-                        menuBackgroundColor: Colors.pink[50],
-                        searchFn:
-                            (String searchTerm, List<DropdownMenuItem> items) {
-                          // Enhanced search: search by name, phone, ID, customer ID, or account number
-                          List<int> matches = [];
-                          for (int i = 0; i < items.length; i++) {
-                            CustomerModel customer =
-                                items[i].value as CustomerModel;
-
-                            bool nameMatch = customer.name != null &&
-                                customer.name!
-                                    .toLowerCase()
-                                    .contains(searchTerm.toLowerCase());
-                            bool phoneMatch = customer.mobilePhone != null &&
-                                customer.mobilePhone!
-                                    .toLowerCase()
-                                    .contains(searchTerm.toLowerCase());
-                            bool idMatch = customer.id != null &&
-                                customer.id!
-                                    .toLowerCase()
-                                    .contains(searchTerm.toLowerCase());
-                            bool customerIdMatch =
-                                customer.customerId != null &&
-                                    customer.customerId!
-                                        .toLowerCase()
-                                        .contains(searchTerm.toLowerCase());
-                            bool accountNumberMatch =
-                                customer.accountNumber != null &&
-                                    customer.accountNumber!
-                                        .toLowerCase()
-                                        .contains(searchTerm.toLowerCase());
-
-                            if (nameMatch ||
-                                phoneMatch ||
-                                idMatch ||
-                                customerIdMatch ||
-                                accountNumberMatch) {
-                              matches.add(i);
-                            }
-                          }
-
-                          return matches;
-                        },
-                        validator: (value) {
-                          if (cartController.isCustomerSelected.isFalse) {
-                            return 'Please select a customer';
-                          }
-                          return null;
-                        },
-                        onChanged: (CustomerModel selected) {
-                          cartController.onCustomerChange(selected);
-                        },
-                        underline: SizedBox.shrink(),
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Colors.black87,
-                        ),
-                        isExpanded: true,
+                        ],
                       );
                     }),
                   ),
-                ),
-                SizedBox(width: 3),
-                IconButton(
-                  icon: Icon(
-                    Icons.refresh,
-                    color: Colors.blue,
+                  SizedBox(
+                    width: 5,
                   ),
-                  onPressed: () {
-                    saleController.syncData();
-                    Get.snackbar(
-                      "Syncing",
-                      "Refreshing customer data...",
-                      snackPosition: SnackPosition.TOP,
-                      backgroundColor: Colors.blue,
-                      colorText: Colors.white,
-                      duration: Duration(seconds: 1),
-                    );
-                  },
-                  tooltip: "Refresh Customer Data",
-                ),
-                IconButton(
-                  icon: Icon(
-                    Icons.camera_alt,
-                    color: Colors.orange,
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.pink[50],
+                        border: Border.all(color: Colors.pinkAccent, width: 5.0),
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                      child: Obx(() {
+                        return SearchChoices.single(
+                          padding: 0,
+                          items: cartController.allCustomers
+                              .map((CustomerModel customer) {
+                            return DropdownMenuItem<CustomerModel>(
+                              value: customer,
+                              child: Text(customer.name ?? ''),
+                            );
+                          }).toList(),
+                          value: cartController.selectedCustomer.value,
+                          // onTap: cartController.reGetCustomers(),
+                          // initial selected value if needed
+                          hint: "🔍 Search or Select Customer",
+                          searchHint:
+                              "Type customer name, phone, ID, customer ID, or account number...",
+                          menuBackgroundColor: Colors.pink[50],
+                          searchFn:
+                              (String searchTerm, List<DropdownMenuItem> items) {
+                            // Enhanced search: search by name, phone, ID, customer ID, or account number
+                            List<int> matches = [];
+                            for (int i = 0; i < items.length; i++) {
+                              CustomerModel customer =
+                                  items[i].value as CustomerModel;
+
+                              bool nameMatch = customer.name != null &&
+                                  customer.name!
+                                      .toLowerCase()
+                                      .contains(searchTerm.toLowerCase());
+                              bool phoneMatch = customer.mobilePhone != null &&
+                                  customer.mobilePhone!
+                                      .toLowerCase()
+                                      .contains(searchTerm.toLowerCase());
+                              bool idMatch = customer.id != null &&
+                                  customer.id!
+                                      .toLowerCase()
+                                      .contains(searchTerm.toLowerCase());
+                              bool customerIdMatch =
+                                  customer.customerId != null &&
+                                      customer.customerId!
+                                          .toLowerCase()
+                                          .contains(searchTerm.toLowerCase());
+                              bool accountNumberMatch =
+                                  customer.accountNumber != null &&
+                                      customer.accountNumber!
+                                          .toLowerCase()
+                                          .contains(searchTerm.toLowerCase());
+
+                              if (nameMatch ||
+                                  phoneMatch ||
+                                  idMatch ||
+                                  customerIdMatch ||
+                                  accountNumberMatch) {
+                                matches.add(i);
+                              }
+                            }
+
+                            return matches;
+                          },
+                          validator: (value) {
+                            if (cartController.isCustomerSelected.isFalse) {
+                              return 'Please select a customer';
+                            }
+                            return null;
+                          },
+                          onChanged: (CustomerModel selected) {
+                            cartController.onCustomerChange(selected);
+                          },
+                          underline: SizedBox.shrink(),
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.black87,
+                          ),
+                          isExpanded: true,
+                        );
+                      }),
+                    ),
                   ),
+                  SizedBox(width: 3),
+                  IconButton(
+                    icon: Icon(
+                      Icons.refresh,
+                      color: Colors.blue,
+                    ),
+                    onPressed: () {
+                      saleController.syncData();
+                      Get.snackbar(
+                        "Syncing",
+                        "Refreshing customer data...",
+                        snackPosition: SnackPosition.TOP,
+                        backgroundColor: Colors.blue,
+                        colorText: Colors.white,
+                        duration: Duration(seconds: 1),
+                      );
+                    },
+                    tooltip: "Refresh Customer Data",
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.camera_alt,
+                      color: Colors.orange,
+                    ),
+                    onPressed: () {
+                      // Open customer scanner
+                      Get.toNamed(AppRoutes.BARCODE_SCANNER,
+                          arguments: {'scanMode': 'customer'});
+                    },
+                    tooltip: "Scan Customer Loyalty Card with Camera",
+                  ),
+                ],
+              ),
+              leading: IconButton(
+                icon: Icon(Icons.menu),
+                onPressed: () {
+                  scaffoldKey.currentState?.openDrawer();
+                },
+              ),
+              actions: [
+                IconButton(
+                  icon: Icon(Icons.person_add),
                   onPressed: () {
-                    // Open customer scanner
-                    Get.toNamed(AppRoutes.BARCODE_SCANNER,
-                        arguments: {'scanMode': 'customer'});
+                    Get.toNamed(AppRoutes.CUSTOMER_FORM);
                   },
-                  tooltip: "Scan Customer Loyalty Card with Camera",
                 ),
               ],
             ),
-            leading: IconButton(
-              icon: Icon(Icons.menu),
-              onPressed: () {
-                scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.person_add),
-                onPressed: () {
-                  Get.toNamed(AppRoutes.CUSTOMER_FORM);
-                },
-              ),
-            ],
-          ),
-          drawer: NavDrawer(
-              fullName: fullName,
-              mobileNumber: saleController.user.mobilePhone ?? "",
-              nameInitials: initials),
-          body: Column(
-            children: [
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 2.0, vertical: 2.0),
-                child: Container(
-                    width: screenSize,
-                    child: Obx(() {
-                      return GridView.builder(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount:
-                              (saleController.categories.length / 2).round(),
-                          mainAxisSpacing: 10.0,
-                          crossAxisSpacing: 2.0,
-                          // childAspectRatio: 2.0, // Adjust aspect ratio as needed
-                          mainAxisExtent: 40.0, // Adjust height of each item
-                        ),
-                        shrinkWrap: true,
-                        itemCount: saleController.categories.length,
-                        itemBuilder: (context, index) {
-                          final category = saleController.categories[index];
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: saleController.isCatSelected.value &&
-                                      saleController
-                                              .selectedCategory.value?.id ==
-                                          category.id
-                                  ? Colors.purple
-                                  : Colors.deepOrange[300],
-                              border: Border.all(
-                                color: Colors.indigo,
-                                width: 2.0,
+            drawer: NavDrawer(
+                fullName: fullName,
+                mobileNumber: saleController.user.mobilePhone ?? "",
+                nameInitials: initials),
+            body: Column(
+              children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 2.0, vertical: 2.0),
+                  child: Container(
+                      width: screenSize,
+                      child: Obx(() {
+                        return GridView.builder(
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount:
+                                (saleController.categories.length / 2).round(),
+                            mainAxisSpacing: 10.0,
+                            crossAxisSpacing: 2.0,
+                            // childAspectRatio: 2.0, // Adjust aspect ratio as needed
+                            mainAxisExtent: 40.0, // Adjust height of each item
+                          ),
+                          shrinkWrap: true,
+                          itemCount: saleController.categories.length,
+                          itemBuilder: (context, index) {
+                            final category = saleController.categories[index];
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: saleController.isCatSelected.value &&
+                                        saleController
+                                                .selectedCategory.value?.id ==
+                                            category.id
+                                    ? Colors.purple
+                                    : Colors.deepOrange[300],
+                                border: Border.all(
+                                  color: Colors.indigo,
+                                  width: 2.0,
+                                ),
+                                borderRadius: BorderRadius.circular(8.0),
                               ),
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            child: InkWell(
-                              onTap: () {
-                                saleController.isCatSelected.value = true;
-                                saleController.selectedCategory.value =
-                                    category;
-                                saleController.filterProducts(
-                                    category: category.id!);
-                                saleController.categories.refresh();
-                              },
-                              child: Center(
-                                child: Text(
-                                  category.name!,
-                                  style: TextStyle(
-                                      fontSize: 12.0,
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.bold),
-                                  textAlign: TextAlign.center,
+                              child: InkWell(
+                                onTap: () {
+                                  saleController.isCatSelected.value = true;
+                                  saleController.selectedCategory.value =
+                                      category;
+                                  saleController.filterProducts(
+                                      category: category.id!);
+                                  saleController.categories.refresh();
+                                },
+                                child: Center(
+                                  child: Text(
+                                    category.name!,
+                                    style: TextStyle(
+                                        fontSize: 12.0,
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.bold),
+                                    textAlign: TextAlign.center,
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        },
-                      );
-                    })),
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: Obx(() {
-                  return Row(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.indigo, width: 1.0),
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        width: 0.5 * screenSize,
-                        alignment: Alignment.topLeft,
-                        child:
-                            saleController.filteredProducts.isEmpty ?
-                          Center(
-                            child: LoadingAnimationWidget.discreteCircle(
-                              secondRingColor: const Color(0xFF98EF17),
-                              color: const Color(0xFFEA3799),
-                              thirdRingColor: const Color(0xFFF14405),
-                              size: 200,
-                            ),
-                          ):
-                        GridView.builder(
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 4,
-                            crossAxisSpacing: 1.0,
-                            mainAxisSpacing: 1.0,
-                            childAspectRatio:
-                                2.0, // Adjust aspect ratio as needed
+                            );
+                          },
+                        );
+                      })),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: Obx(() {
+                    return Row(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.indigo, width: 1.0),
+                            borderRadius: BorderRadius.circular(8.0),
                           ),
-                          itemCount: saleController.filteredProducts.length,
-                          itemBuilder: (context, index) => Card(
-                            color: Colors.blue[100],
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8.0),
+                          width: 0.5 * screenSize,
+                          alignment: Alignment.topLeft,
+                          child:
+                              saleController.filteredProducts.isEmpty ?
+                            Center(
+                              child: LoadingAnimationWidget.discreteCircle(
+                                secondRingColor: const Color(0xFF98EF17),
+                                color: const Color(0xFFEA3799),
+                                thirdRingColor: const Color(0xFFF14405),
+                                size: 200,
+                              ),
+                            ):
+                          GridView.builder(
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 4,
+                              crossAxisSpacing: 1.0,
+                              mainAxisSpacing: 1.0,
+                              childAspectRatio:
+                                  2.0, // Adjust aspect ratio as needed
                             ),
-                            child: InkWell(
-                              onTap: () {
-                                if (saleController.filteredProducts[index].item
-                                        ?.itemType ==
-                                    'SERVICE') {
-                                  cartController.addToCart(
-                                      saleController.filteredProducts[index],
-                                      1);
-                                  cartController.amountPaidTextEditingController
-                                          .text =
-                                      cartController
-                                          .totalCostInSelectedCurrency.value
-                                          .toStringAsFixed(2);
-                                  cartController.amountPaid.value =
-                                      cartController
-                                          .totalCostInSelectedCurrency.value;
-                                  cartController.customerAmountPaid.value =
-                                      cartController
-                                          .totalCostInSelectedCurrency.value;
-                                } else if (saleController
-                                            .filteredProducts[index].stock! >
-                                        0 ||
-                                    saleController.sellNilItems) {
-                                  cartController.addToCart(
-                                      saleController.filteredProducts[index],
-                                      1);
-                                  cartController.amountPaidTextEditingController
-                                          .text =
-                                      cartController
-                                          .totalCostInSelectedCurrency.value
-                                          .toStringAsFixed(2);
-                                  cartController.amountPaid.value =
-                                      cartController
-                                          .totalCostInSelectedCurrency.value;
-                                  cartController.customerAmountPaid.value =
-                                      cartController
-                                          .totalCostInSelectedCurrency.value;
-                                } else {
-                                  Get.snackbar("Check your stock",
-                                      "Stock not available!!!",
-                                      snackPosition: SnackPosition.BOTTOM);
-                                }
-                              },
-                              child: GridTile(
-                                  footer: Container(
-                                    padding: EdgeInsets.all(0.0),
-                                    // color: Colors.white,
-                                    child: Text(
-                                      "\$" +
-                                              saleController
-                                                  .filteredProducts[index]
-                                                  .item!
-                                                  .sellingPrice
-                                                  .toStringAsFixed(2) ??
-                                          'No Name',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.redAccent,
-                                      ),
-                                      textAlign: TextAlign.right,
-                                    ),
-                                  ),
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(8.0),
-                                    splashColor: Colors.blue.withAlpha(30),
-                                    child: Center(
+                            itemCount: saleController.filteredProducts.length,
+                            itemBuilder: (context, index) => Card(
+                              color: Colors.blue[100],
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8.0),
+                              ),
+                              child: InkWell(
+                                onTap: () {
+                                  if (saleController.filteredProducts[index].item
+                                          ?.itemType ==
+                                      'SERVICE') {
+                                    cartController.addToCart(
+                                        saleController.filteredProducts[index],
+                                        1);
+                                    cartController.amountPaidTextEditingController
+                                            .text =
+                                        cartController
+                                            .totalCostInSelectedCurrency.value
+                                            .toStringAsFixed(2);
+                                    cartController.amountPaid.value =
+                                        cartController
+                                            .totalCostInSelectedCurrency.value;
+                                    cartController.customerAmountPaid.value =
+                                        cartController
+                                            .totalCostInSelectedCurrency.value;
+                                  } else if (saleController
+                                              .filteredProducts[index].stock! >
+                                          0 ||
+                                      saleController.sellNilItems) {
+                                    cartController.addToCart(
+                                        saleController.filteredProducts[index],
+                                        1);
+                                    cartController.amountPaidTextEditingController
+                                            .text =
+                                        cartController
+                                            .totalCostInSelectedCurrency.value
+                                            .toStringAsFixed(2);
+                                    cartController.amountPaid.value =
+                                        cartController
+                                            .totalCostInSelectedCurrency.value;
+                                    cartController.customerAmountPaid.value =
+                                        cartController
+                                            .totalCostInSelectedCurrency.value;
+                                  } else {
+                                    Get.snackbar("Check your stock",
+                                        "Stock not available!!!",
+                                        snackPosition: SnackPosition.BOTTOM);
+                                  }
+                                },
+                                child: GridTile(
+                                    footer: Container(
+                                      padding: EdgeInsets.all(0.0),
+                                      // color: Colors.white,
                                       child: Text(
-                                        saleController.filteredProducts[index]
-                                                .item!.name ??
+                                        "\$" +
+                                                saleController
+                                                    .filteredProducts[index]
+                                                    .item!
+                                                    .sellingPrice
+                                                    .toStringAsFixed(2) ??
                                             'No Name',
                                         style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.black),
-                                        textAlign: TextAlign.center,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.redAccent,
+                                        ),
+                                        textAlign: TextAlign.right,
                                       ),
                                     ),
-                                  )),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(8.0),
+                                      splashColor: Colors.blue.withAlpha(30),
+                                      child: Center(
+                                        child: Text(
+                                          saleController.filteredProducts[index]
+                                                  .item!.name ??
+                                              'No Name',
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.black),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    )),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      Expanded(
-                        child: Container(
-                          // height: 500,
-                          child: Row(
-                            // mainAxisAlignment: MainAxisAlignment.start,
-                            // mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    alignment: Alignment.topCenter,
-                                    width:0.28*screenSize,
-
-                                    height: double.infinity,
-                                    child: Obx(() {
-                                      if (cartController
-                                          .cartItems.isEmpty) {
-                                        return Center(
-                                            child: Container(
-                                              width: double.infinity,
-                                                decoration: BoxDecoration(
-                                                  border: Border.all(
-                                                      color: Colors.indigo, width: 3.0),
-                                                  borderRadius:
-                                                  BorderRadius.circular(8.0),
-                                                ),
-                                              child: Column(
-                                                children: [
-                                              SizedBox(height: 30),
-                                              Text('Your cart is empty'),
-                                              SizedBox(height: 10),
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.warning_amber,
-                                                  size: 50,
-                                                ),
-                                                color: Colors.grey,
-                                                onPressed: () {},
-                                              ),
-                                                                                        ],
-                                                                                      ),
-                                            ));
-                                      }
-                                      return Column(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Container(
-                                            decoration: BoxDecoration(
-                                              border: Border.all(
-                                                  color: Colors.indigo, width: 3.0),
-                                              borderRadius:
-                                              BorderRadius.circular(8.0),
-                                            ),
-                                            height: 510,
-                                            child: ListView.builder(
-                                              itemCount:
-                                                  cartController.cartItems.length,
-                                              itemBuilder: (context, index) {
-                                                final cartItem = cartController
-                                                    .cartItems[index];
-                                                return Card(
-                                                  child: ListTile(
-                                                    minTileHeight: 30,
-                                                    title: Text(
-                                                      cartItem.product.item!
-                                                              .name ??
-                                                          'No Name',
-                                                      style: TextStyle(
-                                                          fontSize: 13,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color: Colors.indigo,
-                                                          fontStyle:
-                                                              FontStyle.italic),
-                                                    ),
-                                                    subtitle: Text(
-                                                        'Qty: ${cartItem.quantity} Price: \$${cartItem.product.item!.sellingPrice.toStringAsFixed(2)} \n '
-                                                            '${cartItem.notes}'),
-                                                    trailing: Row(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        Text(
-                                                          "\$${cartItem.totalPrice.toStringAsFixed(2)}",
-                                                          style: TextStyle(
-                                                              fontSize: 18,
-                                                              color:
-                                                                  Colors.indigo,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold),
-                                                        ),
-                                                  PopupMenuButton(
-                                                    onSelected: (result){
-                                                    },
-                                                    itemBuilder: (context) => [
-                                                      PopupMenuItem(
-                                                        child: ListTile(
-                                                            leading: Icon(Icons.remove,
-                                                              color: Colors.deepOrange,),
-                                                            title: Text("Reduce Qty")
-                                                        ),
-                                                        value: 0,
-                                                        onTap: () {
-                                                          cartController
-                                                              .decrementQuantity(
-                                                              cartItem);
-                                                        },
-                                                      ),
-                                                      PopupMenuItem(
-                                                        child: ListTile(
-                                                            leading: Icon(Icons.add,
-                                                                color: Colors.lightBlue),
-                                                            title: Text("Increase Qty")
-                                                        ),
-                                                        value: 0,
-                                                        onTap: () {
-                                                          cartController
-                                                              .incrementQuantity(
-                                                              cartItem);
-                                                        },
-                                                      ),
-                                                      PopupMenuItem(
-                                                        child: ListTile(
-                                                            leading: Icon(Icons.delete,
-                                                                color: Colors.redAccent),
-                                                            title: Text("Delete item")
-                                                        ),
-                                                        value: 0,
-                                                        onTap: () {
-                                                          cartController
-                                                              .removeFromCart(
-                                                              cartItem);
-                                                        },
-                                                      ),
-                                                      PopupMenuItem(
-                                                        child: ListTile(
-                                                            leading: Icon(Icons.note_alt,
-                                                                color: Colors.green),
-                                                            title: Text("Add notes")
-                                                        ),
-                                                        value: 0,
-                                                        onTap: () {
-                                                          addNotes(index);
-                                                        },
-                                                      ),
-                                                      ]
-                                                  )
-                                                      ],
-                                                    ),
-                                                    onTap: () {
-                                                      // Get.to(() => CartDetailsScreen(cartItem: cartItem));
-                                                    },
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                          Container(
-                                            width:double.infinity,
-                                            child: Row(
-                                              children: [
-                                                if(cartController.isKOTEnaabled.isTrue)
-                                                Expanded(
-                                                  child: ElevatedButton(
-                                                    onPressed: () {
-                                                      if(cartController.cartItems.isNotEmpty){
-                                                        cartController.printQuickTicket();
-                                                      }
-                                                    },
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor:
-                                                      Colors.orangeAccent,
-                                                      padding: EdgeInsets.symmetric(
-                                                          vertical: 14.0),
-                                                      textStyle: TextStyle(
-                                                          fontSize: 18,
-                                                          color: Colors.white,
-                                                          fontWeight:
-                                                          FontWeight.bold),
-                                                    ),
-                                                    child: Text(
-                                                      'PRINT KOT',
-                                                      style: TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 18),
-                                                    ),
-                                                  ),
-                                                ),
-                                                SizedBox(width: 5),
-                                                Expanded(
-                                                  child: ElevatedButton(
-                                                    onPressed: () {
-                                                      // ticketController.getTickets();
-                                                      if(!saleController.saveTicketClicked.value) {
-                                                        ticketController.ticketActionButton(
-                                                            cartController
-                                                                .selectedCurrency
-                                                                .value!,
-                                                            cartController
-                                                                .cartItems.length,
-                                                            cartController
-                                                                        .selectedCustomer
-                                                                        .value!
-                                                                        .name !=
-                                                                    "WalkIn"
-                                                                ? cartController
-                                                                    .selectedCustomer
-                                                                    .value!
-                                                                    .name
-                                                                    .toString()
-                                                                : "Table ${ticketController.openedTicketsCount + 1}");
-                                                        saleController.saveTicketClicked.value = true;
-                                                      }
-                                                    },
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor:
-                                                      Colors.deepOrange,
-                                                      padding: EdgeInsets.symmetric(
-                                                          vertical: 14.0),
-                                                      textStyle: TextStyle(
-                                                          fontSize: 18,
-                                                          color: Colors.white,
-                                                          fontWeight:
-                                                          FontWeight.bold),
-                                                    ),
-                                                    child: Text(
-                                                      'SAVE',
-                                                      style: TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 18),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    }),
-                                  ),
-                                ],
-                              ),
-                              Container(
-                                alignment: Alignment.topRight,
-                                width:0.22*screenSize,
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Expanded(
+                          child: Container(
+                            // height: 500,
+                            child: Row(
+                              // mainAxisAlignment: MainAxisAlignment.start,
+                              // mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
                                   children: [
                                     Container(
-                                      width:double.infinity,
-                                      height:510,
-                                      child: ListView(
-                                        shrinkWrap: true,
-                                        children: [
-                                          Padding(
-                                            padding:
-                                                const EdgeInsets.all(8.0),
-                                            child: Column(
-                                              children: [
-                                                TextFormField(
-                                                  controller: cartController
-                                                      .amountPaidTextEditingController,
-                                                  keyboardType:
-                                                      const TextInputType
-                                                          .numberWithOptions(
-                                                          decimal: true),
-                                                  inputFormatters: <TextInputFormatter>[
-                                                    FilteringTextInputFormatter
-                                                        .allow(RegExp(
-                                                            r'^\d+\.?\d{0,2}')),
-                                                  ],
-                                                  decoration:
-                                                      InputDecoration(
-                                                          enabledBorder:
-                                                              OutlineInputBorder(
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        8.0),
-                                                            borderSide:
-                                                                const BorderSide(
-                                                              color: Colors
-                                                                  .indigo,
-                                                              width: 3.0,
-                                                            ),
-                                                          ),
-                                                          focusedBorder:
-                                                              OutlineInputBorder(
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        8.0),
-                                                            borderSide:
-                                                                const BorderSide(
-                                                              color: Colors
-                                                                  .pinkAccent,
-                                                              width: 3.0,
-                                                            ),
-                                                          ),
-                                                          prefixIcon:
-                                                              const Icon(Icons
-                                                                  .money),
-                                                          labelText:
-                                                              "Amount Paid",
-                                                          hintText:
-                                                              "Amount Paid"),
-                                                  onChanged: (String val) {
-                                                    if (val.isNotEmpty) {
-                                                      cartController
-                                                          .amountPaidChange(
-                                                              val);
-                                                      cartController
-                                                              .amountPaid
-                                                              .value =
-                                                          double.parse(val);
-                                                      cartController
-                                                              .customerAmountPaid
-                                                              .value =
-                                                          double.parse(val);
-                                                    }
-                                                  },
-                                                  validator: (value) {
-                                                    if (value == null ||
-                                                        value.isEmpty) {
-                                                      return 'Please enter an amount';
-                                                    }
-                                                    double enteredAmount;
-                                                    try {
-                                                      enteredAmount =
-                                                          double.parse(
-                                                              value);
-                                                    } catch (e) {
-                                                      return 'Please enter a valid amount';
-                                                    }
+                                      alignment: Alignment.topCenter,
+                                      width:0.28*screenSize,
 
-                                                    if (enteredAmount <
-                                                        double.parse(cartController
-                                                            .totalCostInSelectedCurrency
-                                                            .value
-                                                            .toStringAsFixed(
-                                                                2))) {
-                                                      return 'Amount paid cannot be less than the total amount';
-                                                    }
-                                                    return null;
-                                                  },
-                                                  onSaved: (value) {
-                                                    cartController
-                                                            .amountPaid
-                                                            .value =
-                                                        double.parse(
-                                                            value!);
-                                                    cartController
-                                                            .customerAmountPaid
-                                                            .value =
-                                                        double.parse(
-                                                            value!);
-                                                  },
-                                                ),
-                                                Row(
-                                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                      height: double.infinity,
+                                      child: Obx(() {
+                                        if (cartController
+                                            .cartItems.isEmpty) {
+                                          return Center(
+                                              child: Container(
+                                                width: double.infinity,
+                                                  decoration: BoxDecoration(
+                                                    border: Border.all(
+                                                        color: Colors.indigo, width: 3.0),
+                                                    borderRadius:
+                                                    BorderRadius.circular(8.0),
+                                                  ),
+                                                child: Column(
                                                   children: [
-                                                    Text(
-                                                      'Total: ',
-                                                      style: TextStyle(
-                                                          fontSize: 15,
-                                                            ),
-                                                    ),
-                                                    Text(
-                                                      '${cartController.selectedCurrency.value!.symbol} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
-                                                      style: TextStyle(
-                                                          fontSize: 20,
-                                                          fontWeight:
-                                                              FontWeight
-                                                                  .bold,
-                                                          color: Colors
-                                                              .indigo),
-                                                    ),
-                                                    cartController.change>0?
-                                                    Text(
-                                                      'Change: ',
-                                                      style: TextStyle(
-                                                          fontSize: 15,
-                                                          // fontWeight:
-                                                          // FontWeight
-                                                          //     .bold,
-                                                          // color: Colors
-                                                          //     .orange
-                                                      ),
-                                                    ):Text(""),
-                                                    cartController.change>0?
-                                                    Text(
-                                                      '${cartController.selectedCurrency.value!.symbol} ${cartController.change.toStringAsFixed(2)}',
-                                                      style: TextStyle(
-                                                          fontSize: 20,
-                                                          fontWeight:
-                                                          FontWeight
-                                                              .bold,
-                                                          color: Colors
-                                                              .orange),
-                                                    ):Text(""),
-                                                  ],
+                                                SizedBox(height: 30),
+                                                Text('Your cart is empty'),
+                                                SizedBox(height: 10),
+                                                IconButton(
+                                                  icon: Icon(
+                                                    Icons.warning_amber,
+                                                    size: 50,
+                                                  ),
+                                                  color: Colors.grey,
+                                                  onPressed: () {},
                                                 ),
-                                                cartController
-                                                            .selectedCustomer
-                                                            .value!
-                                                            .isLoyalCustomer ==
-                                                        true
-                                                    ? Row(
-                                                  mainAxisAlignment: MainAxisAlignment.spaceAround ,
-                                                        children: [
-                                                          Flexible(
-                                                            child:
-                                                                SizedBox(
-                                                                  // width:30,
-                                                              child: Obx(
-                                                                  () =>
-                                                                      Checkbox(
-                                                                        visualDensity: VisualDensity(horizontal: -4,vertical: -4),
-                                                                        value: cartController.addAmtToAcc.value,
-                                                                        onChanged: (bool? value) {
-                                                                          cartController.addAmtToAcc.value = value ?? false;
-                                                                        },
-                                                                      )),
-                                                            ),
-                                                          ),
-                                                          Expanded(
-                                                            flex:3,
-                                                            child:
-                                                                TextField(
-                                                              controller:
-                                                                  cartController
-                                                                      .amtToAccTextEditingController,
-                                                              keyboardType: const TextInputType
-                                                                  .numberWithOptions(
-                                                                  decimal:
-                                                                      true),
-                                                              decoration: InputDecoration(
-                                                                  enabledBorder: OutlineInputBorder(
-                                                                    borderRadius:
-                                                                        BorderRadius.circular(8.0),
-                                                                    borderSide:
-                                                                        const BorderSide(
-                                                                      color: Colors.redAccent,
-                                                                      width: 2.0,
-                                                                    ),
-                                                                  ),
-                                                                  focusedBorder: OutlineInputBorder(
-                                                                    borderRadius:
-                                                                        BorderRadius.circular(8.0),
-                                                                    borderSide:
-                                                                        const BorderSide(
-                                                                      color: Colors.redAccent,
-                                                                      width: 2.0,
-                                                                    ),
-                                                                  ),
-                                                                  prefixIcon: const Icon(Icons.monetization_on_outlined),
-                                                                  labelText: "Change TO Acc",
-                                                                  hintText: "Change TO Acc"),
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      )
-                                                    : SizedBox(),
-                                                cartController
-                                                            .selectedCustomer
-                                                            .value!
-                                                            .isLoyalCustomer ==
-                                                        true
-                                                    ? Row(
+                                                                                          ],
+                                                                                        ),
+                                              ));
+                                        }
+                                        return Column(
+                                          mainAxisAlignment: MainAxisAlignment.start,
+                                          children: [
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                border: Border.all(
+                                                    color: Colors.indigo, width: 3.0),
+                                                borderRadius:
+                                                BorderRadius.circular(8.0),
+                                              ),
+                                              height: 490,
+                                              child: ListView.builder(
+                                                itemCount:
+                                                    cartController.cartItems.length,
+                                                itemBuilder: (context, index) {
+                                                  final cartItem = cartController
+                                                      .cartItems[index];
+                                                  return Card(
+                                                    child: ListTile(
+                                                      minTileHeight: 30,
+                                                      title: Text(
+                                                        cartItem.product.item!
+                                                                .name ??
+                                                            'No Name',
+                                                        style: TextStyle(
+                                                            fontSize: 13,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: Colors.indigo,
+                                                            fontStyle:
+                                                                FontStyle.italic),
+                                                      ),
+                                                      subtitle: Text(
+                                                          'Qty: ${cartItem.quantity} Price: \$${cartItem.product.item!.sellingPrice.toStringAsFixed(2)} \n '
+                                                              '${cartItem.notes}'),
+                                                      trailing: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
                                                         children: [
                                                           Text(
-                                                            "ACC Bal:",
+                                                            "\$${cartItem.totalPrice.toStringAsFixed(2)}",
                                                             style: TextStyle(
-                                                                fontSize:
-                                                                    20,
+                                                                fontSize: 18,
+                                                                color:
+                                                                    Colors.indigo,
                                                                 fontWeight:
                                                                     FontWeight
-                                                                        .bold,
-                                                                color: Colors
-                                                                    .red),
+                                                                        .bold),
                                                           ),
-                                                          Text(
+                                                    PopupMenuButton(
+                                                      onSelected: (result){
+                                                      },
+                                                      itemBuilder: (context) => [
+                                                        PopupMenuItem(
+                                                          child: ListTile(
+                                                              leading: Icon(Icons.remove,
+                                                                color: Colors.deepOrange,),
+                                                              title: Text("Reduce Qty")
+                                                          ),
+                                                          value: 0,
+                                                          onTap: () {
                                                             cartController
-                                                                .selectedCustomer
-                                                                .value!
-                                                                .currencyBalance!
-                                                                .map((bal) =>
-                                                                    "${bal.currency.symbol} ${bal.balance!.toStringAsFixed(2)} ,")
-                                                                .join(
-                                                                    ""),
-                                                            style: TextStyle(
-                                                                fontWeight:
-                                                                    FontWeight.bold),
+                                                                .decrementQuantity(
+                                                                cartItem);
+                                                          },
+                                                        ),
+                                                        PopupMenuItem(
+                                                          child: ListTile(
+                                                              leading: Icon(Icons.add,
+                                                                  color: Colors.lightBlue),
+                                                              title: Text("Increase Qty")
                                                           ),
+                                                          value: 0,
+                                                          onTap: () {
+                                                            cartController
+                                                                .incrementQuantity(
+                                                                cartItem);
+                                                          },
+                                                        ),
+                                                        PopupMenuItem(
+                                                          child: ListTile(
+                                                              leading: Icon(Icons.delete,
+                                                                  color: Colors.redAccent),
+                                                              title: Text("Delete item")
+                                                          ),
+                                                          value: 0,
+                                                          onTap: () {
+                                                            cartController
+                                                                .removeFromCart(
+                                                                cartItem);
+                                                          },
+                                                        ),
+                                                        PopupMenuItem(
+                                                          child: ListTile(
+                                                              leading: Icon(Icons.arrow_downward,
+                                                                  color: Colors.redAccent),
+                                                              title: Text("Add Discount")
+                                                          ),
+                                                          value: 0,
+                                                          onTap: () {
+                                                            addDiscount(index);
+                                                          },
+                                                        ),
+                                                        PopupMenuItem(
+                                                          child: ListTile(
+                                                              leading: Icon(Icons.note_alt,
+                                                                  color: Colors.green),
+                                                              title: Text("Add notes")
+                                                          ),
+                                                          value: 0,
+                                                          onTap: () {
+                                                            addNotes(index);
+                                                          },
+                                                        ),
+                                                        ]
+                                                    )
                                                         ],
-                                                      )
-                                                    : SizedBox(),
-                                                Column(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment
-                                                          .spaceBetween,
-                                                  children: [
-                                                    Container(
-                                                      height: 30,
-                                                      child: Obx(() =>
-                                                          CheckboxListTile(
-                                                            title: Text(
-                                                                'Print Receipt'),
-                                                            value: cartController
-                                                                .isPrintEnabled
-                                                                .value,
-                                                            onChanged:
-                                                                (bool?
-                                                                    value) {
-                                                              cartController
-                                                                      .isPrintEnabled
-                                                                      .value =
-                                                                  value ??
-                                                                      false;
-                                                            },
-                                                          )),
+                                                      ),
+                                                      onTap: () {
+                                                        // Get.to(() => CartDetailsScreen(cartItem: cartItem));
+                                                      },
                                                     ),
-                                                    Container(
-                                                      // height: 30,
-                                                      child: Obx(() {
-                                                        if (cartController
-                                                            .fiscalizeReceipt
-                                                            .value) {
-                                                          return CheckboxListTile(
-                                                            title: Text(
-                                                                'Fiscalize Receipt'),
-                                                            value: cartController
-                                                                .isFiscaliseReceiptEnabled
-                                                                .value,
-                                                            onChanged:
-                                                                (bool?
-                                                                    value) {
-                                                              cartController
-                                                                      .isFiscaliseReceiptEnabled
-                                                                      .value =
-                                                                  value ??
-                                                                      false;
-                                                              cartController
-                                                                  .zimraFiscalizeReceipt
-                                                                  .value = value!;
-                                                            },
-                                                          );
-                                                        } else {
-                                                          return Container(); // Empty container when email is not valid
-                                                        }
-                                                      }),
-                                                    ),
-                                                    Container(
-                                                      // height: 30,
-                                                      child: Obx(() {
-                                                        if (cartController
-                                                            .isCustomerEmailValid
-                                                            .value) {
-                                                          return CheckboxListTile(
-                                                            title: Text(
-                                                                'Email Receipt'),
-                                                            value: cartController
-                                                                .emailReceipt
-                                                                .value,
-                                                            onChanged:
-                                                                (bool?
-                                                                    value) {
-                                                              cartController
-                                                                      .emailReceipt
-                                                                      .value =
-                                                                  value ??
-                                                                      false;
-                                                            },
-                                                          );
-                                                        } else {
-                                                          return Container(); // Empty container when email is not valid
-                                                        }
-                                                      }),
-                                                    ),
-                                                  ],
-                                                )
-                                              ],
+                                                  );
+                                                },
+                                              ),
                                             ),
-                                          ),
-                                          Column(
-                                            children: [
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.all(
-                                                        0.0),
-                                                height: 40,
-                                                child: Obx(() =>
-                                                    CheckboxListTile(
-                                                      title: Text(
-                                                          'Select Multiple'),
-                                                      value: saleController
-                                                          .multiple.value,
-                                                      onChanged:
-                                                          (bool? value) {
-                                                        saleController
-                                                                .multiple
-                                                                .value =
-                                                            value ?? false;
-                                                        saleController
-                                                                .showMultiple
-                                                                .value =
-                                                            value ?? false;
-                                                        if (saleController
-                                                                .multiple
-                                                                .value ==
-                                                            true) {
-                                                          cartController
-                                                              .amountPaidTextEditingController
-                                                              .clear();
-                                                          cartController
-                                                                  .amountPaidTextEditingController
-                                                                  .text =
-                                                              0.00.toStringAsFixed(
-                                                                  2);
-                                                          cartController
-                                                              .amountPaid
-                                                              .value = 0.00;
-                                                          cartController
-                                                              .customerAmountPaid
-                                                              .value = 0.00;
+                                            Container(
+                                              width:double.infinity,
+                                              child: Row(
+                                                children: [
+                                                  if(cartController.isKOTEnaabled.isTrue)
+                                                  Expanded(
+                                                    child: ElevatedButton(
+                                                      onPressed: () {
+                                                        if(cartController.cartItems.isNotEmpty){
+                                                          cartController.printQuickTicket();
                                                         }
                                                       },
-                                                    )),
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                        Colors.orangeAccent,
+                                                        padding: EdgeInsets.symmetric(
+                                                            vertical: 14.0),
+                                                        textStyle: TextStyle(
+                                                            fontSize: 18,
+                                                            color: Colors.white,
+                                                            fontWeight:
+                                                            FontWeight.bold),
+                                                      ),
+                                                      child: Text(
+                                                        'PRINT KOT',
+                                                        style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 18),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  SizedBox(width: 5),
+                                                  Expanded(
+                                                    child: ElevatedButton(
+                                                      onPressed: () {
+                                                        // ticketController.getTickets();
+                                                        if(!saleController.saveTicketClicked.value) {
+                                                          saleController.saveTicketClicked.value = true;
+                                                          ticketController.ticketActionButton(
+                                                              cartController.selectedCurrency.value!,
+                                                              cartController.cartItems,
+                                                              cartController.selectedCustomer.value!.name !="WalkIn"
+                                                                  ? cartController.selectedCustomer.value!.name.toString()
+                                                                  : "Table ${ticketController.openedTicketsCount + 1}");
+                                                          ticketController.openedTicketsCount - 1;
+                                                          saleController.saveTicketClicked.value = false;
+                                                        }
+                                                      },
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                        Colors.deepOrange,
+                                                        padding: EdgeInsets.symmetric(
+                                                            vertical: 14.0),
+                                                        textStyle: TextStyle(
+                                                            fontSize: 18,
+                                                            color: Colors.white,
+                                                            fontWeight:
+                                                            FontWeight.bold),
+                                                      ),
+                                                      child: Text(
+                                                        'SAVE',
+                                                        style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 18),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                              Container(
-                                                child: Obx(() {
-                                                  return GridView.builder(
-                                                      gridDelegate:
-                                                          SliverGridDelegateWithFixedCrossAxisCount(
-                                                              crossAxisCount:
-                                                                  4),
-                                                      shrinkWrap: true,
-                                                      physics: NeverScrollableScrollPhysics(),
-                                                      itemCount: cartController
-                                                          .filteredPaymentTypesList
-                                                          .length,
-                                                      itemBuilder: (context,
-                                                              index) =>
-                                                          Container(
-                                                              margin:
-                                                                  EdgeInsets
-                                                                      .all(
-                                                                          4.0),
-                                                              child:
-                                                                  ElevatedButton(
-                                                                onPressed:
-                                                                    () {
-                                                                  var paymentType =
-                                                                      cartController
-                                                                          .filteredPaymentTypesList[index];
-                                                                  saleController
-                                                                          .selectedPaymentType =
-                                                                      paymentType;
-                                                                  if (saleController
-                                                                          .multiple
-                                                                          .value ==
-                                                                      false) {
-                                                                    saleController
-                                                                        .selectedPaymentTypes
-                                                                        .clear();
-                                                                    // cartController.selectedPaymentTypes[index].amount = cartController.totalCostInSelectedCurrency.value;
-                                                                  }
-                                                                  if (saleController
-                                                                      .selectedPaymentTypes
-                                                                      .any((element) =>
-                                                                          element.id ==
-                                                                          paymentType.id)) {
-                                                                    saleController.selectedPaymentTypes.removeWhere((element) =>
-                                                                        element.id ==
-                                                                        paymentType.id);
-                                                                  } else {
-                                                                    if (saleController.multiple.value ==
-                                                                        false)
-                                                                      paymentType.amount = cartController
-                                                                          .totalCostInSelectedCurrency
-                                                                          .value;
-                                                                    saleController
-                                                                        .selectedPaymentTypes
-                                                                        .add(paymentType);
-                                                                    cartController.onChangePaymentType(
-                                                                        paymentType,
-                                                                        saleController.multiple.value);
-                                                                  }
-                                                                  cartController
-                                                                      .filteredPaymentTypesList
-                                                                      .refresh();
-                                                                  cartController
-                                                                      .selectedPaymentTypes
-                                                                      .refresh();
-                                                                },
-                                                                style: ElevatedButton
-                                                                    .styleFrom(
-                                                                  backgroundColor: saleController.selectedPaymentTypes.contains(cartController.filteredPaymentTypesList[
-                                                                          index])
-                                                                      ? Colors
-                                                                          .pinkAccent
-                                                                      : Colors
-                                                                          .indigo,
-                                                                  // backgroundColor: Colors.indigo,
-                                                                  padding:
-                                                                      EdgeInsets.all(
-                                                                          8.0),
-                                                                  textStyle: TextStyle(
-                                                                      fontSize:
-                                                                          14,
-                                                                      color:
-                                                                          Colors.black),
-                                                                ),
-                                                                child: Text(
-                                                                  cartController
-                                                                          .filteredPaymentTypesList[index]
-                                                                          .name ??
-                                                                      'No Name',
-                                                                  style: TextStyle(
-                                                                      fontSize:
-                                                                          14,
-                                                                      color:
-                                                                          Colors.lightGreen[200]),
-                                                                ),
-                                                              )));
-                                                }),
-                                              ),
-                                            ],
-                                          ),
-                                          Container(
-                                            color: Colors.pinkAccent[50],
-                                            height:
-                                            saleController.showMultiple.value
-                                                ? 200
-                                                : 10,
-                                            decoration: saleController
-                                                .showMultiple.value
-                                                ? BoxDecoration(
-                                              border: Border.all(
-                                                  color:
-                                                  Colors.lightGreenAccent,
-                                                  width: 2.0),
-                                              borderRadius:
-                                              BorderRadius.circular(8.0),
-                                            )
-                                                : BoxDecoration(),
-                                            child: Obx(() {
-                                              if (saleController
-                                                  .showMultiple.value ==
-                                                  false) {
-                                                return Container();
-                                              } else {
-                                                return ListView.builder(
-                                                  itemCount: cartController
-                                                      .selectedPaymentTypes.length,
-                                                  itemBuilder: (context, index) {
-                                                    final paymentType = cartController
-                                                        .selectedPaymentTypes[
-                                                    index];
-                                                    return Card(
-                                                      child: ListTile(
-                                                        title: Text(
-                                                            paymentType.name ??
-                                                                'No Name',
-                                                            style: TextStyle(
-                                                                fontSize: 12,
-                                                                fontWeight:
-                                                                FontWeight.bold,
-                                                                color:
-                                                                Colors.indigo,
-                                                                fontStyle: FontStyle
-                                                                    .italic)),
-                                                        subtitle: Text(
-                                                            'Amount: \$${paymentType.amount!.toStringAsFixed(2)}',
-                                                            style: TextStyle(
-                                                                fontSize: 10,
-                                                                fontWeight:
-                                                                FontWeight.bold,
-                                                                color: Colors
-                                                                    .black54)),
-                                                        trailing: Row(
-                                                          mainAxisSize:
-                                                          MainAxisSize.min,
-                                                          children: [
-                                                            ElevatedButton(
-                                                              onPressed: () async {
-                                                                final amount =
-                                                                await addAmount(
-                                                                    index);
-                                                              },
-                                                              child: Text(
-                                                                "Add AMount",
-                                                                style: TextStyle(
-                                                                    color: Colors
-                                                                        .indigo,
-                                                                    fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                                    fontSize: 12),
-                                                              ),
-                                                              style: TextButton
-                                                                  .styleFrom(
-                                                                padding:
-                                                                EdgeInsets.all(
-                                                                    8.0),
-                                                                shape:
-                                                                RoundedRectangleBorder(
-                                                                  borderRadius:
+                                            ),
+                                          ],
+                                        );
+                                      }),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  alignment: Alignment.topRight,
+                                  width:0.22*screenSize,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width:double.infinity,
+                                        height:490,
+                                        child: ListView(
+                                          shrinkWrap: true,
+                                          children: [
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.all(8.0),
+                                              child: Column(
+                                                children: [
+                                                  TextFormField(
+                                                    controller: cartController
+                                                        .amountPaidTextEditingController,
+                                                    keyboardType:
+                                                        const TextInputType
+                                                            .numberWithOptions(
+                                                            decimal: true),
+                                                    inputFormatters: <TextInputFormatter>[
+                                                      FilteringTextInputFormatter
+                                                          .allow(RegExp(
+                                                              r'^\d+\.?\d{0,2}')),
+                                                    ],
+                                                    decoration:
+                                                        InputDecoration(
+                                                            enabledBorder:
+                                                                OutlineInputBorder(
+                                                              borderRadius:
                                                                   BorderRadius
                                                                       .circular(
-                                                                      8.0),
-                                                                ),
-                                                                backgroundColor:
-                                                                Colors
-                                                                    .transparent,
-                                                                // Set button color to red
-                                                                foregroundColor: Colors
-                                                                    .black, // Set text color to red
+                                                                          8.0),
+                                                              borderSide:
+                                                                  const BorderSide(
+                                                                color: Colors
+                                                                    .indigo,
+                                                                width: 3.0,
                                                               ),
                                                             ),
-                                                            IconButton(
-                                                              icon: Icon(
-                                                                Icons.delete,
-                                                                color: Colors.red,
+                                                            focusedBorder:
+                                                                OutlineInputBorder(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          8.0),
+                                                              borderSide:
+                                                                  const BorderSide(
+                                                                color: Colors
+                                                                    .pinkAccent,
+                                                                width: 3.0,
                                                               ),
-                                                              onPressed: () {
-                                                                cartController
-                                                                    .removePaymentMethod(
-                                                                    index);
-                                                                saleController
-                                                                    .selectedPaymentTypes
-                                                                    .removeAt(
-                                                                    index);
-                                                              },
+                                                            ),
+                                                            prefixIcon:
+                                                                const Icon(Icons
+                                                                    .money),
+                                                            labelText:
+                                                                "Amount Paid",
+                                                            hintText:
+                                                                "Amount Paid"),
+                                                    onChanged: (String val) {
+                                                      if (val.isNotEmpty) {
+                                                        cartController
+                                                            .amountPaidChange(
+                                                                val);
+                                                        cartController
+                                                                .amountPaid
+                                                                .value =
+                                                            double.parse(val);
+                                                        cartController
+                                                                .customerAmountPaid
+                                                                .value =
+                                                            double.parse(val);
+                                                      }
+                                                    },
+                                                    validator: (value) {
+                                                      if (value == null ||
+                                                          value.isEmpty) {
+                                                        return 'Please enter an amount';
+                                                      }
+                                                      double enteredAmount;
+                                                      try {
+                                                        enteredAmount =
+                                                            double.parse(
+                                                                value);
+                                                      } catch (e) {
+                                                        return 'Please enter a valid amount';
+                                                      }
+
+                                                      if (enteredAmount <
+                                                          double.parse(cartController
+                                                              .totalCostInSelectedCurrency
+                                                              .value
+                                                              .toStringAsFixed(
+                                                                  2))) {
+                                                        return 'Amount paid cannot be less than the total amount';
+                                                      }
+                                                      return null;
+                                                    },
+                                                    onSaved: (value) {
+                                                      cartController
+                                                              .amountPaid
+                                                              .value =
+                                                          double.parse(
+                                                              value!);
+                                                      cartController
+                                                              .customerAmountPaid
+                                                              .value =
+                                                          double.parse(
+                                                              value!);
+                                                    },
+                                                  ),
+                                                  Row(
+                                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                                    children: [
+                                                      Text(
+                                                        'Total: ',
+                                                        style: TextStyle(
+                                                            fontSize: 15,
+                                                              ),
+                                                      ),
+                                                      Text(
+                                                        '${cartController.selectedCurrency.value!.symbol} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
+                                                        style: TextStyle(
+                                                            fontSize: 20,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold,
+                                                            color: Colors
+                                                                .indigo),
+                                                      ),
+                                                      cartController.change>0?
+                                                      Text(
+                                                        'Change: ',
+                                                        style: TextStyle(
+                                                            fontSize: 15,
+                                                            // fontWeight:
+                                                            // FontWeight
+                                                            //     .bold,
+                                                            // color: Colors
+                                                            //     .orange
+                                                        ),
+                                                      ):Text(""),
+                                                      cartController.change>0?
+                                                      Text(
+                                                        '${cartController.selectedCurrency.value!.symbol} ${cartController.change.toStringAsFixed(2)}',
+                                                        style: TextStyle(
+                                                            fontSize: 20,
+                                                            fontWeight:
+                                                            FontWeight
+                                                                .bold,
+                                                            color: Colors
+                                                                .orange),
+                                                      ):Text(""),
+                                                    ],
+                                                  ),
+                                                  cartController
+                                                              .selectedCustomer
+                                                              .value!
+                                                              .isLoyalCustomer ==
+                                                          true
+                                                      ? Row(
+                                                    mainAxisAlignment: MainAxisAlignment.spaceAround ,
+                                                          children: [
+                                                            Flexible(
+                                                              child:
+                                                                  SizedBox(
+                                                                    // width:30,
+                                                                child: Obx(
+                                                                    () =>
+                                                                        Checkbox(
+                                                                          visualDensity: VisualDensity(horizontal: -4,vertical: -4),
+                                                                          value: cartController.addAmtToAcc.value,
+                                                                          onChanged: (bool? value) {
+                                                                            cartController.addAmtToAcc.value = value ?? false;
+                                                                          },
+                                                                        )),
+                                                              ),
+                                                            ),
+                                                            Expanded(
+                                                              flex:3,
+                                                              child:
+                                                                  TextField(
+                                                                controller:
+                                                                    cartController
+                                                                        .amtToAccTextEditingController,
+                                                                keyboardType: const TextInputType
+                                                                    .numberWithOptions(
+                                                                    decimal:
+                                                                        true),
+                                                                decoration: InputDecoration(
+                                                                    enabledBorder: OutlineInputBorder(
+                                                                      borderRadius:
+                                                                          BorderRadius.circular(8.0),
+                                                                      borderSide:
+                                                                          const BorderSide(
+                                                                        color: Colors.redAccent,
+                                                                        width: 2.0,
+                                                                      ),
+                                                                    ),
+                                                                    focusedBorder: OutlineInputBorder(
+                                                                      borderRadius:
+                                                                          BorderRadius.circular(8.0),
+                                                                      borderSide:
+                                                                          const BorderSide(
+                                                                        color: Colors.redAccent,
+                                                                        width: 2.0,
+                                                                      ),
+                                                                    ),
+                                                                    prefixIcon: const Icon(Icons.monetization_on_outlined),
+                                                                    labelText: "Change TO Acc",
+                                                                    hintText: "Change TO Acc"),
+                                                              ),
                                                             ),
                                                           ],
-                                                        ),
+                                                        )
+                                                      : SizedBox(),
+                                                  cartController
+                                                              .selectedCustomer
+                                                              .value!
+                                                              .isLoyalCustomer ==
+                                                          true
+                                                      ? Row(
+                                                          children: [
+                                                            Text(
+                                                              "ACC Bal:",
+                                                              style: TextStyle(
+                                                                  fontSize:
+                                                                      20,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  color: Colors
+                                                                      .red),
+                                                            ),
+                                                            Text(
+                                                              cartController
+                                                                  .selectedCustomer
+                                                                  .value!
+                                                                  .currencyBalance!
+                                                                  .map((bal) =>
+                                                                      "${bal.currency.symbol} ${bal.balance!.toStringAsFixed(2)} ,")
+                                                                  .join(
+                                                                      ""),
+                                                              style: TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight.bold),
+                                                            ),
+                                                          ],
+                                                        )
+                                                      : SizedBox(),
+                                                  Column(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceBetween,
+                                                    children: [
+                                                      Container(
+                                                        height: 30,
+                                                        child: Obx(() =>
+                                                            CheckboxListTile(
+                                                              title: Text(
+                                                                  'Print Receipt'),
+                                                              value: cartController
+                                                                  .isPrintEnabled
+                                                                  .value,
+                                                              onChanged:
+                                                                  (bool?
+                                                                      value) {
+                                                                cartController
+                                                                        .isPrintEnabled
+                                                                        .value =
+                                                                    value ??
+                                                                        false;
+                                                              },
+                                                            )),
                                                       ),
-                                                    );
-                                                  },
-                                                );
-                                              }
-                                            }),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    cartController.amountPaid.value > 0 && cartController.cartItems.isEmpty && cartController.selectedCustomer.value!.isLoyalCustomer!?
-                                    Container(
-                                      width:double.infinity,
-                                      child: ElevatedButton(
-                                        onPressed: () {
-                                          if (!saleController
-                                              .addAccClicked.value) {
-                                            if(cartController.selectedPaymentType.value == null||
-                                            cartController
-                                                .selectedPaymentType
-                                                .value!
-                                                .id ==
-                                                null){
-                                              Get.snackbar("Error",
-                                                  "Please select a payment type.",
-                                                  snackPosition: SnackPosition
-                                                      .BOTTOM);
-                                            } else {
-                                                    cartController
-                                                        .savePayment();
-                                                    saleController.addAccClicked
-                                                        .value = true;
-                                                  }
+                                                      Container(
+                                                        // height: 30,
+                                                        child: Obx(() {
+                                                          if (cartController
+                                                              .fiscalizeReceipt
+                                                              .value) {
+                                                            return CheckboxListTile(
+                                                              title: Text(
+                                                                  'Fiscalize Receipt'),
+                                                              value: cartController
+                                                                  .isFiscaliseReceiptEnabled
+                                                                  .value,
+                                                              onChanged:
+                                                                  (bool?
+                                                                      value) {
+                                                                cartController
+                                                                        .isFiscaliseReceiptEnabled
+                                                                        .value =
+                                                                    value ??
+                                                                        false;
+                                                                cartController
+                                                                    .zimraFiscalizeReceipt
+                                                                    .value = value!;
+                                                              },
+                                                            );
+                                                          } else {
+                                                            return Container(); // Empty container when email is not valid
+                                                          }
+                                                        }),
+                                                      ),
+                                                      Container(
+                                                        // height: 30,
+                                                        child: Obx(() {
+                                                          if (cartController
+                                                              .isCustomerEmailValid
+                                                              .value) {
+                                                            return CheckboxListTile(
+                                                              title: Text(
+                                                                  'Email Receipt'),
+                                                              value: cartController
+                                                                  .emailReceipt
+                                                                  .value,
+                                                              onChanged:
+                                                                  (bool?
+                                                                      value) {
+                                                                cartController
+                                                                        .emailReceipt
+                                                                        .value =
+                                                                    value ??
+                                                                        false;
+                                                              },
+                                                            );
+                                                          } else {
+                                                            return Container(); // Empty container when email is not valid
+                                                          }
+                                                        }),
+                                                      ),
+                                                    ],
+                                                  )
+                                                ],
+                                              ),
+                                            ),
+                                            Column(
+                                              children: [
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.all(
+                                                          0.0),
+                                                  height: 40,
+                                                  child: Obx(() =>
+                                                      CheckboxListTile(
+                                                        title: Text(
+                                                            'Select Multiple'),
+                                                        value: saleController
+                                                            .multiple.value,
+                                                        onChanged:
+                                                            (bool? value) {
+                                                          saleController
+                                                                  .multiple
+                                                                  .value =
+                                                              value ?? false;
+                                                          saleController
+                                                                  .showMultiple
+                                                                  .value =
+                                                              value ?? false;
+                                                          if (saleController
+                                                                  .multiple
+                                                                  .value ==
+                                                              true) {
+                                                            cartController
+                                                                .amountPaidTextEditingController
+                                                                .clear();
+                                                            cartController
+                                                                    .amountPaidTextEditingController
+                                                                    .text =
+                                                                0.00.toStringAsFixed(
+                                                                    2);
+                                                            cartController
+                                                                .amountPaid
+                                                                .value = 0.00;
+                                                            cartController
+                                                                .customerAmountPaid
+                                                                .value = 0.00;
+                                                          }
+                                                        },
+                                                      )),
+                                                ),
+                                                Container(
+                                                  child: Obx(() {
+                                                    return GridView.builder(
+                                                        gridDelegate:
+                                                            SliverGridDelegateWithFixedCrossAxisCount(
+                                                                crossAxisCount:
+                                                                    4),
+                                                        shrinkWrap: true,
+                                                        physics: NeverScrollableScrollPhysics(),
+                                                        itemCount: cartController
+                                                            .filteredPaymentTypesList
+                                                            .length,
+                                                        itemBuilder: (context,
+                                                                index) =>
+                                                            Container(
+                                                                margin:
+                                                                    EdgeInsets
+                                                                        .all(
+                                                                            4.0),
+                                                                child:
+                                                                    ElevatedButton(
+                                                                  onPressed:
+                                                                      () {
+                                                                    var paymentType = cartController.filteredPaymentTypesList[index];
+                                                                    saleController.selectedPaymentType = paymentType;
+                                                                    if (saleController.multiple.value == false) {
+                                                                      saleController.selectedPaymentTypes.clear();
+                                                                    }
+                                                                    if (saleController.selectedPaymentTypes.any((element) => element.id == paymentType.id)) {
+                                                                      saleController.selectedPaymentTypes.removeWhere((element) => element.id == paymentType.id);
+                                                                    } else {
+                                                                      if (saleController.multiple.value == false)
+                                                                        paymentType.amount = cartController.totalCostInSelectedCurrency.value;
+                                                                      saleController.selectedPaymentTypes.add(paymentType);
+                                                                      cartController.onChangePaymentType(paymentType,saleController.multiple.value);
+                                                                    }
+                                                                    cartController.filteredPaymentTypesList.refresh();
+                                                                    cartController.selectedPaymentTypes.refresh();
+                                                                  },
+                                                                  style: ElevatedButton
+                                                                      .styleFrom(
+                                                                    backgroundColor: saleController.selectedPaymentTypes.contains(cartController.filteredPaymentTypesList[
+                                                                            index])
+                                                                        ? Colors
+                                                                            .pinkAccent
+                                                                        : Colors
+                                                                            .indigo,
+                                                                    // backgroundColor: Colors.indigo,
+                                                                    padding:
+                                                                        EdgeInsets.all(
+                                                                            8.0),
+                                                                    textStyle: TextStyle(
+                                                                        fontSize:
+                                                                            14,
+                                                                        color:
+                                                                            Colors.black),
+                                                                  ),
+                                                                  child: Text(
+                                                                    cartController
+                                                                            .filteredPaymentTypesList[index]
+                                                                            .name ??
+                                                                        'No Name',
+                                                                    style: TextStyle(
+                                                                        fontSize:
+                                                                            14,
+                                                                        color:
+                                                                            Colors.lightGreen[200]),
+                                                                  ),
+                                                                )));
+                                                  }),
+                                                ),
+                                              ],
+                                            ),
+                                            Container(
+                                              color: Colors.pinkAccent[50],
+                                              height:
+                                              saleController.showMultiple.value
+                                                  ? 200
+                                                  : 10,
+                                              decoration: saleController
+                                                  .showMultiple.value
+                                                  ? BoxDecoration(
+                                                border: Border.all(
+                                                    color:
+                                                    Colors.lightGreenAccent,
+                                                    width: 2.0),
+                                                borderRadius:
+                                                BorderRadius.circular(8.0),
+                                              )
+                                                  : BoxDecoration(),
+                                              child: Obx(() {
+                                                if (saleController
+                                                    .showMultiple.value ==
+                                                    false) {
+                                                  return Container();
+                                                } else {
+                                                  return ListView.builder(
+                                                    itemCount: cartController
+                                                        .selectedPaymentTypes.length,
+                                                    itemBuilder: (context, index) {
+                                                      final paymentType = cartController
+                                                          .selectedPaymentTypes[
+                                                      index];
+                                                      return Card(
+                                                        child: ListTile(
+                                                          title: Text(
+                                                              paymentType.name ??
+                                                                  'No Name',
+                                                              style: TextStyle(
+                                                                  fontSize: 12,
+                                                                  fontWeight:
+                                                                  FontWeight.bold,
+                                                                  color:
+                                                                  Colors.indigo,
+                                                                  fontStyle: FontStyle
+                                                                      .italic)),
+                                                          subtitle: Text(
+                                                              'Amount: \$${paymentType.amount!.toStringAsFixed(2)}',
+                                                              style: TextStyle(
+                                                                  fontSize: 10,
+                                                                  fontWeight:
+                                                                  FontWeight.bold,
+                                                                  color: Colors
+                                                                      .black54)),
+                                                          trailing: Row(
+                                                            mainAxisSize:
+                                                            MainAxisSize.min,
+                                                            children: [
+                                                              ElevatedButton(
+                                                                onPressed: () async {
+                                                                  final amount =
+                                                                  await addAmount(
+                                                                      index);
+                                                                },
+                                                                child: Text(
+                                                                  "Add AMount",
+                                                                  style: TextStyle(
+                                                                      color: Colors
+                                                                          .indigo,
+                                                                      fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                      fontSize: 12),
+                                                                ),
+                                                                style: TextButton
+                                                                    .styleFrom(
+                                                                  padding:
+                                                                  EdgeInsets.all(
+                                                                      8.0),
+                                                                  shape:
+                                                                  RoundedRectangleBorder(
+                                                                    borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                        8.0),
+                                                                  ),
+                                                                  backgroundColor:
+                                                                  Colors
+                                                                      .transparent,
+                                                                  // Set button color to red
+                                                                  foregroundColor: Colors
+                                                                      .black, // Set text color to red
+                                                                ),
+                                                              ),
+                                                              IconButton(
+                                                                icon: Icon(
+                                                                  Icons.delete,
+                                                                  color: Colors.red,
+                                                                ),
+                                                                onPressed: () {
+                                                                  cartController
+                                                                      .removePaymentMethod(
+                                                                      index);
+                                                                  cartController
+                                                                      .selectedPaymentTypes
+                                                                      .removeAt(
+                                                                      index);
+                                                                  saleController
+                                                                      .selectedPaymentTypes
+                                                                      .removeAt(
+                                                                      index);
+                                                                  saleController.selectedPaymentTypes.clear();
+                                                                  cartController.selectedPaymentTypes.refresh();
+                                                                },
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      );
+                                                    },
+                                                  );
                                                 }
-                                        },
-                                        style: TextButton.styleFrom(
-                                          backgroundColor: Colors
-                                              .pink,
-                                          // Set button color to red
-                                          foregroundColor: Colors.black,
-                                          // Set text color to red
-                                          textStyle: TextStyle(
-                                              fontSize: 18,
-                                              color: Colors.white,
-                                              fontWeight: FontWeight
-                                                  .bold), // Set text size
+                                              }),
+                                            ),
+                                          ],
                                         ),
-                                        child: Text('Add to Account'),
                                       ),
-                                    ):
-                                    Container(
-                                      width:double.infinity,
-                                      child: ElevatedButton(
-                                        onPressed: () {
-                                          if (cartController
-                                              .cartItems.isEmpty) {
-                                            Get.snackbar("Error",
-                                                "Your cart is empty.",
-                                                snackPosition:
-                                                SnackPosition.TOP);
-                                            return;
-                                          }
-                                          if (cartController
-                                              .selectedPaymentType
-                                              .value ==
-                                              null ||
+                                      cartController.amountPaid.value > 0 && cartController.cartItems.isEmpty && cartController.selectedCustomer.value!.isLoyalCustomer!?
+                                      Container(
+                                        width:double.infinity,
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            if (!saleController
+                                                .addAccClicked.value) {
+                                              if(cartController.selectedPaymentType.value == null||
                                               cartController
                                                   .selectedPaymentType
                                                   .value!
                                                   .id ==
-                                                  null) {
-                                            Get.snackbar("Error",
-                                                "Please select a payment type.",
-                                                snackPosition:
-                                                SnackPosition.TOP);
-                                            return;
-                                          }
-                                          if (cartController.amountPaid
-                                              .value <=
-                                              0 ||
-                                              cartController.amountPaid
-                                                  .value <
-                                                  cartController
-                                                      .totalCostInSelectedCurrency
-                                                      .value) {
-                                            Get.snackbar("Error",
-                                                "Please enter a valid amount paid.",
-                                                snackPosition:
-                                                SnackPosition.TOP);
-                                            return;
-                                          }
-                                          if (!saleController
-                                              .chargeClicked.value) {
-                                            cartController
-                                                .showConfirmDialogChargeSale();
-                                            saleController.chargeClicked
-                                                .value = true;
-                                          }
-                                        },
-                                        style: TextButton.styleFrom(
-                                          backgroundColor: Colors
-                                              .lightGreenAccent[400],
-                                          // Set button color to red
-                                          foregroundColor: Colors.black,
-                                          // Set text color to red
-                                          textStyle: TextStyle(
-                                              fontSize: 18,
-                                              color: Colors.white,
-                                              fontWeight: FontWeight
-                                                  .bold), // Set text size
+                                                  null){
+                                                Get.snackbar("Error",
+                                                    "Please select a payment type.",
+                                                    snackPosition: SnackPosition
+                                                        .BOTTOM);
+                                              } else {
+                                                      cartController
+                                                          .savePayment();
+                                                      saleController.addAccClicked
+                                                          .value = true;
+                                                    }
+                                                  }
+                                          },
+                                          style: TextButton.styleFrom(
+                                            backgroundColor: Colors
+                                                .pink,
+                                            // Set button color to red
+                                            foregroundColor: Colors.black,
+                                            // Set text color to red
+                                            textStyle: TextStyle(
+                                                fontSize: 18,
+                                                color: Colors.white,
+                                                fontWeight: FontWeight
+                                                    .bold), // Set text size
+                                          ),
+                                          child: Text('Add to Account'),
                                         ),
-                                        child: Text('Charge'),
+                                      ):
+                                      Container(
+                                        width:double.infinity,
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            if (cartController
+                                                .cartItems.isEmpty) {
+                                              Get.snackbar("Error",
+                                                  "Your cart is empty.",
+                                                  snackPosition:
+                                                  SnackPosition.TOP);
+                                              return;
+                                            }
+                                            if (cartController
+                                                .selectedPaymentType
+                                                .value ==
+                                                null ||
+                                                cartController
+                                                    .selectedPaymentType
+                                                    .value!
+                                                    .id ==
+                                                    null) {
+                                              Get.snackbar("Error",
+                                                  "Please select a payment type.",
+                                                  snackPosition:
+                                                  SnackPosition.TOP);
+                                              return;
+                                            }
+                                            print(cartController.amountPaid
+                                                .value);
+                                            print(cartController.totalCostInSelectedCurrency
+                                                .value);
+                                            if (cartController.amountPaid
+                                                .value <=
+                                                0 ||
+                                                cartController.amountPaid
+                                                    .value <
+                                                    cartController
+                                                        .totalCostInSelectedCurrency
+                                                        .value) {
+                                              Get.snackbar("Error",
+                                                  "Please enter a valid amount paid.",
+                                                  snackPosition:
+                                                  SnackPosition.TOP);
+                                              return;
+                                            }
+                                            if (!saleController
+                                                .chargeClicked.value) {
+                                              cartController
+                                                  .showConfirmDialogChargeSale();
+                                              saleController.chargeClicked
+                                                  .value = true;
+                                            }
+                                          },
+                                          style: TextButton.styleFrom(
+                                            backgroundColor: Colors
+                                                .lightGreenAccent[400],
+                                            // Set button color to red
+                                            foregroundColor: Colors.black,
+                                            // Set text color to red
+                                            textStyle: TextStyle(
+                                                fontSize: 18,
+                                                color: Colors.white,
+                                                fontWeight: FontWeight
+                                                    .bold), // Set text size
+                                          ),
+                                          child: Text('Charge'),
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      // )
-                    ],
-                  );
-                }),
-              ),
-            ],
+                        // )
+                      ],
+                    );
+                  }),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -2414,6 +2406,60 @@ class SaleScreen extends GetView {
           );
         },
       );
+  Future<Double?> addDiscount(int index) => showDialog<Double>(
+        context: Get.context!,
+        builder: (context) {
+          return AlertDialog(
+            title: Text("Add Discount"),
+            content: TextField(
+              autofocus: true,
+              controller: saleController.discountTextEditingController,
+              decoration: InputDecoration(
+                labelText: "Enter Amount",
+                border: OutlineInputBorder(),
+              ),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (String val) {
+                // if (val.isNotEmpty) {
+                //   cartController.cartItems[index].product.item!.sellingPrice =
+                //       double.parse(val);
+                // }
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  saleController.discountTextEditingController.clear();
+                  Get.back(); // Close dialog without adding an amount
+                },
+                child: Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () {
+                  if (saleController
+                      .discountTextEditingController.text.isNotEmpty) {
+                    double amount = double.parse(
+                        saleController.discountTextEditingController.text);
+                    if (amount <= 0) {
+                      Get.snackbar("Error", "Amount must be greater than zero.",
+                          snackPosition: SnackPosition.TOP);
+                      return;
+                    }
+                    cartController.cartItems[index].product.item!.sellingPrice = amount;
+                    cartController.cartItems.refresh();
+                    cartController.calculateTotalAmounts(cartController.cartItems);
+                    saleController.discountTextEditingController.clear();
+                    Get.back(); // Close the dialog after adding
+                  }
+                },
+                child: Text("Add"),
+              ),
+            ],
+          );
+        },
+      );
+
   Future<String?> addNotes(int index) => showDialog<String>(
         context: Get.context!,
         builder: (context) {

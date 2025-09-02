@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:intl/intl.dart';
+import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
@@ -80,7 +81,13 @@ class NavDrawer extends StatelessWidget {
                 onTap: () => navigate(5)
             ),
 
-
+            buildDrawerItem(
+                text: "Open Drawer",
+                icon: Icons.lock_open_outlined,
+                tileColor: Get.currentRoute == "" ? Colors.blue : null,
+                textIconColor: Get.currentRoute == "" ? Colors.white : Colors.black,
+                onTap: () => openCashDrawer()
+            ),
 
             buildDrawerItem(
                 text: "Logout",
@@ -94,6 +101,15 @@ class NavDrawer extends StatelessWidget {
         ),
       ),
     );
+  }
+
+
+  Future<void> openCashDrawer() async {
+    try {
+      await SunmiPrinter.openDrawer();
+    } catch (e) {
+      debugPrint("Error opening cash drawer: $e");
+    }
   }
   buildDrawerHeader(){
     GetStorage box = GetStorage();
