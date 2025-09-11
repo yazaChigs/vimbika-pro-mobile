@@ -60,6 +60,7 @@ class SyncService {
       //showSnackBar("Message", "Customers downloaded successfully");
       box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
     }
+    AppHelper.hideLoading();
   }
 
   static Future<void> getBranchStock(GetStorage box,UserModel user) async{

@@ -77,10 +77,9 @@ class CartController extends GetxController {
   RxList<PaymentTypeModel> paymentTypesList = <PaymentTypeModel>[].obs;
   RxList<PaymentTypeModel> filteredPaymentTypesList = <PaymentTypeModel>[].obs;
   var isPaymentTypeSelected = false.obs;
-  final TextEditingController amountPaidTextEditingController =
-      TextEditingController();
-  final TextEditingController amtToAccTextEditingController =
-      TextEditingController();
+  final TextEditingController amountPaidTextEditingController = TextEditingController();
+  final TextEditingController amtToAccTextEditingController = TextEditingController();
+  final TextEditingController tipAmtTextEditingController = TextEditingController();
 
   RxDouble totalCostInBaseCurrency = 0.0.obs;
   RxDouble totalCostInSelectedCurrency = 0.0.obs;
@@ -93,8 +92,7 @@ class CartController extends GetxController {
 
   RxList<CustomerModel> allCustomers = <CustomerModel>[].obs;
   Rx<CustomerModel?> selectedCustomer = CustomerModel().obs;
-  Rx<UserModel?> user =
-      UserModel(firstName: "", lastName: "", userName: "").obs;
+  Rx<UserModel?> user = UserModel(firstName: "", lastName: "", userName: "").obs;
   var isCustomerSelected = false.obs;
   GlobalKey<FormState> formKey = GlobalKey<FormState>();
   var activeShift = ShiftModel();
@@ -188,7 +186,8 @@ class CartController extends GetxController {
       fiscalizeReceipt.value = false;
       isFiscaliseReceiptEnabled.value = false;
     }
-
+    tipAmtTextEditingController.text = "0.00";
+    amtToAccTextEditingController.text = "0.00";
     List<PaymentReceivedModel> paymentReceiveds = loadPaymentReceived(box);
     paymentReceivedList.value = paymentReceiveds;
     var settings = box.read(AppConstants.COMPANY_SETTINGS) ?? {};
@@ -577,11 +576,11 @@ class CartController extends GetxController {
     double amountPaid = double.parse(val);
     customerAmountPaid.value = amountPaid;
     if (amountPaid >= totalCostInSelectedCurrency.value) {
-      change.value = amountPaid - totalCostInSelectedCurrency.value;
+      change.value = amountPaid - totalCostInSelectedCurrency.value - double.parse(amtToAccTextEditingController.text) - double.parse(tipAmtTextEditingController.text);
     } else {
       change.value = 0.0;
     }
-    amtToAccTextEditingController.text = change.toStringAsFixed(2);
+    // amtToAccTextEditingController.text = change.toStringAsFixed(2);
   }
 
   void showConfirmDialogChargeSale() {
@@ -717,7 +716,8 @@ class CartController extends GetxController {
         pointsUsed: null,
         customerAccPayType: "CASH-${selectedCurrency.value?.name}",
         customerAccBankType: "Cash-${selectedCurrency.value?.name}",
-        amtToAcc: addAmtToAcc.value?double.parse(amtToAccTextEditingController.text):null
+        amtToAcc: double.parse(amtToAccTextEditingController.text??"0")??0.00,
+        tipAmount: double.parse(tipAmtTextEditingController.text??"0")??0.00,
     );
     SaleInfoModel saleInfoModel;
     if (isOnHold) {
@@ -756,10 +756,11 @@ class CartController extends GetxController {
       infos.add(saleInfoModel);
       writeSaleInfor(box, infos);
       deductStock();
-      if(addAmtToAcc.value??false){
+      if(double.parse(amtToAccTextEditingController.text)>0){
         PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
           amount: double.parse(amtToAccTextEditingController.text),
           paymentType:saleInfoModel.sale!.paymentTypes!.first.paymentType,
+          isPaid: true
         );
         paymentTypes.add(paymentReceivedModel);
       }
@@ -772,7 +773,7 @@ class CartController extends GetxController {
         writeSaleInfor(box, infos);
       }
       printCurrentSale(saleInfoModel, box);
-      if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && (addAmtToAcc.value??false)) {
+      if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && (double.parse(amtToAccTextEditingController.text)>0)) {
         CustomerModel customer = allCustomers.firstWhere((cust) =>
         cust.name == sale.customer!.name);
         if (customer != null) {
@@ -798,11 +799,12 @@ class CartController extends GetxController {
           refreshCustomers();
         }
       }
-      if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && (!addAmtToAcc.value??false)){
+      if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false)
+          && (double.parse(amtToAccTextEditingController.text)==0.00 && paymentTypes.any((pt) => pt.paymentType!.name!.startsWith("ACC-")))){
         CustomerModel customer = allCustomers.firstWhere((cust)=>cust.name == sale.customer!.name);
         if(customer!=null){
           var index = allCustomers.indexOf(customer);
-          if(customer.currencyBalance!=null || !customer.currencyBalance!.isEmpty) {
+          if(customer.currencyBalance!=null && !customer.currencyBalance!.isEmpty) {
             var prev = customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance;
             customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance = (prev! -
                 paymentTypes.firstWhere((pt) => pt.paymentType!.name!.startsWith("ACC-")).amount!);

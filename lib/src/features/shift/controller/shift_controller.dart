@@ -49,6 +49,7 @@ class ShiftController extends GetxController {
   // final List<Map<String, dynamic>> totalAmountsByCurrency = [];
   var totalAmountsByCurrency = <Map<String, dynamic>>[].obs;
   var totalSales = <Map<String, dynamic>>[].obs;
+  var totalTips = <Map<String, dynamic>>[].obs;
   var totalAmountsByPaymentType = <Map<String, dynamic>>[].obs;
   var totalCashIn = <Map<String, dynamic>>[].obs;
   var totalCashOut = <Map<String, dynamic>>[].obs;
@@ -195,13 +196,10 @@ class ShiftController extends GetxController {
     for (CurrencyAmount currencyAmount in activeShift.value.shiftCurrencyAmounts??[]) {
       final currencyId = currencyAmount.currency.id;
       if(allReceipts!=null && allReceipts.isNotEmpty) {
-        var sale = allReceipts
-            .firstWhere((sale) => currencyAmount.paymentType!.startsWith("CASH-")&&
-        sale.sale?.posReference == currencyAmount.posReference &&
-            sale.sale?.currency?.id == currencyId,orElse: () => SaleInfoModel(sale: null,syncStatus: false))
-            .sale;
+        var sale = allReceipts.firstWhere((sale) => currencyAmount.paymentType!.startsWith("CASH-") &&
+          (sale.sale?.posReference == currencyAmount.posReference || sale.sale?.referenceNumber == currencyAmount.posReference) &&
+            sale.sale?.currency?.id == currencyId,orElse: () => SaleInfoModel(sale: null,syncStatus: false)).sale;
         if(sale!=null){
-          print(sale.paymentTypes!.map((toElement)=>toElement.paymentType!.toJson()));
           for(PaymentReceivedModel paymentReceived in sale.paymentTypes!){
             if(paymentReceived.paymentType!.name!.startsWith("CASH")){
               totals[currencyId!] = (totals[currencyId] ?? 0.0) + (paymentReceived.amount ?? 0.00);
@@ -281,23 +279,36 @@ class ShiftController extends GetxController {
 
   void calculateTotalAmountsByPaymentType() {
     Map<String, double> totals = {};
-    print("calculateTotalAmountsByPaymentType ${allReceipts.length}");
-    for (var sale in allReceipts) {
-      print(sale.sale!.saleStatus);
-      print(sale.sale!.shiftReference);
-
+    Map<String, double> tips = {};
+    var sales = allReceipts.where((element) => element.sale?.shiftReference == activeShift.value.shiftReference);
+    for (var sale in sales) {
+      final currencyId = sale.sale!.currency!.id;
         if ((sale.sale?.saleStatus == 'COMPLETE' ||
                 sale.sale?.saleStatus == 'PENDING') &&
             sale.sale?.shiftReference == activeShift.value.shiftReference) {
           for(var paymentReceived in sale.sale!.paymentTypes!) {
             final paymentTypeId = paymentReceived.paymentType?.id;
-            print("${paymentReceived.amount}");
           totals[paymentTypeId!] = (totals[paymentTypeId] ?? 0.0) +
               (paymentReceived.amount ?? 0.0);
         }
+
+          if(sale.sale!.tipAmount!=null && sale.sale!.tipAmount!>0) {
+            tips[currencyId!] = (tips[currencyId] ?? 0.0) + sale.sale!.tipAmount!;
+          }
       }
     }
     totalAmountsByPaymentType.clear();
+    totalTips.clear();
+
+    tips.forEach((currencyId, total) {
+      final currency = allReceipts!
+          .firstWhere((sale) => sale.sale!.currency!.id == currencyId).sale!
+          .currency;
+      totalTips.add({
+        "currencyName": currency!.symbol,
+        "totalAmount": total,
+      });
+    });
     totals.forEach((paymentTypeId, total) {
       PaymentReceivedModel? paymentReceivedModel ;
       for(SaleInfoModel sale in allReceipts){
@@ -306,12 +317,14 @@ class ShiftController extends GetxController {
           break;
         }
       }
-      if(paymentReceivedModel!=null)
-      totalAmountsByPaymentType.add({
-        "paymentTypeName": paymentReceivedModel.paymentType?.name ?? 'Unknown',
-        "currencySymbol": paymentReceivedModel.paymentType!.currency?.symbol,
-        "totalAmount": total,
-      });
+      if(paymentReceivedModel!=null) {
+        totalAmountsByPaymentType.add({
+          "paymentTypeName":
+              paymentReceivedModel.paymentType?.name ?? 'Unknown',
+          "currencySymbol": paymentReceivedModel.paymentType!.currency?.symbol,
+          "totalAmount": total,
+        });
+      }
     });
   }
 
@@ -335,6 +348,7 @@ class ShiftController extends GetxController {
     Get.offNamed(AppRoutes.OPEN_SHIFT);
   }
   closeActiveShift() async {
+    AppHelper.showLoading();
     List<ShiftModel> itemsToBeSynced = [];
     ShiftModel temp  = activeShift.value;
     DateTime now = DateTime.now();
@@ -372,6 +386,12 @@ class ShiftController extends GetxController {
       // box.write(AppConstants.SHIFT_LIST, itemsListMap);
 
       // Get.snackbar("Success", "Shifts synced successfully");
+
+      print("init syncing branchStock...");
+      await SyncService.getBranchStock(box, user);
+      await SyncService.savePaymentReceived(user, box);
+      await SyncService.saveCustomer(user, box);
+      await SyncService.getCustomers(user, box, user.companyId!);
     } else {
       //Get.snackbar("Error", "No response from server");
 
@@ -385,6 +405,8 @@ class ShiftController extends GetxController {
     Get.delete<SaleController>();
     Get.delete<CartController>();
     Get.offNamed(AppRoutes.OPEN_SHIFT);*/
+
+    AppHelper.hideLoading();
     signOut();
   }
   void showConfirmDialogCloseShift() {
@@ -408,7 +430,7 @@ class ShiftController extends GetxController {
     AvailablePrinterModel? ap = _localStorageService.findActivePrinter(box);
     if(ap != null) {
       if(ap.type == 'SUNMI_INBUILT_PRINTER') {
-        await printerService.printShiftDetails(shift,allReceipts, totalAmountsByCurrency,totalAmountsByPaymentType,totalCashIn, totalCashOut, totalCashSubmittedList, totalSales);
+        await printerService.printShiftDetails(shift,allReceipts, totalAmountsByCurrency,totalAmountsByPaymentType,totalCashIn, totalCashOut, totalCashSubmittedList, totalSales,totalTips);
       }
       if(ap.type == "bluetooth") {
         await printerService.printShiftDetailsBluetooth(shift, ap, totalAmountsByCurrency);
@@ -428,7 +450,7 @@ class ShiftController extends GetxController {
     AvailablePrinterModel? ap = _localStorageService.findActivePrinter(box);
     if(ap != null) {
       if(ap.type == 'SUNMI_INBUILT_PRINTER') {
-        await printerService.printShiftSummary(shift,allReceipts, totalAmountsByCurrency,totalAmountsByPaymentType,totalCashIn, totalCashOut, totalCashSubmittedList, totalSales);
+        await printerService.printShiftSummary(shift,allReceipts, totalAmountsByCurrency,totalAmountsByPaymentType,totalCashIn, totalCashOut, totalCashSubmittedList, totalSales,totalTips);
       }
       if(ap.type == "bluetooth") {
         await printerService.printShiftDetailsBluetooth(shift, ap, totalAmountsByCurrency);
