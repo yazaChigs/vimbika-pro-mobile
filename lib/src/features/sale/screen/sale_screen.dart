@@ -1696,17 +1696,9 @@ class SaleScreen extends GetView {
                                                                 "Amount Paid"),
                                                     onChanged: (String val) {
                                                       if (val.isNotEmpty) {
-                                                        cartController
-                                                            .amountPaidChange(
-                                                                val);
-                                                        cartController
-                                                                .amountPaid
-                                                                .value =
-                                                            double.parse(val);
-                                                        cartController
-                                                                .customerAmountPaid
-                                                                .value =
-                                                            double.parse(val);
+                                                        cartController.amountPaidChange(val);
+                                                        cartController.amountPaid.value = double.parse(val);
+                                                        cartController.customerAmountPaid.value = double.parse(val);
                                                       }
                                                     },
                                                     validator: (value) {
@@ -1770,11 +1762,6 @@ class SaleScreen extends GetView {
                                                         'Change: ',
                                                         style: TextStyle(
                                                             fontSize: 15,
-                                                            // fontWeight:
-                                                            // FontWeight
-                                                            //     .bold,
-                                                            // color: Colors
-                                                            //     .orange
                                                         ),
                                                       ):Text(""),
                                                       cartController.change>0?
@@ -1790,36 +1777,21 @@ class SaleScreen extends GetView {
                                                       ):Text(""),
                                                     ],
                                                   ),
-                                                  cartController
-                                                              .selectedCustomer
-                                                              .value!
-                                                              .isLoyalCustomer ==
-                                                          true
-                                                      ? Row(
+                                                  Row(
                                                     mainAxisAlignment: MainAxisAlignment.spaceAround ,
                                                           children: [
-                                                            Flexible(
-                                                              child:
-                                                                  SizedBox(
-                                                                    // width:30,
-                                                                child: Obx(
-                                                                    () =>
-                                                                        Checkbox(
-                                                                          visualDensity: VisualDensity(horizontal: -4,vertical: -4),
-                                                                          value: cartController.addAmtToAcc.value,
-                                                                          onChanged: (bool? value) {
-                                                                            cartController.addAmtToAcc.value = value ?? false;
-                                                                          },
-                                                                        )),
-                                                              ),
-                                                            ),
+                                                            cartController.selectedCustomer.value!.isLoyalCustomer == true ?
                                                             Expanded(
                                                               flex:3,
                                                               child:
                                                                   TextField(
+                                                                    onChanged: (String val) {
+                                                                      if (val.isNotEmpty) {
+                                                                        cartController.amountPaidChange(val);
+                                                                      }
+                                                                    },
                                                                 controller:
-                                                                    cartController
-                                                                        .amtToAccTextEditingController,
+                                                                    cartController .amtToAccTextEditingController,
                                                                 keyboardType: const TextInputType
                                                                     .numberWithOptions(
                                                                     decimal:
@@ -1847,40 +1819,61 @@ class SaleScreen extends GetView {
                                                                     labelText: "Change TO Acc",
                                                                     hintText: "Change TO Acc"),
                                                               ),
-                                                            ),
+                                                            ):SizedBox(),
+                                                            (cartController.amountPaid>cartController.totalCostInSelectedCurrency.value) ?
+                                                            Expanded(
+                                                              flex:3,
+                                                              child:
+                                                                  TextField(
+                                                                    onChanged: (String val) {
+                                                                      if (val.isNotEmpty) {
+                                                                        cartController.amountPaidChange(val);
+                                                                      }
+                                                                    },
+                                                                controller:
+                                                                    cartController.tipAmtTextEditingController,
+                                                                keyboardType: const TextInputType.numberWithOptions(
+                                                                    decimal:true),
+                                                                decoration: InputDecoration(
+                                                                    enabledBorder: OutlineInputBorder(
+                                                                      borderRadius:BorderRadius.circular(8.0),
+                                                                      borderSide:
+                                                                          const BorderSide(
+                                                                        color: Colors.green,
+                                                                        width: 2.0,
+                                                                      ),
+                                                                    ),
+                                                                    focusedBorder: OutlineInputBorder(
+                                                                      borderRadius: BorderRadius.circular(8.0),
+                                                                      borderSide:
+                                                                          const BorderSide(
+                                                                        color: Colors.green,
+                                                                        width: 2.0,
+                                                                      ),
+                                                                    ),
+                                                                    prefixIcon: const Icon(Icons.monetization_on_sharp),
+                                                                    labelText: "Tip Amt",
+                                                                    hintText: "Tip amt"),
+                                                              ),
+                                                            ):SizedBox(),
                                                           ],
-                                                        )
-                                                      : SizedBox(),
-                                                  cartController
-                                                              .selectedCustomer
-                                                              .value!
-                                                              .isLoyalCustomer ==
-                                                          true
+                                                        ),
+                                                      // : SizedBox(),
+                                                  cartController.selectedCustomer.value!.isLoyalCustomer == true
                                                       ? Row(
                                                           children: [
                                                             Text(
                                                               "ACC Bal:",
                                                               style: TextStyle(
-                                                                  fontSize:
-                                                                      20,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                  color: Colors
-                                                                      .red),
+                                                                  fontSize:20,
+                                                                  fontWeight: FontWeight.bold,
+                                                                  color: Colors.red),
                                                             ),
                                                             Text(
-                                                              cartController
-                                                                  .selectedCustomer
-                                                                  .value!
-                                                                  .currencyBalance!
-                                                                  .map((bal) =>
-                                                                      "${bal.currency.symbol} ${bal.balance!.toStringAsFixed(2)} ,")
-                                                                  .join(
-                                                                      ""),
+                                                              cartController.selectedCustomer.value!.currencyBalance!.map((bal) =>
+                                                                      "${bal.currency.symbol} ${bal.balance!.toStringAsFixed(2)} ,").join(""),
                                                               style: TextStyle(
-                                                                  fontWeight:
-                                                                      FontWeight.bold),
+                                                                  fontWeight:FontWeight.bold),
                                                             ),
                                                           ],
                                                         )

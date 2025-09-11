@@ -66,6 +66,7 @@ class SaleModel {
     this.customerAccPayType,
     this.customerAccBankType,
     this.tableType,
+    this.tipAmount,
 
   });
 
@@ -108,6 +109,7 @@ class SaleModel {
   bool? onHold;
   double? taxAmount;
   double? amtToAcc;
+  double? tipAmount;
   double? pointsUsed;
   String? accountPayType;
   String? customerAccPayType;
@@ -131,6 +133,7 @@ class SaleModel {
     onHold: json["onHold"],
     amountPaid: json["amountPaid"],
     amtToAcc: json["amtToAcc"],
+    tipAmount: json["tipAmount"],
     pointsUsed: json["pointsUsed"],
     tableType: json["tableType"],
     customerAccPayType: json["customerAccPayType"],
@@ -190,6 +193,7 @@ class SaleModel {
     "accountPayType": accountPayType,
     "pointsUsed": pointsUsed,
     "amtToAcc": amtToAcc,
+    "tipAmount": tipAmount,
     "zeroRatedTotal": zeroRatedTotal,
     "baseSaleAmount": baseSaleAmount,
     "totalDiscount": totalDiscount,

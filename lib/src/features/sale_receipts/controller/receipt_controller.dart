@@ -10,6 +10,7 @@ import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dar
 import 'package:vimbika_pos_app/src/features/printers/model/available_printer_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_model.dart';
+import 'package:vimbika_pos_app/src/features/shift/model/currency_amount.dart';
 import 'package:vimbika_pos_app/src/services/app_exceptions.dart';
 import 'package:vimbika_pos_app/src/services/base_http_client.dart';
 import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
@@ -20,6 +21,7 @@ import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
+import '../../shift/model/shift_model.dart';
 import '../screen/receipt_screen.dart';
 
 
@@ -42,6 +44,9 @@ class ReceiptController extends GetxController {
   final PrinterService _printerService = Get.put(PrinterService());
   RxList<BaseNameModel> categories = <BaseNameModel>[].obs;
   Rx<BaseNameModel?> selectedCategory = BaseNameModel().obs;
+  var activeShift = ShiftModel().obs;
+  var shiftAvailable = false.obs;
+  List<ShiftModel>  shifts = [];
   var isCatSelected = false.obs;
   var isPrintClicked = false.obs;
   Rx<BranchModel?> branch = BranchModel().obs;
@@ -63,6 +68,7 @@ class ReceiptController extends GetxController {
     categories.value = catList;
     // Fetch sales for today's date
     await getSalesByDate(todayDate.value, todayDate.value, "", branch.value!.id!);
+    shiftInfo();
   }
 
   getSales() {
@@ -91,6 +97,24 @@ class ReceiptController extends GetxController {
     selectedCategory.value = BaseNameModel();
     startDateController.text = "";
     endDateController.text = "";
+  }
+
+  List<ShiftModel> loadShifts( GetStorage box) {
+    List<ShiftModel> list = _localStorageService.getOfflineList<ShiftModel>(
+        AppConstants.SHIFT_LIST,
+            (map) => ShiftModel.fromMap(map),
+        box);
+    return list;
+  }
+
+  shiftInfo() async {
+    shifts = loadShifts(box);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(shifts, box, user, true);
+    if(tempActiveShift != null) {
+      activeShift.value = tempActiveShift;
+      shiftAvailable.value = true;
+      activeShift.value.shiftCurrencyAmounts?.sort((a, b) => a.timeCreated.compareTo(b.timeCreated));
+    }
   }
 
 
@@ -194,6 +218,15 @@ class ReceiptController extends GetxController {
         saveSales();
         allReceipts.refresh();
         filteredReceipts.refresh();
+        var currencyAmount =  activeShift.value.shiftCurrencyAmounts!.firstWhereOrNull((element) =>
+        element.posReference == saleInfo.sale!.posReference || element.posReference == saleInfo.sale!.posReference);
+        print(currencyAmount!.toJson());
+        if(currencyAmount!=null){
+          activeShift.value.shiftCurrencyAmounts?.remove(currencyAmount);
+          ShiftModel temp  = activeShift.value;
+          List<ShiftModel> shi =  _localStorageService.replaceShift(temp, shifts);
+          _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
+        }
         AppHelper.hideLoading();
         Navigator.pushReplacement(Get.context!,
             MaterialPageRoute(builder: (BuildContext context) => ReceiptScreen()));

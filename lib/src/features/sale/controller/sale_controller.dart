@@ -241,6 +241,8 @@ class SaleController extends GetxController {
     // await syncOfflineSales();
     // print("syncing tickets..");
      //await SyncService.syncOfflineTickets(user, box);
+    print("syncing new Customers..");
+    await SyncService.saveCustomer(user, box);
     await SyncService.savePaymentReceived(user, box);
     print("syncing shifts..");
     await SyncService.syncOfflineShifts(user, box);
@@ -248,10 +250,9 @@ class SaleController extends GetxController {
     await SyncService.getCurrencies(user, box);
     print("syncing payments..");
     await SyncService.getPaymentTypes(user, box);
-    print("syncing new Customers..");
-    await SyncService.saveCustomer(user, box);
     print("syncing new Payments..");
     await SyncService.getCustomers(user, box,user.companyId!);
+    print("hiding loading");
     AppHelper.hideLoading();
     cartController.refreshCustomers();
   }
