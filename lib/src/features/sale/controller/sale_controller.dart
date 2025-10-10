@@ -120,24 +120,6 @@ class SaleController extends GetxController {
     }
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
-    // cartController.refreshCustomers();
-
-      final html = '''
-              <html>
-                <body style="font-family:sans-serif;text-align:center;">
-                  <h2>🛒 Sale in Progress</h2>
-                  <p>2x Cappuccino</p>
-                  <h3>Total: \$5.60</h3>
-                </body>
-              </html>
-              ''';
-      CustomerDisplay.updateDisplay(html);
-    print("canPrintToDisplay");
-    bool canPrintToDisplay = await _printerService.initializeSunmiLCD();
-    print("canPrintToDisplay: ${canPrintToDisplay}");
-    if(canPrintToDisplay){
-      await _printerService.sendTextToLCD();
-    }
   }
   @override
   void onClose() {

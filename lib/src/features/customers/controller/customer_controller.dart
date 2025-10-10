@@ -16,6 +16,8 @@ import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
 
 import '../../../services/app_exceptions.dart';
 import '../../../services/base_http_client.dart';
+import '../../../services/printer_service.dart';
+import '../../../services/sync_service.dart';
 import '../../../shared/models/bank_model.dart';
 import '../../../shared/models/branch_model.dart';
 import '../../../shared/models/currency_model.dart';
@@ -26,6 +28,17 @@ import '../../sale/controller/cart_controller.dart';
 import '../../../services/nfc_service.dart';
 import '../../../constants/app_routes.dart';
 
+class CustomerProjectionModel {
+  CustomerProjectionModel(
+  {this.paymentReceived,this.reference});
+  PaymentReceivedModel? paymentReceived;
+  String? reference;
+  factory CustomerProjectionModel.fromMap(Map<String, dynamic> json) => CustomerProjectionModel(
+    paymentReceived: json['paymentReceived'] != null ? PaymentReceivedModel.fromMap(json['paymentReceived']) : null,
+    reference: json['reference']
+  );
+}
+
 class CustomerController extends GetxController {
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
   late BranchModel? branch;
@@ -34,6 +47,7 @@ class CustomerController extends GetxController {
   RxList<CustomerModel> filteredCustomers = <CustomerModel>[].obs;
   Rx<String> searchQuery = "".obs;
   var isInternetAccess = false.obs;
+  final PrinterService _printerService = Get.put(PrinterService());
   var editCustomer = false.obs;
   RxList<CurrencyModel> currencyList = <CurrencyModel>[].obs;
   Rx<CurrencyModel?> selectedCurrency = CurrencyModel().obs;
@@ -201,16 +215,68 @@ class CustomerController extends GetxController {
     }
   }
 
-  savePayment() {
-    print("Saving payment");
+  printCustomerStatement(CustomerModel customer) async{
+    var connection = await _connectivityService.checkServerConnection();
+    if(connection){
+      try {
+
+        var response = await BaseHttpClient().getAuthWithCompanyHeader(
+            "/sale/get-by-customer/${customer.id!}", user.companyId!).catchError((
+            onError) {
+          print(onError);
+          if (onError is BadRequestException) {
+            var apiError = json.decode(onError.message!);
+            AppHelper.showErroDialog(description: apiError["reason"]);
+            print(apiError["reason"]);
+          } else {
+            AppHelper.handleError(onError);
+          }
+        });
+
+        if (response != null) {
+          List<dynamic> list = jsonDecode(response);
+          List<CustomerProjectionModel> itemsList = List<CustomerProjectionModel>.from(list.map((i) => CustomerProjectionModel.fromMap(i)));
+
+          print("Customer Projection List: ${itemsList.length}");
+          _printerService.printCustomerStatement(customer,itemsList, box, _localStorageService);
+
+         /* for (CustomerProjectionModel sale in itemsList) {
+            SaleInfoModel saleInfoModel = SaleInfoModel(
+                sale: sale, syncStatus: true);
+            if(!actualItems.any((element) => element.sale!.id == saleInfoModel.sale!.id)) {
+              actualItems.add(saleInfoModel);
+            }
+            if(!items.any((element) => element.sale!.id == saleInfoModel.sale!.id)) {
+              items.add(saleInfoModel);
+            }
+          }
+          allReceipts.value = actualItems.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
+          filteredReceipts.value = actualItems.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
+          sortSalesByDate();
+          allReceipts.refresh();
+          filteredReceipts.refresh();
+          List<Map<String, dynamic>> itemsListMap = items.map((item) =>
+              item.toMap()).toList();
+          box.write(AppConstants.SALE_LIST, itemsListMap);
+          */
+        }
+        AppHelper.hideLoading();
+      } catch (e) {
+        Get.snackbar('Error', 'Failed to fetch sales: $e',
+            snackPosition: SnackPosition.BOTTOM);
+      }
+    }else{
+      Get.snackbar("Error", "Failed to connect to server",
+          snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
+  savePayment() async {
     CustomerModel customer = selectedCustomer.value!;
     cartController.selectedCustomer.value = selectedCustomer.value;
     GetStorage bb = GetStorage();
     onCurrencyChange(selectedCurrency.value!);
-    // int count = _localStorageService.getPaymentReceivedList(box).length + 1;
      var ref = AppConstants.getDateNowRef("OFF", 1);
-     // print(double.parse(payAccAmtEditingController.text));
-
     PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
         id: null,
         dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
@@ -220,7 +286,8 @@ class CustomerController extends GetxController {
         isPaid: true,
         payer: customer,
         currency: selectedCurrency.value,
-        bank: selectedBank.value
+        bank: selectedBank.value,
+      paymentDescription: "PAY_ACCOUNT"
     );
     List<PaymentReceivedModel> prlist = paymentReceivedList.value;
     prlist.add(paymentReceivedModel);
@@ -258,9 +325,13 @@ class CustomerController extends GetxController {
     allCustomers.refresh();
     filteredCustomers.value = allCustomers.value;
     filteredCustomers.refresh();
-    selectedCustomer.value = null;
+    selectedCustomer.value = CustomerModel();
     amountPaidTextEditingController.clear();
-    clearForm();
+    // clearForm();
+    payAccAmtEditingController.clear();
+    if(isInternetAccess.value){
+      await SyncService.savePaymentReceived(user, box);
+    }
   }
 
   setLoyalCustomer(CustomerModel customer) {

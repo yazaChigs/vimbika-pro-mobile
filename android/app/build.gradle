@@ -12,10 +12,11 @@ repositories {
 }
 dependencies {
     // ... existing dependencies
-    implementation(name: "DS_Lib-1.0.2", ext: "aar")
+    implementation(name: "DS_Lib-1.0.9", ext: "aar")
+//    implementation("com.sunmi:DS_Lib:1.0.9")
 //    implementation 'com.sunmi:ds-lib:1.0.0'
 //    implementation( 'com.sunmi:DS_Lib:1.0.9')
-//    implementation( 'com.google.code.gson:gson:2.6.2' ) //gson any version
+    implementation( 'com.google.code.gson:gson:2.6.2' ) //gson any version
      }
 
 def localProperties = new Properties()

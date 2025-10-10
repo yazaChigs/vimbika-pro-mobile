@@ -26,7 +26,8 @@ class CustomerModel {
       this.currencyBalance,
       this.nfcCardId,
       this.nfcCardType,
-      this.updated = false});
+        this.accountBalance,
+              this.updated = false});
 
   String? id;
   String? name;
@@ -42,6 +43,7 @@ class CustomerModel {
   bool? isLoyalCustomer;
   String? accountNumber;
   double? points;
+  double? accountBalance;
   String? nfcCardId;
   String? nfcCardType;
   bool? updated;
@@ -70,6 +72,7 @@ class CustomerModel {
         taxNumber: json["taxNumber"],
         street: json["street"],
         updated: json["updated"],
+        accountBalance: json["accountBalance"],
         isLoyalCustomer: json["isLoyalCustomer"],
         accountNumber: json["accountNumber"],
         points: json["points"],
@@ -92,6 +95,7 @@ class CustomerModel {
         "taxNumber": taxNumber,
         "street": street,
         "updated": updated,
+        "accountBalance": accountBalance,
         "points": points,
         "accountNumber": accountNumber,
         "isLoyalCustomer": isLoyalCustomer,

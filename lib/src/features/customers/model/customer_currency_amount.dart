@@ -31,7 +31,7 @@ class CustomerCurrencyAmount {
     active: json["active"],
     createdByName: json["createdByName"],
     balance: json["balance"],
-    currency: CurrencyModel.fromMap(json["currency"]),
+    currency: json["currency"]!=null? CurrencyModel.fromMap(json["currency"]):CurrencyModel(),
     lastTranxDate: json["lastTranxDate"],
   );
 

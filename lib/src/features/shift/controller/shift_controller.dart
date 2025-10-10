@@ -76,7 +76,8 @@ class ShiftController extends GetxController {
     List<SaleInfoModel> actualSales = [];
     for(SaleInfoModel s in sales){
       if(s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING"){
-        actualSales.add(s);
+        if(!actualSales.any((sale)=> sale.sale!.posReference==s.sale!.posReference)) //filter duplicates
+          actualSales.add(s);
       }
     }
     allReceipts.value = actualSales;

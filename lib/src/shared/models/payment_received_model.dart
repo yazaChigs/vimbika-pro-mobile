@@ -22,6 +22,7 @@ class PaymentReceivedModel {
     this.dateTime,
     this.bank,
     this.payer,
+    this.accountBalance,
     this.branch,
     this.balance,
     this.isMobile = true,
@@ -31,6 +32,7 @@ class PaymentReceivedModel {
   PaymentTypeModel? paymentType;
   String? reference;
   double? amount = 0.0;
+  double? accountBalance = 0.0;
   double? amountPaid = 0.0;
   double? balance = 0.0;
   bool? isPaid = false;
@@ -60,6 +62,7 @@ class PaymentReceivedModel {
     paymentType: json["paymentType"] != null ? PaymentTypeModel.fromMap(json["paymentType"]) : null,
     bank: json["bank"] != null ? BankModel.fromMap(json["bank"]) : null,
     dateTime: json["dateTime"],
+    accountBalance: json["accountBalance"] != null ? json["accountBalance"].toDouble() : 0.0,
     isMobile: json["isMobile"] ?? true,
   );
 
@@ -74,6 +77,7 @@ class PaymentReceivedModel {
     "paymentType": paymentType?.toMap(),
     "payer": payer?.toMap(),
     "bank": bank?.toMap(),
+    "accountBalance": accountBalance,
     "dateTime": dateTime,
     "balance": balance,
     "isMobile": isMobile,

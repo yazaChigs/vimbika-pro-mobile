@@ -32,9 +32,17 @@ import 'package:vimbika_pos_app/src/features/ticket/screen/ticket_list_screen.da
 import 'package:vimbika_pos_app/src/features/sale/screen/barcode_scanner_screen.dart';
 import 'package:vimbika_pos_app/src/features/customers/screen/pay_account_form_screen.dart';
 
+import '../rear/sunmi_binding.dart';
+import '../rear/sunmi_lcd_screen.dart';
+
 class AppPages {
   static final routes = [
     GetPage(name: AppRoutes.ONBOARD, page: () => OnboardingScreen()),
+    GetPage(
+      name: AppRoutes.SUNMI_LCD,
+      page: () => SunmiLcdScreen(),
+      binding: SunmiBinding(), // Controller is initialized here
+    ),
     GetPage(
         name: AppRoutes.LOGIN,
         page: () => const LoginScreen(),

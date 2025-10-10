@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
+import 'package:flutter_pos_printer_platform_image_3/flutter_pos_printer_platform_image_3.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:path_provider/path_provider.dart';
@@ -75,7 +77,7 @@ class OfflineDataController extends GetxController {
       print("getting getOfflineData");
       await SyncService.getBranchStock(box, user);
 
-      Timer.periodic(Duration(hours: 1), (timer) async {
+      Timer.periodic(Duration(minutes: 20), (timer) async {
         print("init syncing branchStock...");
         await SyncService.getBranchStock(box, user);
         await SyncService.savePaymentReceived(user, box);

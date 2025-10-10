@@ -13,7 +13,8 @@ class PaymentTypeModel {
     this.amount,
     this.isCredit,
     this.currency,
-    this.banks
+    this.banks,
+    this.isEnabled,
   });
 
   String? id;
@@ -21,6 +22,7 @@ class PaymentTypeModel {
   String? paymentNote;
   double? amount = 0.0;
   bool? isCredit = false;
+  bool? isEnabled = true;
   CurrencyModel? currency;
   List<BankModel>? banks;
 
@@ -34,6 +36,7 @@ class PaymentTypeModel {
     paymentNote: json["paymentNote"],
     amount: json["amount"] != null ? json["amount"].toDouble() : 0.0,
     isCredit: json["isCredit"],
+    isEnabled: json["isEnabled"],
     currency: json["currency"] != null ? CurrencyModel.fromMap(json["currency"]) : null,
     banks: json["banks"] != null ? List<BankModel>.from(json["banks"].map((x) => BankModel.fromMap(x))) : [],
 
@@ -45,6 +48,7 @@ class PaymentTypeModel {
     "paymentNote": paymentNote,
     "amount": amount,
     "isCredit": isCredit,
+    "isEnabled": isEnabled,
     "currency": currency?.toMap(),
     "banks": banks != null ? List<dynamic>.from(banks!.map((x) => x.toMap())) : [],
   };

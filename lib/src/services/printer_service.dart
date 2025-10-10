@@ -27,9 +27,11 @@ import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_histo
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:image/image.dart' as img;
+import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_received_model.dart';
 
 import '../constants/app_constants.dart';
+import '../features/customers/controller/customer_controller.dart';
 
 class PrinterService extends GetxService {
 
@@ -123,6 +125,28 @@ class PrinterService extends GetxService {
         if (prin != null) {
           if(prin.type == 'SUNMI_INBUILT_PRINTER') {
             await printSunmiCashIn(payment,cashier);
+          }
+         /* if(prin.type == 'TELPO_INBUILT_PRINTER') {
+            await printTelpoSaleReceipt(saleInfo.sale!);
+          }
+          if (prin.type == 'bluetooth') {
+            await generateBluetoothReceipt(saleInfo.sale!, prin);
+          }
+          if (prin.type == 'usb') {
+            await generateUSBReceipt(saleInfo.sale!, prin);
+          }*/
+        } else {
+          Get.snackbar('Error', 'Default Printer Not Found. Please add printer.',
+              snackPosition: SnackPosition.BOTTOM);
+          print("Default Printer Not Found. Please add printer.");
+        }
+
+  }
+  Future<void> printCustomerStatement(CustomerModel customer,List<CustomerProjectionModel> customerProjections, GetStorage box,  LocalStorageService _localStorageService) async {
+    AvailablePrinterModel? prin = _localStorageService.findActivePrinter(box);
+        if (prin != null) {
+          if(prin.type == 'SUNMI_INBUILT_PRINTER') {
+            await printSunmiCustomerStatement(customer,customerProjections);
           }
          /* if(prin.type == 'TELPO_INBUILT_PRINTER') {
             await printTelpoSaleReceipt(saleInfo.sale!);
@@ -1109,6 +1133,55 @@ class PrinterService extends GetxService {
 
      // Separator
      await SunmiPrinter.printText("--------------------------------");
+
+     //qr code
+     // Footer
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.printText("\n\n\n");
+     await SunmiPrinter.submitTransactionPrint();
+     await SunmiPrinter.exitTransactionPrint(true);
+   }
+
+    // Print Customer Statement
+   Future<void> printSunmiCustomerStatement(CustomerModel customer, List<CustomerProjectionModel>? projectionsa) async {
+     // CurrencyModel? cur = payment.currency;
+
+     Uint8List imageBytes = await readLocalFileBytes();
+
+     await SunmiPrinter.initPrinter();
+     await SunmiPrinter.startTransactionPrint(true);
+     //
+     // Header
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.printImage(imageBytes); // Directly print the image bytes
+
+     await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+     // await SunmiPrinter.printText("\n");
+     // await SunmiPrinter.printText("KOT");
+     await SunmiPrinter.resetFontSize();
+
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+     await SunmiPrinter.printText("ACCOUNT STATEMENT");
+     await SunmiPrinter.printText("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}");
+     // Separator
+     await SunmiPrinter.printText("--------------------------------");
+
+     // Customer Information
+       await SunmiPrinter.printText("Customer: ${customer.name}");
+
+
+     // Items
+     for (var payment in projectionsa!) {
+       await SunmiPrinter.printText("${payment.paymentReceived!.dateTime!.substring(0,10)}:${payment.reference}:(${payment.paymentReceived!.paymentDescription})[${payment.paymentReceived!.paymentType!.isCredit! ? 'CR' : 'DR'}] "
+           " ${payment.paymentReceived!.currency!.symbol ?? '\$'} ${payment.paymentReceived!.amount?.toStringAsFixed(2)} bal: ${payment.paymentReceived!.currency!.symbol ?? '\$'}${payment.paymentReceived!.accountBalance?.toStringAsFixed(2)} ");
+       // await SunmiPrinter.printText("New Balance: ${cur?.symbol ?? ''} ${payment.payer!.currencyBalance!.firstWhere((cb) => cb.currency.id == payment.currency?.id).balance?.toStringAsFixed(2)}");
+       // await SunmiPrinter.printText("${item.notes ?? ''}");
+       // await SunmiPrinter.printText("--------------------------------");
+     }
+
+     // Separator
+     await SunmiPrinter.printText("--------------------------------");
+     await SunmiPrinter.printText("New Balance: ${customer.accountBalance?.toStringAsFixed(2) ?? '' }");
 
      //qr code
      // Footer

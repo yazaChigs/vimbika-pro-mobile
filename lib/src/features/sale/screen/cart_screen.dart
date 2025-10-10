@@ -15,8 +15,8 @@ class CartScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
-      onTap: inactivityController.resetInactivityTimer,
-      onPanDown: (_) => inactivityController.resetInactivityTimer(),
+      // onTap: inactivityController.resetInactivityTimer,
+      // onPanDown: (_) => inactivityController.resetInactivityTimer(),
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.white, // Same as your app theme
@@ -42,7 +42,7 @@ class CartScreen extends StatelessWidget {
 
                     return ListTile(
                       tileColor: Colors.blue[100],
-                    /*  leading: CachedNetworkImage(
+                      leading: CachedNetworkImage(
                           imageUrl: imageUrl,
                           placeholder: (context, url) =>
                               CircularProgressIndicator(),
@@ -50,7 +50,7 @@ class CartScreen extends StatelessWidget {
                             'assets/images/dummy/dummy.png', // Path to your error image
                             fit: BoxFit.cover,
                           ),
-                      ),*/
+                      ),
                       title: Text(cartItem.product.item!.name ?? ''),
                       subtitle: Text('${cartItem.product.item!
                           .sellingPrice} x ${cartItem.quantity}'),

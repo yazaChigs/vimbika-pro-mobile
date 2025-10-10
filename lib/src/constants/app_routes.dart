@@ -29,4 +29,5 @@ class AppRoutes {
   static const REQUISITION_LIST_SCREEN= "/requisition_list_screen";
   static const REQUISITION_HISTORY_SCREEN= "/requisition_history_screen";
   static const BARCODE_SCANNER = "/barcode_scanner";
+  static const SUNMI_LCD = "/sunmi_lcd";
 }

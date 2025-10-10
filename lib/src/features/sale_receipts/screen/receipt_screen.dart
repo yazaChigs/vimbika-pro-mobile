@@ -271,54 +271,42 @@ class ReceiptScreen extends StatelessWidget {
                             ],
                           ),
                           trailing: Column(
-                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
                                 '${sale.saleStatus ?? 'N/A'}',
-                                style: sale.saleStatus!='REVERSED'? TextStyle(fontSize: 14, color: Colors.grey[700]):TextStyle(fontSize: 14, color: Colors.red[700]),
+                                style: sale.saleStatus!='REVERSED'? TextStyle(fontSize: 12, color: Colors.grey[700]):TextStyle(fontSize: 12, color: Colors.red[700]),
                               ),
-                              SizedBox(
-                                width: 100,
-                                height: 24,
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: IconButton(
-                                        icon: Icon(Icons.print_outlined,color: Colors.indigoAccent,size: 32),
-                                        onPressed: () async {
-                                          if(receiptController.isPrintClicked.isFalse) {
-                                            receiptController.isPrintClicked.value = true;
-                                            sale.saleStatus != 'REVERSED'
-                                                ? receiptController
-                                                    .printSale(saleInfo)
-                                                : null;
-                                          }
-                                        },
+                              Expanded(
+                                child: Container(
+                                  width: 110,
+                                  height: double.infinity,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    children: [
+                                      IconButton(
+                                          icon: Icon(Icons.print_outlined,color: Colors.indigoAccent,size: 30),
+                                          onPressed: () async {
+                                            if(receiptController.isPrintClicked.isFalse) {
+                                              receiptController.isPrintClicked.value = true;
+                                              sale.saleStatus != 'REVERSED'
+                                                  ? receiptController
+                                                      .printSale(saleInfo)
+                                                  : null;
+                                            }
+                                          },
+                                        ),
+                                      Container(
+                                        child: sale.saleStatus != 'REVERSED'?IconButton(
+                                          enableFeedback: true,
+                                          icon: Icon(Icons.delete_forever_outlined,color: Colors.redAccent,size: 30),
+                                          onPressed: () {
+                                            receiptController.showConfirmDialogToDeleteItem(saleInfo,index);
+                                          },
+                                        ):SizedBox(),
                                       ),
-                                    ),
-                                    Container(
-                                      child: sale.saleStatus != 'REVERSED'?IconButton(
-                                        enableFeedback: true,
-                                        icon: Icon(Icons.backspace_outlined,color: Colors.redAccent,size: 32,),
-                                        onPressed: () {
-                                          receiptController.showConfirmDialogToDeleteItem(saleInfo,index);
-                                          // AppHelper.showLoading();
-                                          // saleInfo.sale!.saleStatus="REVERSED";
-                                          // saleInfo.syncStatus = false;
-                                          // var i = receiptController.allReceipts.indexOf(saleInfo);
-                                          // receiptController.allReceipts[i] = saleInfo;
-                                          // receiptController.filteredReceipts[index].sale!.saleStatus = "REVERSED";
-                                          // receiptController.allReceipts[i] = saleInfo;
-                                          // receiptController.saveSales();
-                                          // receiptController.allReceipts.refresh();
-                                          // receiptController.filteredReceipts.refresh();
-                                          // AppHelper.hideLoading();
-                                          // Get.snackbar("Success", "Sale reversed");
-                                        },
-                                      ):SizedBox(),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],

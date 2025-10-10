@@ -129,7 +129,14 @@ class ReceiptController extends GetxController {
     if(stat) {
       // AppHelper.showLoading("Loading...");
       // getSales();
-      List<SaleInfoModel> items = getExistingOfflineSales(box);
+      List<SaleInfoModel> rawItems = getExistingOfflineSales(box);
+      List<SaleInfoModel> items = [];
+      for(SaleInfoModel s in rawItems){
+        if(!items.any((element) => element.sale!.posReference == s.sale!.posReference)) {
+          items.add(s);
+        }
+      }
+
       List<SaleInfoModel> actualItems = [];
       actualItems = items.where((sale) => !sale.syncStatus!).toList();
 

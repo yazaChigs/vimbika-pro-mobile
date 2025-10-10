@@ -34,6 +34,7 @@ import 'package:vimbika_pos_app/src/shared/models/payment_received_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
+import '../features/sale/controller/cart_controller.dart';
 import '../features/sale/model/product_full_info_model.dart';
 import '../features/shift/model/currency_amount.dart';
 import '../shared/models/branch_model.dart';
@@ -99,6 +100,7 @@ class SyncService {
             List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
                 item.toMap()).toList();
             box.write(AppConstants.BRANCH_PRODUCTS, itemsListMap);
+            print("Server customers; ${itemsList.length}");
           } else {
             // AppHelper.hideLoading();
             print("Failed to retrieve products");
@@ -689,6 +691,7 @@ class SyncService {
     if(response != null) {
       List<dynamic> list = jsonDecode(response);
       List<PaymentTypeModel> itemsList = List<PaymentTypeModel>.from(list.map((i) => PaymentTypeModel.fromMap(i)));
+      itemsList = itemsList.where((pt)=>pt.isEnabled!).toList();
       List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
           item.toMap()).toList();
       box.write(AppConstants.PAYMENT_TYPE_LIST, itemsListMap);

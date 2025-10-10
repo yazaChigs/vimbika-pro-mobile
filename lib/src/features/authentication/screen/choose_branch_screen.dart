@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:presentation_displays/displays_manager.dart';
 import 'package:vimbika_pos_app/src/constants/sizes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/controller/offline_data_controller.dart';
+import 'package:vimbika_pos_app/src/rear/sunmi_controller.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
+
+import '../../../constants/app_constants.dart';
 
 class ChooseBranchScreen extends StatelessWidget {
 
@@ -13,6 +17,7 @@ class ChooseBranchScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final OfflineDataController offlineDataController = Get.put(OfflineDataController());
+    final DisplayManager display = DisplayManager();
     return Scaffold(
       body: Center(
         child: Container(
@@ -45,12 +50,22 @@ class ChooseBranchScreen extends StatelessWidget {
                   icon: const Icon(Icons.food_bank_outlined),
                   elevation: 16,
                   style: const TextStyle(color: Colors.deepPurple),
-                  onChanged: (CompanyModel? newValue) {
+                  onChanged: (CompanyModel? newValue) async {
                     // Update your state here
                     offlineDataController.isCompanySelected.value = true;
+                    var displays = await display.getDisplays();
+                    if(displays!.length>1) {
+                          final cartData = {
+                            'companyName': newValue!.name!,
+                            'imageUrl':
+                                '${AppConstants.VIMBIKA_BACKEND_URL}/company/logo/${offlineDataController.selectedCompany.value!.id}',
+                            'total': 00.00,
+                            'items': [],
+                          };
+                          await display.transferDataToPresentation(cartData);
+                        }
                     offlineDataController.selectedCompany.value = newValue;
                     offlineDataController.onCompanyChange(newValue!);
-                    print(offlineDataController.selectedCompany.value?.fiscalisationEnabled);
                   },
                   items: offlineDataController.companyList.map<DropdownMenuItem<
                       CompanyModel>>((CompanyModel value) {

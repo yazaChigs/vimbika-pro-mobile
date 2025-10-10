@@ -166,6 +166,16 @@ class CustomerListScreen extends StatelessWidget {
                                                 Get.toNamed(AppRoutes.PAY_ACC_FORM);
                                               },
                                             ),
+                                            PopupMenuItem(
+                                              child: ListTile(
+                                                  leading: Icon(Icons.print),
+                                                  title: Text("Print Statement")
+                                              ),
+                                              value: 2,
+                                              onTap: () {
+                                                customerController.printCustomerStatement(customer);
+                                              },
+                                            ),
                                           ]
                                       ),
                                     ],

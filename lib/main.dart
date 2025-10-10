@@ -25,6 +25,11 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
+@pragma('vm:entry-point')
+void secondaryDisplayMain() {
+  runApp(const MySecondApp());
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -33,7 +38,6 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     GetStorage storage = GetStorage();
     var isAuthenticated = storage.read(AppConstants.IS_AUTHENTICATED) ?? false;
-
     // Initialize NFC check on app startup
     _initializeNfcCheck();
 
@@ -65,5 +69,19 @@ class MyApp extends StatelessWidget {
         print('NFC startup check error: $e');
       }
     });
+  }
+}
+
+
+class MySecondApp extends StatelessWidget {
+  const MySecondApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GetMaterialApp(
+      // onGenerateRoute: generateRoute,
+      getPages: AppPages.routes,
+      initialRoute: AppRoutes.SUNMI_LCD,
+    );
   }
 }

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:get/get_rx/get_rx.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:intl/intl.dart';
+import 'package:presentation_displays/displays_manager.dart';
 import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
@@ -54,6 +55,7 @@ class CartController extends GetxController {
   final ConnectivityService _connectivityService = ConnectivityService();
   Rx<CurrencyModel?> selectedCurrency = CurrencyModel().obs;
   Rx<CurrencyModel?> baseCurrency = CurrencyModel().obs;
+  final DisplayManager display = DisplayManager();
 
   Rx<BranchModel?> branch = BranchModel().obs;
   RxList<CurrencyModel> currencyList = <CurrencyModel>[].obs;
@@ -109,6 +111,7 @@ class CartController extends GetxController {
   var isNfcReading = false.obs;
   RxBool isPrintEnabled = false.obs; // Observing the state of the checkbox
   RxBool isKOTEnaabled = false.obs; // Observing the state of the checkbox
+  RxBool rearScreenAvailable = false.obs; // Observing the state of the checkbox
   RxBool addAmtToAcc = false.obs; // Observing the state of the checkbox
   late SettingsModel settingsModel = SettingsModel(sellNilItems: false);
   RxBool isFiscaliseReceiptEnabled = true.obs;
@@ -222,7 +225,6 @@ class CartController extends GetxController {
 
     allCustomers.value = customers;
 
-
     // Use firstWhereOrNull to find a customer with "WalkIn" in their name (case-insensitive)
     CustomerModel? defaultCustomer = customers.firstWhereOrNull(
       (customer) =>
@@ -254,6 +256,19 @@ class CartController extends GetxController {
         selectCorrectBank();
       }
     }
+    if(allCustomers.length<3){
+      await SyncService.getCustomers(user.value!, box, company.value!.id!);
+      refreshCustomers();
+    }
+    var displays = await display.getDisplays();
+    if(displays!.length>1) {
+      rearScreenAvailable.value = true;
+      display.showSecondaryDisplay(
+        displayId: 1,
+        routerName: AppRoutes.SUNMI_LCD,
+      );
+    }
+
   }
 
   List<ShiftModel> loadShifts(GetStorage box) {
@@ -335,15 +350,6 @@ class CartController extends GetxController {
     //filterPaymentTypesForCustomer(newValue);
     filterPaymentTypes(selectedCurrency.value!, newValue);
   }
-  // filterPaymentTypesForCustomer(CustomerModel? newValue, ){
-  //   if(newValue!.name == 'WalkIn'){
-  //     filteredPaymentTypesList.value = paymentTypesList
-  //         .where((type) => !type.name!.toLowerCase().contains('credit'))
-  //         .toList();
-  //   } else{
-  //     filteredPaymentTypesList.value = paymentTypesList;
-  //   }
-  // }
 
   void filterPaymentTypes(
       CurrencyModel selectedCurrency, CustomerModel selectedCus) {
@@ -372,11 +378,9 @@ class CartController extends GetxController {
     filteredPaymentTypesList.refresh();
   }
 
-  void addToCart(ProductFullInfoModel product, double quantity) {
+  Future<void> addToCart(ProductFullInfoModel product, double quantity) async {
     var index = cartItems.indexWhere((item) => item.product.id == product.id);
-    if (index != -1 &&
-        cartItems[index].quantity + 1 > product.stock!.toDouble() &&
-        !sellNilItems) {
+    if (index != -1 && cartItems[index].quantity + 1 > product.stock!.toDouble() && !sellNilItems) {
       Get.snackbar("Check your Quantity",
           "Quantity can not be greater than stock available!!!",
           snackPosition: SnackPosition.BOTTOM);
@@ -391,8 +395,24 @@ class CartController extends GetxController {
       } else {
         cartItems.add(CartItemModel(product: product, quantity: quantity));
       }
+      cartItems.refresh();
       calculateTotalAmounts(cartItems);
     }
+  }
+
+  postToRearScreen() async {
+    final cartData = {
+      'companyName': user.value!.companyName??"VIMBIKA POS",
+      'total': totalCostInSelectedCurrency.value,
+      'change': change.value,
+      'currency': selectedCurrency.value!.name,
+      'imageUrl': '${AppConstants.VIMBIKA_BACKEND_URL}/company/logo/${company.value!.id}',
+      'items': cartItems.isNotEmpty
+          ? List<String>.from(cartItems.map((x) =>  '${x.product.item!.name} X ${x.quantity}\t\t [${selectedCurrency.value!.symbol} ${x.product.item!.sellingPrice*x.quantity} ]'))
+          : [],
+      'numberOfItems':cartItems.fold(0.0, (previousValue, element) => previousValue + element.quantity)
+    };
+    await display.transferDataToPresentation(cartData);
   }
 
   void addToCartWithBarCode(
@@ -465,6 +485,9 @@ class CartController extends GetxController {
         totalCostInSelectedCurrency.value.toStringAsFixed(2);
     amountPaid.value = totalCostInSelectedCurrency.value;
     customerAmountPaid.value = totalCostInSelectedCurrency.value;
+    if(rearScreenAvailable.value){
+      postToRearScreen();
+    }
   }
 
   void validateEmail(String? value) {
@@ -580,7 +603,6 @@ class CartController extends GetxController {
     } else {
       change.value = 0.0;
     }
-    // amtToAccTextEditingController.text = change.toStringAsFixed(2);
   }
 
   void showConfirmDialogChargeSale() {
@@ -781,7 +803,7 @@ class CartController extends GetxController {
           if (customer.currencyBalance == null ||
               customer.currencyBalance!.isEmpty) {
             CustomerCurrencyAmount currencyAmount = CustomerCurrencyAmount(
-              currency: selectedCurrency.value!, balance: amountPaid.value,
+              currency: selectedCurrency.value!, balance: double.parse(amtToAccTextEditingController.text),
             );
             customer.currencyBalance!.add(currencyAmount);
           } else {
@@ -799,8 +821,8 @@ class CartController extends GetxController {
           refreshCustomers();
         }
       }
-      if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false)
-          && (double.parse(amtToAccTextEditingController.text)==0.00 && paymentTypes.any((pt) => pt.paymentType!.name!.startsWith("ACC-")))){
+      if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && (double.parse(amtToAccTextEditingController.text)==0.00 &&
+              paymentTypes.any((pt) => pt.paymentType!.name!.startsWith("ACC-") || pt.paymentType!.name!.startsWith("CREDIT-")))){
         CustomerModel customer = allCustomers.firstWhere((cust)=>cust.name == sale.customer!.name);
         if(customer!=null){
           var index = allCustomers.indexOf(customer);
@@ -808,13 +830,23 @@ class CartController extends GetxController {
             var prev = customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance;
             customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance = (prev! -
                 paymentTypes.firstWhere((pt) => pt.paymentType!.name!.startsWith("ACC-")).amount!);
+          }else{
+            CustomerCurrencyAmount currencyAmount = CustomerCurrencyAmount(
+            currency: selectedCurrency.value!, balance: (0 - amountPaid.value),
+            );
+            customer.currencyBalance!.add(currencyAmount);
+          }
+          customer.accountBalance = customer.accountBalance! - (amountPaid.value/selectedCurrency.value!.rate!);
+          customer.updated = true;
           allCustomers[index] = customer;
           List<CustomerModel> customers = allCustomers.value;
           List<Map<String, dynamic>> customersListMap =
           customers.map((item) => item.toMap()).toList();
           box.write(AppConstants.CUSTOMER_LIST, customersListMap);
-          refreshCustomers();
+          if(stat) {
+            await SyncService.saveCustomer(user.value!, box);
           }
+          refreshCustomers();
         }
       }
       cancelSale();
@@ -1019,6 +1051,7 @@ class CartController extends GetxController {
     amountPaid.value = 0.0;
     change.value = 0.0;
     accountPayType.value = "";
+    postToRearScreen();
     resetFormKey();
     Get.delete<SaleController>();
     Get.delete<CartController>();
@@ -1141,6 +1174,7 @@ class CartController extends GetxController {
         payer: customer,
         currency: selectedCurrency.value,
         bank: selectedBank.value,
+      paymentDescription: 'PAY_ACCOUNT',
     );
     List<PaymentReceivedModel> prlist = paymentReceivedList.value;
     prlist.add(paymentReceivedModel);
@@ -1158,6 +1192,7 @@ class CartController extends GetxController {
       var prev = customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance;
       customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance = (prev! + amountPaid.value);
     }
+    customer.accountBalance = (customer.accountBalance??0.0) + amountPaid.value;
     allCustomers[index] = customer;
     List<CustomerModel> customers = allCustomers.value;
     List<Map<String, dynamic>> customersListMap =
@@ -1170,6 +1205,9 @@ class CartController extends GetxController {
     bool networkAvailable = await _connectivityService.checkServerConnection();
     updateShiftWithNewSale(ref, paymentReceivedModel.dateTime!, paymentReceivedModel.amount!, networkAvailable,
         customer.name!, paymentTypes,"CASH_IN",customer.name!);
+    if(networkAvailable){
+      await SyncService.savePaymentReceived(user.value!, box);
+    }
     Navigator.of(Get.overlayContext!).pop();
     allCustomers.refresh();
     // selectedCustomer;

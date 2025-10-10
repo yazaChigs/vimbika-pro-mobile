@@ -3,9 +3,12 @@ import 'dart:ui';
 
 
 import 'package:flutter/material.dart';
+import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
+import 'package:flutter_pos_printer_platform_image_3/flutter_pos_printer_platform_image_3.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:presentation_displays/displays_manager.dart';
 import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
@@ -19,6 +22,15 @@ import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
+import '../../../rear/sunmi_binding.dart';
+import '../../../rear/sunmi_controller.dart';
+import '../../../rear/sunmi_lcd_screen.dart';
+import '../../../services/customer_display.dart';
+import '../../../services/printer_service.dart';
+import '../../../utils/app_pages.dart';
+import '../../printers/controller/printer_settings_controller.dart';
+import '../../sale/model/cart_item_model.dart';
+
 
 
 class AuthController extends GetxController {
@@ -28,26 +40,17 @@ class AuthController extends GetxController {
   var greeting = ''.obs;
   late GetStorage box;
 
+ /* @pragma('vm:entry-point')
+  void secondaryDisplayMain() {
+    runApp(const MySecondApp());
+  }
+*/
+
+  final SunmiController saleController = Get.put(SunmiController());
 
   RxBool isPasswordVisible = true.obs;
   var isInternetAccess = false.obs;
   var isServerAccessible = false.obs;
-  /// TextField Controllers to get data from TextFields
-  // final TextEditingController usernameTextEditingController = TextEditingController(text: "demo@vimbika.net");
-  //  final TextEditingController passwordTextEditingController = TextEditingController(text: "Demo@2024");
-  // final TextEditingController usernameTextEditingController = TextEditingController(text: "yaza@totalit.org");
-  // final TextEditingController passwordTextEditingController = TextEditingController(text: "ELIyaza@25");
-  // final TextEditingController usernameTextEditingController = TextEditingController(text: "shop@vimbika.demo");
-  // final TextEditingController passwordTextEditingController = TextEditingController(text: "pass1234");
-
-  // final TextEditingController usernameTextEditingController = TextEditingController(text: "nyakudya@farmdistributors.co.zw");
-  // final TextEditingController passwordTextEditingController = TextEditingController(text: "Nyakudya25");
-
-// final TextEditingController usernameTextEditingController = TextEditingController(text: "user1@mash.co.zw");
-//   final TextEditingController passwordTextEditingController = TextEditingController(text: "pass1234");
-
-  // final TextEditingController usernameTextEditingController = TextEditingController(text: "shinje@farmdis.co.zw");
-  // final TextEditingController passwordTextEditingController = TextEditingController(text: "VIMBIKA1014");
    final TextEditingController usernameTextEditingController = TextEditingController(text: "");
    final TextEditingController passwordTextEditingController = TextEditingController(text: "");
 
@@ -56,7 +59,7 @@ class AuthController extends GetxController {
   var password = '';
 
   final LocalStorageService _localStorageService = LocalStorageService();
-
+  final DisplayManager display = DisplayManager();
 
 
   @override
@@ -65,6 +68,20 @@ class AuthController extends GetxController {
     requestPermissions();
     box = GetStorage();
     updateGreeting();
+    var displays = await display.getDisplays();
+    if(displays!.length>1) {
+      display.showSecondaryDisplay(
+        displayId: 1,
+        routerName: AppRoutes.SUNMI_LCD,
+      );
+      List<CartItemModel> cartItems = [];
+      final cartData = {
+        'companyName': "VIMBIKA POS",
+        'total': 00.00,
+        'items': cartItems,
+      };
+      await display.transferDataToPresentation(cartData);
+    }
 
     isServerAccessible.value =  await _connectivityService.checkServerConnection();
     isInternetAccess.value = await _connectivityService.checkInternetConnection();
@@ -90,13 +107,32 @@ class AuthController extends GetxController {
             address: null,
             productId: null,
             vendorId: null);
+
         tempList.add(defaultPrinter);
         tempList.add(defaultPrinter1);
         _localStorageService.writeItems(
             AppConstants.AVAILABLE_PRINTERS, tempList, box);
       }
 
+/*    final html = '''
+              <html>
+                <body style="font-family:sans-serif;text-align:center;">
+                  <h2>🛒 Sale in Progress</h2>
+                  <p>2x Cappuccino</p>
+                  <h3>Total: \$5.60</h3>
+                </body>
+              </html>
+              ''';
+    CustomerDisplay.updateDisplay(html);
+    print("canPrintToDisplay");
+    bool canPrintToDisplay = await _printerService.initializeSunmiLCD();
+    print("canPrintToDisplay: ${canPrintToDisplay}");
+    if(canPrintToDisplay){
+      await _printerService.sendTextToLCD();
+    }
+    saleController.displayWelcome();*/
 
+    // Get.to(SunmiLcdScreen(), binding: SunmiBinding());
 
 
    // //_printData(_telpoFlutterChannel);
@@ -105,7 +141,6 @@ class AuthController extends GetxController {
 
 
   }
-
 
 
 
@@ -247,4 +282,17 @@ class AuthController extends GetxController {
   }
 
 
+}
+
+class MySecondApp extends StatelessWidget {
+  const MySecondApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GetMaterialApp(
+      // onGenerateRoute: generateRoute,
+      getPages: AppPages.routes,
+      initialRoute: AppRoutes.SUNMI_LCD,
+    );
+  }
 }

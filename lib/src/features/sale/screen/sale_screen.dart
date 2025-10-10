@@ -22,6 +22,7 @@ import 'package:vimbika_pos_app/src/features/sale/widget/product_list_widget.dar
 import 'package:vimbika_pos_app/src/features/sale_receipts/controller/receipt_controller.dart';
 import 'package:vimbika_pos_app/src/features/shift/controller/shift_controller.dart';
 import 'package:vimbika_pos_app/src/features/ticket/controller/ticket_controller.dart';
+import 'package:vimbika_pos_app/src/rear/sunmi_controller.dart';
 import 'package:vimbika_pos_app/src/services/background_service.dart';
 import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart';
@@ -41,6 +42,7 @@ class SaleScreen extends GetView {
   final CustomerController customerController = Get.put(CustomerController());
   final ShiftController shiftController = Get.put(ShiftController());
   final TicketController ticketController = Get.put(TicketController());
+  final SunmiController sunmiController = Get.put(SunmiController());
   final InactivityController inactivityController =
       Get.put(InactivityController());
   final BackgroundService bb = Get.put(BackgroundService());
@@ -1087,7 +1089,7 @@ class SaleScreen extends GetView {
                             );
                           }).toList(),
                           value: cartController.selectedCustomer.value,
-                          // onTap: cartController.reGetCustomers(),
+                          // onTap: cartController.refreshCustomers(),
                           // initial selected value if needed
                           hint: "🔍 Search or Select Customer",
                           searchHint:
@@ -2086,24 +2088,17 @@ class SaleScreen extends GetView {
                                             Container(
                                               color: Colors.pinkAccent[50],
                                               height:
-                                              saleController.showMultiple.value
-                                                  ? 200
-                                                  : 10,
-                                              decoration: saleController
-                                                  .showMultiple.value
+                                              saleController.showMultiple.value ? 200 : 10,
+                                              decoration: saleController.showMultiple.value
                                                   ? BoxDecoration(
                                                 border: Border.all(
-                                                    color:
-                                                    Colors.lightGreenAccent,
-                                                    width: 2.0),
+                                                    color: Colors.lightGreenAccent, width: 2.0),
                                                 borderRadius:
                                                 BorderRadius.circular(8.0),
                                               )
                                                   : BoxDecoration(),
                                               child: Obx(() {
-                                                if (saleController
-                                                    .showMultiple.value ==
-                                                    false) {
+                                                if (saleController.showMultiple.value ==false) {
                                                   return Container();
                                                 } else {
                                                   return ListView.builder(
