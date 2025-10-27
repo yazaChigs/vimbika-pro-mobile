@@ -654,6 +654,12 @@ class PrinterService extends GetxService {
 
 
   Future<bool> initializeSunmiLCD() async {
+    // Only initialize Sunmi on Android platforms
+    if (Platform.isWindows) {
+      print("Sunmi LCD not available on Windows");
+      return false;
+    }
+    
     try {
       // 1. Bind to the native Sunmi service - MOST IMPORTANT STEP
       bool? isBound = await SunmiPrinter.bindingPrinter();
@@ -817,6 +823,12 @@ class PrinterService extends GetxService {
    }
    // Print Sale Receipt
    Future<void> printSunmiSaleReceipt(SaleModel sale) async {
+     // Only print on Android platforms
+     if (Platform.isWindows) {
+       print("Sunmi printer not available on Windows");
+       return;
+     }
+     
      CurrencyModel? cur = sale.currency;
 
      Uint8List imageBytes = await readLocalFileBytes();
@@ -990,6 +1002,12 @@ class PrinterService extends GetxService {
 
    // Print KOT
    Future<void> printSunmiKOT(SaleModel sale, String orderNum) async {
+     // Only print on Android platforms
+     if (Platform.isWindows) {
+       print("Sunmi printer not available on Windows");
+       return;
+     }
+     
      CurrencyModel? cur = sale.currency;
 
      // Uint8List imageBytes = await readLocalFileBytes();
@@ -1095,6 +1113,12 @@ class PrinterService extends GetxService {
 
    // Print cash in Receipt
    Future<void> printSunmiCashIn(PaymentReceivedModel payment, String? cashier) async {
+     // Only print on Android platforms
+     if (Platform.isWindows) {
+       print("Sunmi printer not available on Windows");
+       return;
+     }
+     
      CurrencyModel? cur = payment.currency;
 
      Uint8List imageBytes = await readLocalFileBytes();
@@ -1144,6 +1168,37 @@ class PrinterService extends GetxService {
 
     // Print Customer Statement
    Future<void> printSunmiCustomerStatement(CustomerModel customer, List<CustomerProjectionModel>? projectionsa) async {
+     // Only print on Android platforms
+     if (Platform.isWindows) {
+       print("==================== PRINT PREVIEW (Windows - Printing Disabled) ====================");
+       print("Would print account statement for: ${customer.name}");
+       print("Would print ${projectionsa?.length ?? 0} transactions");
+       print("========================================================");
+       return;
+     }
+
+     print("==================== PRINTING ACCOUNT STATEMENT ====================");
+     print("Customer: ${customer.name}");
+     print("Total transactions to print: ${projectionsa?.length ?? 0}");
+     print("Date range: Last 30 days");
+     
+     if (projectionsa != null && projectionsa.isNotEmpty) {
+       print("\n--- Print Data Preview ---");
+       for (var i = 0; i < projectionsa.length && i < 5; i++) {
+         var payment = projectionsa[i];
+         print("Line ${i + 1}: ${payment.paymentReceived!.dateTime!.substring(0,10)} - ${payment.paymentReceived!.paymentDescription}");
+         print("         Amount: ${payment.paymentReceived!.currency!.symbol ?? '\$'} ${payment.paymentReceived!.amount?.toStringAsFixed(2)}");
+         print("         Balance: ${payment.paymentReceived!.currency!.symbol ?? '\$'}${payment.paymentReceived!.accountBalance?.toStringAsFixed(2)}");
+       }
+       if (projectionsa.length > 5) {
+         print("         ... (${projectionsa.length - 5} more lines to print)");
+       }
+       print("\nFinal Balance: ${customer.accountBalance?.toStringAsFixed(2) ?? '0.00'}");
+     } else {
+       print("No transactions to print.");
+     }
+     print("========================================================");
+
      // CurrencyModel? cur = payment.currency;
 
      Uint8List imageBytes = await readLocalFileBytes();
@@ -1194,6 +1249,12 @@ class PrinterService extends GetxService {
 
 
   Future<void> printSunmiGRV(TransferHistoryModel transfer) async {
+    // Only print on Android platforms
+    if (Platform.isWindows) {
+      print("Sunmi printer not available on Windows");
+      return;
+    }
+    
     Uint8List imageBytes = await readLocalFileBytes();
     String todayDate = DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now());
 

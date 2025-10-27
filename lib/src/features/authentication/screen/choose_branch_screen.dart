@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:presentation_displays/displays_manager.dart';
@@ -17,7 +18,8 @@ class ChooseBranchScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final OfflineDataController offlineDataController = Get.put(OfflineDataController());
-    final DisplayManager display = DisplayManager();
+    // Only use DisplayManager on non-Windows platforms
+    DisplayManager? display = Platform.isWindows ? null : DisplayManager();
     return Scaffold(
       body: Center(
         child: Container(
@@ -53,8 +55,12 @@ class ChooseBranchScreen extends StatelessWidget {
                   onChanged: (CompanyModel? newValue) async {
                     // Update your state here
                     offlineDataController.isCompanySelected.value = true;
-                    var displays = await display.getDisplays();
-                    if(displays!.length>1) {
+                    
+                    // Only use display manager on non-Windows platforms
+                    if (display != null) {
+                      try {
+                        var displays = await display.getDisplays();
+                        if(displays!.length>1) {
                           final cartData = {
                             'companyName': newValue!.name!,
                             'imageUrl':
@@ -64,6 +70,12 @@ class ChooseBranchScreen extends StatelessWidget {
                           };
                           await display.transferDataToPresentation(cartData);
                         }
+                      } catch (e) {
+                        // Handle display manager errors gracefully
+                        print('Display manager error: $e');
+                      }
+                    }
+                    
                     offlineDataController.selectedCompany.value = newValue;
                     offlineDataController.onCompanyChange(newValue!);
                   },

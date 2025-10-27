@@ -50,6 +50,11 @@ class BaseHttpClient {
     var httpClient = AuthenticatedHttpClient();
 
     try {
+      // Parse URI to handle query parameters properly
+      var fullUri = uri.toString();
+      if (fullUri.contains('?')) {
+        uri = Uri.parse(fullUri);
+      }
       var response = await httpClient.get(uri, headers: {"Company":companyId}).timeout(Duration(seconds: TIME_OUT_DURATION));
       return _processResponse(response);
     } on SocketException {

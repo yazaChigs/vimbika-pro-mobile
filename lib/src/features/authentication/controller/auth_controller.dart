@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:ui';
 
 
@@ -39,6 +40,8 @@ class AuthController extends GetxController {
   final GlobalKey<FormState> loginFormKey = GlobalKey<FormState>();
   var greeting = ''.obs;
   late GetStorage box;
+  // Only use DisplayManager on non-Windows platforms
+  DisplayManager? display = Platform.isWindows ? null : DisplayManager();
 
  /* @pragma('vm:entry-point')
   void secondaryDisplayMain() {
@@ -59,7 +62,6 @@ class AuthController extends GetxController {
   var password = '';
 
   final LocalStorageService _localStorageService = LocalStorageService();
-  final DisplayManager display = DisplayManager();
 
 
   @override
@@ -68,25 +70,43 @@ class AuthController extends GetxController {
     requestPermissions();
     box = GetStorage();
     updateGreeting();
-    var displays = await display.getDisplays();
-    if(displays!.length>1) {
-      display.showSecondaryDisplay(
-        displayId: 1,
-        routerName: AppRoutes.SUNMI_LCD,
-      );
-      List<CartItemModel> cartItems = [];
-      final cartData = {
-        'companyName': "VIMBIKA POS",
-        'total': 00.00,
-        'items': cartItems,
-      };
-      await display.transferDataToPresentation(cartData);
+    // Only use display manager on non-Windows platforms
+    if (display != null) {
+      try {
+        var displays = await display!.getDisplays();
+        if(displays!.length>1) {
+          display!.showSecondaryDisplay(
+            displayId: 1,
+            routerName: AppRoutes.SUNMI_LCD,
+          );
+          List<CartItemModel> cartItems = [];
+          final cartData = {
+            'companyName': "VIMBIKA POS",
+            'total': 00.00,
+            'items': cartItems,
+          };
+          await display!.transferDataToPresentation(cartData);
+        }
+      } catch (e) {
+        // Handle display manager errors gracefully
+        print('Display manager error: $e');
+      }
     }
 
     isServerAccessible.value =  await _connectivityService.checkServerConnection();
     isInternetAccess.value = await _connectivityService.checkInternetConnection();
-    bool? result = await SunmiPrinter.bindingPrinter();
-    result = result ?? false;
+    
+    // Only initialize Sunmi printer on Android platforms
+    bool? result = false;
+    if (!Platform.isWindows) {
+      try {
+        result = await SunmiPrinter.bindingPrinter();
+        result = result ?? false;
+      } catch (e) {
+        print('Sunmi printer error: $e');
+        result = false;
+      }
+    }
 
 
       List<AvailablePrinterModel> tempList = loadAvailablePrinters(box);

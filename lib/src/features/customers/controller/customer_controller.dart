@@ -219,11 +219,33 @@ class CustomerController extends GetxController {
     var connection = await _connectivityService.checkServerConnection();
     if(connection){
       try {
-
+        // Calculate date range for last 30 days
+        final DateTime now = DateTime.now();
+        final DateTime thirtyDaysAgo = now.subtract(Duration(days: 30));
+        final String fromDate = DateFormat('yyyy-MM-dd').format(thirtyDaysAgo);
+        final String toDate = DateFormat('yyyy-MM-dd').format(now);
+        
+        // Log the actual dates for debugging
+        print("==================== ACCOUNT STATEMENT FILTER ====================");
+        print("Current DateTime.now(): $now");
+        print("Customer: ${customer.name}");
+        print("Customer ID: ${customer.id}");
+        print("Filter Period: Last 30 days");
+        print("From Date: $fromDate (30 days ago)");
+        print("To Date: $toDate (today)");
+        print("========================================================");
+        
+        // Add query parameters for date filtering
+        // Use ISO format or try different parameter names based on backend API
+        final String endpoint = "/sale/get-by-customer/${customer.id!}?startDate=$fromDate&endDate=$toDate";
+        
+        print("API Endpoint: $endpoint");
+        print("Fetching data...");
+        
         var response = await BaseHttpClient().getAuthWithCompanyHeader(
-            "/sale/get-by-customer/${customer.id!}", user.companyId!).catchError((
+            endpoint, user.companyId!).catchError((
             onError) {
-          print(onError);
+          print("ERROR: $onError");
           if (onError is BadRequestException) {
             var apiError = json.decode(onError.message!);
             AppHelper.showErroDialog(description: apiError["reason"]);
@@ -235,9 +257,63 @@ class CustomerController extends GetxController {
 
         if (response != null) {
           List<dynamic> list = jsonDecode(response);
-          List<CustomerProjectionModel> itemsList = List<CustomerProjectionModel>.from(list.map((i) => CustomerProjectionModel.fromMap(i)));
+          List<CustomerProjectionModel> allItemsList = List<CustomerProjectionModel>.from(list.map((i) => CustomerProjectionModel.fromMap(i)));
 
-          print("Customer Projection List: ${itemsList.length}");
+          // Filter transactions to last 30 days
+          List<CustomerProjectionModel> itemsList = allItemsList.where((item) {
+            if (item.paymentReceived?.dateTime == null) return false;
+            try {
+              String dateStr = item.paymentReceived!.dateTime!.substring(0, 10);
+              DateTime itemDate = DateTime.parse(dateStr);
+              return itemDate.isAfter(thirtyDaysAgo.subtract(Duration(days: 1))) && 
+                     itemDate.isBefore(now.add(Duration(days: 1)));
+            } catch (e) {
+              return false;
+            }
+          }).toList();
+
+          print("==================== FILTERED TRANSACTIONS (Last 30 Days) ====================");
+          print("Total records before filter: ${allItemsList.length}");
+          print("Total records after filter: ${itemsList.length}");
+          print("\n");
+          
+          if (itemsList.isNotEmpty) {
+            double totalAmount = 0.0;
+            double totalDebit = 0.0;
+            double totalCredit = 0.0;
+            
+            for (var i = 0; i < itemsList.length; i++) {
+              var item = itemsList[i];
+              var isCredit = item.paymentReceived?.paymentType?.isCredit ?? false;
+              var amount = item.paymentReceived?.amount ?? 0.0;
+              
+              // Display transaction
+              print("${i + 1}. ${item.paymentReceived?.dateTime?.substring(0, 10) ?? 'N/A'} | "
+                    "Ref: ${item.reference ?? 'N/A'} | "
+                    "${isCredit ? 'CR' : 'DR'} | "
+                    "${item.paymentReceived?.currency?.symbol ?? '\$'}${amount.toStringAsFixed(2)} | "
+                    "Bal: ${item.paymentReceived?.currency?.symbol ?? '\$'}${item.paymentReceived?.accountBalance?.toStringAsFixed(2) ?? '0.00'}");
+              print("   ${item.paymentReceived?.paymentDescription ?? 'No description'}");
+              
+              // Calculate totals
+              totalAmount += amount;
+              if (isCredit) {
+                totalCredit += amount;
+              } else {
+                totalDebit += amount;
+              }
+            }
+            
+            print("\n--- Summary ---");
+            print("Total Transactions: ${itemsList.length}");
+            print("Total Credit: ${totalCredit.toStringAsFixed(2)}");
+            print("Total Debit: ${totalDebit.toStringAsFixed(2)}");
+            print("Net Amount: ${(totalCredit - totalDebit).toStringAsFixed(2)}");
+          } else {
+            print("No transactions found in the last 30 days.");
+          }
+          print("================================================================================");
+
           _printerService.printCustomerStatement(customer,itemsList, box, _localStorageService);
 
          /* for (CustomerProjectionModel sale in itemsList) {

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -55,7 +56,8 @@ class CartController extends GetxController {
   final ConnectivityService _connectivityService = ConnectivityService();
   Rx<CurrencyModel?> selectedCurrency = CurrencyModel().obs;
   Rx<CurrencyModel?> baseCurrency = CurrencyModel().obs;
-  final DisplayManager display = DisplayManager();
+  // Only use DisplayManager on non-Windows platforms
+  DisplayManager? display = Platform.isWindows ? null : DisplayManager();
 
   Rx<BranchModel?> branch = BranchModel().obs;
   RxList<CurrencyModel> currencyList = <CurrencyModel>[].obs;
@@ -260,13 +262,21 @@ class CartController extends GetxController {
       await SyncService.getCustomers(user.value!, box, company.value!.id!);
       refreshCustomers();
     }
-    var displays = await display.getDisplays();
-    if(displays!.length>1) {
-      rearScreenAvailable.value = true;
-      display.showSecondaryDisplay(
-        displayId: 1,
-        routerName: AppRoutes.SUNMI_LCD,
-      );
+    // Only use display manager on non-Windows platforms
+    if (display != null) {
+      try {
+        var displays = await display!.getDisplays();
+        if(displays!.length>1) {
+          rearScreenAvailable.value = true;
+          display!.showSecondaryDisplay(
+            displayId: 1,
+            routerName: AppRoutes.SUNMI_LCD,
+          );
+        }
+      } catch (e) {
+        // Handle display manager errors gracefully
+        print('Display manager error: $e');
+      }
     }
 
   }
@@ -412,7 +422,13 @@ class CartController extends GetxController {
           : [],
       'numberOfItems':cartItems.fold(0.0, (previousValue, element) => previousValue + element.quantity)
     };
-    await display.transferDataToPresentation(cartData);
+    if (display != null) {
+      try {
+        await display!.transferDataToPresentation(cartData);
+      } catch (e) {
+        print('Display manager error: $e');
+      }
+    }
   }
 
   void addToCartWithBarCode(
