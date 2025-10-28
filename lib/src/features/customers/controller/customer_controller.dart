@@ -215,13 +215,187 @@ class CustomerController extends GetxController {
     }
   }
 
-  printCustomerStatement(CustomerModel customer) async{
+  // Show date range selection dialog
+  Future<void> showDateRangeDialog(CustomerModel customer) async {
+    final DateTime now = DateTime.now();
+    final DateTime sevenDaysAgo = now.subtract(Duration(days: 7));
+    final DateTime thirtyDaysAgo = now.subtract(Duration(days: 30));
+    final DateTime ninetyDaysAgo = now.subtract(Duration(days: 90));
+    
+    Get.dialog(
+      Dialog(
+        child: Container(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Select Date Range',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 20),
+              // Preset options
+              ListTile(
+                leading: Icon(Icons.calendar_today),
+                title: Text('Last 7 Days'),
+                onTap: () {
+                  Get.back();
+                  _printStatementWithDates(customer, sevenDaysAgo, now, 'Last 7 days');
+                },
+              ),
+              Divider(),
+              ListTile(
+                leading: Icon(Icons.calendar_today),
+                title: Text('Last 30 Days'),
+                onTap: () {
+                  Get.back();
+                  _printStatementWithDates(customer, thirtyDaysAgo, now, 'Last 30 days');
+                },
+              ),
+              Divider(),
+              ListTile(
+                leading: Icon(Icons.calendar_today),
+                title: Text('Last 90 Days'),
+                onTap: () {
+                  Get.back();
+                  _printStatementWithDates(customer, ninetyDaysAgo, now, 'Last 90 days');
+                },
+              ),
+              Divider(),
+              ListTile(
+                leading: Icon(Icons.date_range),
+                title: Text('Custom Range'),
+                onTap: () async {
+                  Get.back();
+                  await _showCustomDateRangePicker(customer);
+                },
+              ),
+              SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Get.back(),
+                    child: Text('Cancel'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Show custom date range picker
+  Future<void> _showCustomDateRangePicker(CustomerModel customer) async {
+    final DateTime now = DateTime.now();
+    final DateTime thirtyDaysAgo = now.subtract(Duration(days: 30));
+    
+    // Create stateful widget for date management
+    final selectedStartDate = thirtyDaysAgo.obs;
+    final selectedEndDate = now.obs;
+    
+    Get.dialog(
+      Dialog(
+        child: StatefulBuilder(
+          builder: (context, setState) {
+            return Container(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Select Custom Date Range',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 20),
+                  ListTile(
+                    leading: Icon(Icons.calendar_today),
+                    title: Text('Start Date'),
+                    subtitle: Text(DateFormat('yyyy-MM-dd').format(selectedStartDate.value)),
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: selectedStartDate.value,
+                        firstDate: DateTime(2020, 1, 1),
+                        lastDate: now,
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          selectedStartDate.value = picked;
+                        });
+                      }
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.calendar_today),
+                    title: Text('End Date'),
+                    subtitle: Text(DateFormat('yyyy-MM-dd').format(selectedEndDate.value)),
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: selectedEndDate.value,
+                        firstDate: DateTime(2020, 1, 1),
+                        lastDate: now,
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          selectedEndDate.value = picked;
+                        });
+                      }
+                    },
+                  ),
+                  SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      TextButton(
+                        onPressed: () => Get.back(),
+                        child: Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          Get.back();
+                          _printStatementWithDates(customer, selectedStartDate.value, selectedEndDate.value, 'Custom range');
+                        },
+                        child: Text('Apply'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // Internal method to print with specific dates
+  Future<void> _printStatementWithDates(CustomerModel customer, DateTime startDate, DateTime endDate, String rangeDescription) async {
+    await printCustomerStatementWithDates(customer, startDate: startDate, endDate: endDate, description: rangeDescription);
+  }
+
+  // Default method that shows the date range dialog
+  Future<void> printCustomerStatement(CustomerModel customer) async {
+    await showDateRangeDialog(customer);
+  }
+
+  // Updated method signature to accept optional date parameters
+  Future<void> printCustomerStatementWithDates(
+    CustomerModel customer, {
+    DateTime? startDate,
+    DateTime? endDate,
+    String? description,
+  }) async {
     var connection = await _connectivityService.checkServerConnection();
     if(connection){
       try {
-        // Calculate date range for last 30 days
-        final DateTime now = DateTime.now();
-        final DateTime thirtyDaysAgo = now.subtract(Duration(days: 30));
+        // Use provided dates or default to last 30 days
+        final DateTime now = endDate ?? DateTime.now();
+        final DateTime thirtyDaysAgo = startDate ?? now.subtract(Duration(days: 30));
         final String fromDate = DateFormat('yyyy-MM-dd').format(thirtyDaysAgo);
         final String toDate = DateFormat('yyyy-MM-dd').format(now);
         
@@ -230,13 +404,12 @@ class CustomerController extends GetxController {
         print("Current DateTime.now(): $now");
         print("Customer: ${customer.name}");
         print("Customer ID: ${customer.id}");
-        print("Filter Period: Last 30 days");
-        print("From Date: $fromDate (30 days ago)");
-        print("To Date: $toDate (today)");
+        print("Filter Period: ${description ?? 'Last 30 days'}");
+        print("From Date: $fromDate");
+        print("To Date: $toDate");
         print("========================================================");
         
         // Add query parameters for date filtering
-        // Use ISO format or try different parameter names based on backend API
         final String endpoint = "/sale/get-by-customer/${customer.id!}?startDate=$fromDate&endDate=$toDate";
         
         print("API Endpoint: $endpoint");
@@ -259,7 +432,7 @@ class CustomerController extends GetxController {
           List<dynamic> list = jsonDecode(response);
           List<CustomerProjectionModel> allItemsList = List<CustomerProjectionModel>.from(list.map((i) => CustomerProjectionModel.fromMap(i)));
 
-          // Filter transactions to last 30 days
+          // Filter transactions to selected date range
           List<CustomerProjectionModel> itemsList = allItemsList.where((item) {
             if (item.paymentReceived?.dateTime == null) return false;
             try {
@@ -272,7 +445,7 @@ class CustomerController extends GetxController {
             }
           }).toList();
 
-          print("==================== FILTERED TRANSACTIONS (Last 30 Days) ====================");
+          print("==================== FILTERED TRANSACTIONS (${description ?? 'Last 30 Days'}) ====================");
           print("Total records before filter: ${allItemsList.length}");
           print("Total records after filter: ${itemsList.length}");
           print("\n");
