@@ -501,6 +501,10 @@ class CartController extends GetxController {
         totalCostInSelectedCurrency.value.toStringAsFixed(2);
     amountPaid.value = totalCostInSelectedCurrency.value;
     customerAmountPaid.value = totalCostInSelectedCurrency.value;
+    if(selectedPaymentType.value!=null){
+      selectedPaymentType.value!.amount = totalCostInSelectedCurrency.value;
+      selectedPaymentTypes.first.amount = totalCostInSelectedCurrency.value;
+    }
     if(rearScreenAvailable.value){
       postToRearScreen();
     }
@@ -672,6 +676,7 @@ class CartController extends GetxController {
       List<CartItemModel> saleCartItems,
       String saleId) async {
     bool stat = await _connectivityService.checkServerConnection();
+    bool breakage =  cartItems.any((item) => item.breakage);
     calculateTotalAmounts(saleCartItems);
     double totalSaleQuantity = 0;
     List<SaleItemModel> saleItems = [];
@@ -697,7 +702,7 @@ class CartController extends GetxController {
           amountPaid: paymentType.amount,
           balance:paymentType.isCredit!?paymentType.amount:0.0,
           paymentType: paymentType,
-          paymentDescription: "SALE",
+          paymentDescription: !breakage?"SALE":"BREAKAGE",
           isPaid: true,
           isMobile: true,
           currency: selectedCurrency.value,
@@ -802,8 +807,8 @@ class CartController extends GetxController {
         );
         paymentTypes.add(paymentReceivedModel);
       }
-      updateShiftWithNewSale(ref, timeInit, totalCostInSelectedCurrency.value,
-          stat, saleInfoModel.sale!.referenceNumber!,  paymentTypes, "SALE", selectedCustomer.value?.name ?? "");
+      updateShiftWithNewSale(ref, timeInit, saleTotal,
+          stat, saleInfoModel.sale!.referenceNumber!,  paymentTypes, "SALE", selectedCustomer.value?.name ?? "", breakage);
       if (selectedTicketRef.isNotEmpty) {
         infos.removeWhere((ticket) =>
             ticket.sale!.referenceNumber == selectedTicketRef.value);
@@ -985,7 +990,7 @@ class CartController extends GetxController {
       double amt,
       bool stat,
       String posReference,
-      List<PaymentReceivedModel> paymentTypes, String type, String customerName) async {
+      List<PaymentReceivedModel> paymentTypes, String type, String customerName ,bool breakage) async {
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
         loadShifts(box), box, user.value!, true);
     if (tempActiveShift != null) {
@@ -1001,11 +1006,16 @@ class CartController extends GetxController {
             ref: paymentTypeModel.branch==null?ref + "_" +customerName.replaceAll(" ", "_"):ref,
             timeCreated: timeCreated,
             notes: "",
-            amount: paymentTypeModel.amount!,
+            amount:amt,
             shiftReference: activeShift.shiftReference,
             posReference: posReference,
             isCash: isCash,
             paymentType: paymentTypeModel.paymentType!.name!);
+        if(breakage){
+          currencyAmount.amountType = "BREAKAGE";
+          currencyAmount.paymentType = "BREAKAGE";
+          currencyAmount.ref = "BR_" + count.toString();
+        }
         activeShift.shiftCurrencyAmounts!.add(currencyAmount);
       }
       if(paymentTypes.any((pt)=> pt.paymentType!.name!.startsWith("CASH-"))) {
@@ -1220,7 +1230,7 @@ class CartController extends GetxController {
     print(paymentTypes.length);
     bool networkAvailable = await _connectivityService.checkServerConnection();
     updateShiftWithNewSale(ref, paymentReceivedModel.dateTime!, paymentReceivedModel.amount!, networkAvailable,
-        customer.name!, paymentTypes,"CASH_IN",customer.name!);
+        customer.name!, paymentTypes,"CASH_IN",customer.name!, false);
     if(networkAvailable){
       await SyncService.savePaymentReceived(user.value!, box);
     }

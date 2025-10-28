@@ -25,6 +25,7 @@ import 'package:vimbika_pos_app/src/features/ticket/controller/ticket_controller
 import 'package:vimbika_pos_app/src/rear/sunmi_controller.dart';
 import 'package:vimbika_pos_app/src/services/background_service.dart';
 import 'package:vimbika_pos_app/src/services/printer_service.dart';
+import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
@@ -1529,8 +1530,10 @@ class SaleScreen extends GetView {
                                                               title: Text("Add Discount")
                                                           ),
                                                           value: 0,
-                                                          onTap: () {
-                                                            addDiscount(index);
+                                                          onTap: () async {
+                                                            // bool authenticated = await SyncService().showAuthenticationDialog(context);
+                                                            // if(authenticated)
+                                                              addDiscount(index);
                                                           },
                                                         ),
                                                         PopupMenuItem(
@@ -1542,6 +1545,19 @@ class SaleScreen extends GetView {
                                                           value: 0,
                                                           onTap: () {
                                                             addNotes(index);
+                                                          },
+                                                        ),
+                                                        PopupMenuItem(
+                                                          child: ListTile(
+                                                              leading: Icon(Icons.scatter_plot,
+                                                                  color: Colors.lightBlue),
+                                                              title: Text("Add breakage")
+                                                          ),
+                                                          value: 0,
+                                                          onTap: () {
+                                                            cartItem.breakage = true;
+                                                            cartController.cartItems.refresh();
+                                                            cartController.calculateTotalAmounts(cartController.cartItems);
                                                           },
                                                         ),
                                                         ]
@@ -2142,11 +2158,8 @@ class SaleScreen extends GetView {
                                                                 child: Text(
                                                                   "Add AMount",
                                                                   style: TextStyle(
-                                                                      color: Colors
-                                                                          .indigo,
-                                                                      fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
+                                                                      color: Colors.indigo,
+                                                                      fontWeight: FontWeight.bold,
                                                                       fontSize: 12),
                                                                 ),
                                                                 style: TextButton
@@ -2162,11 +2175,9 @@ class SaleScreen extends GetView {
                                                                         8.0),
                                                                   ),
                                                                   backgroundColor:
-                                                                  Colors
-                                                                      .transparent,
+                                                                  Colors.transparent,
                                                                   // Set button color to red
-                                                                  foregroundColor: Colors
-                                                                      .black, // Set text color to red
+                                                                  foregroundColor: Colors.black, // Set text color to red
                                                                 ),
                                                               ),
                                                               IconButton(
@@ -2242,7 +2253,54 @@ class SaleScreen extends GetView {
                                           child: Text('Add to Account'),
                                         ),
                                       ):
+                                          cartController.cartItems.any((cartItem)=>!cartItem.breakage) || cartController.cartItems.isEmpty?
                                       Container(
+                                        width:double.infinity,
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            if (cartController
+                                                .cartItems.isEmpty) {
+                                              Get.snackbar("Error","Your cart is empty.",snackPosition:SnackPosition.TOP);
+                                              return;
+                                            }
+                                            if (cartController.selectedPaymentType.value ==null ||
+                                                cartController.selectedPaymentType.value!.id == null) {
+                                              Get.snackbar("Error",
+                                                  "Please select a payment type.",
+                                                  snackPosition:
+                                                  SnackPosition.TOP);
+                                              return;
+                                            }
+                                            if (cartController.amountPaid
+                                                    .value <
+                                                    cartController
+                                                        .totalCostInSelectedCurrency
+                                                        .value) {
+                                              Get.snackbar("Error",
+                                                  "Please enter a valid amount paid.",
+                                                  snackPosition:
+                                                  SnackPosition.TOP);
+                                              return;
+                                            }
+                                            if (!saleController.chargeClicked.value) {
+                                              cartController.showConfirmDialogChargeSale();
+                                              saleController.chargeClicked.value = true;
+                                            }
+                                          },
+                                          style: TextButton.styleFrom(
+                                            backgroundColor: Colors.lightGreenAccent[400],
+                                            // Set button color to red
+                                            foregroundColor: Colors.black,
+                                            // Set text color to red
+                                            textStyle: TextStyle(
+                                                fontSize: 18,
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold), // Set text size
+                                          ),
+                                          child: Text('Charge'),
+                                        ),
+                                      )
+                                              :Container(
                                         width:double.infinity,
                                         child: ElevatedButton(
                                           onPressed: () {
@@ -2254,41 +2312,15 @@ class SaleScreen extends GetView {
                                                   SnackPosition.TOP);
                                               return;
                                             }
-                                            if (cartController
-                                                .selectedPaymentType
-                                                .value ==
-                                                null ||
-                                                cartController
-                                                    .selectedPaymentType
-                                                    .value!
-                                                    .id ==
-                                                    null) {
-                                              Get.snackbar("Error",
-                                                  "Please select a payment type.",
-                                                  snackPosition:
-                                                  SnackPosition.TOP);
-                                              return;
-                                            }
-                                            print(cartController.amountPaid
-                                                .value);
-                                            print(cartController.totalCostInSelectedCurrency
-                                                .value);
-                                            if (cartController.amountPaid
-                                                .value <=
-                                                0 ||
-                                                cartController.amountPaid
-                                                    .value <
-                                                    cartController
-                                                        .totalCostInSelectedCurrency
-                                                        .value) {
-                                              Get.snackbar("Error",
-                                                  "Please enter a valid amount paid.",
-                                                  snackPosition:
-                                                  SnackPosition.TOP);
+                                            if (cartController.amountPaid.value < cartController.totalCostInSelectedCurrency.value) {
+                                              Get.snackbar("Error","Please enter a valid amount paid.",snackPosition:SnackPosition.TOP);
                                               return;
                                             }
                                             if (!saleController
                                                 .chargeClicked.value) {
+                                              // cartController.selectedPaymentTypes.add(cartController.selectedPaymentType.value!);
+                                              cartController.onChangePaymentType(cartController.filteredPaymentTypesList.firstWhereOrNull((pt)=>pt.name!.startsWith("CASH-"))!, false);
+                                              cartController.fiscalizeReceipt.value = false;
                                               cartController
                                                   .showConfirmDialogChargeSale();
                                               saleController.chargeClicked
@@ -2297,7 +2329,7 @@ class SaleScreen extends GetView {
                                           },
                                           style: TextButton.styleFrom(
                                             backgroundColor: Colors
-                                                .lightGreenAccent[400],
+                                                .blueAccent[400],
                                             // Set button color to red
                                             foregroundColor: Colors.black,
                                             // Set text color to red
@@ -2307,7 +2339,7 @@ class SaleScreen extends GetView {
                                                 fontWeight: FontWeight
                                                     .bold), // Set text size
                                           ),
-                                          child: Text('Charge'),
+                                          child: Text('Charge Breakages'),
                                         ),
                                       ),
                                     ],

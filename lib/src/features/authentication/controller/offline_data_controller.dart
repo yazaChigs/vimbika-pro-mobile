@@ -77,7 +77,7 @@ class OfflineDataController extends GetxController {
       print("getting getOfflineData");
       await SyncService.getBranchStock(box, user);
 
-      Timer.periodic(Duration(minutes: 20), (timer) async {
+      Timer.periodic(Duration(minutes: 25), (timer) async {
         print("init syncing branchStock...");
         await SyncService.getBranchStock(box, user);
         await SyncService.savePaymentReceived(user, box);
@@ -145,7 +145,6 @@ class OfflineDataController extends GetxController {
     if(response != null) {
       List<dynamic> list = jsonDecode(response);
       List<UserModel> itemsList = List<UserModel>.from(list.map((i) => UserModel.fromMap(i)));
-      print("USERS");
       print(itemsList.length);
       List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
           item.toMap()).toList();

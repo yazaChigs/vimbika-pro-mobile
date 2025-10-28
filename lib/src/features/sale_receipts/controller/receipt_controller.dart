@@ -21,6 +21,7 @@ import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
+import '../../../services/sync_service.dart';
 import '../../shift/model/shift_model.dart';
 import '../screen/receipt_screen.dart';
 
@@ -201,50 +202,41 @@ class ReceiptController extends GetxController {
   }
 
 
-  void showConfirmDialogToDeleteItem(SaleInfoModel saleInfo, int index) {
-    Get.defaultDialog(
-      title: "Confirmation",
-      middleText: "Are you sure you want to reverse sale?",
-      textCancel: "No",
-      textConfirm: "Yes",
-      onCancel: () {
-        Navigator.pushReplacement(Get.context!,
-            MaterialPageRoute(builder: (BuildContext context) => ReceiptScreen()));
-        Get.reload();
-        // Navigator.of(Get.overlayContext!).pop();
-        // Get.back(); // Close the dialog
-      },
-      onConfirm: () {
-        AppHelper.showLoading();
-        saleInfo.sale!.saleStatus="REVERSED";
-        saleInfo.syncStatus = !saleInfo.syncStatus!;
-        var i = allReceipts.indexOf(saleInfo);
-        allReceipts[i] = saleInfo;
-        filteredReceipts[index].sale!.saleStatus = "REVERSED";
-        allReceipts[i] = saleInfo;
-        saveSales();
-        allReceipts.refresh();
-        filteredReceipts.refresh();
-        var currencyAmount =  activeShift.value.shiftCurrencyAmounts!.firstWhereOrNull((element) =>
-        element.posReference == saleInfo.sale!.posReference || element.posReference == saleInfo.sale!.posReference);
-        print(currencyAmount!.toJson());
-        if(currencyAmount!=null){
-          activeShift.value.shiftCurrencyAmounts?.remove(currencyAmount);
-          ShiftModel temp  = activeShift.value;
-          List<ShiftModel> shi =  _localStorageService.replaceShift(temp, shifts);
-          _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
-        }
-        AppHelper.hideLoading();
-        Navigator.pushReplacement(Get.context!,
-            MaterialPageRoute(builder: (BuildContext context) => ReceiptScreen()));
-        Get.snackbar("Success", "Sale reversed");
-      },
-    );
+  Future<void> showConfirmDialogToDeleteItem(SaleInfoModel saleInfo, int index) async {
+    bool userExists = await SyncService().showAuthenticationDialog(Get.context!);
+    if(userExists) {
+      AppHelper.showLoading();
+      saleInfo.sale!.saleStatus = "REVERSED";
+      saleInfo.syncStatus = !saleInfo.syncStatus!;
+      var i = allReceipts.indexOf(saleInfo);
+      allReceipts[i] = saleInfo;
+      filteredReceipts[index].sale!.saleStatus = "REVERSED";
+      allReceipts[i] = saleInfo;
+      saveSales();
+      allReceipts.refresh();
+      filteredReceipts.refresh();
+      var currencyAmount = activeShift.value.shiftCurrencyAmounts!
+          .firstWhereOrNull((element) =>
+              element.posReference == saleInfo.sale!.posReference ||
+              element.posReference == saleInfo.sale!.referenceNumber);
+      if (currencyAmount != null) {
+        activeShift.value.shiftCurrencyAmounts?.remove(currencyAmount);
+        ShiftModel temp = activeShift.value;
+        List<ShiftModel> shi = _localStorageService.replaceShift(temp, shifts);
+        _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
+      }
+      AppHelper.hideLoading();
+      Get.snackbar("Success", "Sale reversed");
+    }
   }
 
   printSale(SaleInfoModel saleInfo) async{
-   await _printerService.printCurrentSale(saleInfo, box, _localStorageService);
-   isPrintClicked.value = false;
+    bool userExists = await SyncService().showAuthenticationDialog(Get.context!);
+    if(userExists) {
+      await _printerService.printCurrentSale(
+          saleInfo, box, _localStorageService);
+    }
+    isPrintClicked.value = false;
   }
   void sortSalesByDate() {
     allReceipts.sort((a, b) {

@@ -74,7 +74,6 @@ class PinController extends GetxController {
   onNumberEntered(int number){
     if (enteredPin.value.length < 6) {
       enteredPin.value += number.toString();
-      print(enteredPin.value);
       if(user.pin != null){
         if(enteredPin == user.pin){
           enteredPin.value = "";

@@ -569,7 +569,7 @@ class CustomerController extends GetxController {
     paymentReceivedModel.payer = customer;
     paymentTypes.add(paymentReceivedModel);
     cartController.updateShiftWithNewSale(ref, paymentReceivedModel.dateTime!, paymentReceivedModel.amount!, isInternetAccess.value,
-        customer.name!, paymentTypes,"CASH_IN",customer.name!);
+        customer.name!, paymentTypes,"CASH_IN",customer.name!, false);
     Navigator.of(Get.overlayContext!).pop();
     allCustomers.refresh();
     filteredCustomers.value = allCustomers.value;

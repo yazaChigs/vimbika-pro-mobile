@@ -1466,7 +1466,8 @@ class PrinterService extends GetxService {
 
   // Print Shift Details
    Future<void> printShiftDetails(ShiftModel shift,RxList<SaleInfoModel> allReceipts, List<Map<String, dynamic>> totalAmountsByCurrency, List<Map<String, dynamic>> totalAmountsByPaymentType,
-       List<Map<String, dynamic>> totalCashIn, List<Map<String, dynamic>> totalCashOut, List<Map<String, dynamic>> totalSubmitted, List<Map<String, dynamic>> totalSales, List<Map<String, dynamic>> totalTips) async {
+       List<Map<String, dynamic>> totalCashIn, List<Map<String, dynamic>> totalCashOut, List<Map<String, dynamic>> totalSubmitted, List<Map<String, dynamic>> totalSales,
+       List<Map<String, dynamic>> totalTips, List<Map<String, dynamic>> breakages, List<Map<String, dynamic>> refunds) async {
      await SunmiPrinter.initPrinter();
      await SunmiPrinter.startTransactionPrint(true);
 
@@ -1563,6 +1564,23 @@ class PrinterService extends GetxService {
        await SunmiPrinter.printText("--------------------------------");
      }
 
+     // refunds by Currency
+     if (refunds.isNotEmpty) {
+       await SunmiPrinter.printText("Refunds by Currency:\n");
+       for (var total in refunds) {
+         await SunmiPrinter.printText(" ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
+       }
+       await SunmiPrinter.printText("--------------------------------");
+     }
+     // breakages
+     if (breakages.isNotEmpty) {
+       await SunmiPrinter.printText("Breakages:\n");
+       for (var total in breakages) {
+         await SunmiPrinter.printText(" ${total['name']}:\t\t${total['qty']}");
+       }
+       await SunmiPrinter.printText("--------------------------------");
+     }
+
 
      // Footer
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
@@ -1574,7 +1592,8 @@ class PrinterService extends GetxService {
 
   // Print Shift Details
    Future<void> printShiftSummary(ShiftModel shift,RxList<SaleInfoModel> allReceipts, List<Map<String, dynamic>> totalAmountsByCurrency, List<Map<String, dynamic>> totalAmountsByPaymentType,
-       List<Map<String, dynamic>> totalCashIn, List<Map<String, dynamic>> totalCashOut, List<Map<String, dynamic>> totalSubmitted, List<Map<String, dynamic>> totalSales, List<Map<String, dynamic>> totalTips) async {
+       List<Map<String, dynamic>> totalCashIn, List<Map<String, dynamic>> totalCashOut, List<Map<String, dynamic>> totalSubmitted, List<Map<String, dynamic>> totalSales, List<Map<String,
+           dynamic>> totalTips,List<Map<String, dynamic>> breakages, List<Map<String, dynamic>> refunds) async {
      await SunmiPrinter.initPrinter();
      await SunmiPrinter.startTransactionPrint(true);
 
@@ -1652,6 +1671,22 @@ class PrinterService extends GetxService {
        await SunmiPrinter.printText("Tips by Currency:\n");
        for (var total in totalTips) {
          await SunmiPrinter.printText(" ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
+       }
+       await SunmiPrinter.printText("--------------------------------");
+     }
+     // refunds by Currency
+     if (refunds.isNotEmpty) {
+       await SunmiPrinter.printText("Refunds by Currency:\n");
+       for (var total in refunds) {
+         await SunmiPrinter.printText(" ${total['currencyName']}:\t\t\t\t${total['totalAmount']}");
+       }
+       await SunmiPrinter.printText("--------------------------------");
+     }
+     // breakages
+     if (breakages.isNotEmpty) {
+       await SunmiPrinter.printText("Breakages:\n");
+       for (var total in breakages) {
+         await SunmiPrinter.printText(" ${total['name']}:\t\t${total['qty']}");
        }
        await SunmiPrinter.printText("--------------------------------");
      }
