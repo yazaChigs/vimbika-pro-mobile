@@ -3,10 +3,12 @@ import 'dart:convert';
 import 'dart:developer';
 import 'dart:ffi';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:http/http.dart';
 import 'package:intl/intl.dart';
+import 'package:pinput/pinput.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
@@ -42,6 +44,9 @@ import '../shared/models/customer_model.dart';
 
 
 class SyncService {
+
+  final FocusNode _focusNode = FocusNode();
+
 
   static Future<void>  getCustomers(UserModel user, GetStorage box, String companyId) async{
     var response = await BaseHttpClient().getAuthWithCompanyHeader("/customer/get-all", companyId).catchError((onError){
@@ -597,6 +602,80 @@ class SyncService {
       }
     }
   }
+
+
+  Future<bool> showAuthenticationDialog(BuildContext context) async {
+    final TextEditingController _pinController = TextEditingController();
+    bool userExists = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
+    await showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Enter Admin PIN'),
+          content: Pinput(
+            length: 4, // Specify the length of the PIN
+            useNativeKeyboard: true,
+            obscureText: true,
+            controller: _pinController,
+            keyboardType: TextInputType.number,
+            focusNode: _focusNode,
+            closeKeyboardWhenCompleted: true,
+            onCompleted: (pin) {
+              // Handle the completed PIN input
+
+              List<UserModel> tempUserList = loadUsers();
+               userExists = tempUserList.any((element) => element.pin == pin && element.userRoles!.any((role) => role.name == "ROLE_SUPER_ADMIN" || role.name == "ROLE_MANAGER"));
+              if(userExists) {
+                Navigator.of(dialogContext).pop(); // Close the dialog
+                // _focusNode.dispose();
+              }
+              else {
+                _pinController.clear();
+                Get.snackbar("Error", "Invalid PIN or user does not have required role",
+                    colorText: Colors.red,
+                    icon: Icon(Icons.error, color: Colors.red),
+                    backgroundColor: Colors.white70);
+              }
+            },
+            // Customize the appearance of the Pinput fields
+            defaultPinTheme: PinTheme(
+              width: 80,
+              height: 56,
+              textStyle: const TextStyle(fontSize: 20, color: Colors.black),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(); // Close the dialog
+              },
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+    return userExists;
+  }
+
+
+  List<UserModel> loadUsers() {
+    GetStorage box = GetStorage();
+    // Rx<UserModel?> user = UserModel(firstName: "", lastName: "", userName: "").obs;
+    LocalStorageService _localStorageService = LocalStorageService();
+    List<UserModel> list = _localStorageService.getOfflineList<UserModel>(
+        AppConstants.USER_LIST, (map) => UserModel.fromMap(map), box);
+    // list.add(user.value!);
+    return list;
+  }
+
   static Future<ShiftModel?> getOpenedShift(UserModel user, GetStorage box) async{
     var response = await BaseHttpClient().getAuthWithCompanyHeader("/mobile/pos/shift/opened_shift/" + user.id!, user.companyId!).catchError((onError){
       if (onError is BadRequestException) {

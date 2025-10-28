@@ -219,6 +219,11 @@ class CustomerController extends GetxController {
     var connection = await _connectivityService.checkServerConnection();
     if(connection){
       try {
+          DateTime now = DateTime.now();
+          DateTime start = now.subtract(Duration(days: 30));
+
+          String endDate = DateFormat("yyyy-MM-dd").format(now);
+          String startDate = DateFormat("yyyy-MM-dd").format(start);
 
         var response = await BaseHttpClient().getAuthWithCompanyHeader(
             "/sale/get-by-customer/${customer.id!}", user.companyId!).catchError((
@@ -236,8 +241,8 @@ class CustomerController extends GetxController {
         if (response != null) {
           List<dynamic> list = jsonDecode(response);
           List<CustomerProjectionModel> itemsList = List<CustomerProjectionModel>.from(list.map((i) => CustomerProjectionModel.fromMap(i)));
+          itemsList = itemsList.where((item)=>DateTime.parse(item.paymentReceived!.dateTime!).isAfter(start) && DateTime.parse(item.paymentReceived!.dateTime!).isBefore(now)).toList();
 
-          print("Customer Projection List: ${itemsList.length}");
           _printerService.printCustomerStatement(customer,itemsList, box, _localStorageService);
 
          /* for (CustomerProjectionModel sale in itemsList) {
@@ -320,7 +325,7 @@ class CustomerController extends GetxController {
     paymentReceivedModel.payer = customer;
     paymentTypes.add(paymentReceivedModel);
     cartController.updateShiftWithNewSale(ref, paymentReceivedModel.dateTime!, paymentReceivedModel.amount!, isInternetAccess.value,
-        customer.name!, paymentTypes,"CASH_IN",customer.name!);
+        customer.name!, paymentTypes,"CASH_IN",customer.name!, false);
     Navigator.of(Get.overlayContext!).pop();
     allCustomers.refresh();
     filteredCustomers.value = allCustomers.value;
