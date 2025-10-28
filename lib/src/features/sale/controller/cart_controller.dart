@@ -485,6 +485,10 @@ class CartController extends GetxController {
         totalCostInSelectedCurrency.value.toStringAsFixed(2);
     amountPaid.value = totalCostInSelectedCurrency.value;
     customerAmountPaid.value = totalCostInSelectedCurrency.value;
+    if(selectedPaymentType.value!=null){
+      selectedPaymentType.value!.amount = totalCostInSelectedCurrency.value;
+      selectedPaymentTypes.first.amount = totalCostInSelectedCurrency.value;
+    }
     if(rearScreenAvailable.value){
       postToRearScreen();
     }
@@ -657,8 +661,6 @@ class CartController extends GetxController {
       String saleId) async {
     bool stat = await _connectivityService.checkServerConnection();
     bool breakage =  cartItems.any((item) => item.breakage);
-
-    print("brackages ${breakage}");
     calculateTotalAmounts(saleCartItems);
     double totalSaleQuantity = 0;
     List<SaleItemModel> saleItems = [];
@@ -988,13 +990,12 @@ class CartController extends GetxController {
             ref: paymentTypeModel.branch==null?ref + "_" +customerName.replaceAll(" ", "_"):ref,
             timeCreated: timeCreated,
             notes: "",
-            amount: paymentTypeModel.amount!,
+            amount:amt,
             shiftReference: activeShift.shiftReference,
             posReference: posReference,
             isCash: isCash,
             paymentType: paymentTypeModel.paymentType!.name!);
         if(breakage){
-          print("contains brackages");
           currencyAmount.amountType = "BREAKAGE";
           currencyAmount.paymentType = "BREAKAGE";
           currencyAmount.ref = "BR_" + count.toString();

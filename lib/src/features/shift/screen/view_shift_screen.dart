@@ -429,7 +429,7 @@ class ViewShiftScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final total = shiftController.totalTips[index];
                     return ListTile(
-                      tileColor: Colors.orangeAccent[100],
+                      tileColor: Colors.orange[900],
                       title: Text(
                         total['currencyName'],
                         style: TextStyle(fontSize: 12),
