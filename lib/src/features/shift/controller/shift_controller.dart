@@ -483,7 +483,8 @@ class ShiftController extends GetxController {
         await printerService.printShiftDetailsBluetooth(shift, ap, totalAmountsByCurrency);
       }
       if(ap.type == "usb") {
-        await printerService.printShiftDetailsUsb(shift, ap, totalAmountsByCurrency);
+        await printerService.printShiftDetailsUsb(shift, allReceipts, totalAmountsByCurrency, totalAmountsByPaymentType, totalCashIn,
+            totalCashOut, totalCashSubmittedList, totalSales, totalTips, breakages, refundsList, ap);
       }
     }else{
       Get.snackbar('Error', 'Default Printer Not Found. Please add printer.', snackPosition: SnackPosition.BOTTOM);
@@ -504,7 +505,8 @@ class ShiftController extends GetxController {
         await printerService.printShiftDetailsBluetooth(shift, ap, totalAmountsByCurrency);
       }
       if(ap.type == "usb") {
-        await printerService.printShiftDetailsUsb(shift, ap, totalAmountsByCurrency);
+        await printerService.printShiftSummaryUsb(shift, allReceipts, totalAmountsByCurrency, totalAmountsByPaymentType, totalCashIn,
+            totalCashOut, totalCashSubmittedList, totalSales, totalTips, breakages, refundsList, ap);
       }
     }else{
       Get.snackbar('Error', 'Default Printer Not Found. Please add printer.', snackPosition: SnackPosition.BOTTOM);

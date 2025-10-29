@@ -993,57 +993,6 @@ class PrinterService extends GetxService {
      await bluetoothPrint.printReceipt(config, list);
    }
 
-    printShiftDetailsUsb(ShiftModel shift, AvailablePrinterModel printer, List<Map<String, dynamic>> totalAmountsByCurrency) async {
-
-
-
-     // Load the printer profile
-     final profile = await CapabilityProfile.load();
-     final generator = Generator(PaperSize.mm80, profile);
-      List<int> receiptData = [];
-     // Adding shift details
-     receiptData += generator.text('Shift Details', styles: PosStyles(bold: true, align: PosAlign.center));
-     receiptData += generator.text('User: ${shift.userFullName ?? ''}', styles: PosStyles(align: PosAlign.left));
-     receiptData += generator.text('OT: ${shift.openingTime ?? ''}', styles: PosStyles(align: PosAlign.left));
-     receiptData += generator.text('CT: ${shift.closingTime ?? ''}', styles: PosStyles(align: PosAlign.left));
-
-     // Adding currency amounts
-     if (shift.shiftCurrencyAmounts != null && shift.shiftCurrencyAmounts!.isNotEmpty) {
-       receiptData += generator.text('Transactions:', styles: PosStyles(bold: true, align: PosAlign.left));
-       shift.shiftCurrencyAmounts!.forEach((currencyAmount) {
-         receiptData += generator.text('Ref: ${currencyAmount.ref}', styles: PosStyles(align: PosAlign.left));
-         receiptData += generator.text('Time: ${currencyAmount.timeCreated}', styles: PosStyles(align: PosAlign.left));
-         receiptData += generator.text('Currency: ${currencyAmount.currency.name}', styles: PosStyles(align: PosAlign.left));
-         receiptData += generator.text('Amount: ${currencyAmount.amount.toString()}', styles: PosStyles(align: PosAlign.left));
-         receiptData += generator.text('Type: ${currencyAmount.amountType}', styles: PosStyles(align: PosAlign.left));
-       });
-     } else {
-       receiptData += generator.text('No transactions available.', styles: PosStyles(align: PosAlign.left));
-     }
-
-     // Adding amounts by currency
-     if (totalAmountsByCurrency.isNotEmpty) {
-       receiptData += generator.text('Amounts by Currency:', styles: PosStyles(bold: true, align: PosAlign.left));
-       totalAmountsByCurrency.forEach((total) {
-         receiptData += generator.text('Currency: ${total['currencyName']}', styles: PosStyles(align: PosAlign.left));
-         receiptData += generator.text('Amount: ${total['totalAmount']}', styles: PosStyles(align: PosAlign.left));
-       });
-     }
-
-     // Final message
-     receiptData += generator.text('***Thank you!!***', styles: PosStyles(bold: true, align: PosAlign.center));
-
-     // Adding feed and cut commands
-     receiptData += generator.feed(2);
-     receiptData += generator.cut();
-     var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
-     await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
-     await PrinterManager.instance.send(
-       bytes: receiptData, // Data to be printed
-       type: PrinterType.usb,
-     );
-
-   }
    // Print Sale Receipt
    Future<void> printSunmiSaleReceipt(SaleModel sale) async {
      // Only print on Android platforms
@@ -1965,6 +1914,375 @@ class PrinterService extends GetxService {
      await SunmiPrinter.submitTransactionPrint();
      await SunmiPrinter.exitTransactionPrint(true);
    }
+
+  // Print USB Shift Details (with transactions) - matches Sunmi printShiftDetails
+  Future<void> printShiftDetailsUsb(ShiftModel shift, RxList<SaleInfoModel> allReceipts, List<Map<String, dynamic>> totalAmountsByCurrency, List<Map<String, dynamic>> totalAmountsByPaymentType,
+      List<Map<String, dynamic>> totalCashIn, List<Map<String, dynamic>> totalCashOut, List<Map<String, dynamic>> totalSubmitted, List<Map<String, dynamic>> totalSales,
+      List<Map<String, dynamic>> totalTips, List<Map<String, dynamic>> breakages, List<Map<String, dynamic>> refunds, AvailablePrinterModel printer) async {
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm80, profile);
+    List<int> receiptData = [];
+
+    // Load company logo
+    Uint8List imageBytes = await readLocalFileBytes();
+    
+    // Convert image to ESC/POS compatible format
+    try {
+      final img.Image? image = img.decodeImage(imageBytes);
+      if (image != null) {
+        // Resize image to fit receipt width (max 384 pixels for 80mm paper)
+        final img.Image resized = img.copyResize(image, width: 200);
+        receiptData += generator.image(resized);
+        receiptData += generator.feed(1);
+      }
+    } catch (e) {
+      print('Error processing logo image: $e');
+    }
+
+    // Header
+    receiptData += generator.text('SHIFT DETAILS',
+        styles: PosStyles(
+          align: PosAlign.center,
+          bold: true,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ));
+
+    // Shift Details
+    receiptData += generator.text('User: ${shift.userFullName ?? ''}',
+        styles: PosStyles(align: PosAlign.left));
+    receiptData += generator.text('OT: ${shift.openingTime ?? ''}',
+        styles: PosStyles(align: PosAlign.left));
+    receiptData += generator.text('CT: ${shift.closingTime ?? ''}',
+        styles: PosStyles(align: PosAlign.left));
+
+    // Transactions
+    if (shift.shiftCurrencyAmounts != null && shift.shiftCurrencyAmounts!.isNotEmpty) {
+      receiptData += generator.text('\nTransactions:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var currencyAmount in shift.shiftCurrencyAmounts!) {
+        var sale = allReceipts.firstWhere((receipt) => receipt.sale!.posReference == currencyAmount.posReference || receipt.sale!.referenceNumber == currencyAmount.posReference
+            , orElse: () => SaleInfoModel(sale: null,syncStatus: false));
+        receiptData += generator.text('Type:${currencyAmount.amountType ?? ''}\t\tRef: ${currencyAmount.ref}',
+            styles: PosStyles(align: PosAlign.left));
+        receiptData += generator.text('Time: ${currencyAmount.timeCreated}',
+            styles: PosStyles(align: PosAlign.left));
+        receiptData += generator.text('Amount: ${currencyAmount.currency.name} ${currencyAmount.amount.toString()}\t\t${sale.sale?.paymentTypes!.firstWhereOrNull((element) => element.paymentType!.name == currencyAmount.paymentType)?.paymentType?.name ??currencyAmount.paymentType}',
+            styles: PosStyles(align: PosAlign.left));
+        receiptData += generator.text('--------------------------------',
+            styles: PosStyles(align: PosAlign.center));
+      }
+    } else {
+      receiptData += generator.text('No transactions available.',
+          styles: PosStyles(align: PosAlign.left));
+    }
+
+    // Amounts by PaymentType
+    if (totalAmountsByPaymentType.isNotEmpty) {
+      receiptData += generator.text('\nAmounts by Payment Method:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in totalAmountsByPaymentType) {
+        receiptData += generator.text(' ${total['paymentTypeName']}:\t\t${total['currencySymbol']}${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // Amounts by total sales
+    if (totalSales.isNotEmpty) {
+      receiptData += generator.text('Total Sales:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in totalSales) {
+        receiptData += generator.text(' ${total['currencyName']}:\t\t${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // Cash In
+    if (totalCashIn.isNotEmpty) {
+      receiptData += generator.text('Cash In:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in totalCashIn) {
+        receiptData += generator.text(' ${total['currencyName']}:\t\t${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // Cash Out
+    if (totalCashOut.isNotEmpty) {
+      receiptData += generator.text('Cash Out:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in totalCashOut) {
+        receiptData += generator.text(' ${total['currencyName']}:\t\t${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // Total Submitted
+    if (totalSubmitted.isNotEmpty) {
+      receiptData += generator.text('Total Submitted:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in totalSubmitted) {
+        receiptData += generator.text(' ${total['currencyName']}:\t\t${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // Amounts by Currency
+    if (totalAmountsByCurrency.isNotEmpty) {
+      receiptData += generator.text('Cash by Currency:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in totalAmountsByCurrency) {
+        receiptData += generator.text(' ${total['currencyName']}:\t\t${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // tips by Currency
+    if (totalTips.isNotEmpty) {
+      receiptData += generator.text('Tips by Currency:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in totalTips) {
+        receiptData += generator.text(' ${total['currencyName']}:\t\t${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // refunds by Currency
+    if (refunds.isNotEmpty) {
+      receiptData += generator.text('Refunds by Currency:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in refunds) {
+        receiptData += generator.text(' ${total['currencyName']}:\t\t${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // breakages
+    if (breakages.isNotEmpty) {
+      receiptData += generator.text('Breakages:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in breakages) {
+        receiptData += generator.text(' ${total['name']}:\t\t${total['qty']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // Footer
+    receiptData += generator.text('*** Thank you! ***',
+        styles: PosStyles(align: PosAlign.center));
+    receiptData += generator.feed(2);
+    receiptData += generator.cut();
+
+    // Send to printer
+    try {
+      var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
+      bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
+      if (!connected) {
+        Get.snackbar('Error', 'Failed to connect to printer',
+            snackPosition: SnackPosition.BOTTOM);
+        return;
+      }
+      await PrinterManager.instance.send(bytes: receiptData, type: PrinterType.usb);
+      await PrinterManager.instance.disconnect(type: PrinterType.usb);
+      Get.snackbar('Success', 'Shift details printed successfully',
+          snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to print shift details: $e',
+          snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
+  // Print USB Shift Summary (without transactions) - matches Sunmi printShiftSummary
+  Future<void> printShiftSummaryUsb(ShiftModel shift, RxList<SaleInfoModel> allReceipts, List<Map<String, dynamic>> totalAmountsByCurrency, List<Map<String, dynamic>> totalAmountsByPaymentType,
+      List<Map<String, dynamic>> totalCashIn, List<Map<String, dynamic>> totalCashOut, List<Map<String, dynamic>> totalSubmitted, List<Map<String, dynamic>> totalSales,
+      List<Map<String, dynamic>> totalTips, List<Map<String, dynamic>> breakages, List<Map<String, dynamic>> refunds, AvailablePrinterModel printer) async {
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm80, profile);
+    List<int> receiptData = [];
+
+    // Load company logo
+    Uint8List imageBytes = await readLocalFileBytes();
+    
+    // Convert image to ESC/POS compatible format
+    try {
+      final img.Image? image = img.decodeImage(imageBytes);
+      if (image != null) {
+        // Resize image to fit receipt width (max 384 pixels for 80mm paper)
+        final img.Image resized = img.copyResize(image, width: 200);
+        receiptData += generator.image(resized);
+        receiptData += generator.feed(1);
+      }
+    } catch (e) {
+      print('Error processing logo image: $e');
+    }
+
+    // Header
+    receiptData += generator.text('SHIFT SUMMARY',
+        styles: PosStyles(
+          align: PosAlign.center,
+          bold: true,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ));
+
+    // Shift Details
+    receiptData += generator.text('User: ${shift.userFullName ?? ''}',
+        styles: PosStyles(align: PosAlign.left));
+    receiptData += generator.text('OT: ${shift.openingTime ?? ''}',
+        styles: PosStyles(align: PosAlign.left));
+    receiptData += generator.text('CT: ${shift.closingTime ?? ''}',
+        styles: PosStyles(align: PosAlign.left));
+
+    // Amounts by PaymentType
+    if (totalAmountsByPaymentType.isNotEmpty) {
+      receiptData += generator.text('\nAmounts by Payment Method:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in totalAmountsByPaymentType) {
+        receiptData += generator.text(' ${total['paymentTypeName']}:\t\t${total['currencySymbol']}${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // Amounts by total sales
+    if (totalSales.isNotEmpty) {
+      receiptData += generator.text('\nTotal Sales:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in totalSales) {
+        receiptData += generator.text(' ${total['currencyName']}:\t\t${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // Cash In
+    if (totalCashIn.isNotEmpty) {
+      receiptData += generator.text('\nCash In:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in totalCashIn) {
+        receiptData += generator.text(' ${total['currencyName']}:\t\t${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // Cash Out
+    if (totalCashOut.isNotEmpty) {
+      receiptData += generator.text('Cash Out:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in totalCashOut) {
+        receiptData += generator.text(' ${total['currencyName']}:\t\t${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // Total Submitted
+    if (totalSubmitted.isNotEmpty) {
+      receiptData += generator.text('Total Submitted:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in totalSubmitted) {
+        receiptData += generator.text(' ${total['currencyName']}:\t\t${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // Amounts by Currency
+    if (totalAmountsByCurrency.isNotEmpty) {
+      receiptData += generator.text('Cash by Currency:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in totalAmountsByCurrency) {
+        receiptData += generator.text(' ${total['currencyName']}:\t\t${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // tips by Currency
+    if (totalTips.isNotEmpty) {
+      receiptData += generator.text('Tips by Currency:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in totalTips) {
+        receiptData += generator.text(' ${total['currencyName']}:\t\t${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // refunds by Currency
+    if (refunds.isNotEmpty) {
+      receiptData += generator.text('Refunds by Currency:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in refunds) {
+        receiptData += generator.text(' ${total['currencyName']}:\t\t${total['totalAmount']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // breakages
+    if (breakages.isNotEmpty) {
+      receiptData += generator.text('Breakages:',
+          styles: PosStyles(align: PosAlign.left, bold: true));
+      for (var total in breakages) {
+        receiptData += generator.text(' ${total['name']}:\t\t${total['qty']}',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      receiptData += generator.text('--------------------------------',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // Footer
+    receiptData += generator.text('*** Thank you! ***',
+        styles: PosStyles(align: PosAlign.center));
+    receiptData += generator.feed(2);
+    receiptData += generator.cut();
+
+    // Send to printer
+    try {
+      var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
+      bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
+      if (!connected) {
+        Get.snackbar('Error', 'Failed to connect to printer',
+            snackPosition: SnackPosition.BOTTOM);
+        return;
+      }
+      await PrinterManager.instance.send(bytes: receiptData, type: PrinterType.usb);
+      await PrinterManager.instance.disconnect(type: PrinterType.usb);
+      Get.snackbar('Success', 'Shift summary printed successfully',
+          snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to print shift summary: $e',
+          snackPosition: SnackPosition.BOTTOM);
+    }
+  }
 
 
    Future<void> testPrinter() async {
