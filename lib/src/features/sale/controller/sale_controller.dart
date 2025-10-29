@@ -113,21 +113,12 @@ class SaleController extends GetxController {
     categories.value = catList;
     categories.refresh();
       getOfflineProducts(box);
-    // Only initialize Sunmi printer on Android platforms
-    bool? result = false;
-    if (!Platform.isWindows) {
-      try {
-        result = await SunmiPrinter.bindingPrinter();
-        result = result ?? false;
-        if(!result) {
-          Get.snackbar('Printer Status', 'Sunmi built in printer not available',
-              snackPosition: SnackPosition.BOTTOM);
-        }
-      } catch (e) {
-        print('Sunmi printer error: $e');
-        result = false;
+      bool? result = await SunmiPrinter.bindingPrinter();
+      result = result ?? false;
+      if (!result) {
+        Get.snackbar('Printer Status', 'Sunmi built in printer not available',
+            snackPosition: SnackPosition.BOTTOM);
       }
-    }
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
   }
