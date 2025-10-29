@@ -6,11 +6,34 @@ import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart
 import 'package:vimbika_pos_app/src/widgets/list_tile_widget.dart';
 import 'package:vimbika_pos_app/src/widgets/nav_drawer_widget.dart'; // Assuming you have a NavDrawerWidget
 
-class PrinterSettingsScreen extends StatelessWidget {
+class PrinterSettingsScreen extends StatefulWidget {
+  @override
+  _PrinterSettingsScreenState createState() => _PrinterSettingsScreenState();
+}
+
+class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
   final PrinterSettingsController _controller = Get.put(PrinterSettingsController());
   final InactivityController inactivityController = Get.put(
       InactivityController());
   var scaffoldKeyz = GlobalKey<ScaffoldState>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Reload printers list when screen is shown
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.refreshAvailablePrinters();
+    });
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh when screen becomes visible again (defer until after build)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.refreshAvailablePrinters();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

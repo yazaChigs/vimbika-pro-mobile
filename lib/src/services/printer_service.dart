@@ -56,24 +56,17 @@ class PrinterService extends GetxService {
   Future<void> printCurrentSale(SaleInfoModel saleInfo, GetStorage box,  LocalStorageService _localStorageService) async {
     AvailablePrinterModel? prin = _localStorageService.findActivePrinter(box);
         if (prin != null) {
-          print("Attempting to print with printer type: ${prin.type}, name: ${prin.name}");
-          
           if(prin.type == 'SUNMI_INBUILT_PRINTER') {
             await printSunmiSaleReceipt(saleInfo.sale!);
           }
-          else if(prin.type == 'TELPO_INBUILT_PRINTER') {
+          if(prin.type == 'TELPO_INBUILT_PRINTER') {
             await printTelpoSaleReceipt(saleInfo.sale!);
           }
-          else if (prin.type == 'bluetooth') {
+          if (prin.type == 'bluetooth') {
             await generateBluetoothReceipt(saleInfo.sale!, prin);
           }
-          else if (prin.type == 'usb') {
+          if (prin.type == 'usb') {
             await generateUSBReceipt(saleInfo.sale!, prin);
-          }
-          else {
-            print("Unknown printer type: ${prin.type}");
-            Get.snackbar('Error', 'Unknown printer type: ${prin.type}. Please reconfigure your printer.',
-                snackPosition: SnackPosition.BOTTOM);
           }
         } else {
           Get.snackbar('Error', 'Default Printer Not Found. Please add printer.',
@@ -599,6 +592,22 @@ class PrinterService extends GetxService {
 
      CurrencyModel? cur = sale.currency;
 
+     // Load company logo
+     Uint8List imageBytes = await readLocalFileBytes();
+     
+     // Convert image to ESC/POS compatible format
+     try {
+       final img.Image? image = img.decodeImage(imageBytes);
+       if (image != null) {
+         // Resize image to fit receipt width (max 384 pixels for 80mm paper)
+         final img.Image resized = img.copyResize(image, width: 200);
+         receiptData += generator.image(resized);
+         receiptData += generator.feed(1);
+       }
+     } catch (e) {
+       print('Error processing logo image: $e');
+     }
+
      // Header
      receiptData += generator.text('RECEIPT',
          styles: PosStyles(
@@ -607,6 +616,8 @@ class PrinterService extends GetxService {
            height: PosTextSize.size2,
            width: PosTextSize.size2,
          ));
+     receiptData += generator.text('Cashier: ${sale.cashierFullName}',
+         styles: PosStyles(align: PosAlign.left));
      receiptData += generator.text('Date: ${sale.timeIniated}',
          styles: PosStyles(align: PosAlign.left));
      receiptData += generator.text('Reference: ${sale.referenceNumber}',
@@ -870,8 +881,6 @@ class PrinterService extends GetxService {
      // Only print on Android platforms
      if (Platform.isWindows) {
        print("Sunmi printer not available on Windows");
-       Get.snackbar('Error', 'Sunmi printer is not available on Windows. Please select a USB printer instead.',
-           snackPosition: SnackPosition.BOTTOM);
        return;
      }
      

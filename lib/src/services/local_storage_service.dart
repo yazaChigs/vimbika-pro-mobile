@@ -71,7 +71,27 @@ class LocalStorageService {
   List<AvailablePrinterModel>  saveDefaultPrinter(List<AvailablePrinterModel> printers, AvailablePrinterModel printer, bool stat){
     List<AvailablePrinterModel> updatedPrinters = [];
     for(var pr in printers)  {
-     if(pr.name == printer.name){
+     // Match by appropriate fields based on printer type
+     // USB: match by vendor+product+type, or name+type if vendor/product are null
+     // Bluetooth: match by address+type
+     // Inbuilt: match by id+type
+     bool matches = false;
+     if (printer.type == 'usb') {
+       matches = pr.type == printer.type &&
+         ((printer.vendorId != null && printer.productId != null && 
+           pr.vendorId == printer.vendorId && pr.productId == printer.productId) ||
+          (printer.vendorId == null && printer.productId == null && 
+           pr.vendorId == null && pr.productId == null && 
+           pr.name == printer.name));
+     } else if (printer.type == 'bluetooth') {
+       matches = pr.type == printer.type &&
+         pr.address != null && pr.address == printer.address;
+     } else {
+       // Inbuilt printers (Sunmi/Telpo): match by id+type
+       matches = pr.id != null && pr.id == printer.id && pr.type == printer.type;
+     }
+     
+     if(matches) {
          pr.isDefault = stat;
          updatedPrinters.add(pr);
      } else{

@@ -72,7 +72,10 @@ class PrinterSettingsController extends GetxController {
      selectedPrinterType.value = type;
      print(type.name);
      searchPrinters(type);
-     Get.toNamed(AppRoutes.NETWORK_PRINTERS);
+     var result = await Get.toNamed(AppRoutes.NETWORK_PRINTERS);
+     // Refresh the available printers list when returning from search screen
+     // Always refresh when returning, but use result to determine if a printer was saved
+     refreshAvailablePrinters();
   }
   List<AvailablePrinterModel> loadAvailablePrinters( GetStorage box) {
     List<AvailablePrinterModel> list = _localStorageService.getOfflineList<AvailablePrinterModel>(
@@ -80,6 +83,24 @@ class PrinterSettingsController extends GetxController {
             (map) => AvailablePrinterModel.fromMap(map),
         box);
     return list;
+  }
+  
+  // Method to refresh the available printers list from storage
+  void refreshAvailablePrinters() {
+    GetStorage box = GetStorage();
+    List<AvailablePrinterModel> tempList = loadAvailablePrinters(box);
+    availablePrinters.value = tempList;
+    availablePrinters.refresh(); // Force UI update
+    print("==================== REFRESHED AVAILABLE PRINTERS ====================");
+    print("Total printers: ${availablePrinters.length}");
+    // Print debug info about each printer
+    for (var printer in availablePrinters) {
+      print("  - ${printer.name ?? 'Unknown'} (Type: ${printer.type ?? 'Unknown'})");
+      print("    Default: ${printer.isDefault}, Address: ${printer.address ?? 'N/A'}, ID: ${printer.id ?? 'N/A'}");
+    }
+    var defaultPrinter = availablePrinters.firstWhere((p) => p.isDefault == true, orElse: () => AvailablePrinterModel(name: null, address: null, productId: null, vendorId: null, isDefault: false, type: null));
+    print("Default printer: ${defaultPrinter.name ?? 'NONE'}");
+    print("===============================================================");
   } void searchPrinters(PrinterType type) async {
     printers.clear();
     printers.refresh();
@@ -196,8 +217,6 @@ class PrinterSettingsController extends GetxController {
       print(selectedPrinter.value!.address);
 
       var model = null;
-      bool connectionSuccess = false;
-      
       if(selectedPrinterType.value == PrinterType.bluetooth) {
         if (Platform.isWindows) {
           Get.snackbar('Not Supported', 'Bluetooth printing is not available on Windows');
@@ -208,7 +227,6 @@ class PrinterSettingsController extends GetxController {
         bt.name = printer.name;
         bt.address = printer.address;
         await bluetoothPrint.connect(bt);
-        connectionSuccess = true;
         Get.snackbar('Success', 'Printer connected successfully');
       }
       else if(selectedPrinterType.value == PrinterType.usb) {
@@ -217,18 +235,7 @@ class PrinterSettingsController extends GetxController {
         var res = await PrinterManager.instance.connect(
             type: PrinterType.usb, model: model);
         isConnected.value = res;
-        connectionSuccess = res;
-        if (connectionSuccess) {
-          Get.snackbar('Success', 'Printer connected successfully');
-        } else {
-          Get.snackbar('Error', 'Failed to connect to printer');
-          return;
-        }
-      }
-
-      // Auto-save and set as default when connection is successful
-      if (connectionSuccess) {
-        await _autoSaveAndSetAsDefault(printer);
+        Get.snackbar('Success', 'Printer connected successfully');
       }
 
     } catch (e) {
@@ -236,57 +243,6 @@ class PrinterSettingsController extends GetxController {
       isConnected.value = false;
       print('Error connecting to printer: $e');
       Get.snackbar('Error', 'Failed to connect to printer');
-    }
-  }
-  
-  // Auto-save printer and set as default when connecting
-  Future<void> _autoSaveAndSetAsDefault(PrinterDevice printer) async {
-    GetStorage box = GetStorage();
-    List<AvailablePrinterModel> tempList = loadAvailablePrinters(box);
-    bool exist = _localStorageService.findPrinterByAddress(tempList, printer.address);
-    
-    if(!exist) {
-      UniqueKey uniqueKey = UniqueKey();
-      String uniqueId = uniqueKey.toString();
-      
-      // Always set as default when auto-saving from connection
-      // Remove default from all other printers first
-      for (var p in tempList) {
-        p.isDefault = false;
-      }
-      
-      AvailablePrinterModel selPr = AvailablePrinterModel(
-        id: uniqueId,
-        name: printer.name,
-        address: printer.address,
-        productId: printer.productId,
-        vendorId: printer.vendorId,
-        isDefault: true, // Always set as default when connecting
-        type: selectedPrinterType.value.name
-      );
-      
-      tempList.add(selPr);
-      _localStorageService.writeItems(
-          AppConstants.AVAILABLE_PRINTERS, tempList, box);
-      availablePrinters.value = tempList;
-      availablePrinters.refresh();
-      print("Auto-saved printer as default: ${printer.name}, type: ${selPr.type}");
-    } else {
-      // Printer exists, update it to be default
-      for (var p in tempList) {
-        if (p.address == printer.address) {
-          // Set this printer as default
-          p.isDefault = true;
-        } else {
-          // Remove default from others
-          p.isDefault = false;
-        }
-      }
-      _localStorageService.writeItems(
-          AppConstants.AVAILABLE_PRINTERS, tempList, box);
-      availablePrinters.value = tempList;
-      availablePrinters.refresh();
-      print("Updated existing printer to default: ${printer.name}");
     }
   }
   testPrinter(AvailablePrinterModel printer) async{
@@ -348,49 +304,140 @@ class PrinterSettingsController extends GetxController {
 
 
 // Save the selected printer
-  void saveSelectedPrinter(PrinterDevice printer) {
+  Future<void> saveSelectedPrinter(PrinterDevice printer) async {
+    print("==================== SAVE PRINTER CALLED ====================");
+    print("Printer Name: ${printer.name}");
+    print("Printer Address: ${printer.address}");
+    print("Printer Type: ${selectedPrinterType.value.name}");
+    print("Printer Vendor ID: ${printer.vendorId}");
+    print("Printer Product ID: ${printer.productId}");
+    
     GetStorage box = GetStorage();
     List<AvailablePrinterModel> tempList = loadAvailablePrinters(box);
-    bool exist = _localStorageService.findPrinterByAddress(tempList, printer.address);
+    print("Current printers in storage: ${tempList.length}");
+    
+    // For USB printers, match by vendor+product ID or name+type if IDs are null
+    // For Bluetooth, match by address+type
+    // For inbuilt, match by id
+    bool exist = false;
+    if (selectedPrinterType.value == PrinterType.usb) {
+      // USB: match by vendor+product+type, or name+type if vendor/product are null
+      exist = tempList.any((p) => 
+        p.type == selectedPrinterType.value.name &&
+        ((printer.vendorId != null && printer.productId != null && 
+          p.vendorId == printer.vendorId && p.productId == printer.productId) ||
+         (printer.vendorId == null && printer.productId == null && 
+          p.vendorId == null && p.productId == null && 
+          p.name == printer.name))
+      );
+    } else if (selectedPrinterType.value == PrinterType.bluetooth) {
+      // Bluetooth: match by address+type
+      exist = tempList.any((p) => 
+        p.type == selectedPrinterType.value.name &&
+        p.address == printer.address &&
+        p.address != null // Only match if address is not null
+      );
+    }
+    print("Printer exists check: $exist (Type: ${selectedPrinterType.value.name})");
+    
     if(!exist) {
       UniqueKey uniqueKey = UniqueKey();
 
       String uniqueId = uniqueKey.toString();
-      
-      // Check if there's already a default printer
-      bool hasDefaultPrinter = tempList.any((p) => p.isDefault == true);
-      
       AvailablePrinterModel selPr = AvailablePrinterModel(id: uniqueId,
           name: printer.name,
           address: printer.address,
           productId: printer.productId,
           vendorId: printer.vendorId,
-          isDefault: !hasDefaultPrinter, // Auto-set as default if no default exists
+          isDefault: false, // Will be set to true after adding to list
           type: selectedPrinterType.value.name);
 
-      // If auto-setting as default, remove default from all others
-      if (!hasDefaultPrinter) {
-        for (var p in tempList) {
-          p.isDefault = false;
-        }
+      print("Created new printer model: ID=$uniqueId, Name=${selPr.name}, Address=${selPr.address}");
+
+      // Add the new printer to the list first
+      tempList.add(selPr);
+      print("Added to temp list. Temp list count: ${tempList.length}");
+      
+      // Now set this printer as default (this will clear defaults on all others)
+      List<AvailablePrinterModel> updatedList = _localStorageService.saveDefaultPrinter(tempList, selPr, true);
+      print("After saveDefaultPrinter. Updated list count: ${updatedList.length}");
+      
+      _localStorageService.writeItems(
+          AppConstants.AVAILABLE_PRINTERS, updatedList, box);
+      
+      // Verify it was saved
+      List<AvailablePrinterModel> verifyList = loadAvailablePrinters(box);
+      print("Verification: Printers in storage after save: ${verifyList.length}");
+      for (var p in verifyList) {
+        print("  - ${p.name} (${p.type}) - Default: ${p.isDefault}, Address: ${p.address}");
       }
       
-      tempList.add(selPr);
-      _localStorageService.writeItems(
-          AppConstants.AVAILABLE_PRINTERS, tempList, box);
-      availablePrinters.value = tempList;
-      availablePrinters.refresh(); // Force UI update
+      availablePrinters.value = updatedList;
+      availablePrinters.refresh();
       //_printerManager.disconnect(type: PrinterType.bluetooth);
-      print("Saving printer: ${printer.name}, isDefault: ${selPr.isDefault}, type: ${selPr.type}");
-      if (selPr.isDefault!) {
-        Get.snackbar('Success', 'Printer saved and set as default');
-      } else {
-        Get.snackbar('Success', 'Printer saved. Please set it as default in Printer Settings.');
-      }
-      Get.back();
+      print("==================== PRINTER SAVED SUCCESSFULLY ====================");
+      print("Saving printer as default: ${printer.name} (Address: ${printer.address}, Type: ${selectedPrinterType.value.name})");
+      
+      // Force refresh from storage to ensure consistency
+      refreshAvailablePrinters();
+      
+      Get.snackbar('Success', 'Printer saved and set as default');
+      
+      // Delay the back navigation slightly to ensure state updates
+      await Future.delayed(Duration(milliseconds: 100));
+      Get.back(result: true); // Pass result so navigateToNetworkPrinter knows to refresh
     } else{
-      // Printer exists, offer to set as default
-      Get.snackbar('Info', 'Printer already exists. You can set it as default in Printer Settings.', snackPosition: SnackPosition.BOTTOM);
+      // Printer exists, update it to default
+      print("Printer already exists. Attempting to update to default...");
+      // Match by appropriate fields based on printer type
+      int printerIndex = -1;
+      if (selectedPrinterType.value == PrinterType.usb) {
+        // USB: match by vendor+product+type, or name+type if vendor/product are null
+        printerIndex = tempList.indexWhere((p) => 
+          p.type == selectedPrinterType.value.name &&
+          ((printer.vendorId != null && printer.productId != null && 
+            p.vendorId == printer.vendorId && p.productId == printer.productId) ||
+           (printer.vendorId == null && printer.productId == null && 
+            p.vendorId == null && p.productId == null && 
+            p.name == printer.name))
+        );
+      } else if (selectedPrinterType.value == PrinterType.bluetooth) {
+        // Bluetooth: match by address+type
+        printerIndex = tempList.indexWhere((p) => 
+          p.type == selectedPrinterType.value.name &&
+          p.address == printer.address &&
+          p.address != null
+        );
+      }
+      print("Found printer at index: $printerIndex");
+      
+      if (printerIndex != -1) {
+        AvailablePrinterModel existingPrinter = tempList[printerIndex];
+        print("Existing printer: ${existingPrinter.name} (${existingPrinter.type})");
+        List<AvailablePrinterModel> updatedList = _localStorageService.saveDefaultPrinter(tempList, existingPrinter, true);
+        _localStorageService.writeItems(AppConstants.AVAILABLE_PRINTERS, updatedList, box);
+        
+        // Verify it was saved
+        List<AvailablePrinterModel> verifyList = loadAvailablePrinters(box);
+        print("Verification: Printers in storage after update: ${verifyList.length}");
+        
+        availablePrinters.value = updatedList;
+        availablePrinters.refresh();
+        print("==================== PRINTER UPDATED TO DEFAULT ====================");
+        print("Updated existing printer to default: ${printer.name} (Address: ${printer.address}, Type: ${selectedPrinterType.value.name})");
+        
+        // Force refresh from storage to ensure consistency
+        refreshAvailablePrinters();
+        
+        Get.snackbar('Success', 'Printer set as default');
+        
+        // Delay the back navigation slightly to ensure state updates
+        await Future.delayed(Duration(milliseconds: 100));
+        Get.back(result: true); // Pass result so navigateToNetworkPrinter knows to refresh
+      } else {
+        print("WARNING: Printer exists by address but not found by address+type match!");
+        Get.snackbar('Warning', 'Printer exists but could not be updated', snackPosition: SnackPosition.BOTTOM);
+      }
     }
 
   }
