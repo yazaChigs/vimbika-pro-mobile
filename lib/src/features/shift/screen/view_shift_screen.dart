@@ -3,9 +3,13 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
+import 'package:vimbika_pos_app/src/features/sale/model/sale_infor_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/controller/shift_controller.dart';
+import 'package:vimbika_pos_app/src/features/shift/model/currency_amount.dart';
 import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart';
 import 'package:vimbika_pos_app/src/widgets/nav_drawer_widget.dart';
+
+import '../../sale/model/sale_item_model.dart';
 
 class ViewShiftScreen extends StatelessWidget {
   // final ShiftController shiftController = Get.put(ShiftController());
@@ -153,7 +157,7 @@ class ViewShiftScreen extends StatelessWidget {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4.0),
                       child: ListTile(
-                        tileColor: Colors.grey[200],
+                        tileColor:currencyAmount.amountType!="BREAKAGE"? Colors.grey[200]:Colors.red[100],
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -174,17 +178,29 @@ class ViewShiftScreen extends StatelessWidget {
                                 ),
                               ],
                             ),
+
+                            (currencyAmount.amountType == 'BREAKAGE') ?
+                            Text(
+                              shiftController.allReceipts.firstWhereOrNull((sale)=> sale.sale!.posReference==currencyAmount.posReference)!.sale!.items!.map((item)=>
+                              "${item.inventoryItem!.name} X ${item.quantity!}").join("\n"),
+                              style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey[600]),
+                            ):SizedBox(),
                             // Right side: amount and amount type
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  '${currencyAmount.currency.symbol} ${currencyAmount.amount.toStringAsFixed(2)}',
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  currencyAmount.amountType,
-                                  style: TextStyle(fontSize: 14),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      '${currencyAmount.currency.symbol} ${currencyAmount.amount.toStringAsFixed(2)}',
+                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                    ),
+                                    Text(
+                                      currencyAmount.amountType,
+                                      style: TextStyle(fontSize: 14),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -413,13 +429,85 @@ class ViewShiftScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final total = shiftController.totalTips[index];
                     return ListTile(
-                      tileColor: Colors.orangeAccent[100],
+                      tileColor: Colors.orange[900],
                       title: Text(
                         total['currencyName'],
                         style: TextStyle(fontSize: 12),
                       ),
                       trailing: Text(
                         '${total['totalAmount'].toStringAsFixed(2)}',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: Colors.grey, width: 0.5),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 10,
+                  color: Colors.green,
+                  thickness: 1,
+                  indent : 10,
+                  endIndent : 10,
+                ),
+                shiftController.refundsList.isNotEmpty?
+                Text(
+                  'REFUNDS',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ):SizedBox(),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(), // Disable scrolling of ListView.builder
+                  itemCount: shiftController.refundsList.length,
+                  itemBuilder: (context, index) {
+                    final total = shiftController.refundsList[index];
+                    return ListTile(
+                      tileColor: Colors.redAccent,
+                      title: Text(
+                        total['currencyName'],
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      trailing: Text(
+                        '${total['totalAmount'].toStringAsFixed(2)}',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: Colors.grey, width: 0.5),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 10,
+                  color: Colors.green,
+                  thickness: 1,
+                  indent : 10,
+                  endIndent : 10,
+                ),
+                shiftController.breakages.isNotEmpty?
+                Text(
+                  'BREAKAGES',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ):SizedBox(),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(), // Disable scrolling of ListView.builder
+                  itemCount: shiftController.breakages.length,
+                  itemBuilder: (context, index) {
+                    final total = shiftController.breakages[index];
+                    return ListTile(
+                      tileColor: Colors.greenAccent,
+                      title: Text(
+                        total['name'],
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      trailing: Text(
+                        '${total['qty'].toStringAsFixed(2)}',
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                       shape: RoundedRectangleBorder(

@@ -34,12 +34,14 @@ class ShiftController extends GetxController {
   final ConnectivityService _connectivityService = ConnectivityService();
   RxList<CurrencyModel> currencyList = <CurrencyModel>[].obs;
   RxList<SaleInfoModel> allReceipts = <SaleInfoModel>[].obs;
+  RxList<SaleInfoModel> reversedSales = <SaleInfoModel>[].obs;
 
   List<ShiftModel>  shifts = [];
   var currencyAmountList = <CurrencyAmount>[].obs;
   var isCurrencySelected = false.obs;
   final LocalStorageService _localStorageService = LocalStorageService();
   final TextEditingController amountTextEditingController = TextEditingController();
+  final TextEditingController notesTextEditingController = TextEditingController();
   PrinterService printerService = Get.put(PrinterService());
   var activeShift = ShiftModel().obs;
   var shiftAvailable = false.obs;
@@ -50,6 +52,8 @@ class ShiftController extends GetxController {
   var totalAmountsByCurrency = <Map<String, dynamic>>[].obs;
   var totalSales = <Map<String, dynamic>>[].obs;
   var totalTips = <Map<String, dynamic>>[].obs;
+  var breakages = <Map<String, dynamic>>[].obs;
+  var refundsList = <Map<String, dynamic>>[].obs;
   var totalAmountsByPaymentType = <Map<String, dynamic>>[].obs;
   var totalCashIn = <Map<String, dynamic>>[].obs;
   var totalCashOut = <Map<String, dynamic>>[].obs;
@@ -74,15 +78,17 @@ class ShiftController extends GetxController {
   getSales() {
     List<SaleInfoModel> sales = getExistingOfflineSales(box);
     List<SaleInfoModel> actualSales = [];
+    List<SaleInfoModel> otherSales = [];
     for(SaleInfoModel s in sales){
       if(s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING"){
         if(!actualSales.any((sale)=> sale.sale!.posReference==s.sale!.posReference)) //filter duplicates
           actualSales.add(s);
+      } else if(s.sale!.saleStatus == 'REVERSED'){
+       otherSales.add(s);
       }
     }
     allReceipts.value = actualSales;
-    print("allReceipts.value: ${allReceipts.length}");
-
+    reversedSales.value = otherSales;
     calculateTotalAmountsByCurrency();
     calculateTotalAmountsByPaymentType();
   }
@@ -281,6 +287,8 @@ class ShiftController extends GetxController {
   void calculateTotalAmountsByPaymentType() {
     Map<String, double> totals = {};
     Map<String, double> tips = {};
+    Map<String, double> breaks = {};
+    Map<String, double> refunds = {};
     var sales = allReceipts.where((element) => element.sale?.shiftReference == activeShift.value.shiftReference);
     for (var sale in sales) {
       final currencyId = sale.sale!.currency!.id;
@@ -298,16 +306,53 @@ class ShiftController extends GetxController {
           }
       }
     }
+    for (SaleInfoModel sale in reversedSales) {
+      if (sale.sale?.shiftReference == activeShift.value.shiftReference) {
+        print("Reversd reference ${sale.sale!.shiftReference}");
+        for (var paymentReceived in sale.sale!.paymentTypes!) {
+          final currencyId = paymentReceived.paymentType?.currency!.id;
+          refunds[currencyId!] = (refunds[currencyId] ?? 0.0) +
+              (paymentReceived.amount ?? 0.0);
+        }
+      }
+    }
+    for(CurrencyAmount currencyAmount in activeShift.value.shiftCurrencyAmounts!) {
+      if (currencyAmount.amountType == "BREAKAGE") {
+        SaleInfoModel sale = allReceipts.firstWhere((sale) => sale.sale!.posReference == currencyAmount.posReference);
+        print(sale.sale!.toJson());
+        sale.sale!.items!.forEach((item) {
+          breaks[item.inventoryItem!.name!] = (breaks[item.inventoryItem!.name] ?? 0.0) + item.quantity!;
+        });
+      }
+    }
+    breakages.clear();
     totalAmountsByPaymentType.clear();
     totalTips.clear();
+    refundsList.clear();
 
     tips.forEach((currencyId, total) {
-      final currency = allReceipts!
+      final currency = allReceipts
           .firstWhere((sale) => sale.sale!.currency!.id == currencyId).sale!
           .currency;
       totalTips.add({
         "currencyName": currency!.symbol,
         "totalAmount": total,
+      });
+    });
+    print(refunds);
+    refunds.forEach((currencyId, total) {
+      final currency = reversedSales
+          .firstWhere((sale) => sale.sale!.currency!.id == currencyId).sale!
+          .currency;
+      refundsList.add({
+        "currencyName": currency!.symbol,
+        "totalAmount": total,
+      });
+    });
+    breaks.forEach((currencyId, total) {
+      breakages.add({
+        "name": currencyId,
+        "qty": total,
       });
     });
     totals.forEach((paymentTypeId, total) {
@@ -431,7 +476,8 @@ class ShiftController extends GetxController {
     AvailablePrinterModel? ap = _localStorageService.findActivePrinter(box);
     if(ap != null) {
       if(ap.type == 'SUNMI_INBUILT_PRINTER') {
-        await printerService.printShiftDetails(shift,allReceipts, totalAmountsByCurrency,totalAmountsByPaymentType,totalCashIn, totalCashOut, totalCashSubmittedList, totalSales,totalTips);
+        await printerService.printShiftDetails(shift,allReceipts, totalAmountsByCurrency,totalAmountsByPaymentType,totalCashIn,
+            totalCashOut, totalCashSubmittedList, totalSales,totalTips,breakages,refundsList);
       }
       if(ap.type == "bluetooth") {
         await printerService.printShiftDetailsBluetooth(shift, ap, totalAmountsByCurrency);
@@ -451,7 +497,8 @@ class ShiftController extends GetxController {
     AvailablePrinterModel? ap = _localStorageService.findActivePrinter(box);
     if(ap != null) {
       if(ap.type == 'SUNMI_INBUILT_PRINTER') {
-        await printerService.printShiftSummary(shift,allReceipts, totalAmountsByCurrency,totalAmountsByPaymentType,totalCashIn, totalCashOut, totalCashSubmittedList, totalSales,totalTips);
+        await printerService.printShiftSummary(shift,allReceipts, totalAmountsByCurrency,totalAmountsByPaymentType,totalCashIn,
+            totalCashOut, totalCashSubmittedList, totalSales,totalTips,breakages,refundsList);
       }
       if(ap.type == "bluetooth") {
         await printerService.printShiftDetailsBluetooth(shift, ap, totalAmountsByCurrency);
@@ -489,6 +536,20 @@ class ShiftController extends GetxController {
     Get.delete<SaleController>();
     Get.delete<BackgroundService>();
     Get.offNamed(AppRoutes.LOGIN);*/
+  }
+
+  void addBreakage(CurrencyAmount currencyAmount, double value, String notes) {
+    int count = activeShift.value.shiftCurrencyAmounts!.length + 1;
+    String ref = AppConstants.getDateNowRef("BR_", count);
+    CurrencyAmount breakage = CurrencyAmount(amount: value, currency: currencyAmount.currency, posReference: currencyAmount.posReference,
+        amountType: 'BREAKAGE', ref: ref, timeCreated: DateTime.now().toIso8601String(), paymentType: currencyAmount.paymentType,
+        shiftReference: currencyAmount.shiftReference, notes: notes);
+    ShiftModel temp  = activeShift.value;
+    temp.active = true;
+      temp.shiftCurrencyAmounts!.firstWhereOrNull((ca)=>ca.posReference==currencyAmount.posReference)!.amount-=value;
+      temp.shiftCurrencyAmounts!.add(breakage);
+    List<ShiftModel> shi =  _localStorageService.replaceShift(temp, shifts);
+    _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
   }
 
 }
