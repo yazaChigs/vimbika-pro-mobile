@@ -731,7 +731,6 @@ class PrinterService extends GetxService {
       if (image != null) {
         final img.Image resized = img.copyResize(image, width: 200);
         receiptData += generator.image(resized);
-        receiptData += generator.feed(1);
       }
     } catch (e) {
       print('Error processing logo image: $e');
@@ -761,7 +760,6 @@ class PrinterService extends GetxService {
     // Customer Information
     receiptData += generator.text('Customer: ${customer.name}',
         styles: PosStyles(align: PosAlign.left, bold: true));
-    receiptData += generator.feed(1);
 
     // Separator
     receiptData += generator.text('--------------------------------',
@@ -782,21 +780,22 @@ class PrinterService extends GetxService {
         receiptData += generator.text('$date  Ref: $reference',
             styles: PosStyles(align: PosAlign.left, bold: true));
         
-        // Description
-        receiptData += generator.text('$description',
+        // Description and Payment Method on same line
+        String paymentMethod = payment.paymentReceived?.paymentType?.name ?? '';
+        String combinedLine = '$description';
+        if (paymentMethod.isNotEmpty) {
+          combinedLine += ' | $paymentMethod';
+        }
+        receiptData += generator.text(combinedLine,
             styles: PosStyles(align: PosAlign.left));
         
-        // Amount and Type
+        // Amount and Type on own line
         receiptData += generator.text('$type  $currencySymbol ${amount.toStringAsFixed(2)}',
             styles: PosStyles(align: PosAlign.left));
         
         // Balance
         receiptData += generator.text('Balance: $currencySymbol ${balance.toStringAsFixed(2)}',
             styles: PosStyles(align: PosAlign.right));
-        
-        // Separator between transactions
-        receiptData += generator.text('--------------------------------',
-            styles: PosStyles(align: PosAlign.center));
       }
     } else {
       receiptData += generator.text('No transactions found.',
@@ -804,7 +803,6 @@ class PrinterService extends GetxService {
     }
 
     // Final Balance
-    receiptData += generator.feed(1);
     receiptData += generator.text('Final Balance: ${customer.accountBalance?.toStringAsFixed(2) ?? '0.00'}',
         styles: PosStyles(align: PosAlign.right, bold: true));
 
@@ -813,7 +811,7 @@ class PrinterService extends GetxService {
         styles: PosStyles(align: PosAlign.center));
     receiptData += generator.text('Thank you',
         styles: PosStyles(align: PosAlign.center));
-    receiptData += generator.feed(2);
+    receiptData += generator.feed(1);
     receiptData += generator.cut();
 
     // Send to printer
