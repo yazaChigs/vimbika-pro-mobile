@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:bluetooth_print/bluetooth_print_model.dart';
 import 'package:flutter/material.dart';
@@ -85,26 +87,46 @@ class PrinterSettingsController extends GetxController {
 
       if(type.name == 'bluetooth'){
         WidgetsBinding.instance.addPostFrameCallback((_) => initBluetooth());
+        // Set searching state for Bluetooth too
+        isSearching.value = true;
       } else{
         print("searching.....");
         isSearching.value = true;
         PrinterManager.instance.disconnect(type: type);
-        //var printerManager = await PrinterManager.instance;
-       // await initPlatformState(_printerManager);
         await initPlatformState();
-        await Future.delayed(Duration(seconds: 5));
+        
         try {
           List<PrinterDevice> usbPrinters = [];
-          await PrinterManager.instance.discovery(type: type).listen((printer) {
+          
+          // Create a subscription to the discovery stream
+          var subscription = PrinterManager.instance.discovery(type: type).listen((printer) {
+            // Add each discovered printer to the list (avoid duplicates)
+            if (!usbPrinters.any((p) => p.address == printer.address)) {
               usbPrinters.add(printer);
-          },);
+              // Update UI immediately as printers are discovered
+              printers.value = List.from(usbPrinters);
+              printers.refresh();
+            }
+          }, onError: (error) {
+            print('Error during printer discovery: $error');
+          }, onDone: () {
+            print('Printer discovery completed');
+          });
+          
+          // Wait for discovery period (5 seconds)
+          await Future.delayed(Duration(seconds: 5));
+          
+          // Cancel the subscription after discovery period
+          await subscription.cancel();
+          
+          // Final update with all discovered printers
           printers.value = usbPrinters;
           printers.refresh();
         } catch (e) {
           print('Error searching for printers: $e');
         } finally {
           isSearching.value = false;
-          print("finally");
+          print("Search completed. Found ${printers.length} printers");
         }
       }
 
@@ -145,6 +167,10 @@ class PrinterSettingsController extends GetxController {
 
       var model = null;
       if(selectedPrinterType.value == PrinterType.bluetooth) {
+        if (Platform.isWindows) {
+          Get.snackbar('Not Supported', 'Bluetooth printing is not available on Windows');
+          return;
+        }
         BluetoothPrint bluetoothPrint = await BluetoothPrint.instance;
         BluetoothDevice bt = BluetoothDevice();
         bt.name = printer.name;
@@ -177,6 +203,10 @@ class PrinterSettingsController extends GetxController {
         await _printerService.printTestWithQRCode();
       }
       else if(printer.type == PrinterType.bluetooth.name) {
+        if (Platform.isWindows) {
+          Get.snackbar('Not Supported', 'Bluetooth printing is not available on Windows');
+          return;
+        }
         print("testing....");
         BluetoothPrint bluetoothPrint = await BluetoothPrint.instance;
         await bluetoothPrint.disconnect();
@@ -205,6 +235,10 @@ class PrinterSettingsController extends GetxController {
   // Method to disconnect from the printer
   Future<void> disconnectPrinter() async {
     if(selectedPrinterType.value.name == "bluetooth"){
+      if (Platform.isWindows) {
+        Get.snackbar('Not Supported', 'Bluetooth printing is not available on Windows');
+        return;
+      }
       BluetoothPrint bluetoothPrint = await BluetoothPrint.instance;
       await bluetoothPrint.disconnect();
     } else{
@@ -291,6 +325,11 @@ class PrinterSettingsController extends GetxController {
 
     }
   Future<void> checkBluetoothPermissions() async {
+    // Bluetooth permissions not needed on Windows
+    if (Platform.isWindows) {
+      return;
+    }
+    
     if (await Permission.bluetoothScan.isGranted &&
         await Permission.bluetoothConnect.isGranted &&
         await Permission.locationWhenInUse.isGranted) {
@@ -306,48 +345,100 @@ class PrinterSettingsController extends GetxController {
 
   // Platform messages are asynchronous, so we initialize in an async method.
   Future<void> initBluetooth() async {
-    AppHelper.showLoading("Searching devices...");
-    BluetoothPrint bluetoothPrint = await BluetoothPrint.instance;
-    await bluetoothPrint.disconnect();
-    await bluetoothPrint.startScan(timeout: Duration(seconds: 4));
-    List<PrinterDevice> devic = [];
-    await bluetoothPrint.scanResults.listen((List<BluetoothDevice> devices) {
-      for (var device in devices) {
-        PrinterDevice pd = PrinterDevice(name: device.name!, address: device.address);
-        devic.add(pd);
+    // Bluetooth is not available on Windows
+    if (Platform.isWindows) {
+      print("Bluetooth printing not available on Windows");
+      isSearching.value = false;
+      AppHelper.hideLoading();
+      Get.snackbar('Not Supported', 'Bluetooth printing is not available on Windows. Please use USB or Network printers.');
+      return;
+    }
+    
+    try {
+      // Check permissions first
+      await checkBluetoothPermissions();
+      
+      AppHelper.showLoading("Searching devices...");
+      BluetoothPrint bluetoothPrint = await BluetoothPrint.instance;
+      await bluetoothPrint.disconnect();
+      
+      List<PrinterDevice> devic = [];
+      StreamSubscription? scanSubscription;
+      
+      // Create subscription to scan results stream
+      scanSubscription = bluetoothPrint.scanResults.listen((List<BluetoothDevice> devices) {
+        for (var device in devices) {
+          // Avoid duplicates
+          if (!devic.any((p) => p.address == device.address)) {
+            PrinterDevice pd = PrinterDevice(name: device.name ?? 'Unknown', address: device.address);
+            devic.add(pd);
 
-        print("Device Name: ${device.name}, Device Address: ${device.address}");
+            print("Device Name: ${device.name}, Device Address: ${device.address}");
+            
+            // Update UI immediately as devices are discovered
+            printers.value = List.from(devic);
+            printers.refresh();
+          }
+        }
+      }, onError: (error) {
+        print('Error during Bluetooth scan: $error');
+      });
+      
+      // Start scanning (timeout is 4 seconds)
+      await bluetoothPrint.startScan(timeout: Duration(seconds: 4));
+      
+      // Wait for scan to complete
+      await Future.delayed(Duration(seconds: 4));
+      
+      // Stop scanning and cancel subscription
+      await bluetoothPrint.stopScan();
+      await scanSubscription.cancel();
+      
+      // Final update with all discovered devices
+      printers.value = devic;
+      printers.refresh();
+      AppHelper.hideLoading();
+      
+      print("Bluetooth search completed. Found ${printers.length} devices");
+    } catch (e) {
+      print('Error during Bluetooth search: $e');
+      AppHelper.hideLoading();
+      Get.snackbar('Error', 'Failed to search for Bluetooth devices: $e');
+    } finally {
+      isSearching.value = false;
+    }
+    
+    // Set up state listener (this should be done once, not on every search)
+    // Only set up on non-Windows platforms
+    if (!Platform.isWindows) {
+      try {
+        BluetoothPrint bluetoothPrint = await BluetoothPrint.instance;
+        bluetoothPrint.state.listen((state) {
+          switch (state) {
+            case BluetoothPrint.CONNECTED:
+              print('********* CONNECTED : $state');
+              isConnected.value = true;
+              break;
+            case BluetoothPrint.DISCONNECTED:
+              isConnected.value = false;
+              break;
+            default:
+              break;
+          }
+        });
+      } catch (e) {
+        print('Error setting up Bluetooth state listener: $e');
       }
-    });
-    printers.value = devic;
-    printers.refresh();
-    AppHelper.hideLoading();
-    await bluetoothPrint.state.listen((state) async {
-      switch (state) {
-
-        case BluetoothPrint.CONNECTED:
-          print('********* CONNECTED : $state');
-          //printTestReceipt(PrinterType.bluetooth);
-
-          isConnected.value = true;
-          //await printBlueToothTest();
-
-
-          break;
-        case BluetoothPrint.DISCONNECTED:
-
-          isConnected.value = false;
-
-          break;
-        default:
-          break;
-      }
-    });
-
-
+    }
   }
 
   printBlueToothTest() async {
+    if (Platform.isWindows) {
+      print("Bluetooth printing not available on Windows");
+      Get.snackbar('Not Supported', 'Bluetooth printing is not available on Windows');
+      return;
+    }
+    
     BluetoothPrint bluetoothPrint = await BluetoothPrint.instance;
     Map<String, dynamic> config = Map();
     List<LineText> list = [];

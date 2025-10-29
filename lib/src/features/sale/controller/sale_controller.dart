@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -112,11 +113,20 @@ class SaleController extends GetxController {
     categories.value = catList;
     categories.refresh();
       getOfflineProducts(box);
-    bool? result = await SunmiPrinter.bindingPrinter();
-    result = result ?? false;
-    if(!result) {
-      Get.snackbar('Printer Status', 'Sunmi built in printer not available',
-          snackPosition: SnackPosition.BOTTOM);
+    // Only initialize Sunmi printer on Android platforms
+    bool? result = false;
+    if (!Platform.isWindows) {
+      try {
+        result = await SunmiPrinter.bindingPrinter();
+        result = result ?? false;
+        if(!result) {
+          Get.snackbar('Printer Status', 'Sunmi built in printer not available',
+              snackPosition: SnackPosition.BOTTOM);
+        }
+      } catch (e) {
+        print('Sunmi printer error: $e');
+        result = false;
+      }
     }
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
