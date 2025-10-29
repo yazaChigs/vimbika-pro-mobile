@@ -56,17 +56,24 @@ class PrinterService extends GetxService {
   Future<void> printCurrentSale(SaleInfoModel saleInfo, GetStorage box,  LocalStorageService _localStorageService) async {
     AvailablePrinterModel? prin = _localStorageService.findActivePrinter(box);
         if (prin != null) {
+          print("Attempting to print with printer type: ${prin.type}, name: ${prin.name}");
+          
           if(prin.type == 'SUNMI_INBUILT_PRINTER') {
             await printSunmiSaleReceipt(saleInfo.sale!);
           }
-          if(prin.type == 'TELPO_INBUILT_PRINTER') {
+          else if(prin.type == 'TELPO_INBUILT_PRINTER') {
             await printTelpoSaleReceipt(saleInfo.sale!);
           }
-          if (prin.type == 'bluetooth') {
+          else if (prin.type == 'bluetooth') {
             await generateBluetoothReceipt(saleInfo.sale!, prin);
           }
-          if (prin.type == 'usb') {
+          else if (prin.type == 'usb') {
             await generateUSBReceipt(saleInfo.sale!, prin);
+          }
+          else {
+            print("Unknown printer type: ${prin.type}");
+            Get.snackbar('Error', 'Unknown printer type: ${prin.type}. Please reconfigure your printer.',
+                snackPosition: SnackPosition.BOTTOM);
           }
         } else {
           Get.snackbar('Error', 'Default Printer Not Found. Please add printer.',
@@ -863,6 +870,8 @@ class PrinterService extends GetxService {
      // Only print on Android platforms
      if (Platform.isWindows) {
        print("Sunmi printer not available on Windows");
+       Get.snackbar('Error', 'Sunmi printer is not available on Windows. Please select a USB printer instead.',
+           snackPosition: SnackPosition.BOTTOM);
        return;
      }
      
