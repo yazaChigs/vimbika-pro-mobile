@@ -142,20 +142,19 @@ class PrinterService extends GetxService {
         }
 
   }
-  Future<void> printCustomerStatement(CustomerModel customer,List<CustomerProjectionModel> customerProjections, GetStorage box,  LocalStorageService _localStorageService) async {
+  Future<void> printCustomerStatement(CustomerModel customer,List<CustomerProjectionModel> customerProjections, GetStorage box,  LocalStorageService _localStorageService, {String? dateRangeDescription}) async {
     AvailablePrinterModel? prin = _localStorageService.findActivePrinter(box);
         if (prin != null) {
           if(prin.type == 'SUNMI_INBUILT_PRINTER') {
-            await printSunmiCustomerStatement(customer,customerProjections);
+            await printSunmiCustomerStatement(customer,customerProjections, dateRangeDescription: dateRangeDescription);
+          } else if(prin.type == 'usb') {
+            await generateUSBCustomerStatement(customer, customerProjections, prin, dateRangeDescription: dateRangeDescription);
           }
          /* if(prin.type == 'TELPO_INBUILT_PRINTER') {
             await printTelpoSaleReceipt(saleInfo.sale!);
           }
           if (prin.type == 'bluetooth') {
             await generateBluetoothReceipt(saleInfo.sale!, prin);
-          }
-          if (prin.type == 'usb') {
-            await generateUSBReceipt(saleInfo.sale!, prin);
           }*/
         } else {
           Get.snackbar('Error', 'Default Printer Not Found. Please add printer.',
@@ -687,12 +686,181 @@ class PrinterService extends GetxService {
      receiptData += generator.feed(2); // Feed lines for spacing
      receiptData += generator.cut(); // Cut the paper
      var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
-     await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
-     await PrinterManager.instance.send(
-       bytes: receiptData, // Data to be printed
-       type: PrinterType.usb,
-     );
+     
+     try {
+       print("USB Receipt: Connecting to printer: ${printer.name}");
+       bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
+       if (!connected) {
+         print("USB Receipt: Connection failed");
+         Get.snackbar('Error', 'Failed to connect to printer',
+             snackPosition: SnackPosition.BOTTOM);
+         return;
+       }
+       
+       print("USB Receipt: Connected successfully. Sending data (${receiptData.length} bytes)...");
+       await PrinterManager.instance.send(
+         bytes: receiptData, // Data to be printed
+         type: PrinterType.usb,
+       );
+       print("USB Receipt: Data sent successfully");
+       
+       // Note: Don't disconnect for receipts to keep connection for multiple prints
+     } catch (e) {
+       print("USB Receipt: Error printing: $e");
+       Get.snackbar('Error', 'Failed to print receipt: $e',
+           snackPosition: SnackPosition.BOTTOM);
+     }
    }
+
+  // Generate USB Customer Statement
+  Future<void> generateUSBCustomerStatement(CustomerModel customer, List<CustomerProjectionModel>? projectionsa, AvailablePrinterModel printer, {String? dateRangeDescription}) async {
+    print("==================== PRINTING ACCOUNT STATEMENT (USB) ====================");
+    print("Customer: ${customer.name}");
+    print("Total transactions to print: ${projectionsa?.length ?? 0}");
+    
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm80, profile);
+    List<int> receiptData = [];
+
+    // Load company logo
+    Uint8List imageBytes = await readLocalFileBytes();
+    
+    // Convert image to ESC/POS compatible format
+    try {
+      final img.Image? image = img.decodeImage(imageBytes);
+      if (image != null) {
+        final img.Image resized = img.copyResize(image, width: 200);
+        receiptData += generator.image(resized);
+        receiptData += generator.feed(1);
+      }
+    } catch (e) {
+      print('Error processing logo image: $e');
+    }
+
+    // Header
+    receiptData += generator.text('ACCOUNT STATEMENT',
+        styles: PosStyles(
+          align: PosAlign.center,
+          bold: true,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ));
+    receiptData += generator.text('Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
+        styles: PosStyles(align: PosAlign.left));
+    
+    // Date Range (if provided)
+    if (dateRangeDescription != null && dateRangeDescription.isNotEmpty) {
+      receiptData += generator.text('Period: $dateRangeDescription',
+          styles: PosStyles(align: PosAlign.left));
+    }
+    
+    // Separator
+    receiptData += generator.text('--------------------------------',
+        styles: PosStyles(align: PosAlign.center));
+
+    // Customer Information
+    receiptData += generator.text('Customer: ${customer.name}',
+        styles: PosStyles(align: PosAlign.left, bold: true));
+    receiptData += generator.feed(1);
+
+    // Separator
+    receiptData += generator.text('--------------------------------',
+        styles: PosStyles(align: PosAlign.center));
+
+    // Transaction items
+    if (projectionsa != null && projectionsa.isNotEmpty) {
+      for (var payment in projectionsa) {
+        String date = payment.paymentReceived!.dateTime!.substring(0, 10);
+        String reference = payment.reference ?? 'N/A';
+        String description = payment.paymentReceived!.paymentDescription ?? '';
+        String type = payment.paymentReceived!.paymentType!.isCredit! ? 'CR' : 'DR';
+        String currencySymbol = payment.paymentReceived!.currency?.symbol ?? '\$';
+        double amount = payment.paymentReceived!.amount ?? 0.0;
+        double balance = payment.paymentReceived!.accountBalance ?? 0.0;
+
+        // Date and Reference
+        receiptData += generator.text('$date  Ref: $reference',
+            styles: PosStyles(align: PosAlign.left, bold: true));
+        
+        // Description
+        receiptData += generator.text('$description',
+            styles: PosStyles(align: PosAlign.left));
+        
+        // Amount and Type
+        receiptData += generator.text('$type  $currencySymbol ${amount.toStringAsFixed(2)}',
+            styles: PosStyles(align: PosAlign.left));
+        
+        // Balance
+        receiptData += generator.text('Balance: $currencySymbol ${balance.toStringAsFixed(2)}',
+            styles: PosStyles(align: PosAlign.right));
+        
+        // Separator between transactions
+        receiptData += generator.text('--------------------------------',
+            styles: PosStyles(align: PosAlign.center));
+      }
+    } else {
+      receiptData += generator.text('No transactions found.',
+          styles: PosStyles(align: PosAlign.center));
+    }
+
+    // Final Balance
+    receiptData += generator.feed(1);
+    receiptData += generator.text('Final Balance: ${customer.accountBalance?.toStringAsFixed(2) ?? '0.00'}',
+        styles: PosStyles(align: PosAlign.right, bold: true));
+
+    // Footer
+    receiptData += generator.text('--------------------------------',
+        styles: PosStyles(align: PosAlign.center));
+    receiptData += generator.text('Thank you',
+        styles: PosStyles(align: PosAlign.center));
+    receiptData += generator.feed(2);
+    receiptData += generator.cut();
+
+    // Send to printer
+    try {
+      print("Connecting to USB printer: ${printer.name}");
+      var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
+      bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
+      
+      if (!connected) {
+        print("ERROR: Failed to connect to USB printer");
+        Get.snackbar('Error', 'Failed to connect to printer',
+            snackPosition: SnackPosition.BOTTOM);
+        return;
+      }
+      
+      print("USB printer connected successfully. Sending data...");
+      print("Receipt data size: ${receiptData.length} bytes");
+      
+      // Small delay to ensure printer is ready
+      await Future.delayed(Duration(milliseconds: 100));
+      
+      await PrinterManager.instance.send(
+        bytes: receiptData,
+        type: PrinterType.usb,
+      );
+      
+      print("✓ Data sent to printer successfully");
+      
+      // Wait for printer to finish processing before disconnecting
+      // Statements may be longer, so give more time
+      await Future.delayed(Duration(milliseconds: 1000));
+      
+      // Disconnect after printing statement (unlike receipts which stay connected)
+      await PrinterManager.instance.disconnect(type: PrinterType.usb);
+      print("✓ Disconnected from printer");
+      
+      Get.snackbar('Success', 'Account statement printed successfully',
+          snackPosition: SnackPosition.BOTTOM);
+      
+      print("==================== ACCOUNT STATEMENT PRINTED (USB) ====================");
+    } catch (e, stackTrace) {
+      print("ERROR printing account statement: $e");
+      print("Stack trace: $stackTrace");
+      Get.snackbar('Error', 'Failed to print account statement: $e',
+          snackPosition: SnackPosition.BOTTOM);
+    }
+  }
 
    PrinterType? parsePrinterType(String value) {
      switch (value.toLowerCase()) {
@@ -1233,7 +1401,7 @@ class PrinterService extends GetxService {
    }
 
     // Print Customer Statement
-   Future<void> printSunmiCustomerStatement(CustomerModel customer, List<CustomerProjectionModel>? projectionsa) async {
+   Future<void> printSunmiCustomerStatement(CustomerModel customer, List<CustomerProjectionModel>? projectionsa, {String? dateRangeDescription}) async {
      // Only print on Android platforms
      if (Platform.isWindows) {
        print("==================== PRINT PREVIEW (Windows - Printing Disabled) ====================");
@@ -1281,11 +1449,17 @@ class PrinterService extends GetxService {
      // await SunmiPrinter.printText("KOT");
      await SunmiPrinter.resetFontSize();
 
-     await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
-     await SunmiPrinter.printText("ACCOUNT STATEMENT");
-     await SunmiPrinter.printText("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}");
-     // Separator
-     await SunmiPrinter.printText("--------------------------------");
+    await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+    await SunmiPrinter.printText("ACCOUNT STATEMENT");
+    await SunmiPrinter.printText("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}");
+    
+    // Date Range (if provided)
+    if (dateRangeDescription != null && dateRangeDescription.isNotEmpty) {
+      await SunmiPrinter.printText("Period: $dateRangeDescription");
+    }
+    
+    // Separator
+    await SunmiPrinter.printText("--------------------------------");
 
      // Customer Information
        await SunmiPrinter.printText("Customer: ${customer.name}");

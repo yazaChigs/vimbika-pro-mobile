@@ -487,7 +487,7 @@ class CustomerController extends GetxController {
           }
           print("================================================================================");
 
-          _printerService.printCustomerStatement(customer,itemsList, box, _localStorageService);
+          _printerService.printCustomerStatement(customer,itemsList, box, _localStorageService, dateRangeDescription: description);
 
          /* for (CustomerProjectionModel sale in itemsList) {
             SaleInfoModel saleInfoModel = SaleInfoModel(
