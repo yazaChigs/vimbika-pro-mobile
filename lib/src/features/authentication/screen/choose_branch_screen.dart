@@ -53,6 +53,8 @@ class ChooseBranchScreen extends StatelessWidget {
                   onChanged: (CompanyModel? newValue) async {
                     // Update your state here
                     offlineDataController.isCompanySelected.value = true;
+                    offlineDataController.selectedCompany.value = newValue;
+                    offlineDataController.onCompanyChange(newValue!);
                     var displays = await display.getDisplays();
                     if(displays!.length>1) {
                           final cartData = {
@@ -64,8 +66,6 @@ class ChooseBranchScreen extends StatelessWidget {
                           };
                           await display.transferDataToPresentation(cartData);
                         }
-                    offlineDataController.selectedCompany.value = newValue;
-                    offlineDataController.onCompanyChange(newValue!);
                   },
                   items: offlineDataController.companyList.map<DropdownMenuItem<
                       CompanyModel>>((CompanyModel value) {
