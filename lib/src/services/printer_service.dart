@@ -334,25 +334,50 @@ class PrinterService extends GetxService {
     // Totals
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-      content: 'Subtotal: ${cur!.symbol} ${sale.amountPaid?.toStringAsFixed(2)}',
+      content: 'Subtotal: ${cur!.symbol} ${sale.amountAfterDiscount?.toStringAsFixed(2)}',
       align: LineText.ALIGN_RIGHT,
       linefeed: 1,
     ));
 
-
-
-    // Payment
+    // Payment Methods (like Sunmi)
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-      content: 'Amount Paid: ${cur.symbol} ${sale.customerAmountPaid?.toStringAsFixed(2)}',
+      content: 'Amount Paid: ${cur.symbol} ${sale.amountPaid?.toStringAsFixed(2)} \t\t${sale.paymentTypes!.map((pt)=>pt.paymentType!.name!).join(', ')}',
       align: LineText.ALIGN_RIGHT,
       linefeed: 1,
     ));
 
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-      content: 'Change: ${cur.symbol} ${sale.change?.toStringAsFixed(2)}\n\n',
+      content: 'Change: ${cur.symbol} ${sale.change?.toStringAsFixed(2)}',
       align: LineText.ALIGN_RIGHT,
+      linefeed: 1,
+    ));
+
+    // Tip (if present) - missing feature added
+    if(sale.tipAmount != null && sale.tipAmount! > 0) {
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: 'Tip: ${cur.symbol} ${sale.tipAmount!.toStringAsFixed(2)}',
+        align: LineText.ALIGN_RIGHT,
+        linefeed: 1,
+      ));
+    }
+
+    // Account Balance (if ACC- payment type is used) - unique to Sunmi, now added to Bluetooth
+    if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty) {
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: 'Account Balance: ${cur.symbol} ${sale.customer!.currencyBalance!.firstWhere((cb) => cb.currency?.id == cur?.id, orElse: () => sale.customer!.currencyBalance!.first).balance!.toStringAsFixed(2)}',
+        align: LineText.ALIGN_RIGHT,
+        linefeed: 1,
+      ));
+    }
+
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: '\n',
+      align: LineText.ALIGN_CENTER,
       linefeed: 1,
     ));
 
@@ -614,17 +639,29 @@ class PrinterService extends GetxService {
            styles: PosStyles(align: PosAlign.center));
      }
 
-     // Subtotal
-     receiptData += generator.text('Subtotal: ${cur?.symbol} ${sale.amountPaid?.toStringAsFixed(2)}',
-         styles: PosStyles(align: PosAlign.right));
+    // Subtotal
+    receiptData += generator.text('Subtotal: ${cur?.symbol} ${sale.amountAfterDiscount?.toStringAsFixed(2)}',
+        styles: PosStyles(align: PosAlign.right));
 
-     // Payment
-     receiptData += generator.text('Amount Paid: ${cur?.symbol} ${sale.customerAmountPaid?.toStringAsFixed(2)}',
-         styles: PosStyles(align: PosAlign.right));
+    // Payment Methods (like Sunmi)
+    receiptData += generator.text('Amount Paid: ${cur?.symbol} ${sale.amountPaid?.toStringAsFixed(2)} \t\t${sale.paymentTypes!.map((pt)=>pt.paymentType!.name!).join(', ')}',
+        styles: PosStyles(align: PosAlign.right));
 
-     // Change
-     receiptData += generator.text('Change: ${cur?.symbol} ${sale.change?.toStringAsFixed(2)}',
-         styles: PosStyles(align: PosAlign.right));
+    // Change
+    receiptData += generator.text('Change: ${cur?.symbol} ${sale.change?.toStringAsFixed(2)}',
+        styles: PosStyles(align: PosAlign.right));
+
+    // Tip (if present) - missing feature added
+    if(sale.tipAmount != null && sale.tipAmount! > 0) {
+      receiptData += generator.text('Tip: ${cur?.symbol} ${sale.tipAmount!.toStringAsFixed(2)}',
+          styles: PosStyles(align: PosAlign.right));
+    }
+
+    // Account Balance (if ACC- payment type is used) - unique to Sunmi, now added to USB
+    if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty) {
+      receiptData += generator.text('Account Balance: ${cur?.symbol} ${sale.customer!.currencyBalance!.firstWhere((cb) => cb.currency?.id == cur?.id, orElse: () => sale.customer!.currencyBalance!.first).balance!.toStringAsFixed(2)}',
+          styles: PosStyles(align: PosAlign.right));
+    }
 
      // Footer
      receiptData += generator.text('Thank you for your purchase!',
@@ -912,9 +949,15 @@ class PrinterService extends GetxService {
      await SunmiPrinter.submitTransactionPrint();
      await SunmiPrinter.exitTransactionPrint(true);
    }
-   Future<void> printSunmiSaleBill(SaleModel sale,List<CurrencyModel> currencies) async {
-     CurrencyModel? cur = sale.currency;
-     currencies.removeWhere((c) => c.id == cur!.id);
+  Future<void> printSunmiSaleBill(SaleModel sale,List<CurrencyModel> currencies) async {
+    // Only print on Android platforms
+    if (Platform.isWindows) {
+      print("Sunmi printer not available on Windows");
+      return;
+    }
+    
+    CurrencyModel? cur = sale.currency;
+    currencies.removeWhere((c) => c.id == cur!.id);
 
      Uint8List imageBytes = await readLocalFileBytes();
 
@@ -966,8 +1009,13 @@ class PrinterService extends GetxService {
      for(var currency in currencies){
        await SunmiPrinter.printText("${currency.name} Amount: ${(sale.amountPaid!*currency.rate!).toStringAsFixed(2)}");
      }
-     await SunmiPrinter.printText("\nTip:.........................");
-     if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false))
+    // Tip (if present)
+    if(sale.tipAmount != null && sale.tipAmount! > 0) {
+      await SunmiPrinter.printText("\nTip: ${cur?.symbol ?? ''} ${sale.tipAmount!.toStringAsFixed(2)}");
+    } else {
+      await SunmiPrinter.printText("\nTip:.........................");
+    }
+    if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false))
        {
          await SunmiPrinter.printText(
              "Account Balance: ${cur?.symbol ?? ''} ${sale.customer!
@@ -1348,6 +1396,12 @@ class PrinterService extends GetxService {
     }
   }
   Future<void> printTelpoSaleReceipt(SaleModel sale) async {
+    // Only print on Android platforms
+    if (Platform.isWindows) {
+      print("Telpo printer not available on Windows");
+      return;
+    }
+    
     try {
       CurrencyModel? cur = sale.currency;
 
@@ -1356,7 +1410,7 @@ class PrinterService extends GetxService {
 
       // Header
       receiptBuffer.writeln("********** RECEIPT **********");
-      await SunmiPrinter.printText("Cashier: ${sale.cashierFullName}\n");
+      receiptBuffer.writeln("Cashier: ${sale.cashierFullName}");
       receiptBuffer.writeln("Date: ${sale.timeIniated}");
       receiptBuffer.writeln("Reference: ${sale.referenceNumber}");
 
@@ -1380,10 +1434,25 @@ class PrinterService extends GetxService {
         receiptBuffer.writeln("--------------------------------");
       }
 
-      // Totals
-      receiptBuffer.writeln("Subtotal: ${cur?.symbol ?? ''} ${sale.amountPaid?.toStringAsFixed(2)}");
-      receiptBuffer.writeln("Amount Paid: ${cur?.symbol ?? ''} ${sale.customerAmountPaid?.toStringAsFixed(2)}");
+      // Totals (updated to match Sunmi)
+      receiptBuffer.writeln("Subtotal: ${cur?.symbol ?? ''} ${sale.amountAfterDiscount?.toStringAsFixed(2)}");
+      receiptBuffer.writeln("Amount Paid: ${cur?.symbol ?? ''} ${sale.amountPaid?.toStringAsFixed(2)} \t\t${sale.paymentTypes!.map((pt)=>pt.paymentType!.name!).join(', ')}");
       receiptBuffer.writeln("Change: ${cur?.symbol ?? ''} ${sale.change?.toStringAsFixed(2)}");
+
+      // Tip (if present) - missing feature added
+      if(sale.tipAmount != null && sale.tipAmount! > 0) {
+        receiptBuffer.writeln("Tip: ${cur?.symbol ?? ''} ${sale.tipAmount!.toStringAsFixed(2)}");
+      }
+
+      // Account Balance (if ACC- payment type is used) - unique to Sunmi, now added to Telpo
+      if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty) {
+        receiptBuffer.writeln("Account Balance: ${cur?.symbol ?? ''} ${sale.customer!.currencyBalance!.firstWhere((cb) => cb.currency?.id == cur?.id, orElse: () => sale.customer!.currencyBalance!.first).balance!.toStringAsFixed(2)}");
+      }
+
+      receiptBuffer.writeln("--------------------------------");
+
+      // Footer
+      receiptBuffer.writeln("Thank you for your purchase!");
 
       // Print consolidated text
       await TelpoM8().printWithThermalPrinter(receiptBuffer.toString());
@@ -1594,6 +1663,12 @@ class PrinterService extends GetxService {
    Future<void> printShiftSummary(ShiftModel shift,RxList<SaleInfoModel> allReceipts, List<Map<String, dynamic>> totalAmountsByCurrency, List<Map<String, dynamic>> totalAmountsByPaymentType,
        List<Map<String, dynamic>> totalCashIn, List<Map<String, dynamic>> totalCashOut, List<Map<String, dynamic>> totalSubmitted, List<Map<String, dynamic>> totalSales, List<Map<String,
            dynamic>> totalTips,List<Map<String, dynamic>> breakages, List<Map<String, dynamic>> refunds) async {
+     // Only print on Android platforms
+     if (Platform.isWindows) {
+       print("Sunmi printer not available on Windows");
+       return;
+     }
+     
      await SunmiPrinter.initPrinter();
      await SunmiPrinter.startTransactionPrint(true);
 
@@ -1701,6 +1776,12 @@ class PrinterService extends GetxService {
 
 
    Future<void> testPrinter() async {
+     // Only print on Android platforms
+     if (Platform.isWindows) {
+       print("Sunmi printer not available on Windows");
+       return;
+     }
+     
      try {
        await SunmiPrinter.initPrinter();
        // Start a transaction
@@ -1767,6 +1848,12 @@ class PrinterService extends GetxService {
    }
 
   Future<void> printTestWithQRCode() async {
+    // Only print on Android platforms
+    if (Platform.isWindows) {
+      print("Sunmi printer not available on Windows");
+      return;
+    }
+    
     try {
       const dummyUrl = 'https://example.com'; // Dummy URL for the QR Code
 
