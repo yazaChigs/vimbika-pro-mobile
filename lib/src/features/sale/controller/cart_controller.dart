@@ -501,8 +501,10 @@ class CartController extends GetxController {
         totalCostInSelectedCurrency.value.toStringAsFixed(2);
     amountPaid.value = totalCostInSelectedCurrency.value;
     customerAmountPaid.value = totalCostInSelectedCurrency.value;
-    if(selectedPaymentType.value!=null){
+    if (selectedPaymentType.value != null) {
       selectedPaymentType.value!.amount = totalCostInSelectedCurrency.value;
+    }
+    if (selectedPaymentTypes.isNotEmpty) {
       selectedPaymentTypes.first.amount = totalCostInSelectedCurrency.value;
     }
     if(rearScreenAvailable.value){

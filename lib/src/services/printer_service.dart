@@ -76,8 +76,10 @@ class PrinterService extends GetxService {
 
   }
   Future<void> printKOT(SaleInfoModel saleInfo,String orderNum, GetStorage box,  LocalStorageService _localStorageService) async {
+    print('[UI] printKOT invoked | orderNum=$orderNum | items=${saleInfo.sale?.items?.length ?? 0}');
     AvailablePrinterModel? prin = _localStorageService.findActivePrinter(box);
         if (prin != null) {
+          print('[UI] default printer: type=${prin.type}, name=${prin.name}, vid=${prin.vendorId}, pid=${prin.productId}');
           if(prin.type == 'SUNMI_INBUILT_PRINTER') {
             await printSunmiKOT(saleInfo.sale!, orderNum);
           }
@@ -88,7 +90,7 @@ class PrinterService extends GetxService {
             await generateBluetoothReceipt(saleInfo.sale!, prin);
           }
           if (prin.type == 'usb') {
-            await generateUSBReceipt(saleInfo.sale!, prin);
+            await printKOTUsb(saleInfo.sale!, orderNum, prin);
           }
         } else {
           Get.snackbar('Error', 'Default Printer Not Found. Please add printer.',
@@ -164,10 +166,15 @@ class PrinterService extends GetxService {
 
   }
   Future<void> printQuickKOT(List<CartItemModel> items,String? cashier, String customer, String reference, GetStorage box,  LocalStorageService _localStorageService) async {
+    print('[UI] printQuickKOT invoked | items=${items.length} | cashier=$cashier | customer=$customer | ref=$reference');
     AvailablePrinterModel? prin = _localStorageService.findActivePrinter(box);
         if (prin != null) {
+          print('[UI] default printer: type=${prin.type}, name=${prin.name}, vid=${prin.vendorId}, pid=${prin.productId}');
           if(prin.type == 'SUNMI_INBUILT_PRINTER') {
             await printSunmiQuickKOT(items, cashier, customer, reference);
+          }
+          if (prin.type == 'usb') {
+            await printQuickKOTUsb(items, cashier, customer, reference, prin);
           }
           /*if(prin.type == 'TELPO_INBUILT_PRINTER') {
             await printTelpoSaleReceipt(saleInfo.sale!);
@@ -175,9 +182,7 @@ class PrinterService extends GetxService {
           if (prin.type == 'bluetooth') {
             await generateBluetoothReceipt(saleInfo.sale!, prin);
           }
-          if (prin.type == 'usb') {
-            await generateUSBReceipt(saleInfo.sale!, prin);
-          }*/
+          */
         } else {
           Get.snackbar('Error', 'Default Printer Not Found. Please add printer.',
               snackPosition: SnackPosition.BOTTOM);
@@ -1183,16 +1188,22 @@ class PrinterService extends GetxService {
 
    // Print KOT
    Future<void> printSunmiKOT(SaleModel sale, String orderNum) async {
+    print('[KOT][Sunmi] start | orderNum=$orderNum | items=${sale.items?.length ?? 0} | cashier=${sale.cashierFullName}');
      // Only print on Android platforms
      if (Platform.isWindows) {
-       print("Sunmi printer not available on Windows");
+      print("[KOT][Sunmi] skipped on Windows: Sunmi printer not available");
        return;
      }
      
      CurrencyModel? cur = sale.currency;
 
-     // Uint8List imageBytes = await readLocalFileBytes();
-     //print(imageBytes);
+    // Print company logo if available
+    try {
+      final Uint8List imageBytes = await readLocalFileBytes();
+      await SunmiPrinter.printImage(imageBytes);
+    } catch (e) {
+      print('[KOT][Sunmi] logo error: $e');
+    }
 
      await SunmiPrinter.initPrinter();
      await SunmiPrinter.startTransactionPrint(true);
@@ -1247,10 +1258,16 @@ class PrinterService extends GetxService {
   // Print Quick KOT
   Future<void> printSunmiQuickKOT(List<CartItemModel> items, String? cashier, String? customer, String? reference) async {
 
-    // Uint8List imageBytes = await readLocalFileBytes();
-    //print(imageBytes);
+    // Print company logo if available
+    try {
+      final Uint8List imageBytes = await readLocalFileBytes();
+      await SunmiPrinter.printImage(imageBytes);
+    } catch (e) {
+      print('[KOT-QUICK][Sunmi] logo error: $e');
+    }
     String todayDate = DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now());
 
+    print('[KOT][Sunmi] init printer');
     await SunmiPrinter.initPrinter();
     await SunmiPrinter.startTransactionPrint(true);
 
@@ -1288,8 +1305,173 @@ class PrinterService extends GetxService {
     // Footer
     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
     await SunmiPrinter.printText("\n\n\n");
+    print('[KOT][Sunmi] submit');
     await SunmiPrinter.submitTransactionPrint();
     await SunmiPrinter.exitTransactionPrint(true);
+    print('[KOT][Sunmi] done');
+  }
+  
+  // Print KOT via USB (ESC/POS)
+  Future<void> printKOTUsb(SaleModel sale, String orderNum, AvailablePrinterModel printer) async {
+    print('[KOT][USB] start | orderNum=$orderNum | items=${sale.items?.length ?? 0} | cashier=${sale.cashierFullName}');
+    print('[KOT][USB] printer: name=${printer.name}, vid=${printer.vendorId}, pid=${printer.productId}');
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm80, profile);
+    List<int> bytes = [];
+
+    // Company logo
+    try {
+      final Uint8List imageBytes = await readLocalFileBytes();
+      final img.Image? image = img.decodeImage(imageBytes);
+      if (image != null) {
+        final img.Image resized = img.copyResize(image, width: 200);
+        bytes += generator.image(resized);
+        bytes += generator.feed(1);
+      }
+    } catch (e) {
+      print('[KOT][USB] logo error: $e');
+    }
+
+    // Header
+    bytes += generator.text('KOT',
+        styles: PosStyles(
+          align: PosAlign.center,
+          bold: true,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ));
+    bytes += generator.text(orderNum,
+        styles: PosStyles(align: PosAlign.center, height: PosTextSize.size2, width: PosTextSize.size2));
+
+    // Meta
+    bytes += generator.text('Cashier: ${sale.cashierFullName}', styles: PosStyles(align: PosAlign.left));
+    final String customerName = sale.customer?.name ?? (sale.ticketName ?? '');
+    if (customerName.isNotEmpty) {
+      bytes += generator.text('Customer: $customerName   Sit-in', styles: PosStyles(align: PosAlign.left));
+    }
+    if ((sale.ticketComment ?? '').isNotEmpty) {
+      bytes += generator.text('Comments: ${sale.ticketComment}', styles: PosStyles(align: PosAlign.left));
+    }
+    bytes += generator.text('--------------------------------', styles: PosStyles(align: PosAlign.center));
+
+    // Items
+    for (var item in sale.items ?? []) {
+      final String itemName = item.inventoryItem?.name ?? 'Item';
+      final String qty = (item.quantity ?? 0).toString();
+      bytes += generator.text('$itemName x $qty',
+          styles: PosStyles(align: PosAlign.left, height: PosTextSize.size2));
+      final String notes = item.notes ?? '';
+      if (notes.isNotEmpty) {
+        bytes += generator.text(notes, styles: PosStyles(align: PosAlign.left));
+      }
+    }
+
+    bytes += generator.text('--------------------------------', styles: PosStyles(align: PosAlign.center));
+    bytes += generator.feed(2);
+    bytes += generator.cut();
+
+    // Send
+    try {
+      var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
+      print('[KOT][USB] connecting...');
+      bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
+      print('[KOT][USB] connected=$connected');
+      if (!connected) {
+        Get.snackbar('Error', 'Failed to connect to printer', snackPosition: SnackPosition.BOTTOM);
+        return;
+      }
+      print('[KOT][USB] sending ${bytes.length} bytes');
+      await PrinterManager.instance.send(bytes: bytes, type: PrinterType.usb);
+      print('[KOT][USB] disconnect');
+      await PrinterManager.instance.disconnect(type: PrinterType.usb);
+      Get.snackbar('Success', 'KOT printed successfully', snackPosition: SnackPosition.BOTTOM);
+      print('[KOT][USB] done');
+    } catch (e, st) {
+      print('[KOT][USB] error: $e');
+      print(st);
+      Get.snackbar('Error', 'Failed to print KOT: $e', snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
+  // Print Quick KOT via USB (ESC/POS) — items only
+  Future<void> printQuickKOTUsb(List<CartItemModel> items, String? cashier, String? customer, String? reference, AvailablePrinterModel printer) async {
+    print('[KOT-QUICK][USB] start | items=${items.length} | cashier=$cashier | customer=${customer ?? ''} | ref=${reference ?? ''}');
+    print('[KOT-QUICK][USB] printer: name=${printer.name}, vid=${printer.vendorId}, pid=${printer.productId}');
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm80, profile);
+    List<int> bytes = [];
+
+    // Company logo
+    try {
+      final Uint8List imageBytes = await readLocalFileBytes();
+      final img.Image? image = img.decodeImage(imageBytes);
+      if (image != null) {
+        final img.Image resized = img.copyResize(image, width: 200);
+        bytes += generator.image(resized);
+        bytes += generator.feed(1);
+      }
+    } catch (e) {
+      print('[KOT-QUICK][USB] logo error: $e');
+    }
+
+    // Header
+    bytes += generator.text('KOT',
+        styles: PosStyles(
+          align: PosAlign.center,
+          bold: true,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ));
+    if ((reference ?? '').isNotEmpty) {
+      bytes += generator.text(reference!, styles: PosStyles(align: PosAlign.center, height: PosTextSize.size2, width: PosTextSize.size2));
+    }
+
+    // Meta
+    if ((cashier ?? '').isNotEmpty) {
+      bytes += generator.text('Cashier: $cashier', styles: PosStyles(align: PosAlign.left));
+    }
+    if ((customer ?? '').isNotEmpty) {
+      bytes += generator.text('Customer: $customer   Sit-in', styles: PosStyles(align: PosAlign.left));
+    }
+    bytes += generator.text('--------------------------------', styles: PosStyles(align: PosAlign.center));
+
+    // Items
+    for (var item in items) {
+      final String itemName = item.product.item?.name ?? 'Item';
+      final String qty = (item.quantity).toString();
+      bytes += generator.text('$itemName x $qty',
+          styles: PosStyles(align: PosAlign.left, height: PosTextSize.size2));
+      final String notes = item.notes;
+      if (notes.isNotEmpty) {
+        bytes += generator.text(notes, styles: PosStyles(align: PosAlign.left));
+      }
+    }
+
+    bytes += generator.text('--------------------------------', styles: PosStyles(align: PosAlign.center));
+    bytes += generator.feed(2);
+    bytes += generator.cut();
+
+    // Send
+    try {
+      var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
+      print('[KOT-QUICK][USB] connecting...');
+      bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
+      print('[KOT-QUICK][USB] connected=$connected');
+      if (!connected) {
+        Get.snackbar('Error', 'Failed to connect to printer', snackPosition: SnackPosition.BOTTOM);
+        return;
+      }
+      print('[KOT-QUICK][USB] sending ${bytes.length} bytes');
+      await PrinterManager.instance.send(bytes: bytes, type: PrinterType.usb);
+      print('[KOT-QUICK][USB] disconnect');
+      await PrinterManager.instance.disconnect(type: PrinterType.usb);
+      Get.snackbar('Success', 'KOT printed successfully', snackPosition: SnackPosition.BOTTOM);
+      print('[KOT-QUICK][USB] done');
+    } catch (e, st) {
+      print('[KOT-QUICK][USB] error: $e');
+      print(st);
+      Get.snackbar('Error', 'Failed to print KOT: $e', snackPosition: SnackPosition.BOTTOM);
+    }
   }
 
    // Print cash in Receipt
@@ -1502,6 +1684,234 @@ class PrinterService extends GetxService {
     await SunmiPrinter.exitTransactionPrint(true);
   }
 
+  // USB: Cash In Receipt
+  Future<void> printCashInUsb(PaymentReceivedModel payment, String? cashier, AvailablePrinterModel printer) async {
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm80, profile);
+    List<int> data = [];
+
+    final CurrencyModel? cur = payment.currency;
+
+    // Logo
+    try {
+      final Uint8List imageBytes = await readLocalFileBytes();
+      final img.Image? image = img.decodeImage(imageBytes);
+      if (image != null) {
+        final img.Image resized = img.copyResize(image, width: 200);
+        data += generator.image(resized);
+        data += generator.feed(1);
+      }
+    } catch (_) {}
+
+    // Header
+    data += generator.text('CASH IN',
+        styles: PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+    data += generator.text('Cashier: ${cashier ?? ''}', styles: PosStyles(align: PosAlign.left));
+    data += generator.text('Date: ${payment.dateTime ?? ''}', styles: PosStyles(align: PosAlign.left));
+    data += generator.text('Reference: DEPOSIT', styles: PosStyles(align: PosAlign.left));
+
+    // Customer
+    if (payment.payer?.name != null) {
+      data += generator.text('Customer: ${payment.payer!.name}', styles: PosStyles(align: PosAlign.left));
+    }
+
+    data += generator.text('--------------------------------', styles: PosStyles(align: PosAlign.center));
+
+    // Amounts
+    data += generator.text('Amount: ${cur?.symbol ?? ''} ${((payment.amount) ?? 0).toStringAsFixed(2)} (${payment.paymentType?.name ?? ''})',
+        styles: PosStyles(align: PosAlign.left));
+    if (payment.accountBalance != null) {
+      data += generator.text('New Balance: ${cur?.symbol ?? ''} ${payment.accountBalance!.toStringAsFixed(2)}',
+          styles: PosStyles(align: PosAlign.left));
+    }
+
+    data += generator.text('--------------------------------', styles: PosStyles(align: PosAlign.center));
+    data += generator.feed(2);
+    data += generator.cut();
+
+    try {
+      var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
+      bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
+      if (!connected) { Get.snackbar('Error', 'Failed to connect to printer'); return; }
+      await PrinterManager.instance.send(bytes: data, type: PrinterType.usb);
+      await PrinterManager.instance.disconnect(type: PrinterType.usb);
+      Get.snackbar('Success', 'Cash In printed');
+    } catch (e) { Get.snackbar('Error', 'Failed to print Cash In: $e'); }
+  }
+
+  // USB: Cash Management Receipt
+  Future<void> printCashManagementReceiptUsb(String transactionType, CurrencyModel currency, double amount, String comments, AvailablePrinterModel printer) async {
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm80, profile);
+    List<int> data = [];
+
+    data += generator.text(transactionType.toUpperCase(),
+        styles: PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+    data += generator.text('Currency: ${currency.name ?? ''}', styles: PosStyles(align: PosAlign.left));
+    data += generator.text('Amount: ${currency.symbol ?? ''} ${amount.toStringAsFixed(2)}', styles: PosStyles(align: PosAlign.left));
+    if (comments.isNotEmpty) {
+      data += generator.text('Comments: $comments', styles: PosStyles(align: PosAlign.left));
+    }
+    data += generator.text('--------------------------------', styles: PosStyles(align: PosAlign.center));
+    data += generator.feed(2);
+    data += generator.cut();
+
+    try {
+      var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
+      bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
+      if (!connected) { Get.snackbar('Error', 'Failed to connect to printer'); return; }
+      await PrinterManager.instance.send(bytes: data, type: PrinterType.usb);
+      await PrinterManager.instance.disconnect(type: PrinterType.usb);
+      Get.snackbar('Success', 'Cash management printed');
+    } catch (e) { Get.snackbar('Error', 'Failed to print cash management: $e'); }
+  }
+
+  // USB: Cash Submit Receipt
+  Future<void> printCashSubmitReceiptUsb(String transactionType, List<CurrencyAmount> currencyAmounts, AvailablePrinterModel printer) async {
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm80, profile);
+    List<int> data = [];
+
+    data += generator.text('CASH SUBMIT',
+        styles: PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+    for (var ca in currencyAmounts) {
+      data += generator.text('${ca.currency.name}: ${ca.currency.symbol ?? ''} ${ca.amount.toStringAsFixed(2)}', styles: PosStyles(align: PosAlign.left));
+    }
+    data += generator.text('--------------------------------', styles: PosStyles(align: PosAlign.center));
+    data += generator.feed(2);
+    data += generator.cut();
+
+    try {
+      var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
+      bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
+      if (!connected) { Get.snackbar('Error', 'Failed to connect to printer'); return; }
+      await PrinterManager.instance.send(bytes: data, type: PrinterType.usb);
+      await PrinterManager.instance.disconnect(type: PrinterType.usb);
+      Get.snackbar('Success', 'Cash submit printed');
+    } catch (e) { Get.snackbar('Error', 'Failed to print cash submit: $e'); }
+  }
+
+  // USB: GRV (Goods Received Voucher)
+  Future<void> printGRVUsb(TransferHistoryModel transfer, AvailablePrinterModel printer) async {
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm80, profile);
+    List<int> data = [];
+
+    // Logo
+    try {
+      final Uint8List imageBytes = await readLocalFileBytes();
+      final img.Image? image = img.decodeImage(imageBytes);
+      if (image != null) {
+        final img.Image resized = img.copyResize(image, width: 200);
+        data += generator.image(resized);
+        data += generator.feed(1);
+      }
+    } catch (_) {}
+
+    data += generator.text('GOODS RECEIVED VOUCHER',
+        styles: PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+
+    final String todayDate = DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now());
+    data += generator.text('Reference: ${transfer.reference ?? 'N/A'}', styles: PosStyles(align: PosAlign.left));
+    data += generator.text('Date: ${transfer.dateTime ?? todayDate}', styles: PosStyles(align: PosAlign.left));
+    data += generator.text('From: ${transfer.fromBranch?.name ?? 'N/A'}', styles: PosStyles(align: PosAlign.left));
+    data += generator.text('To: ${transfer.toBranch?.name ?? 'N/A'}', styles: PosStyles(align: PosAlign.left));
+    data += generator.text('--------------------------------', styles: PosStyles(align: PosAlign.center));
+
+    for (var item in transfer.transferItems ?? []) {
+      final String itemName = item.item?.name ?? 'Unknown Item';
+      final String quantity = item.quantity?.toStringAsFixed(2) ?? '0.00';
+      final String allocated = item.allocated?.toStringAsFixed(2) ?? '0.00';
+      data += generator.text('Item: $itemName', styles: PosStyles(align: PosAlign.left, height: PosTextSize.size2));
+      data += generator.text('Quantity: $quantity', styles: PosStyles(align: PosAlign.left));
+      data += generator.text('Allocated: $allocated', styles: PosStyles(align: PosAlign.left));
+      data += generator.text('--------------------------------', styles: PosStyles(align: PosAlign.center));
+    }
+
+    data += generator.text('Received By: ______________________', styles: PosStyles(align: PosAlign.left));
+    data += generator.text('Signature:  ______________________', styles: PosStyles(align: PosAlign.left));
+    data += generator.feed(2);
+    data += generator.cut();
+
+    try {
+      var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
+      bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
+      if (!connected) { Get.snackbar('Error', 'Failed to connect to printer'); return; }
+      await PrinterManager.instance.send(bytes: data, type: PrinterType.usb);
+      await PrinterManager.instance.disconnect(type: PrinterType.usb);
+      Get.snackbar('Success', 'GRV printed');
+    } catch (e) { Get.snackbar('Error', 'Failed to print GRV: $e'); }
+  }
+
+  // USB: Sale Bill (estimate)
+  Future<void> printSaleBillUsb(SaleModel sale, List<CurrencyModel> currencies, AvailablePrinterModel printer) async {
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm80, profile);
+    List<int> data = [];
+
+    final CurrencyModel? cur = sale.currency;
+
+    // Header
+    data += generator.text('SALE BILL',
+        styles: PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+    data += generator.text('Date: ${sale.timeIniated ?? ''}', styles: PosStyles(align: PosAlign.left));
+    data += generator.text('Reference: ${sale.referenceNumber ?? ''}', styles: PosStyles(align: PosAlign.left));
+    if (sale.customer != null) {
+      data += generator.text('Customer: ${sale.customer!.name}', styles: PosStyles(align: PosAlign.left));
+    }
+    data += generator.text('--------------------------------', styles: PosStyles(align: PosAlign.center));
+
+    for (var item in sale.items ?? []) {
+      final String itemName = item.inventoryItem?.name ?? 'Item';
+      final double qty = item.quantity ?? 0;
+      final double price = item.sellingPrice ?? 0;
+      final double total = item.total ?? 0;
+      data += generator.text(itemName, styles: PosStyles(align: PosAlign.left, bold: true));
+      data += generator.text('Qty: ${qty.toStringAsFixed(2)}    Price: ${price.toStringAsFixed(2)}', styles: PosStyles(align: PosAlign.left));
+      data += generator.text('Total: ${total.toStringAsFixed(2)}', styles: PosStyles(align: PosAlign.left));
+      data += generator.text('--------------------------------', styles: PosStyles(align: PosAlign.center));
+    }
+
+    data += generator.text('Subtotal: ${cur?.symbol ?? ''} ${sale.amountAfterDiscount?.toStringAsFixed(2) ?? '0.00'}',
+        styles: PosStyles(align: PosAlign.right));
+    data += generator.text('Amount Paid: ${cur?.symbol ?? ''} ${sale.amountPaid?.toStringAsFixed(2) ?? '0.00'}', styles: PosStyles(align: PosAlign.right));
+    data += generator.text('Change: ${cur?.symbol ?? ''} ${sale.change?.toStringAsFixed(2) ?? '0.00'}', styles: PosStyles(align: PosAlign.right));
+    if ((sale.tipAmount ?? 0) > 0) {
+      data += generator.text('Tip: ${cur?.symbol ?? ''} ${sale.tipAmount!.toStringAsFixed(2)}', styles: PosStyles(align: PosAlign.right));
+    }
+    data += generator.text('--------------------------------', styles: PosStyles(align: PosAlign.center));
+    data += generator.feed(2);
+    data += generator.cut();
+
+    try {
+      var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
+      bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
+      if (!connected) { Get.snackbar('Error', 'Failed to connect to printer'); return; }
+      await PrinterManager.instance.send(bytes: data, type: PrinterType.usb);
+      await PrinterManager.instance.disconnect(type: PrinterType.usb);
+      Get.snackbar('Success', 'Sale bill printed');
+    } catch (e) { Get.snackbar('Error', 'Failed to print sale bill: $e'); }
+  }
+
+  // USB: Simple test print
+  Future<void> testPrinterUsb(AvailablePrinterModel printer) async {
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm80, profile);
+    List<int> data = [];
+    data += generator.text('TEST PRINT', styles: PosStyles(align: PosAlign.center, bold: true));
+    data += generator.text('USB connection OK', styles: PosStyles(align: PosAlign.center));
+    data += generator.feed(1);
+    data += generator.cut();
+    try {
+      var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
+      bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
+      if (!connected) { Get.snackbar('Error', 'Failed to connect to printer'); return; }
+      await PrinterManager.instance.send(bytes: data, type: PrinterType.usb);
+      await PrinterManager.instance.disconnect(type: PrinterType.usb);
+      Get.snackbar('Success', 'Test printed');
+    } catch (e) { Get.snackbar('Error', 'Failed to print test: $e'); }
+  }
+
 
 // Read the image from local storage
   Future<Uint8List> readLocalFileBytes() async {
@@ -1699,7 +2109,10 @@ class PrinterService extends GetxService {
              , orElse: () => SaleInfoModel(sale: null,syncStatus: false));
          await SunmiPrinter.printText("Type:${currencyAmount.amountType ?? ''}\t\t\tRef: ${currencyAmount.ref}");
          await SunmiPrinter.printText("Time: ${currencyAmount.timeCreated}");
-         await SunmiPrinter.printText("Amount: ${currencyAmount.currency.name} ${currencyAmount.amount.toString()}\t\t\t\ ${sale.sale?.paymentTypes!.firstWhereOrNull((element) => element.paymentType!.name == currencyAmount.paymentType)!.paymentType!.name ??currencyAmount.paymentType}");
+        await SunmiPrinter.printText("Amount: ${currencyAmount.currency.name} ${currencyAmount.amount.toString()}\t\t\t\ ${sale.sale?.paymentTypes!.firstWhereOrNull((element) => element.paymentType!.name == currencyAmount.paymentType)!.paymentType!.name ??currencyAmount.paymentType}");
+        if (sale.sale != null && (sale.sale!.tipAmount ?? 0) > 0) {
+          await SunmiPrinter.printText("Tip: ${currencyAmount.currency.symbol ?? ''} ${sale.sale!.tipAmount!.toStringAsFixed(2)}");
+        }
          await SunmiPrinter.printText("--------------------------------");
        }
      } else {
@@ -1967,6 +2380,10 @@ class PrinterService extends GetxService {
             styles: PosStyles(align: PosAlign.left));
         receiptData += generator.text('Amount: ${currencyAmount.currency.name} ${currencyAmount.amount.toString()}\t\t${sale.sale?.paymentTypes!.firstWhereOrNull((element) => element.paymentType!.name == currencyAmount.paymentType)?.paymentType?.name ??currencyAmount.paymentType}',
             styles: PosStyles(align: PosAlign.left));
+        if (sale.sale != null && (sale.sale!.tipAmount ?? 0) > 0) {
+          receiptData += generator.text('Tip: ${currencyAmount.currency.symbol ?? ''} ${sale.sale!.tipAmount!.toStringAsFixed(2)}',
+              styles: PosStyles(align: PosAlign.left));
+        }
         receiptData += generator.text('--------------------------------',
             styles: PosStyles(align: PosAlign.center));
       }
