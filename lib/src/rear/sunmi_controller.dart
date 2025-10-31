@@ -69,7 +69,7 @@ class SunmiController extends GetxController {
       statusMessage.value = 'Sunmi T2S Ready!';
     } catch (e) {
       statusMessage.value = 'Initialization error: $e';
-      Get.snackbar('Error', 'Initialization error: $e');
+      // Get.snackbar('Error', 'Initialization error: $e');
     } finally {
       isLoading.value = false;
     }

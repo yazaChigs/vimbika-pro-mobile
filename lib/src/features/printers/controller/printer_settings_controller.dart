@@ -23,12 +23,12 @@ class PrinterSettingsController extends GetxController {
   var printers = <PrinterDevice>[].obs;
   var selectedPrinter = Rx<PrinterDevice?>(null);
   final storage = GetStorage();
-  var isSearching = false.obs;
+  RxBool isSearching = false.obs;
 
   RxBool isAlwaysPrintEnabled = false.obs;
   RxBool useKOT = false.obs;
 
-  // PrinterManager _printerManager = PrinterManager.instance;
+  PrinterManager _printerManager = PrinterManager.instance;
   var isConnected = false.obs; // Add this to track connection status
   RxList<AvailablePrinterModel> availablePrinters = <AvailablePrinterModel>[].obs;
   Rx<PrinterType> selectedPrinterType = Rx(PrinterType.bluetooth);
@@ -78,37 +78,87 @@ class PrinterSettingsController extends GetxController {
             (map) => AvailablePrinterModel.fromMap(map),
         box);
     return list;
-  }
-  void searchPrinters(PrinterType type) async {
-      printers.clear();
-      printers.refresh();
+  } void searchPrinters(PrinterType type) async {
+    printers.clear();
+    printers.refresh();
 
-      if(type.name == 'bluetooth'){
-        WidgetsBinding.instance.addPostFrameCallback((_) => initBluetooth());
-      } else{
-        print("searching.....");
-        isSearching.value = true;
-        PrinterManager.instance.disconnect(type: type);
-        //var printerManager = await PrinterManager.instance;
-       // await initPlatformState(_printerManager);
-        await initPlatformState();
+    if(type.name == 'bluetooth'){
+      WidgetsBinding.instance.addPostFrameCallback((_) => initBluetooth());
+      // Set searching state for Bluetooth too
+      isSearching.value = true;
+    } else{
+      print("searching.....");
+      isSearching.value = true;
+      PrinterManager.instance.disconnect(type: type);
+      await initPlatformState();
+
+      try {
+        List<PrinterDevice> usbPrinters = [];
+
+        // Create a subscription to the discovery stream
+        var subscription = PrinterManager.instance.discovery(type: type).listen((printer) {
+          // Add each discovered printer to the list (avoid duplicates)
+          if (!usbPrinters.any((p) => p.address == printer.address)) {
+            usbPrinters.add(printer);
+            // Update UI immediately as printers are discovered
+            printers.value = List.from(usbPrinters);
+            printers.refresh();
+          }
+        }, onError: (error) {
+          print('Error during printer discovery: $error');
+        }, onDone: () {
+          print('Printer discovery completed');
+        });
+
+        // Wait for discovery period (5 seconds)
         await Future.delayed(Duration(seconds: 5));
-        try {
-          List<PrinterDevice> usbPrinters = [];
-          await PrinterManager.instance.discovery(type: type).listen((printer) {
-              usbPrinters.add(printer);
-          },);
-          printers.value = usbPrinters;
-          printers.refresh();
-        } catch (e) {
-          print('Error searching for printers: $e');
-        } finally {
-          isSearching.value = false;
-          print("finally");
-        }
+
+        // Cancel the subscription after discovery period
+        await subscription.cancel();
+
+        // Final update with all discovered printers
+        printers.value = usbPrinters;
+        printers.refresh();
+      } catch (e) {
+        print('Error searching for printers: $e');
+      } finally {
+        isSearching.value = false;
+        print("Search completed. Found ${printers.length} printers");
       }
+    }
 
   }
+  // void searchPrinters(PrinterType type) async {
+  //     printers.clear();
+  //     printers.refresh();
+  //
+  //     if(type.name == 'bluetooth'){
+  //       WidgetsBinding.instance.addPostFrameCallback((_) => initBluetooth());
+  //     } else{
+  //       print("searching.....");
+  //       isSearching.value = true;
+  //       PrinterManager.instance.disconnect(type: type);
+  //       //var printerManager = await PrinterManager.instance;
+  //      // await initPlatformState(_printerManager);
+  //       await initPlatformState();
+  //       await Future.delayed(Duration(seconds: 5));
+  //       try {
+  //         List<PrinterDevice> usbPrinters = [];
+  //         var subscription = await PrinterManager.instance.discovery(type: type).listen((printer) {
+  //             usbPrinters.add(printer);
+  //         },);
+  //         printers.value = usbPrinters;
+  //         printers.refresh();
+  //       } catch (e) {
+  //         print('Error searching for printers: $e');
+  //       } finally {
+  //         isSearching.value = false;
+  //         print("finally");
+  //         print(isSearching);
+  //       }
+  //     }
+  //
+  // }
   Future<void> initPlatformState() async {
 
     await  PrinterManager.instance.stateUSB.listen((status) {
@@ -117,7 +167,6 @@ class PrinterSettingsController extends GetxController {
         AppHelper.showLoading('Connecting...');
       }
       if (status == USBStatus.connected) {
-        //printTestReceipt(PrinterType.usb);
         isConnected.value = true;
         print("connected");
         AppHelper.hideLoading();
@@ -142,6 +191,7 @@ class PrinterSettingsController extends GetxController {
 
     try {
       selectedPrinter.value = printer; // Set the selected printer
+      print(selectedPrinter.value!.address);
 
       var model = null;
       if(selectedPrinterType.value == PrinterType.bluetooth) {
@@ -155,8 +205,9 @@ class PrinterSettingsController extends GetxController {
       else if(selectedPrinterType.value == PrinterType.usb) {
         PrinterManager.instance.disconnect(type: selectedPrinterType.value);
         model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
-        await PrinterManager.instance.connect(
+        var res = await PrinterManager.instance.connect(
             type: PrinterType.usb, model: model);
+        isConnected.value = res;
         Get.snackbar('Success', 'Printer connected successfully');
       }
 
@@ -221,7 +272,7 @@ class PrinterSettingsController extends GetxController {
   void saveSelectedPrinter(PrinterDevice printer) {
     GetStorage box = GetStorage();
     List<AvailablePrinterModel> tempList = loadAvailablePrinters(box);
-    bool exist = _localStorageService.findPrinterByAddress(tempList, printer.address!);
+    bool exist = _localStorageService.findPrinterByAddress(tempList, printer.address);
     if(!exist) {
       UniqueKey uniqueKey = UniqueKey();
 

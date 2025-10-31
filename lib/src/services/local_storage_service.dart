@@ -50,7 +50,7 @@ class LocalStorageService {
     }
     return null;
   }
-  bool findPrinterByAddress(List<AvailablePrinterModel> printers, String address){
+  bool findPrinterByAddress(List<AvailablePrinterModel> printers, String? address){
     for(var pr in printers)  {
       if(pr.address == address){
         return true;
