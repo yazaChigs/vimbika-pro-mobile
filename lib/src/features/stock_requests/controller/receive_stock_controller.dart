@@ -87,6 +87,7 @@ class ReceiveStockController extends GetxController {
         log(historyModel.toJson());
         StockRequestController src = Get.find();
         List<TransferHistoryModel> list = src.allTransferHistory;
+        print("list size : ${list.length}");
         List<TransferHistoryModel> items = _localStorageService.replaceTransfer(historyModel, list);
         src.allTransferHistory.value = items;
         src.allTransferHistory.refresh();

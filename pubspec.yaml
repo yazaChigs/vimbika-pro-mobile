@@ -65,7 +65,7 @@ dependencies:
   win32: ^5.0.0
   windows_taskbar: ^1.1.2
   # Missing packages for Windows compatibility
-  presentation_displays: ^0.1.0
+  presentation_displays: ^1.0.0
   flutter_pos_printer_platform_image_3: ^1.2.0
   pinput: ^5.0.2
 
