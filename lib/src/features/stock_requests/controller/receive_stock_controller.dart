@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
+import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/controller/stock_request_controller.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_history_model.dart';
@@ -84,17 +85,16 @@ class ReceiveStockController extends GetxController {
     if (internetStat) {
       TransferHistoryModel? historyModel =  await SyncService.saveTransfer(transferHistory.value, user, box);
       if(historyModel != null){
-        log(historyModel.toJson());
         StockRequestController src = Get.find();
         List<TransferHistoryModel> list = src.allTransferHistory;
-        print("list size : ${list.length}");
         List<TransferHistoryModel> items = _localStorageService.replaceTransfer(historyModel, list);
         src.allTransferHistory.value = items;
         src.allTransferHistory.refresh();
         // List<Map<String, dynamic>> itemsListMap = items.map((item) =>
         //     item.toMap()).toList();
         // box.write(AppConstants.TRANSFER_HISTORY_LIST, itemsListMap);
-         Get.offNamed(AppConstants.TRANSFER_HISTORY_LIST);
+        print("TRANSFER_HISTORY_LIST: ${AppConstants.TRANSFER_HISTORY_LIST}");
+         Get.offNamed(AppRoutes.TRANSFER_HISTORY_SCREEN);
         Get.snackbar("Success", "Stock received successfully!");
       }else{
         Get.snackbar("Error", "Failed to receive stock");

@@ -30,6 +30,7 @@ class ReceiptController extends GetxController {
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
   final ConnectivityService _connectivityService = ConnectivityService();
   RxList<SaleInfoModel> allReceipts = <SaleInfoModel>[].obs;
+  RxList<SaleInfoModel> tickets = <SaleInfoModel>[].obs;
   RxList<SaleInfoModel> filteredReceipts = <SaleInfoModel>[].obs;
   Rx<String> searchQuery = "".obs;
   var isInternetAccess = false.obs;
@@ -73,16 +74,10 @@ class ReceiptController extends GetxController {
   }
 
   getSales() {
-    // GetStorage box = GetStorage();
     List<SaleInfoModel> sales = getExistingOfflineSales(box);
-    List<SaleInfoModel> actualSales = [];
-    for(SaleInfoModel s in sales){
-       // if(s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING"){
-         actualSales.add(s);
-       // }
-    }
-    allReceipts.value = actualSales.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
-    filteredReceipts.value = actualSales.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
+    allReceipts.value = sales.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
+    tickets.value = sales.where((sale)=> sale.sale!.saleStatus=="ON_HOLD").toList();
+    filteredReceipts.value = sales.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
     sortSalesByDate();
     allReceipts.refresh();
     filteredReceipts.refresh();
@@ -128,11 +123,11 @@ class ReceiptController extends GetxController {
   Future<void> getSalesByDate(String startDate, String endDate, String categoryId, String branchId) async{
     bool stat = await _connectivityService.checkServerConnection();
     if(stat) {
-      // AppHelper.showLoading("Loading...");
-      // getSales();
       List<SaleInfoModel> rawItems = getExistingOfflineSales(box);
       List<SaleInfoModel> items = [];
       for(SaleInfoModel s in rawItems){
+        if(s.sale!.saleStatus=="ON_HOLD")
+          tickets.add(s);
         if(!items.any((element) => element.sale!.posReference == s.sale!.posReference)) {
           items.add(s);
         }
@@ -145,16 +140,7 @@ class ReceiptController extends GetxController {
       filteredReceipts.value = actualItems.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
       allReceipts.refresh();
       filteredReceipts.refresh();
-      print("all offline: ${items.length}");
-      /*if(!items.any((element) => !element.syncStatus!)){
-        allReceipts.value = items.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
-        filteredReceipts.value = items.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
-        allReceipts.refresh();
-        filteredReceipts.refresh();
-      }
-      else {*/
         try {
-
         var response = await BaseHttpClient().getAuthWithCompanyHeader(
             "/sale/app-sale-filter?startDate=$startDate&endDate=$endDate&categoryId=$categoryId&branchId=$branchId", user.companyId!).catchError((
             onError) {
@@ -175,7 +161,7 @@ class ReceiptController extends GetxController {
           for (SaleModel sale in itemsList) {
             SaleInfoModel saleInfoModel = SaleInfoModel(
                 sale: sale, syncStatus: true);
-            if(!actualItems.any((element) => element.sale!.id == saleInfoModel.sale!.id)) {
+            if(!actualItems.any((element) => element.sale!.id == saleInfoModel.sale!.id || element.sale!.posReference==saleInfoModel.sale!.posReference)) {
               actualItems.add(saleInfoModel);
             }
             if(!items.any((element) => element.sale!.id == saleInfoModel.sale!.id)) {
@@ -201,7 +187,7 @@ class ReceiptController extends GetxController {
     }
   }
 
-
+  // REVERSE SALE
   Future<void> showConfirmDialogToDeleteItem(SaleInfoModel saleInfo, int index) async {
     bool userExists = await SyncService().showAuthenticationDialog(Get.context!);
     if(userExists) {
@@ -228,6 +214,16 @@ class ReceiptController extends GetxController {
       AppHelper.hideLoading();
       Get.snackbar("Success", "Sale reversed");
     }
+
+    List<ShiftModel> currentShifts = loadShifts(box);
+    currentShifts.forEach((shift)=>{
+      if(shift.id==activeShift.value.id){
+        shift.shiftCurrencyAmounts!.forEach((currencyAmount)=>{
+          print(currencyAmount.toJson())
+        })
+      }
+    });
+
   }
 
   printSale(SaleInfoModel saleInfo) async{
@@ -277,6 +273,10 @@ class ReceiptController extends GetxController {
     for(var sale in allReceipts){
       actualItems.add(sale);
     }
+    tickets.forEach((element) {
+      if(!actualItems.any((actualItem)=>actualItem.sale!.referenceNumber==element.sale!.referenceNumber))
+        actualItems.add(element);
+    });
     List<Map<String, dynamic>> itemsListMap = actualItems.map((item) =>
         item.toMap()).toList();
 
@@ -312,6 +312,4 @@ class ReceiptController extends GetxController {
         box);
     return list;
   }
-
-
 }

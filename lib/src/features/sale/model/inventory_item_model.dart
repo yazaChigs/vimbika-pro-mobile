@@ -22,6 +22,8 @@ class InventoryItemModel {
     this.fullName,
     this.quantity,
     this.total,
+    this.priceWithoutTax,
+    this.purchasePrice,
     this.itemType,
     this.itemCode,
     required this.taxAmount,
@@ -41,6 +43,8 @@ class InventoryItemModel {
   double? quantity = 0;
   double? total = 0.0;
   double taxAmount = 0.0;
+  double? priceWithoutTax = 0.0;
+  double? purchasePrice = 0.0;
   String? itemType;
   String? itemCode;
 
@@ -92,6 +96,8 @@ class InventoryItemModel {
       quantity: json["quantity"] != null ? json["quantity"].toDouble() : 0.0,
       total: json["total"] != null ? json["total"].toDouble() : 0.0,
       taxAmount: json["taxAmount"] != null ? json["taxAmount"].toDouble() : 0.0,
+      priceWithoutTax: json["priceWithoutTax"] != null ? json["priceWithoutTax"].toDouble() : 0.0,
+      purchasePrice: json["purchasePrice"] != null ? json["purchasePrice"].toDouble() : 0.0,
       itemType: json["itemType"],
     );
   }
@@ -114,5 +120,7 @@ class InventoryItemModel {
     "taxAmount": taxAmount,
     "itemType": itemType,
     "itemCode": itemCode,
+    "priceWithoutTax": priceWithoutTax,
+    "purchasePrice": purchasePrice,
   };
 }

@@ -57,6 +57,32 @@ class PayAccountFormScreen extends StatelessWidget {
                     ),
                     Expanded(
                       child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Obx(() {
+                            return CustomDropdownWidget<PaymentTypeModel>(
+                              items: controller.filteredPaymentTypesList,
+                              selectedItem: controller.selectedPaymentType.value,
+                              hint: "Select Payment Type",
+                              isSelected: controller.isPaymentTypeSelected,
+                              selectedValue: controller.selectedPaymentType,
+                              icon: Icons.payments,
+                              onChanged: (PaymentTypeModel? newValue) {
+                                controller.onChangePaymentType(newValue!, false);
+                              },
+                              validator: (value) {
+                                if (controller.isPaymentTypeSelected.isFalse) {
+                                  return 'Please select a payment type';
+                                }
+                                return null;
+                              },
+                              itemBuilder: (PaymentTypeModel value) =>
+                                  Text(value.name!),
+                            );
+                          }),
+                        ),
+                    ),
+                    Expanded(
+                      child: Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: TextFormField(
                           keyboardType: TextInputType.number,
@@ -67,6 +93,9 @@ class PayAccountFormScreen extends StatelessWidget {
                                 labelText: "Amount",
                                 hintText: "Amount"),
                             validator: (value) {
+                            if(controller.selectedPaymentType.value == null){
+                              return 'Please select a payment type';
+                            }
                               if (value == null || value.isEmpty) {
                                 return 'amount is required';
                               }
@@ -86,9 +115,12 @@ class PayAccountFormScreen extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        if (controller.selectedCurrency!=null && controller.payAccAmtEditingController.text.isNotEmpty) {
+                        print(controller.selectedPaymentType.toJson());
+                        if (controller.selectedCurrency!=null && controller.payAccAmtEditingController.text.isNotEmpty && controller.isPaymentTypeSelected.value) {
                           // controller.formKeyForm.currentState!.save(); // Save the form fields
                           controller.savePayment();
+                        }else{
+                          Get.snackbar("Error", "Please select a currency and payment type");
                         }
                       },
                       child: Text('SAVE'),

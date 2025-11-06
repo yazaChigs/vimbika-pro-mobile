@@ -488,26 +488,6 @@ class CustomerController extends GetxController {
           print("================================================================================");
 
           _printerService.printCustomerStatement(customer,itemsList, box, _localStorageService, dateRangeDescription: description);
-
-         /* for (CustomerProjectionModel sale in itemsList) {
-            SaleInfoModel saleInfoModel = SaleInfoModel(
-                sale: sale, syncStatus: true);
-            if(!actualItems.any((element) => element.sale!.id == saleInfoModel.sale!.id)) {
-              actualItems.add(saleInfoModel);
-            }
-            if(!items.any((element) => element.sale!.id == saleInfoModel.sale!.id)) {
-              items.add(saleInfoModel);
-            }
-          }
-          allReceipts.value = actualItems.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
-          filteredReceipts.value = actualItems.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
-          sortSalesByDate();
-          allReceipts.refresh();
-          filteredReceipts.refresh();
-          List<Map<String, dynamic>> itemsListMap = items.map((item) =>
-              item.toMap()).toList();
-          box.write(AppConstants.SALE_LIST, itemsListMap);
-          */
         }
         AppHelper.hideLoading();
       } catch (e) {
@@ -538,6 +518,7 @@ class CustomerController extends GetxController {
         bank: selectedBank.value,
       paymentDescription: "PAY_ACCOUNT"
     );
+    print(paymentReceivedModel.bank!.toJson());
     List<PaymentReceivedModel> prlist = paymentReceivedList.value;
     prlist.add(paymentReceivedModel);
     paymentReceivedList.value = prlist;
@@ -778,8 +759,6 @@ class CustomerController extends GetxController {
     totalCostInSelectedCurrency.value = totalCostInSelCurrency;
     totalTaxInSelectedCurrency.value = totalTaxInSelCurrency;
     filterPaymentTypes(newValue, selectedCustomer.value!);
-    selectedPaymentType.value = filteredPaymentTypesList
-        .firstWhereOrNull((pt) => pt.name == "ACC-${newValue.name}");
     selectCorrectBank();
   }
 

@@ -154,6 +154,7 @@ class SyncService {
   }
   static Future<SaleModel?> reverseSale(SaleModel sale, UserModel user, GetStorage box, CompanyModel company) async{
     String jsonSaleItems = sale.toJson();
+    print(jsonSaleItems);
     if(company.id==null){
       var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
       company = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
@@ -214,8 +215,6 @@ class SyncService {
     }
   }
   static Future<TransferHistoryModel?> saveTransfer(TransferHistoryModel transfer, UserModel user, GetStorage box) async{
-    print("company");
-    print(user.companyId!);
     String jsonSaleItems = transfer.toJson();
     log(jsonSaleItems);
     var response = await BaseHttpClient().postAuthWithCompanyHeader("/transfer-history/transfer", jsonSaleItems, user.companyId!, "POST").catchError((onError){
@@ -516,12 +515,21 @@ class SyncService {
       if (!sh.stopSync! && !sh.isShiftClosed!) {
         itemsToBeSynced.add(sh);
         if (sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty) {
-          for (CurrencyAmount ca in sh.shiftCurrencyAmounts!) {
+          if(sh.shiftCurrencyAmounts!.any((currencyAMount)=>currencyAMount.id==null)){
+           updateCurrencyItems = await syncShiftsWithNullID(sh.shiftCurrencyAmounts!,user);
+          }
+          updateCurrencyItems.forEach((element) {
+            var index = sh.shiftCurrencyAmounts!.indexWhere((test)=>test.ref==element.ref);
+            if(index!= -1){
+              sh.shiftCurrencyAmounts![index] = element;
+            }
+          });
+         /* for (CurrencyAmount ca in sh.shiftCurrencyAmounts!) {
             if((ca.active == null || !ca.active! ) && ca.id == null) {
               ca.active = true;
               currencyItemsToBeSynced.add(ca);
             }
-          }
+          }*/
         }
       } else {
         if(sh.isShiftClosed! && !sh.stopSync!) {
@@ -531,11 +539,10 @@ class SyncService {
         upToDateItems.add(sh);
       }
     }
-    print("currencyItemsToBeSynced: ${currencyItemsToBeSynced.isNotEmpty} " );
+/*    print("currencyItemsToBeSynced: ${currencyItemsToBeSynced.isNotEmpty} " );
     if(currencyItemsToBeSynced.isNotEmpty) {
       String jsonShiftCurrencyItems = json.encode(
           currencyItemsToBeSynced.map((shift) => shift.toMap()).toList());
-      debugPrint("Shift currency items to be synced " + jsonShiftCurrencyItems);
       var shiftCurrencyResponse = await BaseHttpClient()
           .postAuthWithCompanyHeader("/mobile/pos/shift/save-currency-amounts",
               jsonShiftCurrencyItems, user.companyId!, "POST")
@@ -556,9 +563,9 @@ class SyncService {
         debugPrint("Shift currency items " + saleResponseModel.items.toString());
         updateCurrencyItems.addAll(saleResponseModel.items ?? []);
       }
-    }
+    }*/
 
-    for (ShiftModel sh in itemsToBeSynced) {
+  /*  for (ShiftModel sh in itemsToBeSynced) {
       if (sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty) {
         for (CurrencyAmount ca in updateCurrencyItems) {
           if(ca.shiftReference == sh.shiftReference){
@@ -567,8 +574,17 @@ class SyncService {
           }
         }
       }
-    }
+    }*/
+
     if(itemsToBeSynced.isNotEmpty && currencyItemsToBeSynced.isNotEmpty) {
+      itemsToBeSynced.forEach((element) {
+        print("null id exist: ${element.shiftCurrencyAmounts!.any((test)=>test.id == null)}");
+        if(element.shiftCurrencyAmounts!.any((test)=>test.id == null)){
+          element.shiftCurrencyAmounts!.where((test)=>test.id ==  null).forEach((element) {
+            print(element.toJson());
+          });
+        }
+      });
       String jsonShiftItems = json.encode(
           itemsToBeSynced.map((shift) => shift.toMap()).toList());
       var response = await BaseHttpClient()
@@ -577,18 +593,25 @@ class SyncService {
           .catchError((onError) {
         print(onError);
         AppHelper.hideLoading();
-        if (onError is BadRequestException) {
-          var apiError = json.decode(onError.message!);
-          AppHelper.showErroDialog(description: apiError["reason"]);
-        } else {
-          AppHelper.handleError(onError);
-        }
+        // if (onError is BadRequestException) {
+        //   var apiError = json.decode(onError.message!);
+        //   AppHelper.showErroDialog(description: apiError["message"]);
+        // } else {
+        //   AppHelper.handleError(onError);
+        // }
       });
       if (response != null) {
         ShiftResponseModel saleResponseModel = ShiftResponseModel.fromJson(
             response);
         updateItems.addAll(saleResponseModel.items ?? []);
         updateItems.addAll(upToDateItems);
+        updateItems.forEach((element) {
+          print(element.shiftReference);
+          print("----------------------");
+          element.shiftCurrencyAmounts!.forEach((action){
+            print(action.toJson());
+          });
+        });
         //List<ShiftModel> items =  saleResponseModel.items ?? [];
 
         List<Map<String, dynamic>> itemsListMap = updateItems.map((item) =>
@@ -601,6 +624,35 @@ class SyncService {
 
       }
     }
+  }
+
+  static Future<List<CurrencyAmount>> syncShiftsWithNullID(List<CurrencyAmount> currencyAmountsWithNullId, UserModel user,) async {
+    List<CurrencyAmount> updateCurrencyItems = [];
+    if(currencyAmountsWithNullId.isNotEmpty) {
+      String jsonShiftCurrencyItems = json.encode(
+          currencyAmountsWithNullId.map((shift) => shift.toMap()).toList());
+      var shiftCurrencyResponse = await BaseHttpClient()
+          .postAuthWithCompanyHeader("/mobile/pos/shift/save-currency-amounts",
+          jsonShiftCurrencyItems, user.companyId!, "POST")
+          .catchError((onError) {
+        print(onError);
+        AppHelper.hideLoading();
+        if (onError is BadRequestException) {
+          var apiError = json.decode(onError.message!);
+          AppHelper.showErroDialog(description: apiError["reason"]);
+        } else {
+          AppHelper.handleError(onError);
+        }
+      });
+      if (shiftCurrencyResponse != null) {
+        debugPrint("Shift currency response " + shiftCurrencyResponse.toString());
+        ShiftCurrencyResponseModel saleResponseModel =
+        ShiftCurrencyResponseModel.fromJson(shiftCurrencyResponse);
+        debugPrint("Shift currency items " + saleResponseModel.items.toString());
+        updateCurrencyItems.addAll(saleResponseModel.items ?? []);
+      }
+    }
+    return updateCurrencyItems;
   }
 
 

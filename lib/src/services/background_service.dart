@@ -37,7 +37,7 @@ class BackgroundService extends GetxService {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     var shiftModel = box.read(AppConstants.SHIFT_SETTING) ?? {};
     shiftSetting = ShiftSettingModel.fromMap(Map<String, dynamic>.from(shiftModel));
-    Timer.periodic(Duration(minutes: 15), (timer) async {
+    Timer.periodic(Duration(minutes: 3), (timer) async {
       print("Background task running every 10 minutes");
         await syncOfflineSales();
       });
@@ -139,6 +139,9 @@ class BackgroundService extends GetxService {
         CurrencyAmount saleCurrencyAmount =  currencyAmounts.firstWhere((test)=> test.posReference==saleInfo.sale!.posReference!, orElse: () => CurrencyAmount(currency: CurrencyModel(), amountType: "", ref: "", timeCreated: "", notes: "", amount: 0.0, shiftReference: null));
         if (!saleInfo.syncStatus!) {
           saleInfo.sale!.timeIniated = saleInfo.sale!.timeIniated!.replaceAll("T", " ");
+          saleInfo.sale!.paymentTypes!.forEach((element) {
+            element.dateTime = element.dateTime!.replaceAll("T", " ");
+          });
           SaleModel? saleModel = await SyncService.reverseSale(
               saleInfo.sale!, user, box, company.value!);
           if (saleModel != null) {

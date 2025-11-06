@@ -68,6 +68,7 @@ class CartController extends GetxController {
   var isCurrencySelected = false.obs;
   var isUserSelected = false.obs;
   var isPrinterAvailable = false.obs;
+  RxBool multiple = false.obs;
   final TextEditingController customerSearchController =
       TextEditingController();
   RxString searchText = ''.obs;
@@ -501,10 +502,10 @@ class CartController extends GetxController {
         totalCostInSelectedCurrency.value.toStringAsFixed(2);
     amountPaid.value = totalCostInSelectedCurrency.value;
     customerAmountPaid.value = totalCostInSelectedCurrency.value;
-    if (selectedPaymentType.value != null) {
+    if (selectedPaymentType.value != null  && !multiple.value) {
       selectedPaymentType.value!.amount = totalCostInSelectedCurrency.value;
     }
-    if (selectedPaymentTypes.isNotEmpty) {
+    if (selectedPaymentTypes.isNotEmpty && !multiple.value) {
       selectedPaymentTypes.first.amount = totalCostInSelectedCurrency.value;
     }
     if(rearScreenAvailable.value){
@@ -1008,7 +1009,7 @@ class CartController extends GetxController {
             ref: paymentTypeModel.branch==null?ref + "_" +customerName.replaceAll(" ", "_"):ref,
             timeCreated: timeCreated,
             notes: "",
-            amount:amt,
+            amount:paymentTypeModel.amount!,
             shiftReference: activeShift.shiftReference,
             posReference: posReference,
             isCash: isCash,

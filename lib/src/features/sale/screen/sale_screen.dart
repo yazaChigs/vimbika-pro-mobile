@@ -1998,32 +1998,14 @@ class SaleScreen extends GetView {
                                                             .multiple.value,
                                                         onChanged:
                                                             (bool? value) {
-                                                          saleController
-                                                                  .multiple
-                                                                  .value =
-                                                              value ?? false;
-                                                          saleController
-                                                                  .showMultiple
-                                                                  .value =
-                                                              value ?? false;
-                                                          if (saleController
-                                                                  .multiple
-                                                                  .value ==
-                                                              true) {
-                                                            cartController
-                                                                .amountPaidTextEditingController
-                                                                .clear();
-                                                            cartController
-                                                                    .amountPaidTextEditingController
-                                                                    .text =
-                                                                0.00.toStringAsFixed(
-                                                                    2);
-                                                            cartController
-                                                                .amountPaid
-                                                                .value = 0.00;
-                                                            cartController
-                                                                .customerAmountPaid
-                                                                .value = 0.00;
+                                                          saleController.multiple.value =value ?? false;
+                                                          cartController.multiple.value =value ?? false;
+                                                          saleController.showMultiple.value =value ?? false;
+                                                          if (saleController.multiple.value == true) {
+                                                            cartController.amountPaidTextEditingController.clear();
+                                                            cartController.amountPaidTextEditingController.text =0.00.toStringAsFixed(2);
+                                                            cartController.amountPaid.value = 0.00;
+                                                            cartController.customerAmountPaid.value = 0.00;
                                                           }
                                                         },
                                                       )),
@@ -2461,11 +2443,11 @@ class SaleScreen extends GetView {
                       .discountTextEditingController.text.isNotEmpty) {
                     double amount = double.parse(
                         saleController.discountTextEditingController.text);
-                    if (amount <= 0) {
-                      Get.snackbar("Error", "Amount must be greater than zero.",
-                          snackPosition: SnackPosition.TOP);
-                      return;
-                    }
+                    // if (amount <= 0) {
+                    //   Get.snackbar("Error", "Amount must be greater than zero.",
+                    //       snackPosition: SnackPosition.TOP);
+                    //   return;
+                    // }
                     cartController.cartItems[index].product.item!.sellingPrice = amount;
                     cartController.cartItems.refresh();
                     cartController.calculateTotalAmounts(cartController.cartItems);

@@ -111,6 +111,9 @@ class ShiftController extends GetxController {
     shifts = loadShifts(box);
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(shifts, box, user, true);
     if(tempActiveShift != null) {
+          tempActiveShift.shiftCurrencyAmounts!.forEach((currencyAmount)=>
+            print(currencyAmount.toJson())
+          );
       activeShift.value = tempActiveShift;
       shiftAvailable.value = true;
       activeShift.value.shiftCurrencyAmounts?.sort((a, b) => a.timeCreated.compareTo(b.timeCreated));
@@ -182,6 +185,11 @@ class ShiftController extends GetxController {
     ShiftModel shiftModel = ShiftModel(userId: user.id, active: true, stopSync: false, userFullName: fullName, shiftCurrencyAmounts: currencyAmountList, openingTime: timeInit, company: user.company, shiftReference: ref, synced: false);
     activeShift.value = shiftModel;
     shifts.add(shiftModel);
+    shifts.forEach((element) {
+      print("${element.shiftReference} + ${element.shiftCurrencyAmounts!.any((test)=>test.id==null)}");
+      print("======================");
+
+    });
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, shifts, box);
     bool stat = await _connectivityService.checkServerConnection();
     if(stat) {
