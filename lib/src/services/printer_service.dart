@@ -118,7 +118,7 @@ class PrinterService extends GetxService {
             await generateBluetoothReceipt(saleInfo.sale!, prin, false);
           }
           if (prin.type == 'usb') {
-            await generateUSBReceipt(saleInfo.sale!, prin ,false);
+            await generateUSBReceipt(saleInfo.sale!, prin, false);
           }
         } else {
           Get.snackbar('Error', 'Default Printer Not Found. Please add printer.',
@@ -706,13 +706,6 @@ class PrinterService extends GetxService {
 
 
   generateUSBReceipt(SaleModel sale,  AvailablePrinterModel printer, bool waScan) async {
-     print("=== USB RECEIPT DEBUG: Function called ===");
-     print("USB RECEIPT DEBUG: Sale Reference: ${sale.referenceNumber}");
-     print("USB RECEIPT DEBUG: Printer Name: ${printer.name}");
-     print("USB RECEIPT DEBUG: Printer Vendor ID: ${printer.vendorId}");
-     print("USB RECEIPT DEBUG: Printer Product ID: ${printer.productId}");
-     print("USB RECEIPT DEBUG: WA Scan: $waScan");
-     
      final profile = await CapabilityProfile.load();
      final generator = Generator(PaperSize.mm80, profile);
 
@@ -720,7 +713,6 @@ class PrinterService extends GetxService {
 
      CurrencyModel? cur = sale.currency;
      var box = GetStorage();
-     print("USB RECEIPT DEBUG: Currency: ${cur?.symbol ?? 'N/A'}");
      
      // Get Fiscal Device information (from backend format)
      String? vatNumber;
@@ -734,17 +726,12 @@ class PrinterService extends GetxService {
          deviceId = fiscalDeviceModel["deviceId"] != null ? int.tryParse(fiscalDeviceModel["deviceId"].toString()) : null;
        }
      } catch (e) {
-       print("USB RECEIPT DEBUG: Error reading fiscal device: $e");
+       // Error reading fiscal device - continue without it
      }
-     print("USB RECEIPT DEBUG: VAT Number: $vatNumber");
-     print("USB RECEIPT DEBUG: Device Serial No: $deviceSerialNo");
-     print("USB RECEIPT DEBUG: Device ID: $deviceId");
 
      // Load company logo
-     print("USB RECEIPT DEBUG: Loading company logo...");
      try {
        Uint8List imageBytes = await readLocalFileBytes();
-       print("USB RECEIPT DEBUG: Logo loaded, bytes: ${imageBytes.length}");
        
        if (imageBytes.isNotEmpty) {
          // Convert image to ESC/POS compatible format
@@ -755,19 +742,13 @@ class PrinterService extends GetxService {
              final img.Image resized = img.copyResize(image, width: 200);
              receiptData += generator.image(resized);
              receiptData += generator.feed(1);
-             print("USB RECEIPT DEBUG: Logo image added to receipt");
-           } else {
-             print("USB RECEIPT DEBUG: ⚠️ Could not decode logo image, continuing without logo");
            }
          } catch (e) {
-           print("USB RECEIPT DEBUG: ⚠️ Error processing logo image: $e, continuing without logo");
+           // Error processing logo - continue without logo
          }
-       } else {
-         print("USB RECEIPT DEBUG: ⚠️ Logo file is empty, continuing without logo");
        }
      } catch (e) {
-       print("USB RECEIPT DEBUG: ⚠️ Error loading logo file: $e, continuing without logo");
-       // Continue without logo - don't crash the receipt printing
+       // Error loading logo - continue without logo
      }
 
      // Fiscal Device VAT Number (from backend format - after logo, before RECEIPT)
@@ -823,7 +804,6 @@ class PrinterService extends GetxService {
          styles: PosStyles(align: PosAlign.center));
 
      // Items
-     print("USB RECEIPT DEBUG: Processing ${sale.items?.length ?? 0} items...");
      for (var item in sale.items!) {
        String itemName = item.inventoryItem?.name ?? 'Item';
        double quantity = item.quantity ?? 0;
@@ -865,9 +845,6 @@ class PrinterService extends GetxService {
     receiptData += generator.text('Gross Amount: ${cur?.symbol ?? ''} ${grossAmount.toStringAsFixed(2)}',
         styles: PosStyles(align: PosAlign.left));
 
-    print("USB RECEIPT DEBUG: Receipt data built, total bytes: ${receiptData.length}");
-    print("USB RECEIPT DEBUG: Net Amount: $netAmount, Gross Amount: $grossAmount");
-
     // Payment Methods (like Sunmi)
     receiptData += generator.text('Amount Paid: ${cur?.symbol} ${sale.amountPaid?.toStringAsFixed(2)} \t\t${sale.paymentTypes!.map((pt)=>pt.paymentType!.name!).join(', ')}',
         styles: PosStyles(align: PosAlign.right));
@@ -903,8 +880,44 @@ class PrinterService extends GetxService {
      receiptData += generator.text('Thank you for your purchase!',
          styles: PosStyles(align: PosAlign.center));
      receiptData += generator.feed(1);
-      if(waScan) {
-        // Load whatsapp qr
+     
+     // QR Code - Fiscal Receipt QR (if fiscalized) or WhatsApp QR
+     if(sale.receiptQrCode != null) {
+       try {
+         // Generate QR code image from receiptQrCode URL using QrPainter
+         final qrPainter = QrPainter(
+           data: sale.receiptQrCode!,
+           version: QrVersions.auto,
+           errorCorrectionLevel: QrErrorCorrectLevel.L,
+           color: const Color(0xFF000000),
+           emptyColor: const Color(0xFFFFFFFF),
+           gapless: true,
+         );
+         
+         final picData = await qrPainter.toImageData(200);
+         if (picData != null) {
+           final img.Image qrImage = img.decodeImage(picData.buffer.asUint8List())!;
+           final img.Image grayscaleQr = img.grayscale(qrImage);
+           final img.Image resizedQr = img.copyResize(grayscaleQr, width: 200);
+           receiptData += generator.image(resizedQr);
+           receiptData += generator.feed(1);
+           
+           // Add QR code text data
+           if(sale.receiptQrData != null && sale.receiptQrData!.isNotEmpty) {
+             receiptData += generator.text(sale.receiptQrData!,
+                 styles: PosStyles(align: PosAlign.center));
+           }
+           receiptData += generator.text('You can verify this receipt manually at',
+               styles: PosStyles(align: PosAlign.center));
+           receiptData += generator.text(sale.receiptQrCode!,
+               styles: PosStyles(align: PosAlign.center));
+         }
+       } catch (e) {
+         // Error generating fiscal receipt QR code - continue without it
+       }
+    } else if(sale.receiptQrCode == null && waScan) {
+      // Load whatsapp qr
+      try {
         Uint8List waImageBytes = await generateWhatsappQR(
             sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
         // Convert image to ESC/POS compatible format
@@ -917,58 +930,33 @@ class PrinterService extends GetxService {
             receiptData += generator.feed(1);
           }
         } catch (e) {
-          print('Error processing logo image: $e');
+          // Error processing WhatsApp QR image - continue without it
         }
+      } catch (e) {
+        // Error generating WhatsApp QR code - continue without it
       }
+    }
      receiptData += generator.feed(2); // Feed lines for spacing
      receiptData += generator.cut(); // Cut the paper
-     
-     print("USB RECEIPT DEBUG: Final receipt data size: ${receiptData.length} bytes");
-     print("USB RECEIPT DEBUG: Creating USB printer input model...");
-     
-     // Validate printer IDs
-     if (printer.vendorId == null || printer.productId == null) {
-       print("USB RECEIPT DEBUG: ❌ ERROR: Vendor ID or Product ID is null!");
-       print("USB RECEIPT DEBUG: Vendor ID: ${printer.vendorId}, Product ID: ${printer.productId}");
-       Get.snackbar('Error', 'Invalid printer configuration: Missing Vendor ID or Product ID',
-           snackPosition: SnackPosition.BOTTOM);
-       return;
-     }
      
      var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
      
      try {
-       print("USB RECEIPT DEBUG: === Attempting to connect to printer ===");
-       print("USB RECEIPT DEBUG: Printer Name: ${printer.name}");
-       print("USB RECEIPT DEBUG: Vendor ID: ${printer.vendorId}");
-       print("USB RECEIPT DEBUG: Product ID: ${printer.productId}");
-       
        bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
        
-       print("USB RECEIPT DEBUG: Connection result: $connected");
-       
        if (!connected) {
-         print("USB RECEIPT DEBUG: ❌ Connection FAILED");
          Get.snackbar('Error', 'Failed to connect to printer',
              snackPosition: SnackPosition.BOTTOM);
          return;
        }
-       
-       print("USB RECEIPT DEBUG: ✅ Connected successfully!");
-       print("USB RECEIPT DEBUG: Sending ${receiptData.length} bytes of data to printer...");
        
        await PrinterManager.instance.send(
          bytes: receiptData, // Data to be printed
          type: PrinterType.usb,
        );
        
-       print("USB RECEIPT DEBUG: ✅ Data sent successfully!");
-       print("USB RECEIPT DEBUG: === USB Print Complete ===");
-       
        // Note: Don't disconnect for receipts to keep connection for multiple prints
      } catch (e, stackTrace) {
-       print("USB RECEIPT DEBUG: ❌ ERROR during printing: $e");
-       print("USB RECEIPT DEBUG: Stack trace: $stackTrace");
        Get.snackbar('Error', 'Failed to print receipt: $e',
            snackPosition: SnackPosition.BOTTOM);
      }
@@ -1636,8 +1624,6 @@ class PrinterService extends GetxService {
   
   // Print KOT via USB (ESC/POS)
   Future<void> printKOTUsb(SaleModel sale, String orderNum, AvailablePrinterModel printer) async {
-    print('[KOT][USB] start | orderNum=$orderNum | items=${sale.items?.length ?? 0} | cashier=${sale.cashierFullName}');
-    print('[KOT][USB] printer: name=${printer.name}, vid=${printer.vendorId}, pid=${printer.productId}');
     final profile = await CapabilityProfile.load();
     final generator = Generator(PaperSize.mm80, profile);
     List<int> bytes = [];
@@ -1645,14 +1631,16 @@ class PrinterService extends GetxService {
     // Company logo
     try {
       final Uint8List imageBytes = await readLocalFileBytes();
-      final img.Image? image = img.decodeImage(imageBytes);
-      if (image != null) {
-        final img.Image resized = img.copyResize(image, width: 200);
-        bytes += generator.image(resized);
-        bytes += generator.feed(1);
+      if (imageBytes.isNotEmpty) {
+        final img.Image? image = img.decodeImage(imageBytes);
+        if (image != null) {
+          final img.Image resized = img.copyResize(image, width: 200);
+          bytes += generator.image(resized);
+          bytes += generator.feed(1);
+        }
       }
     } catch (e) {
-      print('[KOT][USB] logo error: $e');
+      // Error loading logo - continue without logo
     }
 
     // Header
@@ -1696,30 +1684,27 @@ class PrinterService extends GetxService {
     // Send
     try {
       var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
-      print('[KOT][USB] connecting...');
+      
       bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
-      print('[KOT][USB] connected=$connected');
+      
       if (!connected) {
-        Get.snackbar('Error', 'Failed to connect to printer', snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar('Error', 'Failed to connect to printer',
+            snackPosition: SnackPosition.BOTTOM);
         return;
       }
-      print('[KOT][USB] sending ${bytes.length} bytes');
+      
       await PrinterManager.instance.send(bytes: bytes, type: PrinterType.usb);
-      print('[KOT][USB] disconnect');
+      
       await PrinterManager.instance.disconnect(type: PrinterType.usb);
+      
       Get.snackbar('Success', 'KOT printed successfully', snackPosition: SnackPosition.BOTTOM);
-      print('[KOT][USB] done');
     } catch (e, st) {
-      print('[KOT][USB] error: $e');
-      print(st);
       Get.snackbar('Error', 'Failed to print KOT: $e', snackPosition: SnackPosition.BOTTOM);
     }
   }
 
   // Print Quick KOT via USB (ESC/POS) — items only
   Future<void> printQuickKOTUsb(List<CartItemModel> items, String? cashier, String? customer, String? reference, AvailablePrinterModel printer) async {
-    print('[KOT-QUICK][USB] start | items=${items.length} | cashier=$cashier | customer=${customer ?? ''} | ref=${reference ?? ''}');
-    print('[KOT-QUICK][USB] printer: name=${printer.name}, vid=${printer.vendorId}, pid=${printer.productId}');
     final profile = await CapabilityProfile.load();
     final generator = Generator(PaperSize.mm80, profile);
     List<int> bytes = [];
@@ -1727,14 +1712,16 @@ class PrinterService extends GetxService {
     // Company logo
     try {
       final Uint8List imageBytes = await readLocalFileBytes();
-      final img.Image? image = img.decodeImage(imageBytes);
-      if (image != null) {
-        final img.Image resized = img.copyResize(image, width: 200);
-        bytes += generator.image(resized);
-        bytes += generator.feed(1);
+      if (imageBytes.isNotEmpty) {
+        final img.Image? image = img.decodeImage(imageBytes);
+        if (image != null) {
+          final img.Image resized = img.copyResize(image, width: 200);
+          bytes += generator.image(resized);
+          bytes += generator.feed(1);
+        }
       }
     } catch (e) {
-      print('[KOT-QUICK][USB] logo error: $e');
+      // Error loading logo - continue without logo
     }
 
     // Header
@@ -1777,22 +1764,21 @@ class PrinterService extends GetxService {
     // Send
     try {
       var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
-      print('[KOT-QUICK][USB] connecting...');
+      
       bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
-      print('[KOT-QUICK][USB] connected=$connected');
+      
       if (!connected) {
-        Get.snackbar('Error', 'Failed to connect to printer', snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar('Error', 'Failed to connect to printer',
+            snackPosition: SnackPosition.BOTTOM);
         return;
       }
-      print('[KOT-QUICK][USB] sending ${bytes.length} bytes');
+      
       await PrinterManager.instance.send(bytes: bytes, type: PrinterType.usb);
-      print('[KOT-QUICK][USB] disconnect');
+      
       await PrinterManager.instance.disconnect(type: PrinterType.usb);
+      
       Get.snackbar('Success', 'KOT printed successfully', snackPosition: SnackPosition.BOTTOM);
-      print('[KOT-QUICK][USB] done');
     } catch (e, st) {
-      print('[KOT-QUICK][USB] error: $e');
-      print(st);
       Get.snackbar('Error', 'Failed to print KOT: $e', snackPosition: SnackPosition.BOTTOM);
     }
   }
@@ -2247,14 +2233,12 @@ class PrinterService extends GetxService {
         
         // Check if file is empty
         if (log.isEmpty) {
-          print("USB RECEIPT DEBUG: Logo file exists but is empty");
           throw Exception("Logo file is empty");
         }
 
         // Decode the image
         img.Image? image = img.decodeImage(log);
         if (image == null) {
-          print("USB RECEIPT DEBUG: Could not decode the image");
           throw Exception("Could not decode the image");
         }
 
@@ -2267,11 +2251,9 @@ class PrinterService extends GetxService {
         return resizedImageBytes;
 
       } else {
-        print("USB RECEIPT DEBUG: Logo file does not exist at: $path");
         throw Exception("File does not exist");
       }
     } catch (e) {
-      print("USB RECEIPT DEBUG: Error reading logo file: $e");
       rethrow;
     }
   }
@@ -2387,7 +2369,13 @@ class PrinterService extends GetxService {
     SettingsModel settingsModel;
     var settings = box.read(AppConstants.COMPANY_SETTINGS) ?? {};
     settingsModel = SettingsModel.fromMap(Map<String, dynamic>.from(settings));
-    final String phone = settingsModel.whatsappNumber!; // Replace with your number
+    final String? phone = settingsModel.whatsappNumber;
+    
+    // Check if WhatsApp number is available
+    if (phone == null || phone.isEmpty) {
+      throw Exception("WhatsApp number is not configured in company settings");
+    }
+    
     final String message = 'Hello, please send me the fiscalised invoice for $invoiceNumber ($currencySymbol $amount)';
     final String encodedMessage = Uri.encodeComponent(message);
     final String waLink = 'https://wa.me/$phone?text=$encodedMessage';
