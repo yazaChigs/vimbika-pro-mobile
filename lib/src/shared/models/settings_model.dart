@@ -23,10 +23,13 @@ class SettingsModel {
     this.showAmountBeforeTax,
     this.pointsThreshold,
     this.pointsRate,
+    this.enableWaInvReq = false,
+    this.whatsappNumber,
 
   });
 
   String? id;
+  String? whatsappNumber;
   bool? useProductBrands;
   bool? specifyProductDepartment;
   bool? showPricingExcludingTax;
@@ -40,6 +43,7 @@ class SettingsModel {
   bool? saleOnConsignment;
   bool? useSerialNumbers;
   bool? showAmountBeforeTax;
+  bool? enableWaInvReq = false;
   double? pointsThreshold;
   double? pointsRate;
 
@@ -64,6 +68,8 @@ class SettingsModel {
     showAmountBeforeTax: json["showAmountBeforeTax"],
     pointsThreshold: json["pointsThreshold"],
     pointsRate: json["pointsRate"],
+    enableWaInvReq: json["enableWaInvReq"],
+    whatsappNumber: json["whatsappNumber"],
   );
 
   Map<String, dynamic> toMap() => {
@@ -83,5 +89,7 @@ class SettingsModel {
     "showAmountBeforeTax": showAmountBeforeTax,
     "pointsThreshold": pointsThreshold,
     "pointsRate": pointsRate,
+    "enableWaInvReq": enableWaInvReq,
+    "whatsappNumber": whatsappNumber,
   };
 }

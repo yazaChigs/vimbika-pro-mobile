@@ -247,7 +247,6 @@ class OfflineDataController extends GetxController {
     });
     if(response != null) {
       SettingsModel itemConverted = SettingsModel.fromJson(response);
-      print(itemConverted.sellNilItems);
       box.write(AppConstants.COMPANY_SETTINGS, itemConverted.toMap());
     }
   }

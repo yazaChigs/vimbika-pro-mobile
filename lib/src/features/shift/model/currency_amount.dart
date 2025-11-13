@@ -7,7 +7,7 @@ class CurrencyAmount {
     this.id,
     this.createdByName,
     this.dateCreated,
-    this.active,
+    this.active = true,
     required this.currency,
     this.amount = 0.0,
     this.notes,

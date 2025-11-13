@@ -516,7 +516,9 @@ class CustomerController extends GetxController {
         payer: customer,
         currency: selectedCurrency.value,
         bank: selectedBank.value,
-      paymentDescription: "PAY_ACCOUNT"
+        branch: branch,
+      paymentDescription: "PAY_ACCOUNT",
+        accountType: "CUSTOMER_ACCOUNT"
     );
     print(paymentReceivedModel.bank!.toJson());
     List<PaymentReceivedModel> prlist = paymentReceivedList.value;

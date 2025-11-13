@@ -26,6 +26,7 @@ class PaymentReceivedModel {
     this.branch,
     this.balance,
     this.isMobile = true,
+    this.accountType,
   });
 
   String? id;
@@ -43,6 +44,7 @@ class PaymentReceivedModel {
   String? dateTime;
   bool? isMobile = true;
   CustomerModel? payer;
+  String? accountType;
 
   factory PaymentReceivedModel.fromJson(String str) => PaymentReceivedModel.fromMap(json.decode(str));
 
@@ -62,6 +64,7 @@ class PaymentReceivedModel {
     paymentType: json["paymentType"] != null ? PaymentTypeModel.fromMap(json["paymentType"]) : null,
     bank: json["bank"] != null ? BankModel.fromMap(json["bank"]) : null,
     dateTime: json["dateTime"],
+    accountType: json["accountType"],
     accountBalance: json["accountBalance"] != null ? json["accountBalance"].toDouble() : 0.0,
     isMobile: json["isMobile"] ?? true,
   );
@@ -82,5 +85,6 @@ class PaymentReceivedModel {
     "balance": balance,
     "isMobile": isMobile,
     "branch": branch?.toMap(),
+    "accountType": accountType
   };
 }

@@ -778,9 +778,8 @@ class CartController extends GetxController {
     if (stat && isFiscaliseReceiptEnabled.value && !isOnHold) {
       SaleModel? responseFromServerSale =
           await SyncService.saveSale(sale, user.value!, box, company.value!);
-      print("RESPONSE FROM SERVER SALE: " + responseFromServerSale.toString());
       if (responseFromServerSale != null) {
-        if (!isOnHold) {
+        if (isOnHold) {
           saleInfoModel =
               SaleInfoModel(sale: responseFromServerSale, syncStatus: true);
         } else {
@@ -818,7 +817,9 @@ class CartController extends GetxController {
         selectedTicketRef.value = '';
         writeSaleInfor(box, infos);
       }
+
       printCurrentSale(saleInfoModel, box);
+
       if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && (double.parse(amtToAccTextEditingController.text)>0)) {
         CustomerModel customer = allCustomers.firstWhere((cust) =>
         cust.name == sale.customer!.name);
@@ -975,11 +976,7 @@ class CartController extends GetxController {
       }
     });
     if (response != null) {
-      print("Fetched sale..");
-      print(response);
-      // SaleModel itemConverted = SaleModel.fromJson(response);
       SaleModel itemConverted = SaleModel.fromJson(json.decode(response));
-
       SaleInfoModel saleInfoModel =
           SaleInfoModel(sale: itemConverted, syncStatus: true);
       return saleInfoModel;
@@ -1203,7 +1200,9 @@ class CartController extends GetxController {
         payer: customer,
         currency: selectedCurrency.value,
         bank: selectedBank.value,
+      branch: branch.value,
       paymentDescription: 'PAY_ACCOUNT',
+        accountType: "CUSTOMER_ACCOUNT"
     );
     List<PaymentReceivedModel> prlist = paymentReceivedList.value;
     prlist.add(paymentReceivedModel);

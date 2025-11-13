@@ -37,9 +37,9 @@ class BackgroundService extends GetxService {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     var shiftModel = box.read(AppConstants.SHIFT_SETTING) ?? {};
     shiftSetting = ShiftSettingModel.fromMap(Map<String, dynamic>.from(shiftModel));
-    Timer.periodic(Duration(minutes: 3), (timer) async {
+    Timer.periodic(Duration(minutes: 8), (timer) async {
       print("Background task running every 10 minutes");
-        await syncOfflineSales();
+        await syncOfflineSales(true);
       });
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
@@ -75,8 +75,9 @@ class BackgroundService extends GetxService {
   }
 
 
-  syncOfflineSales() async{
+  syncOfflineSales(bool returnSales) async{
     print("syncing offline sales...");
+    box = GetStorage();
     bool stat = await _connectivityService.checkServerConnection();
     if(stat) {
       List<SaleInfoModel> sales = getExistingOfflineSales(box);
@@ -181,6 +182,11 @@ class BackgroundService extends GetxService {
 
 
   Future<SaleInfoModel?> getSale(String saleId) async{
+    if(user.id.isNullOrBlank!){
+      box = GetStorage();
+      var model = box.read(AppConstants.USER_INFO) ?? {};
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+    }
     await Future.delayed(Duration(seconds: 2));
     var response = await BaseHttpClient().getAuthWithCompanyHeader("/sale/get-item/" + saleId, user.companyId!).catchError((onError){
       if (onError is BadRequestException) {

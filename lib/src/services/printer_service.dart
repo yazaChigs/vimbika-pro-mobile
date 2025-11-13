@@ -32,6 +32,7 @@ import 'package:vimbika_pos_app/src/shared/models/payment_received_model.dart';
 
 import '../constants/app_constants.dart';
 import '../features/customers/controller/customer_controller.dart';
+import '../shared/models/settings_model.dart';
 
 class PrinterService extends GetxService {
 
@@ -56,17 +57,21 @@ class PrinterService extends GetxService {
   Future<void> printCurrentSale(SaleInfoModel saleInfo, GetStorage box,  LocalStorageService _localStorageService) async {
     AvailablePrinterModel? prin = _localStorageService.findActivePrinter(box);
         if (prin != null) {
+          var box = GetStorage();
+          SettingsModel settingsModel;
+          var settings = box.read(AppConstants.COMPANY_SETTINGS) ?? {};
+          settingsModel = SettingsModel.fromMap(Map<String, dynamic>.from(settings));
           if(prin.type == 'SUNMI_INBUILT_PRINTER') {
-            await printSunmiSaleReceipt(saleInfo.sale!);
+            await printSunmiSaleReceipt(saleInfo.sale!, settingsModel.enableWaInvReq??false);
           }
           if(prin.type == 'TELPO_INBUILT_PRINTER') {
-            await printTelpoSaleReceipt(saleInfo.sale!);
+            await printTelpoSaleReceipt(saleInfo.sale!, settingsModel.enableWaInvReq??false);
           }
           if (prin.type == 'bluetooth') {
-            await generateBluetoothReceipt(saleInfo.sale!, prin);
+            await generateBluetoothReceipt(saleInfo.sale!, prin, settingsModel.enableWaInvReq??false);
           }
           if (prin.type == 'usb') {
-            await generateUSBReceipt(saleInfo.sale!, prin);
+            await generateUSBReceipt(saleInfo.sale!, prin, settingsModel.enableWaInvReq??false);
           }
         } else {
           Get.snackbar('Error', 'Default Printer Not Found. Please add printer.',
@@ -84,10 +89,10 @@ class PrinterService extends GetxService {
             await printSunmiKOT(saleInfo.sale!, orderNum);
           }
           if(prin.type == 'TELPO_INBUILT_PRINTER') {
-            await printTelpoSaleReceipt(saleInfo.sale!);
+            await printTelpoSaleReceipt(saleInfo.sale!, false);
           }
           if (prin.type == 'bluetooth') {
-            await generateBluetoothReceipt(saleInfo.sale!, prin);
+            await generateBluetoothReceipt(saleInfo.sale!, prin, false);
           }
           if (prin.type == 'usb') {
             await printKOTUsb(saleInfo.sale!, orderNum, prin);
@@ -107,13 +112,13 @@ class PrinterService extends GetxService {
             await printSunmiSaleBill(saleInfo.sale!,getOfflineCurrencyList(box));
           }
           if(prin.type == 'TELPO_INBUILT_PRINTER') {
-            await printTelpoSaleReceipt(saleInfo.sale!);
+            await printTelpoSaleReceipt(saleInfo.sale!, false);
           }
           if (prin.type == 'bluetooth') {
-            await generateBluetoothReceipt(saleInfo.sale!, prin);
+            await generateBluetoothReceipt(saleInfo.sale!, prin, false);
           }
           if (prin.type == 'usb') {
-            await generateUSBReceipt(saleInfo.sale!, prin);
+            await generateUSBReceipt(saleInfo.sale!, prin ,false);
           }
         } else {
           Get.snackbar('Error', 'Default Printer Not Found. Please add printer.',
@@ -213,7 +218,7 @@ class PrinterService extends GetxService {
 
   }
 
-  generateBluetoothReceipt(SaleModel sale, AvailablePrinterModel printer) async {
+  generateBluetoothReceipt(SaleModel sale, AvailablePrinterModel printer, bool waScan) async {
     BluetoothPrint bluetoothPrint = await BluetoothPrint.instance;
     await bluetoothPrint.disconnect();
     Uint8List imageBytes = await readLocalFileBytes();
@@ -389,12 +394,6 @@ class PrinterService extends GetxService {
     if(sale.receiptQrCode != null) {
 
       print("Printing qr code..");
-      // receiptData.add(LineText(
-      //   type: LineText.TYPE_QRCODE,
-      //   //content: sale.receiptQrCode!, // The URL to be encoded in the QR code
-      //   content: "https://example.com",
-      //   linefeed: 1,
-      // ));
       Uint8List imageBytes = await generateBlueToothQR(sale.receiptQrCode!);
       String qrCode = base64Encode(imageBytes);
       receiptData.add(LineText(
@@ -421,6 +420,16 @@ class PrinterService extends GetxService {
         content: sale.receiptQrCode!,
         align: LineText.ALIGN_CENTER,
         linefeed: 1,
+      ));
+    } else if(sale.receiptQrCode==null && waScan){
+      Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
+      String waQrCode = base64Encode(waImageBytes);
+      receiptData.add(LineText(
+          type: LineText.TYPE_IMAGE,
+          content: waQrCode,
+          align: LineText.ALIGN_CENTER,
+          width: 200,
+          height: 200
       ));
     }
 
@@ -588,7 +597,7 @@ class PrinterService extends GetxService {
   }
 
 
-  generateUSBReceipt(SaleModel sale,  AvailablePrinterModel printer) async {
+  generateUSBReceipt(SaleModel sale,  AvailablePrinterModel printer, bool waScan) async {
      final profile = await CapabilityProfile.load();
      final generator = Generator(PaperSize.mm80, profile);
 
@@ -684,10 +693,27 @@ class PrinterService extends GetxService {
       receiptData += generator.text('Account Balance: ${cur?.symbol} ${sale.customer!.currencyBalance!.firstWhere((cb) => cb.currency?.id == cur?.id, orElse: () => sale.customer!.currencyBalance!.first).balance!.toStringAsFixed(2)}',
           styles: PosStyles(align: PosAlign.right));
     }
-
      // Footer
      receiptData += generator.text('Thank you for your purchase!',
          styles: PosStyles(align: PosAlign.center));
+     receiptData += generator.feed(1);
+      if(waScan) {
+        // Load whatsapp qr
+        Uint8List waImageBytes = await generateWhatsappQR(
+            sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
+        // Convert image to ESC/POS compatible format
+        try {
+          final img.Image? waImage = img.decodeImage(waImageBytes);
+          if (waImage != null) {
+            // Resize image to fit receipt width (max 384 pixels for 80mm paper)
+            final img.Image resized = img.copyResize(waImage, width: 200);
+            receiptData += generator.image(resized);
+            receiptData += generator.feed(1);
+          }
+        } catch (e) {
+          print('Error processing logo image: $e');
+        }
+      }
      receiptData += generator.feed(2); // Feed lines for spacing
      receiptData += generator.cut(); // Cut the paper
      var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
@@ -997,7 +1023,7 @@ class PrinterService extends GetxService {
    }
 
    // Print Sale Receipt
-   Future<void> printSunmiSaleReceipt(SaleModel sale) async {
+   Future<void> printSunmiSaleReceipt(SaleModel sale, bool waScan) async {
      // Only print on Android platforms
      if (Platform.isWindows) {
        print("Sunmi printer not available on Windows");
@@ -1044,8 +1070,8 @@ class PrinterService extends GetxService {
        total = total * cur!.rate!;
        price = price * cur!.rate!;
        await SunmiPrinter.printText("$itemName");
-       await SunmiPrinter.printText("Qty: $quantity  Price: ${cur?.symbol ?? ''} ${price.toStringAsFixed(2)}");
-       await SunmiPrinter.printText("Total: ${cur?.symbol ?? ''} ${total.toStringAsFixed(2)}");
+       await SunmiPrinter.printText("Qty: $quantity  Price: ${cur.symbol ?? ''} ${price.toStringAsFixed(2)}");
+       await SunmiPrinter.printText("Total: ${cur.symbol ?? ''} ${total.toStringAsFixed(2)}");
        // await SunmiPrinter.printText("--------------------------------");
      }
 
@@ -1078,6 +1104,9 @@ class PrinterService extends GetxService {
        await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
        await SunmiPrinter.printText("You can verify this receipt manually at ");
        await SunmiPrinter.printText(sale.receiptQrCode! + "");
+     } else if(sale.receiptQrCode==null && waScan){
+       Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
+       await SunmiPrinter.printImage(waImageBytes);
      }
 
      // Footer
@@ -1944,7 +1973,7 @@ class PrinterService extends GetxService {
       rethrow;
     }
   }
-  Future<void> printTelpoSaleReceipt(SaleModel sale) async {
+  Future<void> printTelpoSaleReceipt(SaleModel sale, bool waScan) async {
     // Only print on Android platforms
     if (Platform.isWindows) {
       print("Telpo printer not available on Windows");
@@ -2048,6 +2077,44 @@ class PrinterService extends GetxService {
     } catch (e) {
       debugPrint('Error printing Telpo receipt: $e');
     }
+  }
+
+  Future<Uint8List> generateWhatsappQR(String invoiceNumber, String currencySymbol, double amount) async{
+    // Generate QR Code using qr_flutter
+    var box = GetStorage();
+    SettingsModel settingsModel;
+    var settings = box.read(AppConstants.COMPANY_SETTINGS) ?? {};
+    settingsModel = SettingsModel.fromMap(Map<String, dynamic>.from(settings));
+    final String phone = settingsModel.whatsappNumber!; // Replace with your number
+    final String message = 'Hello, please send me the fiscalised invoice for $invoiceNumber ($currencySymbol $amount)';
+    final String encodedMessage = Uri.encodeComponent(message);
+    final String waLink = 'https://wa.me/$phone?text=$encodedMessage';
+    final qrValidationResult = QrValidator.validate(
+      data: waLink,
+      version: QrVersions.auto,
+      errorCorrectionLevel: QrErrorCorrectLevel.L,
+    );
+    if (qrValidationResult.status != QrValidationStatus.valid) {
+      throw Exception("Invalid QR code content");
+    }
+    final qrCodeImage = qrValidationResult.qrCode;
+   // final qrImage = img.Image(width: 300, height: 300); // 300x300 QR code image size
+    final painter = QrPainter.withQr(
+      qr: qrCodeImage!,
+      color: const Color(0xFF000000),
+      emptyColor: const Color(0xFFFFFFFF),
+      gapless: true,
+    );
+
+    // Convert QR code to Uint8List
+    // ByteData? byteData = await painter.toImageData(300);
+    // Uint8List imageBytes = byteData!.buffer.asUint8List();
+    final picData = await painter.toImageData(200); // Adjust size if needed
+    final img.Image baseSizeImage = img.decodeImage(picData!.buffer.asUint8List())!;
+    final img.Image grayscaleImage = img.grayscale(baseSizeImage);
+    final Uint8List qrImageBytes = Uint8List.fromList(img.encodePng(grayscaleImage));
+    return qrImageBytes;
+
   }
 
   Future<Uint8List> generateBlueToothQR(String qrContent) async{

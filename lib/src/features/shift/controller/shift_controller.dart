@@ -22,6 +22,7 @@ import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_received_model.dart';
 
 import '../../../services/app_exceptions.dart';
+import '../../../services/background_service.dart';
 import '../../../services/base_http_client.dart';
 import '../../../services/connectivity_service.dart';
 import '../../../utils/app_helper.dart';
@@ -35,6 +36,7 @@ class ShiftController extends GetxController {
   RxList<CurrencyModel> currencyList = <CurrencyModel>[].obs;
   RxList<SaleInfoModel> allReceipts = <SaleInfoModel>[].obs;
   RxList<SaleInfoModel> reversedSales = <SaleInfoModel>[].obs;
+  RxList<SaleInfoModel> offlineSales = <SaleInfoModel>[].obs;
 
   List<ShiftModel>  shifts = [];
   var currencyAmountList = <CurrencyAmount>[].obs;
@@ -71,14 +73,13 @@ class ShiftController extends GetxController {
     selectedCurrency.value = baseCurrency.value;
     isCurrencySelected.value = true;
     shiftInfo();
-    // getSales(); //moved to shiftInfo
-    // initCurrencies();
-
   }
+
   getSales() {
     List<SaleInfoModel> sales = getExistingOfflineSales(box);
     List<SaleInfoModel> actualSales = [];
     List<SaleInfoModel> otherSales = [];
+    offlineSales.value = sales.where((sale)=> sale.syncStatus == false).toList();
     for(SaleInfoModel s in sales){
       if(s.sale!.saleStatus == "COMPLETE" || s.sale!.saleStatus == "PENDING"){
         if(!actualSales.any((sale)=> sale.sale!.posReference==s.sale!.posReference)) //filter duplicates
@@ -117,7 +118,6 @@ class ShiftController extends GetxController {
       activeShift.value = tempActiveShift;
       shiftAvailable.value = true;
       activeShift.value.shiftCurrencyAmounts?.sort((a, b) => a.timeCreated.compareTo(b.timeCreated));
-      // calculateTotalAmountsByCurrency();
     }
     getSales();
   }
@@ -185,11 +185,6 @@ class ShiftController extends GetxController {
     ShiftModel shiftModel = ShiftModel(userId: user.id, active: true, stopSync: false, userFullName: fullName, shiftCurrencyAmounts: currencyAmountList, openingTime: timeInit, company: user.company, shiftReference: ref, synced: false);
     activeShift.value = shiftModel;
     shifts.add(shiftModel);
-    shifts.forEach((element) {
-      print("${element.shiftReference} + ${element.shiftCurrencyAmounts!.any((test)=>test.id==null)}");
-      print("======================");
-
-    });
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, shifts, box);
     bool stat = await _connectivityService.checkServerConnection();
     if(stat) {
@@ -347,7 +342,6 @@ class ShiftController extends GetxController {
         "totalAmount": total,
       });
     });
-    print(refunds);
     refunds.forEach((currencyId, total) {
       final currency = reversedSales
           .firstWhere((sale) => sale.sale!.currency!.id == currencyId).sale!
@@ -402,66 +396,59 @@ class ShiftController extends GetxController {
     Get.offNamed(AppRoutes.OPEN_SHIFT);
   }
   closeActiveShift() async {
-    AppHelper.showLoading();
-    List<ShiftModel> itemsToBeSynced = [];
-    ShiftModel temp  = activeShift.value;
-    DateTime now = DateTime.now();
-    String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
-    temp.isShiftClosed = true;
-    temp.active = true;
-    temp.closingTime = closingTime;
-    itemsToBeSynced.add(temp);
-
-    String jsonShiftItems = json.encode(
-        itemsToBeSynced.map((shift) => shift.toMap()).toList());
-    debugPrint("Shift items to be synced " + jsonShiftItems);
-    debugPrint("Syncing shifts " + jsonShiftItems);
-    var response = await BaseHttpClient()
-        .postAuthWithCompanyHeader(
-        "/mobile/pos/shift/save", jsonShiftItems, user.companyId!, "POST")
-        .catchError((onError) {
-      print(onError);
-      AppHelper.hideLoading();
-      if (onError is BadRequestException) {
-        var apiError = json.decode(onError.message!);
-        AppHelper.showErroDialog(description: apiError["reason"]);
-      } else {
-        AppHelper.handleError(onError);
-      }
-    });
-    if (response != null) {
-      // ShiftResponseModel saleResponseModel = ShiftResponseModel.fromJson(response);
-      // updateItems.addAll(saleResponseModel.items ?? []);
-      // updateItems.addAll(upToDateItems);
-      // //List<ShiftModel> items =  saleResponseModel.items ?? [];
-      //
-      // List<Map<String, dynamic>> itemsListMap = updateItems.map((item) =>
-      //     item.toMap()).toList();
-      // box.write(AppConstants.SHIFT_LIST, itemsListMap);
-
-      // Get.snackbar("Success", "Shifts synced successfully");
-
-      print("init syncing branchStock...");
-      await SyncService.getBranchStock(box, user);
-      await SyncService.savePaymentReceived(user, box);
-      await SyncService.saveCustomer(user, box);
-      await SyncService.getCustomers(user, box, user.companyId!);
-    } else {
-      //Get.snackbar("Error", "No response from server");
-
+    List<SaleInfoModel> allSales = getExistingOfflineSales(box);
+    offlineSales.value = allSales.where((sale)=> sale.syncStatus == false).toList();
+    bool stat = await _connectivityService.checkServerConnection();
+    if(user.id.isNullOrBlank!){
+      print("User is null");
+      var model = box.read(AppConstants.USER_INFO) ?? {};
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
     }
+    if(stat || (!stat && offlineSales.isEmpty) ) {
+      AppHelper.showLoading();
+      if(stat){
+        if(!offlineSales.isEmpty)
+          await BackgroundService().syncOfflineSales(false);
+        await SyncService.savePaymentReceived(user, box);
+        await SyncService.saveCustomer(user, box);
+      }
+      List<ShiftModel> itemsToBeSynced = [];
+      ShiftModel temp = activeShift.value;
+      DateTime now = DateTime.now();
+      String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+      temp.isShiftClosed = true;
+      temp.active = true;
+      temp.closingTime = closingTime;
+      itemsToBeSynced.add(temp);
 
-    List<ShiftModel> shi =  _localStorageService.replaceShift(temp, shifts);
-    _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
-    Get.snackbar("Success", "Shift closed successfully", snackPosition: SnackPosition.BOTTOM);
-    SyncService.syncOfflineShifts(user, box);
-    /*Get.delete<ShiftController>();
-    Get.delete<SaleController>();
-    Get.delete<CartController>();
-    Get.offNamed(AppRoutes.OPEN_SHIFT);*/
+      String jsonShiftItems = json.encode(
+          itemsToBeSynced.map((shift) => shift.toMap()).toList());
+      var response = await BaseHttpClient()
+          .postAuthWithCompanyHeader(
+          "/mobile/pos/shift/save", jsonShiftItems, user.companyId!, "POST")
+          .catchError((onError) {
+        print(onError);
+        AppHelper.hideLoading();
+        if (onError is BadRequestException) {
+          var apiError = json.decode(onError.message!);
+          AppHelper.showErroDialog(description: apiError["reason"]);
+        } else {
+          AppHelper.handleError(onError);
+        }
+      });
 
-    AppHelper.hideLoading();
-    signOut();
+      List<ShiftModel> shi = _localStorageService.replaceShift(temp, shifts);
+      _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
+      Get.snackbar("Success", "Shift closed successfully",
+          snackPosition: SnackPosition.BOTTOM);
+      SyncService.syncOfflineShifts(user, box);
+
+      AppHelper.hideLoading();
+      signOut();
+    }
+    else {
+      Get.snackbar("Error", "You have unsynced sales. Please sync them before closing the shift", snackPosition: SnackPosition.BOTTOM,backgroundColor: Colors.red, colorText: Colors.white);
+    }
   }
   void showConfirmDialogCloseShift() {
     Get.defaultDialog(

@@ -505,21 +505,26 @@ class SyncService {
   // }
   static  syncOfflineShifts(UserModel user,  GetStorage box) async {
     List<ShiftModel> shiftInfo = loadShiftInfo(box);
-    List<ShiftModel> itemsToBeSynced = [];
-    List<CurrencyAmount> currencyItemsToBeSynced = [];
+    RxList itemsToBeSynced = [].obs;
     List<ShiftModel> upToDateItems = [];
     List<ShiftModel> updateItems = [];
     List<CurrencyAmount> updateCurrencyItems = [];
 
+    if(user.id.isNullOrBlank!){
+      print("User is null");
+      var model = box.read(AppConstants.USER_INFO) ?? {};
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+    }
+
     for (ShiftModel sh in shiftInfo) {
       if (!sh.stopSync! && !sh.isShiftClosed!) {
-        itemsToBeSynced.add(sh);
         if (sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty) {
           if(sh.shiftCurrencyAmounts!.any((currencyAMount)=>currencyAMount.id==null)){
            updateCurrencyItems = await syncShiftsWithNullID(sh.shiftCurrencyAmounts!,user);
           }
           updateCurrencyItems.forEach((element) {
             var index = sh.shiftCurrencyAmounts!.indexWhere((test)=>test.ref==element.ref);
+            print("index: $index");
             if(index!= -1){
               sh.shiftCurrencyAmounts![index] = element;
             }
@@ -531,6 +536,8 @@ class SyncService {
             }
           }*/
         }
+        itemsToBeSynced.add(sh);
+        itemsToBeSynced.refresh();
       } else {
         if(sh.isShiftClosed! && !sh.stopSync!) {
           sh.stopSync = true;
@@ -576,15 +583,7 @@ class SyncService {
       }
     }*/
 
-    if(itemsToBeSynced.isNotEmpty && currencyItemsToBeSynced.isNotEmpty) {
-      itemsToBeSynced.forEach((element) {
-        print("null id exist: ${element.shiftCurrencyAmounts!.any((test)=>test.id == null)}");
-        if(element.shiftCurrencyAmounts!.any((test)=>test.id == null)){
-          element.shiftCurrencyAmounts!.where((test)=>test.id ==  null).forEach((element) {
-            print(element.toJson());
-          });
-        }
-      });
+    if(itemsToBeSynced.isNotEmpty) {
       String jsonShiftItems = json.encode(
           itemsToBeSynced.map((shift) => shift.toMap()).toList());
       var response = await BaseHttpClient()
@@ -605,14 +604,6 @@ class SyncService {
             response);
         updateItems.addAll(saleResponseModel.items ?? []);
         updateItems.addAll(upToDateItems);
-        updateItems.forEach((element) {
-          print(element.shiftReference);
-          print("----------------------");
-          element.shiftCurrencyAmounts!.forEach((action){
-            print(action.toJson());
-          });
-        });
-        //List<ShiftModel> items =  saleResponseModel.items ?? [];
 
         List<Map<String, dynamic>> itemsListMap = updateItems.map((item) =>
             item.toMap()).toList();
@@ -645,10 +636,8 @@ class SyncService {
         }
       });
       if (shiftCurrencyResponse != null) {
-        debugPrint("Shift currency response " + shiftCurrencyResponse.toString());
         ShiftCurrencyResponseModel saleResponseModel =
         ShiftCurrencyResponseModel.fromJson(shiftCurrencyResponse);
-        debugPrint("Shift currency items " + saleResponseModel.items.toString());
         updateCurrencyItems.addAll(saleResponseModel.items ?? []);
       }
     }
