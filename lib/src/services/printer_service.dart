@@ -232,6 +232,23 @@ class PrinterService extends GetxService {
     await Future.delayed(Duration(seconds: 3));
     List<LineText> receiptData = [];
     CurrencyModel? cur = sale.currency;
+    var box = GetStorage();
+    
+    // Get Fiscal Device information (from backend format)
+    String? vatNumber;
+    String? deviceSerialNo;
+    int? deviceId;
+    try {
+      var fiscalDeviceModel = box.read(AppConstants.FISCAL_DEVICE);
+      if (fiscalDeviceModel != null && fiscalDeviceModel is Map) {
+        vatNumber = fiscalDeviceModel["vatNumber"]?.toString();
+        deviceSerialNo = fiscalDeviceModel["deviceSerialNo"]?.toString();
+        deviceId = fiscalDeviceModel["deviceId"] != null ? int.tryParse(fiscalDeviceModel["deviceId"].toString()) : null;
+      }
+    } catch (e) {
+      print("Error reading fiscal device: $e");
+    }
+    
     receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n\n', weight: 1, align: LineText.ALIGN_CENTER,linefeed: 1));
 
     // Header
@@ -246,6 +263,17 @@ class PrinterService extends GetxService {
       align: LineText.ALIGN_CENTER,
       linefeed: 1,
     ));
+    
+    // Fiscal Device VAT Number (from backend format - after logo, before RECEIPT)
+    if (vatNumber != null && vatNumber.isNotEmpty) {
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: 'VAT No: $vatNumber',
+        align: LineText.ALIGN_LEFT,
+        linefeed: 1,
+      ));
+    }
+    
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
       content: 'RECEIPT',
@@ -269,9 +297,10 @@ class PrinterService extends GetxService {
       linefeed: 1,
     ));
 
+    // Invoice No (from backend format)
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-      content: 'Reference: ${sale.referenceNumber}',
+      content: 'Invoice No: ${sale.referenceNumber}',
       align: LineText.ALIGN_LEFT,
       linefeed: 1,
     ));
@@ -284,6 +313,42 @@ class PrinterService extends GetxService {
         align: LineText.ALIGN_LEFT,
         linefeed: 1,
       ));
+      // Customer company name (from backend format)
+      if (sale.customer!.companyName != null && sale.customer!.companyName!.isNotEmpty) {
+        receiptData.add(LineText(
+          type: LineText.TYPE_TEXT,
+          content: '${sale.customer!.companyName}',
+          align: LineText.ALIGN_LEFT,
+          linefeed: 1,
+        ));
+      }
+      // Customer tax number (from backend format)
+      if (sale.customer!.taxNumber != null && sale.customer!.taxNumber!.isNotEmpty) {
+        receiptData.add(LineText(
+          type: LineText.TYPE_TEXT,
+          content: 'TIN: ${sale.customer!.taxNumber}',
+          align: LineText.ALIGN_LEFT,
+          linefeed: 1,
+        ));
+      }
+      // Customer email (from backend format)
+      if (sale.customer!.email != null && sale.customer!.email!.isNotEmpty) {
+        receiptData.add(LineText(
+          type: LineText.TYPE_TEXT,
+          content: '${sale.customer!.email}',
+          align: LineText.ALIGN_LEFT,
+          linefeed: 1,
+        ));
+      }
+      // Customer ref number (from backend format)
+      if (sale.customer!.customerId != null && sale.customer!.customerId!.isNotEmpty) {
+        receiptData.add(LineText(
+          type: LineText.TYPE_TEXT,
+          content: 'Customer reference No: ${sale.customer!.customerId}',
+          align: LineText.ALIGN_LEFT,
+          linefeed: 1,
+        ));
+      }
     }
 
     // Separator
@@ -341,10 +406,33 @@ class PrinterService extends GetxService {
     }
 
     // Totals
+    // Calculate net and gross amounts (from backend format)
+    double netAmount = (sale.amountAfterDiscount ?? 0.0) - (sale.totalTaxAmount ?? 0.0);
+    double grossAmount = sale.amountAfterDiscount ?? 0.0;
+    
+    // Net Amount (from backend format)
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-      content: 'Subtotal: ${cur!.symbol} ${sale.amountAfterDiscount?.toStringAsFixed(2)}',
-      align: LineText.ALIGN_RIGHT,
+      content: 'Net Amount: ${cur!.symbol} ${netAmount.toStringAsFixed(2)}',
+      align: LineText.ALIGN_LEFT,
+      linefeed: 1,
+    ));
+    
+    // VAT (if > 0 - from backend format)
+    if (sale.totalTaxAmount != null && sale.totalTaxAmount! > 0) {
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: 'VAT: ${cur.symbol} ${sale.totalTaxAmount!.toStringAsFixed(2)}',
+        align: LineText.ALIGN_LEFT,
+        linefeed: 1,
+      ));
+    }
+    
+    // Gross Amount (from backend format)
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: 'Gross Amount: ${cur.symbol} ${grossAmount.toStringAsFixed(2)}',
+      align: LineText.ALIGN_LEFT,
       linefeed: 1,
     ));
 
@@ -381,6 +469,26 @@ class PrinterService extends GetxService {
         align: LineText.ALIGN_RIGHT,
         linefeed: 1,
       ));
+    }
+
+    // Fiscal Device details (from backend format - if fiscalized)
+    if (sale.fiscalized == true) {
+      if (deviceSerialNo != null && deviceSerialNo.isNotEmpty) {
+        receiptData.add(LineText(
+          type: LineText.TYPE_TEXT,
+          content: 'Device Serial No: $deviceSerialNo',
+          align: LineText.ALIGN_LEFT,
+          linefeed: 1,
+        ));
+      }
+      if (deviceId != null) {
+        receiptData.add(LineText(
+          type: LineText.TYPE_TEXT,
+          content: 'Device ID: $deviceId',
+          align: LineText.ALIGN_LEFT,
+          linefeed: 1,
+        ));
+      }
     }
 
     receiptData.add(LineText(
@@ -598,27 +706,74 @@ class PrinterService extends GetxService {
 
 
   generateUSBReceipt(SaleModel sale,  AvailablePrinterModel printer, bool waScan) async {
+     print("=== USB RECEIPT DEBUG: Function called ===");
+     print("USB RECEIPT DEBUG: Sale Reference: ${sale.referenceNumber}");
+     print("USB RECEIPT DEBUG: Printer Name: ${printer.name}");
+     print("USB RECEIPT DEBUG: Printer Vendor ID: ${printer.vendorId}");
+     print("USB RECEIPT DEBUG: Printer Product ID: ${printer.productId}");
+     print("USB RECEIPT DEBUG: WA Scan: $waScan");
+     
      final profile = await CapabilityProfile.load();
      final generator = Generator(PaperSize.mm80, profile);
 
      List<int> receiptData = [];
 
      CurrencyModel? cur = sale.currency;
-
-     // Load company logo
-     Uint8List imageBytes = await readLocalFileBytes();
+     var box = GetStorage();
+     print("USB RECEIPT DEBUG: Currency: ${cur?.symbol ?? 'N/A'}");
      
-     // Convert image to ESC/POS compatible format
+     // Get Fiscal Device information (from backend format)
+     String? vatNumber;
+     String? deviceSerialNo;
+     int? deviceId;
      try {
-       final img.Image? image = img.decodeImage(imageBytes);
-       if (image != null) {
-         // Resize image to fit receipt width (max 384 pixels for 80mm paper)
-         final img.Image resized = img.copyResize(image, width: 200);
-         receiptData += generator.image(resized);
-         receiptData += generator.feed(1);
+       var fiscalDeviceModel = box.read(AppConstants.FISCAL_DEVICE);
+       if (fiscalDeviceModel != null && fiscalDeviceModel is Map) {
+         vatNumber = fiscalDeviceModel["vatNumber"]?.toString();
+         deviceSerialNo = fiscalDeviceModel["deviceSerialNo"]?.toString();
+         deviceId = fiscalDeviceModel["deviceId"] != null ? int.tryParse(fiscalDeviceModel["deviceId"].toString()) : null;
        }
      } catch (e) {
-       print('Error processing logo image: $e');
+       print("USB RECEIPT DEBUG: Error reading fiscal device: $e");
+     }
+     print("USB RECEIPT DEBUG: VAT Number: $vatNumber");
+     print("USB RECEIPT DEBUG: Device Serial No: $deviceSerialNo");
+     print("USB RECEIPT DEBUG: Device ID: $deviceId");
+
+     // Load company logo
+     print("USB RECEIPT DEBUG: Loading company logo...");
+     try {
+       Uint8List imageBytes = await readLocalFileBytes();
+       print("USB RECEIPT DEBUG: Logo loaded, bytes: ${imageBytes.length}");
+       
+       if (imageBytes.isNotEmpty) {
+         // Convert image to ESC/POS compatible format
+         try {
+           final img.Image? image = img.decodeImage(imageBytes);
+           if (image != null) {
+             // Resize image to fit receipt width (max 384 pixels for 80mm paper)
+             final img.Image resized = img.copyResize(image, width: 200);
+             receiptData += generator.image(resized);
+             receiptData += generator.feed(1);
+             print("USB RECEIPT DEBUG: Logo image added to receipt");
+           } else {
+             print("USB RECEIPT DEBUG: ⚠️ Could not decode logo image, continuing without logo");
+           }
+         } catch (e) {
+           print("USB RECEIPT DEBUG: ⚠️ Error processing logo image: $e, continuing without logo");
+         }
+       } else {
+         print("USB RECEIPT DEBUG: ⚠️ Logo file is empty, continuing without logo");
+       }
+     } catch (e) {
+       print("USB RECEIPT DEBUG: ⚠️ Error loading logo file: $e, continuing without logo");
+       // Continue without logo - don't crash the receipt printing
+     }
+
+     // Fiscal Device VAT Number (from backend format - after logo, before RECEIPT)
+     if (vatNumber != null && vatNumber.isNotEmpty) {
+       receiptData += generator.text('VAT No: $vatNumber',
+           styles: PosStyles(align: PosAlign.left));
      }
 
      // Header
@@ -633,13 +788,34 @@ class PrinterService extends GetxService {
          styles: PosStyles(align: PosAlign.left));
      receiptData += generator.text('Date: ${sale.timeIniated}',
          styles: PosStyles(align: PosAlign.left));
-     receiptData += generator.text('Reference: ${sale.referenceNumber}',
+     // Invoice No (from backend format)
+     receiptData += generator.text('Invoice No: ${sale.referenceNumber}',
          styles: PosStyles(align: PosAlign.left));
 
      // Customer Information (if any)
      if (sale.customer != null) {
        receiptData += generator.text('Customer: ${sale.customer!.name}',
            styles: PosStyles(align: PosAlign.left));
+       // Customer company name (from backend format)
+       if (sale.customer!.companyName != null && sale.customer!.companyName!.isNotEmpty) {
+         receiptData += generator.text('${sale.customer!.companyName}',
+             styles: PosStyles(align: PosAlign.left));
+       }
+       // Customer tax number (from backend format)
+       if (sale.customer!.taxNumber != null && sale.customer!.taxNumber!.isNotEmpty) {
+         receiptData += generator.text('TIN: ${sale.customer!.taxNumber}',
+             styles: PosStyles(align: PosAlign.left));
+       }
+       // Customer email (from backend format)
+       if (sale.customer!.email != null && sale.customer!.email!.isNotEmpty) {
+         receiptData += generator.text('${sale.customer!.email}',
+             styles: PosStyles(align: PosAlign.left));
+       }
+       // Customer ref number (from backend format)
+       if (sale.customer!.customerId != null && sale.customer!.customerId!.isNotEmpty) {
+         receiptData += generator.text('Customer reference No: ${sale.customer!.customerId}',
+             styles: PosStyles(align: PosAlign.left));
+       }
      }
 
      // Separator
@@ -647,6 +823,7 @@ class PrinterService extends GetxService {
          styles: PosStyles(align: PosAlign.center));
 
      // Items
+     print("USB RECEIPT DEBUG: Processing ${sale.items?.length ?? 0} items...");
      for (var item in sale.items!) {
        String itemName = item.inventoryItem?.name ?? 'Item';
        double quantity = item.quantity ?? 0;
@@ -670,9 +847,26 @@ class PrinterService extends GetxService {
            styles: PosStyles(align: PosAlign.center));
      }
 
-    // Subtotal
-    receiptData += generator.text('Subtotal: ${cur?.symbol} ${sale.amountAfterDiscount?.toStringAsFixed(2)}',
-        styles: PosStyles(align: PosAlign.right));
+    // Calculate net and gross amounts (from backend format)
+    double netAmount = (sale.amountAfterDiscount ?? 0.0) - (sale.totalTaxAmount ?? 0.0);
+    double grossAmount = sale.amountAfterDiscount ?? 0.0;
+    
+    // Net Amount (from backend format)
+    receiptData += generator.text('Net Amount: ${cur?.symbol ?? ''} ${netAmount.toStringAsFixed(2)}',
+        styles: PosStyles(align: PosAlign.left));
+    
+    // VAT (if > 0 - from backend format)
+    if (sale.totalTaxAmount != null && sale.totalTaxAmount! > 0) {
+      receiptData += generator.text('VAT: ${cur?.symbol ?? ''} ${sale.totalTaxAmount!.toStringAsFixed(2)}',
+          styles: PosStyles(align: PosAlign.left));
+    }
+    
+    // Gross Amount (from backend format)
+    receiptData += generator.text('Gross Amount: ${cur?.symbol ?? ''} ${grossAmount.toStringAsFixed(2)}',
+        styles: PosStyles(align: PosAlign.left));
+
+    print("USB RECEIPT DEBUG: Receipt data built, total bytes: ${receiptData.length}");
+    print("USB RECEIPT DEBUG: Net Amount: $netAmount, Gross Amount: $grossAmount");
 
     // Payment Methods (like Sunmi)
     receiptData += generator.text('Amount Paid: ${cur?.symbol} ${sale.amountPaid?.toStringAsFixed(2)} \t\t${sale.paymentTypes!.map((pt)=>pt.paymentType!.name!).join(', ')}',
@@ -693,6 +887,18 @@ class PrinterService extends GetxService {
       receiptData += generator.text('Account Balance: ${cur?.symbol} ${sale.customer!.currencyBalance!.firstWhere((cb) => cb.currency?.id == cur?.id, orElse: () => sale.customer!.currencyBalance!.first).balance!.toStringAsFixed(2)}',
           styles: PosStyles(align: PosAlign.right));
     }
+     // Fiscal Device details (from backend format - if fiscalized)
+     if (sale.fiscalized == true) {
+       if (deviceSerialNo != null && deviceSerialNo.isNotEmpty) {
+         receiptData += generator.text('Device Serial No: $deviceSerialNo',
+             styles: PosStyles(align: PosAlign.left));
+       }
+       if (deviceId != null) {
+         receiptData += generator.text('Device ID: $deviceId',
+             styles: PosStyles(align: PosAlign.left));
+       }
+     }
+     
      // Footer
      receiptData += generator.text('Thank you for your purchase!',
          styles: PosStyles(align: PosAlign.center));
@@ -716,28 +922,53 @@ class PrinterService extends GetxService {
       }
      receiptData += generator.feed(2); // Feed lines for spacing
      receiptData += generator.cut(); // Cut the paper
+     
+     print("USB RECEIPT DEBUG: Final receipt data size: ${receiptData.length} bytes");
+     print("USB RECEIPT DEBUG: Creating USB printer input model...");
+     
+     // Validate printer IDs
+     if (printer.vendorId == null || printer.productId == null) {
+       print("USB RECEIPT DEBUG: ❌ ERROR: Vendor ID or Product ID is null!");
+       print("USB RECEIPT DEBUG: Vendor ID: ${printer.vendorId}, Product ID: ${printer.productId}");
+       Get.snackbar('Error', 'Invalid printer configuration: Missing Vendor ID or Product ID',
+           snackPosition: SnackPosition.BOTTOM);
+       return;
+     }
+     
      var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
      
      try {
-       print("USB Receipt: Connecting to printer: ${printer.name}");
+       print("USB RECEIPT DEBUG: === Attempting to connect to printer ===");
+       print("USB RECEIPT DEBUG: Printer Name: ${printer.name}");
+       print("USB RECEIPT DEBUG: Vendor ID: ${printer.vendorId}");
+       print("USB RECEIPT DEBUG: Product ID: ${printer.productId}");
+       
        bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
+       
+       print("USB RECEIPT DEBUG: Connection result: $connected");
+       
        if (!connected) {
-         print("USB Receipt: Connection failed");
+         print("USB RECEIPT DEBUG: ❌ Connection FAILED");
          Get.snackbar('Error', 'Failed to connect to printer',
              snackPosition: SnackPosition.BOTTOM);
          return;
        }
        
-       print("USB Receipt: Connected successfully. Sending data (${receiptData.length} bytes)...");
+       print("USB RECEIPT DEBUG: ✅ Connected successfully!");
+       print("USB RECEIPT DEBUG: Sending ${receiptData.length} bytes of data to printer...");
+       
        await PrinterManager.instance.send(
          bytes: receiptData, // Data to be printed
          type: PrinterType.usb,
        );
-       print("USB Receipt: Data sent successfully");
+       
+       print("USB RECEIPT DEBUG: ✅ Data sent successfully!");
+       print("USB RECEIPT DEBUG: === USB Print Complete ===");
        
        // Note: Don't disconnect for receipts to keep connection for multiple prints
-     } catch (e) {
-       print("USB Receipt: Error printing: $e");
+     } catch (e, stackTrace) {
+       print("USB RECEIPT DEBUG: ❌ ERROR during printing: $e");
+       print("USB RECEIPT DEBUG: Stack trace: $stackTrace");
        Get.snackbar('Error', 'Failed to print receipt: $e',
            snackPosition: SnackPosition.BOTTOM);
      }
@@ -1031,17 +1262,37 @@ class PrinterService extends GetxService {
      }
      
      CurrencyModel? cur = sale.currency;
+     var box = GetStorage();
+     
+     // Get Fiscal Device information (from backend format)
+     String? vatNumber;
+     String? deviceSerialNo;
+     int? deviceId;
+     try {
+       var fiscalDeviceModel = box.read(AppConstants.FISCAL_DEVICE);
+       if (fiscalDeviceModel != null && fiscalDeviceModel is Map) {
+         vatNumber = fiscalDeviceModel["vatNumber"]?.toString();
+         deviceSerialNo = fiscalDeviceModel["deviceSerialNo"]?.toString();
+         deviceId = fiscalDeviceModel["deviceId"] != null ? int.tryParse(fiscalDeviceModel["deviceId"].toString()) : null;
+       }
+     } catch (e) {
+       print("Error reading fiscal device: $e");
+     }
 
      Uint8List imageBytes = await readLocalFileBytes();
 
      await SunmiPrinter.initPrinter();
      await SunmiPrinter.startTransactionPrint(true);
 
-
-
      // Header
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
      await SunmiPrinter.printImage(imageBytes); // Directly print the image bytes
+
+     // Fiscal Device VAT Number (from backend format - after logo, before RECEIPT)
+     if (vatNumber != null && vatNumber.isNotEmpty) {
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+       await SunmiPrinter.printText("VAT No: $vatNumber");
+     }
 
      await SunmiPrinter.setFontSize(SunmiFontSize.XL);
      await SunmiPrinter.printText("\n");
@@ -1051,11 +1302,28 @@ class PrinterService extends GetxService {
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
      await SunmiPrinter.printText("Cashier: ${sale.cashierFullName}");
      await SunmiPrinter.printText("Date: ${sale.timeIniated}");
-     await SunmiPrinter.printText("Reference: ${sale.referenceNumber}");
+     // Invoice No (from backend format)
+     await SunmiPrinter.printText("Invoice No: ${sale.referenceNumber}");
 
      // Customer Information
      if (sale.customer != null) {
        await SunmiPrinter.printText("Customer: ${sale.customer!.name}");
+       // Customer company name (from backend format)
+       if (sale.customer!.companyName != null && sale.customer!.companyName!.isNotEmpty) {
+         await SunmiPrinter.printText("${sale.customer!.companyName}");
+       }
+       // Customer tax number (from backend format)
+       if (sale.customer!.taxNumber != null && sale.customer!.taxNumber!.isNotEmpty) {
+         await SunmiPrinter.printText("TIN: ${sale.customer!.taxNumber}");
+       }
+       // Customer email (from backend format)
+       if (sale.customer!.email != null && sale.customer!.email!.isNotEmpty) {
+         await SunmiPrinter.printText("${sale.customer!.email}");
+       }
+       // Customer ref number (from backend format)
+       if (sale.customer!.customerId != null && sale.customer!.customerId!.isNotEmpty) {
+         await SunmiPrinter.printText("Customer reference No: ${sale.customer!.customerId}");
+       }
      }
 
      // Separator
@@ -1077,8 +1345,22 @@ class PrinterService extends GetxService {
 
      // Separator
      await SunmiPrinter.printText("--------------------------------");
+     // Calculate net and gross amounts (from backend format)
+     double netAmount = (sale.amountAfterDiscount ?? 0.0) - (sale.totalTaxAmount ?? 0.0);
+     double grossAmount = sale.amountAfterDiscount ?? 0.0;
+     
+     // Net Amount (from backend format)
+     await SunmiPrinter.printText("Net Amount: ${cur?.symbol ?? ''} ${netAmount.toStringAsFixed(2)}");
+     
+     // VAT (if > 0 - from backend format)
+     if (sale.totalTaxAmount != null && sale.totalTaxAmount! > 0) {
+       await SunmiPrinter.printText("VAT: ${cur?.symbol ?? ''} ${sale.totalTaxAmount!.toStringAsFixed(2)}");
+     }
+     
+     // Gross Amount (from backend format)
+     await SunmiPrinter.printText("Gross Amount: ${cur?.symbol ?? ''} ${grossAmount.toStringAsFixed(2)}");
+     
      // Totals
-     await SunmiPrinter.printText("Subtotal: ${cur?.symbol ?? ''} ${sale.amountAfterDiscount?.toStringAsFixed(2)}");
      await SunmiPrinter.printText("Amount Paid: ${cur?.symbol ?? ''} ${sale.amountPaid?.toStringAsFixed(2)} \t\t${sale.paymentTypes!.map((pt)=>pt.paymentType!.name!).join(', ')}");
      await SunmiPrinter.printText("Change: ${cur?.symbol ?? ''} ${sale.change?.toStringAsFixed(2)}\n");
      if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false))
@@ -1107,6 +1389,18 @@ class PrinterService extends GetxService {
      } else if(sale.receiptQrCode==null && waScan){
        Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
        await SunmiPrinter.printImage(waImageBytes);
+     }
+
+     // Fiscal Device details (from backend format - if fiscalized)
+     if (sale.fiscalized == true) {
+       if (deviceSerialNo != null && deviceSerialNo.isNotEmpty) {
+         await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+         await SunmiPrinter.printText("Device Serial No: $deviceSerialNo");
+       }
+       if (deviceId != null) {
+         await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+         await SunmiPrinter.printText("Device ID: $deviceId");
+       }
      }
 
      // Footer
@@ -1950,10 +2244,17 @@ class PrinterService extends GetxService {
       final file = File(path);
       if (await file.exists()) {
         Uint8List log =  await file.readAsBytes(); // Read and return the image bytes
+        
+        // Check if file is empty
+        if (log.isEmpty) {
+          print("USB RECEIPT DEBUG: Logo file exists but is empty");
+          throw Exception("Logo file is empty");
+        }
 
         // Decode the image
         img.Image? image = img.decodeImage(log);
         if (image == null) {
+          print("USB RECEIPT DEBUG: Could not decode the image");
           throw Exception("Could not decode the image");
         }
 
@@ -1966,10 +2267,11 @@ class PrinterService extends GetxService {
         return resizedImageBytes;
 
       } else {
+        print("USB RECEIPT DEBUG: Logo file does not exist at: $path");
         throw Exception("File does not exist");
       }
     } catch (e) {
-      print("Error reading file: $e");
+      print("USB RECEIPT DEBUG: Error reading logo file: $e");
       rethrow;
     }
   }
