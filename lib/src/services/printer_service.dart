@@ -864,57 +864,41 @@ class PrinterService extends GetxService {
       receiptData += generator.text('Account Balance: ${cur?.symbol} ${sale.customer!.currencyBalance!.firstWhere((cb) => cb.currency?.id == cur?.id, orElse: () => sale.customer!.currencyBalance!.first).balance!.toStringAsFixed(2)}',
           styles: PosStyles(align: PosAlign.right));
     }
-     // Fiscal Device details (from backend format - if fiscalized)
-     if (sale.fiscalized == true) {
-       if (deviceSerialNo != null && deviceSerialNo.isNotEmpty) {
-         receiptData += generator.text('Device Serial No: $deviceSerialNo',
-             styles: PosStyles(align: PosAlign.left));
-       }
-       if (deviceId != null) {
-         receiptData += generator.text('Device ID: $deviceId',
-             styles: PosStyles(align: PosAlign.left));
-       }
-     }
-     
-     // Footer
-     receiptData += generator.text('Thank you for your purchase!',
-         styles: PosStyles(align: PosAlign.center));
-     receiptData += generator.feed(1);
-     
-     // QR Code - Fiscal Receipt QR (if fiscalized) or WhatsApp QR
-     if(sale.receiptQrCode != null) {
-       try {
-         // Generate QR code image from receiptQrCode URL using QrPainter
-         final qrPainter = QrPainter(
-           data: sale.receiptQrCode!,
-           version: QrVersions.auto,
-           errorCorrectionLevel: QrErrorCorrectLevel.L,
-           color: const Color(0xFF000000),
-           emptyColor: const Color(0xFFFFFFFF),
-           gapless: true,
-         );
-         
-         final picData = await qrPainter.toImageData(200);
-         if (picData != null) {
-           final img.Image qrImage = img.decodeImage(picData.buffer.asUint8List())!;
-           final img.Image grayscaleQr = img.grayscale(qrImage);
-           final img.Image resizedQr = img.copyResize(grayscaleQr, width: 200);
-           receiptData += generator.image(resizedQr);
-           receiptData += generator.feed(1);
-           
-           // Add QR code text data
-           if(sale.receiptQrData != null && sale.receiptQrData!.isNotEmpty) {
-             receiptData += generator.text(sale.receiptQrData!,
-                 styles: PosStyles(align: PosAlign.center));
-           }
-           receiptData += generator.text('You can verify this receipt manually at',
-               styles: PosStyles(align: PosAlign.center));
-           receiptData += generator.text(sale.receiptQrCode!,
-               styles: PosStyles(align: PosAlign.center));
-         }
-       } catch (e) {
-         // Error generating fiscal receipt QR code - continue without it
-       }
+    
+    // QR Code - Fiscal Receipt QR (if fiscalized) or WhatsApp QR
+    if(sale.receiptQrCode != null) {
+      try {
+        // Generate QR code image from receiptQrCode URL using QrPainter
+        final qrPainter = QrPainter(
+          data: sale.receiptQrCode!,
+          version: QrVersions.auto,
+          errorCorrectionLevel: QrErrorCorrectLevel.L,
+          color: const Color(0xFF000000),
+          emptyColor: const Color(0xFFFFFFFF),
+          gapless: true,
+        );
+        
+        final picData = await qrPainter.toImageData(200);
+        if (picData != null) {
+          final img.Image qrImage = img.decodeImage(picData.buffer.asUint8List())!;
+          final img.Image grayscaleQr = img.grayscale(qrImage);
+          final img.Image resizedQr = img.copyResize(grayscaleQr, width: 200);
+          receiptData += generator.image(resizedQr);
+          receiptData += generator.feed(1);
+          
+          // Add QR code text data
+          if(sale.receiptQrData != null && sale.receiptQrData!.isNotEmpty) {
+            receiptData += generator.text(sale.receiptQrData!,
+                styles: PosStyles(align: PosAlign.center));
+          }
+          receiptData += generator.text('You can verify this receipt manually at',
+              styles: PosStyles(align: PosAlign.center));
+          receiptData += generator.text(sale.receiptQrCode!,
+              styles: PosStyles(align: PosAlign.center));
+        }
+      } catch (e) {
+        // Error generating fiscal receipt QR code - continue without it
+      }
     } else if(sale.receiptQrCode == null && waScan) {
       // Load whatsapp qr
       try {
@@ -936,6 +920,24 @@ class PrinterService extends GetxService {
         // Error generating WhatsApp QR code - continue without it
       }
     }
+    
+    // Fiscal Device details (from backend format - if fiscalized)
+    // Only print if sale was actually fiscalized (confirmed by receiptQrCode presence)
+    if (sale.fiscalized == true && sale.receiptQrCode != null) {
+      if (deviceSerialNo != null && deviceSerialNo.isNotEmpty) {
+        receiptData += generator.text('Device Serial No: $deviceSerialNo',
+            styles: PosStyles(align: PosAlign.left));
+      }
+      if (deviceId != null) {
+        receiptData += generator.text('Device ID: $deviceId',
+            styles: PosStyles(align: PosAlign.left));
+      }
+    }
+    
+    // Footer
+    receiptData += generator.text('Thank you for your purchase!',
+        styles: PosStyles(align: PosAlign.center));
+    receiptData += generator.feed(1);
      receiptData += generator.feed(2); // Feed lines for spacing
      receiptData += generator.cut(); // Cut the paper
      

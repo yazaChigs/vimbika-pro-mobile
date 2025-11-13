@@ -121,6 +121,23 @@ class CartController extends GetxController {
   RxBool isCustomerEmailValid = false.obs;
   RxBool emailReceipt = false.obs;
   RxBool fiscalizeReceipt = false.obs;
+  
+  // Method to check and update fiscal status from storage (similar to web version)
+  void checkFiscalDeviceStatus() {
+    final fiscalStatus = box.read(AppConstants.IS_FISCALISATION_ENABLED) ?? false;
+    final deviceFiscalSetting = box.read(AppConstants.DEFAULT_FISCAL_SETTING) ?? false;
+    
+    if (fiscalStatus != fiscalizeReceipt.value) {
+      fiscalizeReceipt.value = fiscalStatus;
+      if (fiscalStatus && deviceFiscalSetting) {
+        isFiscaliseReceiptEnabled.value = true;
+        zimraFiscalizeReceipt.value = true;
+      } else if (!fiscalStatus) {
+        isFiscaliseReceiptEnabled.value = false;
+        zimraFiscalizeReceipt.value = false;
+      }
+    }
+  }
   RxBool zimraFiscalizeReceipt = false.obs;
   Rx<CompanyModel?> company = CompanyModel().obs;
 

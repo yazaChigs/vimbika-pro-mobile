@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:search_choices/search_choices.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
@@ -1921,36 +1922,29 @@ class SaleScreen extends GetView {
                                                               },
                                                             )),
                                                       ),
-                                                      Container(
-                                                        // height: 30,
-                                                        child: Obx(() {
-                                                          if (cartController
-                                                              .fiscalizeReceipt
-                                                              .value) {
-                                                            return CheckboxListTile(
-                                                              title: Text(
-                                                                  'Fiscalize Receipt'),
-                                                              value: cartController
-                                                                  .isFiscaliseReceiptEnabled
-                                                                  .value,
-                                                              onChanged:
-                                                                  (bool?
-                                                                      value) {
-                                                                cartController
-                                                                        .isFiscaliseReceiptEnabled
-                                                                        .value =
-                                                                    value ??
-                                                                        false;
-                                                                cartController
-                                                                    .zimraFiscalizeReceipt
-                                                                    .value = value!;
+                                                      Obx(() {
+                                                        // Check fiscal device status (similar to web version's isFiscalDeviceRegistered)
+                                                        // This will rebuild whenever cart items change, ensuring we check storage regularly
+                                                        final _ = cartController.cartItems.length;
+                                                        cartController.checkFiscalDeviceStatus();
+                                                        
+                                                        // Show checkbox if fiscal device is registered (like web version's *ngIf="isFiscalDeviceRegistered")
+                                                        if (cartController.fiscalizeReceipt.value) {
+                                                          return Container(
+                                                            height: 48, // Match height of other checkboxes
+                                                            child: CheckboxListTile(
+                                                              title: Text('Fiscalize Receipt'),
+                                                              value: cartController.isFiscaliseReceiptEnabled.value,
+                                                              onChanged: (bool? value) {
+                                                                cartController.isFiscaliseReceiptEnabled.value = value ?? false;
+                                                                cartController.zimraFiscalizeReceipt.value = value ?? false;
                                                               },
-                                                            );
-                                                          } else {
-                                                            return Container(); // Empty container when email is not valid
-                                                          }
-                                                        }),
-                                                      ),
+                                                            ),
+                                                          );
+                                                        } else {
+                                                          return Container(); // Empty when fiscal device not available
+                                                        }
+                                                      }),
                                                       Container(
                                                         // height: 30,
                                                         child: Obx(() {
