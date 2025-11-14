@@ -29,6 +29,8 @@ import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:image/image.dart' as img;
 import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_received_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 
 import '../constants/app_constants.dart';
 import '../features/customers/controller/customer_controller.dart';
@@ -251,9 +253,19 @@ class PrinterService extends GetxService {
     
     receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n\n', weight: 1, align: LineText.ALIGN_CENTER,linefeed: 1));
 
-    // Header
+    // Get Company and Branch information
+    CompanyModel? company;
+    BranchModel? branch = sale.branch;
+    try {
+      var companyData = box.read(AppConstants.ACTIVE_COMPANY);
+      if (companyData != null && companyData is Map) {
+        company = CompanyModel.fromMap(companyData);
+      }
+    } catch (e) {
+      // Error reading company - continue without it
+    }
 
-   // Add the logo to the receipt
+    // Add the logo to the receipt
     print("print logo ..");
     receiptData.add(LineText(
       type: LineText.TYPE_IMAGE,
@@ -264,87 +276,158 @@ class PrinterService extends GetxService {
       linefeed: 1,
     ));
     
-    // Fiscal Device VAT Number (from backend format - after logo, before RECEIPT)
-    if (vatNumber != null && vatNumber.isNotEmpty) {
+    // Company Name and Branch
+    String companyName = company?.name ?? '';
+    String branchName = branch?.name ?? '';
+    if (companyName.isNotEmpty && branchName.isNotEmpty) {
       receiptData.add(LineText(
         type: LineText.TYPE_TEXT,
-        content: 'VAT No: $vatNumber',
+        content: '$companyName - $branchName',
+        align: LineText.ALIGN_CENTER,
+        linefeed: 1,
+      ));
+    } else if (companyName.isNotEmpty) {
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: companyName,
+        align: LineText.ALIGN_CENTER,
+        linefeed: 1,
+      ));
+    }
+
+    // Company TIN
+    if (company?.companyID != null && company!.companyID!.isNotEmpty) {
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: 'Company TIN: ${company.companyID}',
         align: LineText.ALIGN_LEFT,
         linefeed: 1,
       ));
     }
-    
+
+    // Company VAT
+    if (vatNumber != null && vatNumber.isNotEmpty) {
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: 'Company VAT: $vatNumber',
+        align: LineText.ALIGN_LEFT,
+        linefeed: 1,
+      ));
+    }
+
+    // Company Address, Email, Phone (from settings if available)
+    try {
+      var settings = box.read(AppConstants.COMPANY_SETTINGS);
+      if (settings != null && settings is Map) {
+        if (settings["address"] != null && settings["address"].toString().isNotEmpty) {
+          receiptData.add(LineText(
+            type: LineText.TYPE_TEXT,
+            content: 'Company Address: ${settings["address"]}',
+            align: LineText.ALIGN_LEFT,
+            linefeed: 1,
+          ));
+        }
+        if (settings["email"] != null && settings["email"].toString().isNotEmpty) {
+          receiptData.add(LineText(
+            type: LineText.TYPE_TEXT,
+            content: 'Email: ${settings["email"]}',
+            align: LineText.ALIGN_LEFT,
+            linefeed: 1,
+          ));
+        }
+        if (settings["phone"] != null && settings["phone"].toString().isNotEmpty) {
+          receiptData.add(LineText(
+            type: LineText.TYPE_TEXT,
+            content: 'Phone: ${settings["phone"]}',
+            align: LineText.ALIGN_LEFT,
+            linefeed: 1,
+          ));
+        }
+      }
+    } catch (e) {
+      // Error reading settings - continue
+    }
+
+    receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
+
+    // Title: RECEIPT or FISCAL TAX INVOICE
+    String title = sale.fiscalized == true ? 'FISCAL TAX INVOICE' : 'RECEIPT';
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-      content: 'RECEIPT',
+      content: title,
       size: 2,
       align: LineText.ALIGN_CENTER,
       weight: 2, // Bold
       linefeed: 1,
     ));
 
+    receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
+
+    // Separator
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-      content: 'Cashier: ${sale.cashierFullName}',
+      content: '------------------------------------------------',
+      align: LineText.ALIGN_CENTER,
+      linefeed: 1,
+    ));
+    
+    // Items Header - with proper spacing
+    String headerLine = 'Description'.padRight(40) + 'Amount';
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: headerLine,
       align: LineText.ALIGN_LEFT,
       linefeed: 1,
     ));
-
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-      content: 'Date: ${sale.timeIniated}',
-      align: LineText.ALIGN_LEFT,
+      content: '------------------------------------------------',
+      align: LineText.ALIGN_CENTER,
       linefeed: 1,
     ));
 
-    // Invoice No (from backend format)
-    receiptData.add(LineText(
-      type: LineText.TYPE_TEXT,
-      content: 'Invoice No: ${sale.referenceNumber}',
-      align: LineText.ALIGN_LEFT,
-      linefeed: 1,
-    ));
-
-    // Customer Information (if any)
-    if (sale.customer != null) {
+    // Items - description left, amount right-aligned
+    for (var item in sale.items!) {
+      String itemName = item.inventoryItem?.name ?? 'Item';
+      double total = item.total ?? 0;
+      total = total * cur!.rate!;
+      String amountStr = total.toStringAsFixed(2);
+      
+      // Format: Description left-padded to 40 chars, then amount
+      String itemLine = itemName.padRight(40) + amountStr;
       receiptData.add(LineText(
         type: LineText.TYPE_TEXT,
-        content: 'Customer: ${sale.customer!.name}',
+        content: itemLine,
         align: LineText.ALIGN_LEFT,
         linefeed: 1,
       ));
-      // Customer company name (from backend format)
-      if (sale.customer!.companyName != null && sale.customer!.companyName!.isNotEmpty) {
+    }
+
+    // Separator
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: '------------------------------------------------',
+      align: LineText.ALIGN_CENTER,
+      linefeed: 1,
+    ));
+
+    // Payment Types: Total [Currency] [Amount] and [Currency] [PaymentName]
+    for (var paymentType in sale.paymentTypes!) {
+      String currencySymbol = paymentType.currency?.symbol ?? cur?.symbol ?? '';
+      double amount = (paymentType.amount ?? 0.0) * (paymentType.currency?.rate ?? cur?.rate ?? 1.0);
+      String paymentName = paymentType.paymentType?.name ?? '';
+      String totalLine = 'Total $currencySymbol'.padRight(40) + amount.toStringAsFixed(2);
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: totalLine,
+        align: LineText.ALIGN_LEFT,
+        linefeed: 1,
+      ));
+      if (paymentName.isNotEmpty) {
+        String paymentLine = '$currencySymbol $paymentName'.padRight(40);
         receiptData.add(LineText(
           type: LineText.TYPE_TEXT,
-          content: '${sale.customer!.companyName}',
-          align: LineText.ALIGN_LEFT,
-          linefeed: 1,
-        ));
-      }
-      // Customer tax number (from backend format)
-      if (sale.customer!.taxNumber != null && sale.customer!.taxNumber!.isNotEmpty) {
-        receiptData.add(LineText(
-          type: LineText.TYPE_TEXT,
-          content: 'TIN: ${sale.customer!.taxNumber}',
-          align: LineText.ALIGN_LEFT,
-          linefeed: 1,
-        ));
-      }
-      // Customer email (from backend format)
-      if (sale.customer!.email != null && sale.customer!.email!.isNotEmpty) {
-        receiptData.add(LineText(
-          type: LineText.TYPE_TEXT,
-          content: '${sale.customer!.email}',
-          align: LineText.ALIGN_LEFT,
-          linefeed: 1,
-        ));
-      }
-      // Customer ref number (from backend format)
-      if (sale.customer!.customerId != null && sale.customer!.customerId!.isNotEmpty) {
-        receiptData.add(LineText(
-          type: LineText.TYPE_TEXT,
-          content: 'Customer reference No: ${sale.customer!.customerId}',
+          content: paymentLine,
           align: LineText.ALIGN_LEFT,
           linefeed: 1,
         ));
@@ -354,100 +437,74 @@ class PrinterService extends GetxService {
     // Separator
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-      content: '--------------------------------',
+      content: '------------------------------------------------',
       align: LineText.ALIGN_CENTER,
       linefeed: 1,
     ));
 
-    // Items
-    for (var item in sale.items!) {
-      String itemName = item.inventoryItem?.name ?? 'Item';
-      double quantity = item.quantity ?? 0;
-      double price = item.sellingPrice ?? 0;
-      double total = item.total ?? 0;
-      total = total * cur!.rate!;
-      price = price * cur!.rate!;
+    // Number of items
+    int itemCount = sale.items?.length ?? 0;
+    String itemsLine = 'Number of items'.padRight(40) + itemCount.toString();
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: itemsLine,
+      align: LineText.ALIGN_LEFT,
+      linefeed: 1,
+    ));
 
-      // Product Name in Bold and Large Text
-      receiptData.add(LineText(
-        type: LineText.TYPE_TEXT,
-        content: itemName,
-        align: LineText.ALIGN_LEFT,
-        weight: 2, // Bold
-        size: 1,   // Larger text size
-        linefeed: 1,
-      ));
+    // Separator (double)
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: '------------------------------------------------',
+      align: LineText.ALIGN_CENTER,
+      linefeed: 1,
+    ));
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: '------------------------------------------------',
+      align: LineText.ALIGN_CENTER,
+      linefeed: 1,
+    ));
 
-      // Quantity and Price on the same line
-      String qtyPriceLine = 'Qty: ${quantity}    Price: ${cur!.symbol} ${price.toStringAsFixed(2)}';
-
-      receiptData.add(LineText(
-        type: LineText.TYPE_TEXT,
-        content: qtyPriceLine,
-        align: LineText.ALIGN_LEFT,
-        linefeed: 1,
-      ));
-
-      // Total
-      receiptData.add(LineText(
-        type: LineText.TYPE_TEXT,
-        content: 'Total: ${cur!.symbol} ${total.toStringAsFixed(2)}',
-        align: LineText.ALIGN_LEFT,
-        linefeed: 1,
-      ));
-
-      // Underline below each item
-      receiptData.add(LineText(
-        type: LineText.TYPE_TEXT,
-        content: '--------------------------------',
-        align: LineText.ALIGN_CENTER,
-        linefeed: 1,
-      ));
-    }
-
-    // Totals
-    // Calculate net and gross amounts (from backend format)
+    // Calculate net and gross amounts
     double netAmount = (sale.amountAfterDiscount ?? 0.0) - (sale.totalTaxAmount ?? 0.0);
     double grossAmount = sale.amountAfterDiscount ?? 0.0;
+    double vatPercentage = grossAmount > 0 ? (sale.totalTaxAmount ?? 0.0) / grossAmount * 100 : 0.0;
     
-    // Net Amount (from backend format)
+    // Net Amount - right-align amount
+    String netLine = 'Net Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + netAmount.toStringAsFixed(2);
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-      content: 'Net Amount: ${cur!.symbol} ${netAmount.toStringAsFixed(2)}',
+      content: netLine,
       align: LineText.ALIGN_LEFT,
       linefeed: 1,
     ));
     
-    // VAT (if > 0 - from backend format)
+    // VAT with percentage - right-align amount
     if (sale.totalTaxAmount != null && sale.totalTaxAmount! > 0) {
+      String vatLine = 'VAT (${vatPercentage.toStringAsFixed(0)}%)'.padRight(40) + (cur?.symbol ?? '') + ' ' + sale.totalTaxAmount!.toStringAsFixed(2);
       receiptData.add(LineText(
         type: LineText.TYPE_TEXT,
-        content: 'VAT: ${cur.symbol} ${sale.totalTaxAmount!.toStringAsFixed(2)}',
+        content: vatLine,
         align: LineText.ALIGN_LEFT,
         linefeed: 1,
       ));
     }
     
-    // Gross Amount (from backend format)
+    // Gross Amount - right-align amount
+    String grossLine = 'Gross Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + grossAmount.toStringAsFixed(2);
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-      content: 'Gross Amount: ${cur.symbol} ${grossAmount.toStringAsFixed(2)}',
+      content: grossLine,
       align: LineText.ALIGN_LEFT,
       linefeed: 1,
     ));
 
-    // Payment Methods (like Sunmi)
+    // Change
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-      content: 'Amount Paid: ${cur.symbol} ${sale.amountPaid?.toStringAsFixed(2)} \t\t${sale.paymentTypes!.map((pt)=>pt.paymentType!.name!).join(', ')}',
-      align: LineText.ALIGN_RIGHT,
-      linefeed: 1,
-    ));
-
-    receiptData.add(LineText(
-      type: LineText.TYPE_TEXT,
-      content: 'Change: ${cur.symbol} ${sale.change?.toStringAsFixed(2)}',
-      align: LineText.ALIGN_RIGHT,
+      content: 'Change: ${cur?.symbol} ${sale.change?.toStringAsFixed(2)}',
+      align: LineText.ALIGN_LEFT,
       linefeed: 1,
     ));
 
@@ -729,6 +786,18 @@ class PrinterService extends GetxService {
        // Error reading fiscal device - continue without it
      }
 
+     // Get Company and Branch information
+     CompanyModel? company;
+     BranchModel? branch = sale.branch;
+     try {
+       var companyData = box.read(AppConstants.ACTIVE_COMPANY);
+       if (companyData != null && companyData is Map) {
+         company = CompanyModel.fromMap(companyData);
+       }
+     } catch (e) {
+       // Error reading company - continue without it
+     }
+
      // Load company logo
      try {
        Uint8List imageBytes = await readLocalFileBytes();
@@ -751,107 +820,146 @@ class PrinterService extends GetxService {
        // Error loading logo - continue without logo
      }
 
-     // Fiscal Device VAT Number (from backend format - after logo, before RECEIPT)
-     if (vatNumber != null && vatNumber.isNotEmpty) {
-       receiptData += generator.text('VAT No: $vatNumber',
+     // Company Name and Branch
+     String companyName = company?.name ?? '';
+     String branchName = branch?.name ?? '';
+     if (companyName.isNotEmpty && branchName.isNotEmpty) {
+       receiptData += generator.text('$companyName - $branchName',
+           styles: PosStyles(align: PosAlign.center));
+     } else if (companyName.isNotEmpty) {
+       receiptData += generator.text(companyName,
+           styles: PosStyles(align: PosAlign.center));
+     }
+
+     // Company TIN (from companyID or settings)
+     if (company?.companyID != null && company!.companyID!.isNotEmpty) {
+       receiptData += generator.text('Company TIN: ${company.companyID}',
            styles: PosStyles(align: PosAlign.left));
      }
 
-     // Header
-     receiptData += generator.text('RECEIPT',
+     // Company VAT
+     if (vatNumber != null && vatNumber.isNotEmpty) {
+       receiptData += generator.text('Company VAT: $vatNumber',
+           styles: PosStyles(align: PosAlign.left));
+     }
+
+     // Company Address (from settings if available)
+     try {
+       var settings = box.read(AppConstants.COMPANY_SETTINGS);
+       if (settings != null && settings is Map) {
+         if (settings["address"] != null && settings["address"].toString().isNotEmpty) {
+           receiptData += generator.text('Company Address: ${settings["address"]}',
+               styles: PosStyles(align: PosAlign.left));
+         }
+         if (settings["email"] != null && settings["email"].toString().isNotEmpty) {
+           receiptData += generator.text('Email: ${settings["email"]}',
+               styles: PosStyles(align: PosAlign.left));
+         }
+         if (settings["phone"] != null && settings["phone"].toString().isNotEmpty) {
+           receiptData += generator.text('Phone: ${settings["phone"]}',
+               styles: PosStyles(align: PosAlign.left));
+         }
+       }
+     } catch (e) {
+       // Error reading settings - continue
+     }
+
+     receiptData += generator.feed(1);
+
+     // Title: RECEIPT or FISCAL TAX INVOICE
+     String title = sale.fiscalized == true ? 'FISCAL TAX INVOICE' : 'RECEIPT';
+     receiptData += generator.text(title,
          styles: PosStyles(
            align: PosAlign.center,
            bold: true,
            height: PosTextSize.size2,
            width: PosTextSize.size2,
          ));
-     receiptData += generator.text('Cashier: ${sale.cashierFullName}',
-         styles: PosStyles(align: PosAlign.left));
-     receiptData += generator.text('Date: ${sale.timeIniated}',
-         styles: PosStyles(align: PosAlign.left));
-     // Invoice No (from backend format)
-     receiptData += generator.text('Invoice No: ${sale.referenceNumber}',
-         styles: PosStyles(align: PosAlign.left));
+     receiptData += generator.feed(1);
 
-     // Customer Information (if any)
-     if (sale.customer != null) {
-       receiptData += generator.text('Customer: ${sale.customer!.name}',
+     // Separator
+     receiptData += generator.text('------------------------------------------------',
+         styles: PosStyles(align: PosAlign.center));
+     
+     // Items Header - with proper spacing
+     String headerLine = 'Description'.padRight(40) + 'Amount';
+     receiptData += generator.text(headerLine,
+         styles: PosStyles(align: PosAlign.left));
+     receiptData += generator.text('------------------------------------------------',
+         styles: PosStyles(align: PosAlign.center));
+
+     // Items - description left, amount right-aligned
+     for (var item in sale.items!) {
+       String itemName = item.inventoryItem?.name ?? 'Item';
+       double total = item.total ?? 0;
+       String amountStr = total.toStringAsFixed(2);
+       
+       // Format: Description left-padded to 40 chars, then amount right-aligned
+       String itemLine = itemName.padRight(40) + amountStr;
+       receiptData += generator.text(itemLine,
            styles: PosStyles(align: PosAlign.left));
-       // Customer company name (from backend format)
-       if (sale.customer!.companyName != null && sale.customer!.companyName!.isNotEmpty) {
-         receiptData += generator.text('${sale.customer!.companyName}',
-             styles: PosStyles(align: PosAlign.left));
-       }
-       // Customer tax number (from backend format)
-       if (sale.customer!.taxNumber != null && sale.customer!.taxNumber!.isNotEmpty) {
-         receiptData += generator.text('TIN: ${sale.customer!.taxNumber}',
-             styles: PosStyles(align: PosAlign.left));
-       }
-       // Customer email (from backend format)
-       if (sale.customer!.email != null && sale.customer!.email!.isNotEmpty) {
-         receiptData += generator.text('${sale.customer!.email}',
-             styles: PosStyles(align: PosAlign.left));
-       }
-       // Customer ref number (from backend format)
-       if (sale.customer!.customerId != null && sale.customer!.customerId!.isNotEmpty) {
-         receiptData += generator.text('Customer reference No: ${sale.customer!.customerId}',
+     }
+
+     // Separator
+     receiptData += generator.text('------------------------------------------------',
+         styles: PosStyles(align: PosAlign.center));
+
+     // Payment Types: Total [Currency] [Amount] and [Currency] [PaymentName]
+     for (var paymentType in sale.paymentTypes!) {
+       String currencySymbol = paymentType.currency?.symbol ?? cur?.symbol ?? '';
+       double amount = paymentType.amount ?? 0.0;
+       String paymentName = paymentType.paymentType?.name ?? '';
+       String totalLine = 'Total $currencySymbol'.padRight(40) + amount.toStringAsFixed(2);
+       receiptData += generator.text(totalLine,
+           styles: PosStyles(align: PosAlign.left));
+       if (paymentName.isNotEmpty) {
+         String paymentLine = '$currencySymbol $paymentName'.padRight(40);
+         receiptData += generator.text(paymentLine,
              styles: PosStyles(align: PosAlign.left));
        }
      }
 
      // Separator
-     receiptData += generator.text('--------------------------------',
+     receiptData += generator.text('------------------------------------------------',
          styles: PosStyles(align: PosAlign.center));
 
-     // Items
-     for (var item in sale.items!) {
-       String itemName = item.inventoryItem?.name ?? 'Item';
-       double quantity = item.quantity ?? 0;
-       double price = item.sellingPrice ?? 0;
-       double total = item.total ?? 0;
+     // Number of items
+     int itemCount = sale.items?.length ?? 0;
+     String itemsLine = 'Number of items'.padRight(40) + itemCount.toString();
+     receiptData += generator.text(itemsLine,
+         styles: PosStyles(align: PosAlign.left));
 
-       // Product Name in Bold
-       receiptData += generator.text(itemName,
-           styles: PosStyles(align: PosAlign.left, bold: true));
+     // Separator (double)
+     receiptData += generator.text('------------------------------------------------',
+         styles: PosStyles(align: PosAlign.center));
+     receiptData += generator.text('------------------------------------------------',
+         styles: PosStyles(align: PosAlign.center));
 
-       // Quantity and Price on the same line
-       String qtyPriceLine = 'Qty: ${quantity}    Price: ${price.toStringAsFixed(2)}';
-       receiptData += generator.text(qtyPriceLine, styles: PosStyles(align: PosAlign.left));
-
-       // Total
-       receiptData += generator.text('Total: ${total.toStringAsFixed(2)}',
+     // Calculate net and gross amounts
+     double netAmount = (sale.amountAfterDiscount ?? 0.0) - (sale.totalTaxAmount ?? 0.0);
+     double grossAmount = sale.amountAfterDiscount ?? 0.0;
+     double vatPercentage = grossAmount > 0 ? (sale.totalTaxAmount ?? 0.0) / grossAmount * 100 : 0.0;
+     
+     // Net Amount - right-align amount
+     String netLine = 'Net Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + netAmount.toStringAsFixed(2);
+     receiptData += generator.text(netLine,
+         styles: PosStyles(align: PosAlign.left));
+     
+     // VAT with percentage - right-align amount
+     if (sale.totalTaxAmount != null && sale.totalTaxAmount! > 0) {
+       String vatLine = 'VAT (${vatPercentage.toStringAsFixed(0)}%)'.padRight(40) + (cur?.symbol ?? '') + ' ' + sale.totalTaxAmount!.toStringAsFixed(2);
+       receiptData += generator.text(vatLine,
            styles: PosStyles(align: PosAlign.left));
-
-       // Separator for each item
-       receiptData += generator.text('--------------------------------',
-           styles: PosStyles(align: PosAlign.center));
      }
+     
+     // Gross Amount - right-align amount
+     String grossLine = 'Gross Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + grossAmount.toStringAsFixed(2);
+     receiptData += generator.text(grossLine,
+         styles: PosStyles(align: PosAlign.left));
 
-    // Calculate net and gross amounts (from backend format)
-    double netAmount = (sale.amountAfterDiscount ?? 0.0) - (sale.totalTaxAmount ?? 0.0);
-    double grossAmount = sale.amountAfterDiscount ?? 0.0;
-    
-    // Net Amount (from backend format)
-    receiptData += generator.text('Net Amount: ${cur?.symbol ?? ''} ${netAmount.toStringAsFixed(2)}',
-        styles: PosStyles(align: PosAlign.left));
-    
-    // VAT (if > 0 - from backend format)
-    if (sale.totalTaxAmount != null && sale.totalTaxAmount! > 0) {
-      receiptData += generator.text('VAT: ${cur?.symbol ?? ''} ${sale.totalTaxAmount!.toStringAsFixed(2)}',
-          styles: PosStyles(align: PosAlign.left));
-    }
-    
-    // Gross Amount (from backend format)
-    receiptData += generator.text('Gross Amount: ${cur?.symbol ?? ''} ${grossAmount.toStringAsFixed(2)}',
-        styles: PosStyles(align: PosAlign.left));
-
-    // Payment Methods (like Sunmi)
-    receiptData += generator.text('Amount Paid: ${cur?.symbol} ${sale.amountPaid?.toStringAsFixed(2)} \t\t${sale.paymentTypes!.map((pt)=>pt.paymentType!.name!).join(', ')}',
-        styles: PosStyles(align: PosAlign.right));
-
-    // Change
-    receiptData += generator.text('Change: ${cur?.symbol} ${sale.change?.toStringAsFixed(2)}',
-        styles: PosStyles(align: PosAlign.right));
+     // Change
+     receiptData += generator.text('Change: ${cur?.symbol} ${sale.change?.toStringAsFixed(2)}',
+         styles: PosStyles(align: PosAlign.left));
 
     // Tip (if present) - missing feature added
     if(sale.tipAmount != null && sale.tipAmount! > 0) {
@@ -1269,89 +1377,156 @@ class PrinterService extends GetxService {
        print("Error reading fiscal device: $e");
      }
 
+     // Get Company and Branch information
+     CompanyModel? company;
+     BranchModel? branch = sale.branch;
+     try {
+       var companyData = box.read(AppConstants.ACTIVE_COMPANY);
+       if (companyData != null && companyData is Map) {
+         company = CompanyModel.fromMap(companyData);
+       }
+     } catch (e) {
+       // Error reading company - continue without it
+     }
+
      Uint8List imageBytes = await readLocalFileBytes();
 
      await SunmiPrinter.initPrinter();
      await SunmiPrinter.startTransactionPrint(true);
 
-     // Header
+     // Header - Logo
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
      await SunmiPrinter.printImage(imageBytes); // Directly print the image bytes
 
-     // Fiscal Device VAT Number (from backend format - after logo, before RECEIPT)
-     if (vatNumber != null && vatNumber.isNotEmpty) {
-       await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
-       await SunmiPrinter.printText("VAT No: $vatNumber");
+     // Company Name and Branch
+     String companyName = company?.name ?? '';
+     String branchName = branch?.name ?? '';
+     if (companyName.isNotEmpty && branchName.isNotEmpty) {
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+       await SunmiPrinter.printText("$companyName - $branchName");
+     } else if (companyName.isNotEmpty) {
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+       await SunmiPrinter.printText(companyName);
      }
-
-     await SunmiPrinter.setFontSize(SunmiFontSize.XL);
-     await SunmiPrinter.printText("\n");
-     await SunmiPrinter.printText("RECEIPT");
-     await SunmiPrinter.resetFontSize();
 
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
-     await SunmiPrinter.printText("Cashier: ${sale.cashierFullName}");
-     await SunmiPrinter.printText("Date: ${sale.timeIniated}");
-     // Invoice No (from backend format)
-     await SunmiPrinter.printText("Invoice No: ${sale.referenceNumber}");
 
-     // Customer Information
-     if (sale.customer != null) {
-       await SunmiPrinter.printText("Customer: ${sale.customer!.name}");
-       // Customer company name (from backend format)
-       if (sale.customer!.companyName != null && sale.customer!.companyName!.isNotEmpty) {
-         await SunmiPrinter.printText("${sale.customer!.companyName}");
-       }
-       // Customer tax number (from backend format)
-       if (sale.customer!.taxNumber != null && sale.customer!.taxNumber!.isNotEmpty) {
-         await SunmiPrinter.printText("TIN: ${sale.customer!.taxNumber}");
-       }
-       // Customer email (from backend format)
-       if (sale.customer!.email != null && sale.customer!.email!.isNotEmpty) {
-         await SunmiPrinter.printText("${sale.customer!.email}");
-       }
-       // Customer ref number (from backend format)
-       if (sale.customer!.customerId != null && sale.customer!.customerId!.isNotEmpty) {
-         await SunmiPrinter.printText("Customer reference No: ${sale.customer!.customerId}");
-       }
+     // Company TIN
+     if (company?.companyID != null && company!.companyID!.isNotEmpty) {
+       await SunmiPrinter.printText("Company TIN: ${company.companyID}");
      }
 
-     // Separator
-     await SunmiPrinter.printText("--------------------------------");
+     // Company VAT
+     if (vatNumber != null && vatNumber.isNotEmpty) {
+       await SunmiPrinter.printText("Company VAT: $vatNumber");
+     }
 
-     // Items
+     // Company Address, Email, Phone (from settings if available)
+     try {
+       var settings = box.read(AppConstants.COMPANY_SETTINGS);
+       if (settings != null && settings is Map) {
+         if (settings["address"] != null && settings["address"].toString().isNotEmpty) {
+           await SunmiPrinter.printText("Company Address: ${settings["address"]}");
+         }
+         if (settings["email"] != null && settings["email"].toString().isNotEmpty) {
+           await SunmiPrinter.printText("Email: ${settings["email"]}");
+         }
+         if (settings["phone"] != null && settings["phone"].toString().isNotEmpty) {
+           await SunmiPrinter.printText("Phone: ${settings["phone"]}");
+         }
+       }
+     } catch (e) {
+       // Error reading settings - continue
+     }
+
+     await SunmiPrinter.printText("\n");
+
+     // Title: RECEIPT or FISCAL TAX INVOICE
+     String title = sale.fiscalized == true ? 'FISCAL TAX INVOICE' : 'RECEIPT';
+     await SunmiPrinter.setFontSize(SunmiFontSize.XL);
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.printText(title);
+     await SunmiPrinter.resetFontSize();
+     await SunmiPrinter.printText("\n");
+
+     // Separator
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.printText("------------------------------------------------");
+     
+     // Items Header - with proper spacing
+     String headerLine = 'Description'.padRight(40) + 'Amount';
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+     await SunmiPrinter.printText(headerLine);
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.printText("------------------------------------------------");
+
+     // Items - description left, amount right-aligned
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
      for (var item in sale.items!) {
        String itemName = item.inventoryItem?.name ?? "Item";
-       double quantity = item.quantity ?? 0;
-       double price = item.sellingPrice ?? 0;
        double total = item.total ?? 0;
        total = total * cur!.rate!;
-       price = price * cur!.rate!;
-       await SunmiPrinter.printText("$itemName");
-       await SunmiPrinter.printText("Qty: $quantity  Price: ${cur.symbol ?? ''} ${price.toStringAsFixed(2)}");
-       await SunmiPrinter.printText("Total: ${cur.symbol ?? ''} ${total.toStringAsFixed(2)}");
-       // await SunmiPrinter.printText("--------------------------------");
+       String amountStr = total.toStringAsFixed(2);
+       
+       // Format: Description left-padded to 40 chars, then amount
+       String itemLine = itemName.padRight(40) + amountStr;
+       await SunmiPrinter.printText(itemLine);
      }
 
      // Separator
-     await SunmiPrinter.printText("--------------------------------");
-     // Calculate net and gross amounts (from backend format)
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.printText("------------------------------------------------");
+
+     // Payment Types: Total [Currency] [Amount] and [Currency] [PaymentName]
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+     for (var paymentType in sale.paymentTypes!) {
+       String currencySymbol = paymentType.currency?.symbol ?? cur?.symbol ?? '';
+       double amount = (paymentType.amount ?? 0.0) * (paymentType.currency?.rate ?? cur?.rate ?? 1.0);
+       String paymentName = paymentType.paymentType?.name ?? '';
+       String totalLine = 'Total $currencySymbol'.padRight(40) + amount.toStringAsFixed(2);
+       await SunmiPrinter.printText(totalLine);
+       if (paymentName.isNotEmpty) {
+         String paymentLine = '$currencySymbol $paymentName'.padRight(40);
+         await SunmiPrinter.printText(paymentLine);
+       }
+     }
+
+     // Separator
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.printText("------------------------------------------------");
+
+     // Number of items
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+     int itemCount = sale.items?.length ?? 0;
+     String itemsLine = 'Number of items'.padRight(40) + itemCount.toString();
+     await SunmiPrinter.printText(itemsLine);
+
+     // Separator (double)
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+     await SunmiPrinter.printText("------------------------------------------------");
+     await SunmiPrinter.printText("------------------------------------------------");
+
+     // Calculate net and gross amounts
+     await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
      double netAmount = (sale.amountAfterDiscount ?? 0.0) - (sale.totalTaxAmount ?? 0.0);
      double grossAmount = sale.amountAfterDiscount ?? 0.0;
+     double vatPercentage = grossAmount > 0 ? (sale.totalTaxAmount ?? 0.0) / grossAmount * 100 : 0.0;
      
-     // Net Amount (from backend format)
-     await SunmiPrinter.printText("Net Amount: ${cur?.symbol ?? ''} ${netAmount.toStringAsFixed(2)}");
+     // Net Amount - right-align amount
+     String netLine = 'Net Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + netAmount.toStringAsFixed(2);
+     await SunmiPrinter.printText(netLine);
      
-     // VAT (if > 0 - from backend format)
+     // VAT with percentage - right-align amount
      if (sale.totalTaxAmount != null && sale.totalTaxAmount! > 0) {
-       await SunmiPrinter.printText("VAT: ${cur?.symbol ?? ''} ${sale.totalTaxAmount!.toStringAsFixed(2)}");
+       String vatLine = 'VAT (${vatPercentage.toStringAsFixed(0)}%)'.padRight(40) + (cur?.symbol ?? '') + ' ' + sale.totalTaxAmount!.toStringAsFixed(2);
+       await SunmiPrinter.printText(vatLine);
      }
      
-     // Gross Amount (from backend format)
-     await SunmiPrinter.printText("Gross Amount: ${cur?.symbol ?? ''} ${grossAmount.toStringAsFixed(2)}");
+     // Gross Amount - right-align amount
+     String grossLine = 'Gross Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + grossAmount.toStringAsFixed(2);
+     await SunmiPrinter.printText(grossLine);
      
-     // Totals
-     await SunmiPrinter.printText("Amount Paid: ${cur?.symbol ?? ''} ${sale.amountPaid?.toStringAsFixed(2)} \t\t${sale.paymentTypes!.map((pt)=>pt.paymentType!.name!).join(', ')}");
+     // Change
      await SunmiPrinter.printText("Change: ${cur?.symbol ?? ''} ${sale.change?.toStringAsFixed(2)}\n");
      if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false))
        {
