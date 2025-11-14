@@ -543,7 +543,7 @@ class PrinterService extends GetxService {
     ));
     
     // Change - right-align amount
-    String changeLine = 'Change:'.padRight(40) + (sale.change?.toStringAsFixed(2) ?? '0.00');
+    String changeLine = 'Change:'.padRight(40) + (cur?.symbol ?? '') + ' ' + (sale.change?.toStringAsFixed(2) ?? '0.00');
       receiptData.add(LineText(
         type: LineText.TYPE_TEXT,
       content: changeLine,
@@ -1068,7 +1068,7 @@ class PrinterService extends GetxService {
         styles: PosStyles(align: PosAlign.left));
     
      // Change - right-align amount
-     String changeLine = 'Change:'.padRight(40) + (sale.change?.toStringAsFixed(2) ?? '0.00');
+     String changeLine = 'Change:'.padRight(40) + (cur?.symbol ?? '') + ' ' + (sale.change?.toStringAsFixed(2) ?? '0.00');
      receiptData += generator.text(changeLine,
            styles: PosStyles(align: PosAlign.left));
      
@@ -1698,7 +1698,7 @@ class PrinterService extends GetxService {
      await SunmiPrinter.printText(amountPaidLine);
      
      // Change - right-align amount
-     String changeLine = 'Change:'.padRight(40) + (sale.change?.toStringAsFixed(2) ?? '0.00');
+     String changeLine = 'Change:'.padRight(40) + (cur?.symbol ?? '') + ' ' + (sale.change?.toStringAsFixed(2) ?? '0.00');
      await SunmiPrinter.printText(changeLine);
      
      // Net Amount - right-align amount
