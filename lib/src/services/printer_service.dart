@@ -328,71 +328,52 @@ class PrinterService extends GetxService {
     ));
     }
 
-    // Company Address, Email, Phone (matching web receipt logic: branch address if branch exists, otherwise company address; phone and email always from company)
+    // Company Address, Email, Phone (all from company, not branch) - accessed same way as company name
     try {
       String? address;
       
-      // Address: Use branch.getAddress() if branch exists, otherwise company.getAddress() (matches web FiscalTaxReceiptPdf.java lines 75-78)
-      if (branchDataMap != null && (branchDataMap["street"] != null || branchDataMap["city"] != null)) {
-        // Branch address: combine street and city (matches Branch.getAddress() method)
-        List<String> branchAddressParts = [];
-        String? branchStreet = branchDataMap["street"]?.toString();
-        String? branchCity = branchDataMap["city"]?.toString();
-        if (branchStreet != null && branchStreet.isNotEmpty) branchAddressParts.add(branchStreet);
-        if (branchCity != null && branchCity.isNotEmpty) branchAddressParts.add(branchCity);
-        if (branchAddressParts.isNotEmpty) {
-          address = branchAddressParts.join(' ');
-        }
+      // Address: Only from company (combine street, stateProvince, and city) - accessed like company?.name
+      List<String> companyAddressParts = [];
+      if (company?.street != null && company!.street!.isNotEmpty) companyAddressParts.add(company.street!);
+      if (company?.stateProvince != null && company!.stateProvince!.isNotEmpty) companyAddressParts.add(company.stateProvince!);
+      if (company?.city != null && company!.city!.isNotEmpty) companyAddressParts.add(company.city!);
+      if (companyAddressParts.isNotEmpty) {
+        address = companyAddressParts.join(' ');
       }
       
-      // Fallback to company address if branch address not available
-      if ((address == null || address.isEmpty) && companyDataMap != null) {
-        // Company address: combine street, stateProvince, and city (matches Company.getAddress() method)
-        List<String> companyAddressParts = [];
-        String? companyStreet = companyDataMap["street"]?.toString();
-        String? companyStateProvince = companyDataMap["stateProvince"]?.toString();
-        String? companyCity = companyDataMap["city"]?.toString();
-        if (companyStreet != null && companyStreet.isNotEmpty) companyAddressParts.add(companyStreet);
-        if (companyStateProvince != null && companyStateProvince.isNotEmpty) companyAddressParts.add(companyStateProvince);
-        if (companyCity != null && companyCity.isNotEmpty) companyAddressParts.add(companyCity);
-        if (companyAddressParts.isNotEmpty) {
-          address = companyAddressParts.join(' ');
-        }
-      }
+      // Email: From company email - accessed like company?.name
+      String? email = company?.email;
       
-      // Email: Always from company email (backend Company model field: email)
-      String? email = companyDataMap?["email"]?.toString();
+      // Phone: From company mobilePhone - accessed like company?.name
+      String? phone = company?.mobilePhone;
       
-      // Phone: Always from company mobilePhone (matches web FiscalTaxReceiptPdf.java line 79: sale.getCompany().getMobilePhone())
-      String? phone = companyDataMap?["mobilePhone"]?.toString();
-      
-      // Print address, email, and phone if available
-      if (address != null && address.isNotEmpty) {
-      receiptData.add(LineText(
-        type: LineText.TYPE_TEXT,
-          content: address,
-          align: LineText.ALIGN_CENTER,
+       // Print address, email, and phone if available (with labels)
+       if (address != null && address.isNotEmpty) {
+       receiptData.add(LineText(
+         type: LineText.TYPE_TEXT,
+          content: 'Company Address: $address',
+          align: LineText.ALIGN_LEFT,
         linefeed: 1,
       ));
       }
       if (email != null && email.isNotEmpty) {
         receiptData.add(LineText(
           type: LineText.TYPE_TEXT,
-          content: email,
-          align: LineText.ALIGN_CENTER,
+          content: 'Email: $email',
+          align: LineText.ALIGN_LEFT,
           linefeed: 1,
         ));
       }
       if (phone != null && phone.isNotEmpty) {
         receiptData.add(LineText(
           type: LineText.TYPE_TEXT,
-          content: phone,
-          align: LineText.ALIGN_CENTER,
+          content: 'Phone: $phone',
+          align: LineText.ALIGN_LEFT,
           linefeed: 1,
         ));
       }
     } catch (e) {
-      // Error reading branch or company data - continue
+      // Error reading company data - continue
     }
 
     receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
@@ -903,59 +884,40 @@ class PrinterService extends GetxService {
            styles: PosStyles(align: PosAlign.center));
      }
 
-     // Company Address, Email, Phone (matching web receipt logic: branch address if branch exists, otherwise company address; phone and email always from company)
+     // Company Address, Email, Phone (all from company, not branch) - accessed same way as company name
      try {
        String? address;
        
-       // Address: Use branch.getAddress() if branch exists, otherwise company.getAddress() (matches web FiscalTaxReceiptPdf.java lines 75-78)
-       if (branchDataMap != null && (branchDataMap["street"] != null || branchDataMap["city"] != null)) {
-         // Branch address: combine street and city (matches Branch.getAddress() method)
-         List<String> branchAddressParts = [];
-         String? branchStreet = branchDataMap["street"]?.toString();
-         String? branchCity = branchDataMap["city"]?.toString();
-         if (branchStreet != null && branchStreet.isNotEmpty) branchAddressParts.add(branchStreet);
-         if (branchCity != null && branchCity.isNotEmpty) branchAddressParts.add(branchCity);
-         if (branchAddressParts.isNotEmpty) {
-           address = branchAddressParts.join(' ');
-         }
+       // Address: Only from company (combine street, stateProvince, and city) - accessed like company?.name
+       List<String> companyAddressParts = [];
+       if (company?.street != null && company!.street!.isNotEmpty) companyAddressParts.add(company.street!);
+       if (company?.stateProvince != null && company!.stateProvince!.isNotEmpty) companyAddressParts.add(company.stateProvince!);
+       if (company?.city != null && company!.city!.isNotEmpty) companyAddressParts.add(company.city!);
+       if (companyAddressParts.isNotEmpty) {
+         address = companyAddressParts.join(' ');
        }
        
-       // Fallback to company address if branch address not available
-       if ((address == null || address.isEmpty) && companyDataMap != null) {
-         // Company address: combine street, stateProvince, and city (matches Company.getAddress() method)
-         List<String> companyAddressParts = [];
-         String? companyStreet = companyDataMap["street"]?.toString();
-         String? companyStateProvince = companyDataMap["stateProvince"]?.toString();
-         String? companyCity = companyDataMap["city"]?.toString();
-         if (companyStreet != null && companyStreet.isNotEmpty) companyAddressParts.add(companyStreet);
-         if (companyStateProvince != null && companyStateProvince.isNotEmpty) companyAddressParts.add(companyStateProvince);
-         if (companyCity != null && companyCity.isNotEmpty) companyAddressParts.add(companyCity);
-         if (companyAddressParts.isNotEmpty) {
-           address = companyAddressParts.join(' ');
-         }
-       }
+       // Email: From company email - accessed like company?.name
+       String? email = company?.email;
        
-       // Email: Always from company email (backend Company model field: email)
-       String? email = companyDataMap?["email"]?.toString();
+       // Phone: From company mobilePhone - accessed like company?.name
+       String? phone = company?.mobilePhone;
        
-       // Phone: Always from company mobilePhone (matches web FiscalTaxReceiptPdf.java line 79: sale.getCompany().getMobilePhone())
-       String? phone = companyDataMap?["mobilePhone"]?.toString();
-       
-       // Print address, email, and phone if available
+       // Print address, email, and phone if available (with labels)
        if (address != null && address.isNotEmpty) {
-         receiptData += generator.text(address,
-             styles: PosStyles(align: PosAlign.center));
+         receiptData += generator.text('Company Address: $address',
+             styles: PosStyles(align: PosAlign.left));
        }
        if (email != null && email.isNotEmpty) {
-         receiptData += generator.text(email,
-             styles: PosStyles(align: PosAlign.center));
+         receiptData += generator.text('Email: $email',
+             styles: PosStyles(align: PosAlign.left));
        }
        if (phone != null && phone.isNotEmpty) {
-         receiptData += generator.text(phone,
-             styles: PosStyles(align: PosAlign.center));
+         receiptData += generator.text('Phone: $phone',
+             styles: PosStyles(align: PosAlign.left));
        }
      } catch (e) {
-       // Error reading branch or company data - continue
+       // Error reading company data - continue
      }
 
      receiptData += generator.feed(1);
@@ -1528,56 +1490,37 @@ class PrinterService extends GetxService {
        await SunmiPrinter.printText("VAT No: $vatNumber");
      }
 
-     // Company Address, Email, Phone (matching web receipt logic: branch address if branch exists, otherwise company address; phone and email always from company)
+     // Company Address, Email, Phone (all from company, not branch) - accessed same way as company name
      try {
        String? address;
        
-       // Address: Use branch.getAddress() if branch exists, otherwise company.getAddress() (matches web FiscalTaxReceiptPdf.java lines 75-78)
-       if (branchDataMap != null && (branchDataMap["street"] != null || branchDataMap["city"] != null)) {
-         // Branch address: combine street and city (matches Branch.getAddress() method)
-         List<String> branchAddressParts = [];
-         String? branchStreet = branchDataMap["street"]?.toString();
-         String? branchCity = branchDataMap["city"]?.toString();
-         if (branchStreet != null && branchStreet.isNotEmpty) branchAddressParts.add(branchStreet);
-         if (branchCity != null && branchCity.isNotEmpty) branchAddressParts.add(branchCity);
-         if (branchAddressParts.isNotEmpty) {
-           address = branchAddressParts.join(' ');
-         }
+       // Address: Only from company (combine street, stateProvince, and city) - accessed like company?.name
+       List<String> companyAddressParts = [];
+       if (company?.street != null && company!.street!.isNotEmpty) companyAddressParts.add(company.street!);
+       if (company?.stateProvince != null && company!.stateProvince!.isNotEmpty) companyAddressParts.add(company.stateProvince!);
+       if (company?.city != null && company!.city!.isNotEmpty) companyAddressParts.add(company.city!);
+       if (companyAddressParts.isNotEmpty) {
+         address = companyAddressParts.join(' ');
        }
        
-       // Fallback to company address if branch address not available
-       if ((address == null || address.isEmpty) && companyDataMap != null) {
-         // Company address: combine street, stateProvince, and city (matches Company.getAddress() method)
-         List<String> companyAddressParts = [];
-         String? companyStreet = companyDataMap["street"]?.toString();
-         String? companyStateProvince = companyDataMap["stateProvince"]?.toString();
-         String? companyCity = companyDataMap["city"]?.toString();
-         if (companyStreet != null && companyStreet.isNotEmpty) companyAddressParts.add(companyStreet);
-         if (companyStateProvince != null && companyStateProvince.isNotEmpty) companyAddressParts.add(companyStateProvince);
-         if (companyCity != null && companyCity.isNotEmpty) companyAddressParts.add(companyCity);
-         if (companyAddressParts.isNotEmpty) {
-           address = companyAddressParts.join(' ');
-         }
-       }
+       // Email: From company email - accessed like company?.name
+       String? email = company?.email;
        
-       // Email: Always from company email (backend Company model field: email)
-       String? email = companyDataMap?["email"]?.toString();
+       // Phone: From company mobilePhone - accessed like company?.name
+       String? phone = company?.mobilePhone;
        
-       // Phone: Always from company mobilePhone (matches web FiscalTaxReceiptPdf.java line 79: sale.getCompany().getMobilePhone())
-       String? phone = companyDataMap?["mobilePhone"]?.toString();
-       
-       // Print address, email, and phone if available
+       // Print address, email, and phone if available (with labels)
        if (address != null && address.isNotEmpty) {
-         await SunmiPrinter.printText(address);
+         await SunmiPrinter.printText("Company Address: $address");
        }
        if (email != null && email.isNotEmpty) {
-         await SunmiPrinter.printText(email);
+         await SunmiPrinter.printText("Email: $email");
        }
        if (phone != null && phone.isNotEmpty) {
-         await SunmiPrinter.printText(phone);
+         await SunmiPrinter.printText("Phone: $phone");
        }
      } catch (e) {
-       // Error reading branch or company data - continue
+       // Error reading company data - continue
      }
 
      await SunmiPrinter.printText("\n");

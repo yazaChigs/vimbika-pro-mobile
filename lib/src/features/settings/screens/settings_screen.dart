@@ -61,6 +61,21 @@ class SettingsScreen extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
             )),
 
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                controller.testCompanyFields();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                padding: EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: Text(
+                'Test Company Fields',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+
             Spacer(),
           ],
         ),

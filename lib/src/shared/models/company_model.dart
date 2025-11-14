@@ -11,8 +11,12 @@ class CompanyModel {
     this.name,
     this.companyID,
     this.fiscalisationEnabled,
-    this.logo
-
+    this.logo,
+    this.street,
+    this.city,
+    this.stateProvince,
+    this.email,
+    this.mobilePhone,
   });
 
   String? id;
@@ -20,6 +24,11 @@ class CompanyModel {
   String? companyID;
   bool? fiscalisationEnabled;
   String? logo;
+  String? street;
+  String? city;
+  String? stateProvince;
+  String? email;
+  String? mobilePhone;
 
   factory CompanyModel.fromJson(String str) => CompanyModel.fromMap(json.decode(str));
 
@@ -31,6 +40,11 @@ class CompanyModel {
     companyID: json["companyID"],
     fiscalisationEnabled: json["fiscalisationEnabled"],
     logo: json["logo"],
+    street: json["street"],
+    city: json["city"],
+    stateProvince: json["stateProvince"],
+    email: json["email"],
+    mobilePhone: json["mobilePhone"],
   );
 
   Map<String, dynamic> toMap() => {
@@ -39,5 +53,10 @@ class CompanyModel {
     "companyID": companyID,
     "fiscalisationEnabled": fiscalisationEnabled,
     "logo": logo,
+    "street": street,
+    "city": city,
+    "stateProvince": stateProvince,
+    "email": email,
+    "mobilePhone": mobilePhone,
   };
 }

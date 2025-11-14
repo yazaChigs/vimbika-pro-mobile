@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
@@ -7,6 +8,7 @@ import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/sale/controller/cart_controller.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/company_model.dart';
 
 import '../../../services/connectivity_service.dart';
 import '../../../services/sync_service.dart';
@@ -127,5 +129,95 @@ class SettingsController extends GetxController {
       snackPosition: SnackPosition.BOTTOM,
     );
 
+  }
+
+  void testCompanyFields() {
+    try {
+      var companyData = box.read(AppConstants.ACTIVE_COMPANY);
+      if (companyData != null && companyData is Map) {
+        CompanyModel company = CompanyModel.fromMap(Map<String, dynamic>.from(companyData));
+        
+        // Build address from components
+        List<String> addressParts = [];
+        if (company.street != null && company.street!.isNotEmpty) addressParts.add(company.street!);
+        if (company.stateProvince != null && company.stateProvince!.isNotEmpty) addressParts.add(company.stateProvince!);
+        if (company.city != null && company.city!.isNotEmpty) addressParts.add(company.city!);
+        String address = addressParts.isNotEmpty ? addressParts.join(' ') : 'Not available';
+        
+        // Show dialog with all company fields
+        Get.dialog(
+          AlertDialog(
+            title: Text('Company Fields Test'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildFieldRow('ID', company.id ?? 'Not available'),
+                  _buildFieldRow('Name', company.name ?? 'Not available'),
+                  _buildFieldRow('Company ID (TIN)', company.companyID ?? 'Not available'),
+                  _buildFieldRow('Street', company.street ?? 'Not available'),
+                  _buildFieldRow('City', company.city ?? 'Not available'),
+                  _buildFieldRow('State/Province', company.stateProvince ?? 'Not available'),
+                  _buildFieldRow('Address (Combined)', address),
+                  _buildFieldRow('Email', company.email ?? 'Not available'),
+                  _buildFieldRow('Mobile Phone', company.mobilePhone ?? 'Not available'),
+                  _buildFieldRow('Fiscalisation Enabled', company.fiscalisationEnabled?.toString() ?? 'Not available'),
+                  _buildFieldRow('Logo', company.logo != null ? 'Available' : 'Not available'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(),
+                child: Text('Close'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        Get.snackbar(
+          'Error',
+          'No company data found in storage',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to read company data: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  Widget _buildFieldRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: value == 'Not available' ? Colors.red : Colors.black,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
