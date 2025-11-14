@@ -293,17 +293,17 @@ class PrinterService extends GetxService {
     String companyName = company?.name ?? '';
     String branchName = branch?.name ?? '';
     if (companyName.isNotEmpty && branchName.isNotEmpty) {
-    receiptData.add(LineText(
-      type: LineText.TYPE_TEXT,
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
         content: '$companyName - $branchName',
       align: LineText.ALIGN_CENTER,
-      linefeed: 1,
-    ));
+        linefeed: 1,
+      ));
     } else if (companyName.isNotEmpty) {
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
         content: companyName,
-        align: LineText.ALIGN_CENTER,
+      align: LineText.ALIGN_CENTER,
       linefeed: 1,
     ));
     }
@@ -349,20 +349,20 @@ class PrinterService extends GetxService {
       
        // Print address, email, and phone if available (centered, no labels)
        if (address != null && address.isNotEmpty) {
-       receiptData.add(LineText(
-         type: LineText.TYPE_TEXT,
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
           content: address,
+          align: LineText.ALIGN_CENTER,
+      linefeed: 1,
+    ));
+      }
+      if (email != null && email.isNotEmpty) {
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+          content: email,
           align: LineText.ALIGN_CENTER,
         linefeed: 1,
       ));
-      }
-      if (email != null && email.isNotEmpty) {
-        receiptData.add(LineText(
-          type: LineText.TYPE_TEXT,
-          content: email,
-          align: LineText.ALIGN_CENTER,
-          linefeed: 1,
-        ));
       }
       if (phone != null && phone.isNotEmpty) {
         receiptData.add(LineText(
@@ -378,35 +378,69 @@ class PrinterService extends GetxService {
 
     receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
 
-    // Title: RECEIPT or FISCAL TAX INVOICE
-    String title = sale.fiscalized == true ? 'FISCAL TAX INVOICE' : 'RECEIPT';
-    receiptData.add(LineText(
-      type: LineText.TYPE_TEXT,
+    // Receipt by
+    if (sale.cashierFullName != null && sale.cashierFullName!.isNotEmpty) {
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: 'Receipt by: ${sale.cashierFullName}',
+        align: LineText.ALIGN_CENTER,
+        linefeed: 1,
+      ));
+    }
+
+    receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
+
+    // Title: SALES RECEIPT or FISCAL TAX INVOICE
+    String title = sale.fiscalized == true ? 'FISCAL TAX INVOICE' : 'SALES RECEIPT';
+        receiptData.add(LineText(
+          type: LineText.TYPE_TEXT,
       content: title,
       size: 2,
       align: LineText.ALIGN_CENTER,
       weight: 2, // Bold
-      linefeed: 1,
-    ));
+          linefeed: 1,
+        ));
+
+    receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
+
+    // Invoice No
+    if (sale.referenceNumber != null && sale.referenceNumber!.isNotEmpty) {
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: 'Invoice No: ${sale.referenceNumber}',
+        align: LineText.ALIGN_CENTER,
+        linefeed: 1,
+      ));
+    }
+
+    // Date
+    if (sale.timeIniated != null && sale.timeIniated!.isNotEmpty) {
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+        content: 'Date: ${sale.timeIniated}',
+        align: LineText.ALIGN_CENTER,
+        linefeed: 1,
+      ));
+    }
 
     receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
 
     // Separator
-    receiptData.add(LineText(
-      type: LineText.TYPE_TEXT,
+        receiptData.add(LineText(
+          type: LineText.TYPE_TEXT,
       content: '------------------------------------------------',
       align: LineText.ALIGN_CENTER,
-      linefeed: 1,
-    ));
+          linefeed: 1,
+        ));
 
     // Items Header - with proper spacing
     String headerLine = 'Description'.padRight(40) + 'Amount';
-    receiptData.add(LineText(
-      type: LineText.TYPE_TEXT,
+        receiptData.add(LineText(
+          type: LineText.TYPE_TEXT,
       content: headerLine,
-      align: LineText.ALIGN_LEFT,
-      linefeed: 1,
-    ));
+          align: LineText.ALIGN_LEFT,
+          linefeed: 1,
+        ));
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
       content: '------------------------------------------------',
@@ -452,7 +486,7 @@ class PrinterService extends GetxService {
         linefeed: 1,
       ));
       if (paymentName.isNotEmpty) {
-        String paymentLine = '$currencySymbol $paymentName'.padRight(40);
+        String paymentLine = '$currencySymbol $paymentName'.padRight(40) + amount.toStringAsFixed(2);
         receiptData.add(LineText(
           type: LineText.TYPE_TEXT,
           content: paymentLine,
@@ -499,6 +533,24 @@ class PrinterService extends GetxService {
     double grossAmount = sale.amountAfterDiscount ?? 0.0;
     double vatPercentage = grossAmount > 0 ? (sale.totalTaxAmount ?? 0.0) / grossAmount * 100 : 0.0;
     
+    // Amount Paid - right-align amount
+    String amountPaidLine = 'Amount Paid'.padRight(40) + (cur?.symbol ?? '') + ' ' + (sale.amountPaid?.toStringAsFixed(2) ?? '0.00');
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+      content: amountPaidLine,
+      align: LineText.ALIGN_LEFT,
+      linefeed: 1,
+    ));
+    
+    // Change - right-align amount
+    String changeLine = 'Change:'.padRight(40) + (sale.change?.toStringAsFixed(2) ?? '0.00');
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+      content: changeLine,
+        align: LineText.ALIGN_LEFT,
+        linefeed: 1,
+      ));
+    
     // Net Amount - right-align amount
     String netLine = 'Net Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + netAmount.toStringAsFixed(2);
     receiptData.add(LineText(
@@ -524,14 +576,6 @@ class PrinterService extends GetxService {
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
       content: grossLine,
-      align: LineText.ALIGN_LEFT,
-      linefeed: 1,
-    ));
-
-    // Change
-    receiptData.add(LineText(
-      type: LineText.TYPE_TEXT,
-      content: 'Change: ${cur?.symbol} ${sale.change?.toStringAsFixed(2)}',
       align: LineText.ALIGN_LEFT,
       linefeed: 1,
     ));
@@ -841,19 +885,19 @@ class PrinterService extends GetxService {
 
      // Load company logo
      try {
-     Uint8List imageBytes = await readLocalFileBytes();
-     
+       Uint8List imageBytes = await readLocalFileBytes();
+       
        if (imageBytes.isNotEmpty) {
-     // Convert image to ESC/POS compatible format
-     try {
-       final img.Image? image = img.decodeImage(imageBytes);
-       if (image != null) {
-         // Resize image to fit receipt width (max 384 pixels for 80mm paper)
-         final img.Image resized = img.copyResize(image, width: 200);
-         receiptData += generator.image(resized);
-         receiptData += generator.feed(1);
-       }
-     } catch (e) {
+         // Convert image to ESC/POS compatible format
+         try {
+           final img.Image? image = img.decodeImage(imageBytes);
+           if (image != null) {
+             // Resize image to fit receipt width (max 384 pixels for 80mm paper)
+             final img.Image resized = img.copyResize(image, width: 200);
+             receiptData += generator.image(resized);
+             receiptData += generator.feed(1);
+           }
+         } catch (e) {
            // Error processing logo - continue without logo
          }
        }
@@ -922,8 +966,16 @@ class PrinterService extends GetxService {
 
      receiptData += generator.feed(1);
 
-     // Title: RECEIPT or FISCAL TAX INVOICE
-     String title = sale.fiscalized == true ? 'FISCAL TAX INVOICE' : 'RECEIPT';
+     // Receipt by
+     if (sale.cashierFullName != null && sale.cashierFullName!.isNotEmpty) {
+       receiptData += generator.text('Receipt by: ${sale.cashierFullName}',
+           styles: PosStyles(align: PosAlign.center));
+     }
+
+     receiptData += generator.feed(1);
+
+     // Title: SALES RECEIPT or FISCAL TAX INVOICE
+     String title = sale.fiscalized == true ? 'FISCAL TAX INVOICE' : 'SALES RECEIPT';
      receiptData += generator.text(title,
          styles: PosStyles(
            align: PosAlign.center,
@@ -931,6 +983,20 @@ class PrinterService extends GetxService {
            height: PosTextSize.size2,
            width: PosTextSize.size2,
          ));
+     receiptData += generator.feed(1);
+
+     // Invoice No
+     if (sale.referenceNumber != null && sale.referenceNumber!.isNotEmpty) {
+       receiptData += generator.text('Invoice No: ${sale.referenceNumber}',
+           styles: PosStyles(align: PosAlign.center));
+     }
+
+     // Date
+     if (sale.timeIniated != null && sale.timeIniated!.isNotEmpty) {
+       receiptData += generator.text('Date: ${sale.timeIniated}',
+           styles: PosStyles(align: PosAlign.center));
+     }
+
      receiptData += generator.feed(1);
 
      // Separator
@@ -953,8 +1019,8 @@ class PrinterService extends GetxService {
        // Format: Description left-padded to 40 chars, then amount right-aligned
        String itemLine = itemName.padRight(40) + amountStr;
        receiptData += generator.text(itemLine,
-         styles: PosStyles(align: PosAlign.left));
-     }
+             styles: PosStyles(align: PosAlign.left));
+       }
 
      // Separator
      receiptData += generator.text('------------------------------------------------',
@@ -967,11 +1033,11 @@ class PrinterService extends GetxService {
        String paymentName = paymentType.paymentType?.name ?? '';
        String totalLine = 'Total $currencySymbol'.padRight(40) + amount.toStringAsFixed(2);
        receiptData += generator.text(totalLine,
-           styles: PosStyles(align: PosAlign.left));
-       if (paymentName.isNotEmpty) {
-         String paymentLine = '$currencySymbol $paymentName'.padRight(40);
-         receiptData += generator.text(paymentLine,
-           styles: PosStyles(align: PosAlign.left));
+             styles: PosStyles(align: PosAlign.left));
+      if (paymentName.isNotEmpty) {
+        String paymentLine = '$currencySymbol $paymentName'.padRight(40) + amount.toStringAsFixed(2);
+        receiptData += generator.text(paymentLine,
+             styles: PosStyles(align: PosAlign.left));
        }
      }
 
@@ -983,18 +1049,28 @@ class PrinterService extends GetxService {
      int itemCount = sale.items?.length ?? 0;
      String itemsLine = 'Number of items'.padRight(40) + itemCount.toString();
      receiptData += generator.text(itemsLine,
-         styles: PosStyles(align: PosAlign.left));
+           styles: PosStyles(align: PosAlign.left));
 
      // Separator (double)
      receiptData += generator.text('------------------------------------------------',
-         styles: PosStyles(align: PosAlign.center));
+           styles: PosStyles(align: PosAlign.center));
      receiptData += generator.text('------------------------------------------------',
          styles: PosStyles(align: PosAlign.center));
 
      // Calculate net and gross amounts
-     double netAmount = (sale.amountAfterDiscount ?? 0.0) - (sale.totalTaxAmount ?? 0.0);
-     double grossAmount = sale.amountAfterDiscount ?? 0.0;
+    double netAmount = (sale.amountAfterDiscount ?? 0.0) - (sale.totalTaxAmount ?? 0.0);
+    double grossAmount = sale.amountAfterDiscount ?? 0.0;
      double vatPercentage = grossAmount > 0 ? (sale.totalTaxAmount ?? 0.0) / grossAmount * 100 : 0.0;
+    
+     // Amount Paid - right-align amount
+     String amountPaidLine = 'Amount Paid'.padRight(40) + (cur?.symbol ?? '') + ' ' + (sale.amountPaid?.toStringAsFixed(2) ?? '0.00');
+     receiptData += generator.text(amountPaidLine,
+        styles: PosStyles(align: PosAlign.left));
+    
+     // Change - right-align amount
+     String changeLine = 'Change:'.padRight(40) + (sale.change?.toStringAsFixed(2) ?? '0.00');
+     receiptData += generator.text(changeLine,
+           styles: PosStyles(align: PosAlign.left));
      
      // Net Amount - right-align amount
      String netLine = 'Net Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + netAmount.toStringAsFixed(2);
@@ -1002,20 +1078,16 @@ class PrinterService extends GetxService {
            styles: PosStyles(align: PosAlign.left));
 
      // VAT with percentage - right-align amount
-     if (sale.totalTaxAmount != null && sale.totalTaxAmount! > 0) {
+    if (sale.totalTaxAmount != null && sale.totalTaxAmount! > 0) {
        String vatLine = 'VAT (${vatPercentage.toStringAsFixed(0)}%)'.padRight(40) + (cur?.symbol ?? '') + ' ' + sale.totalTaxAmount!.toStringAsFixed(2);
        receiptData += generator.text(vatLine,
-           styles: PosStyles(align: PosAlign.left));
-     }
-     
+          styles: PosStyles(align: PosAlign.left));
+    }
+    
      // Gross Amount - right-align amount
      String grossLine = 'Gross Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + grossAmount.toStringAsFixed(2);
      receiptData += generator.text(grossLine,
-         styles: PosStyles(align: PosAlign.left));
-
-    // Change
-    receiptData += generator.text('Change: ${cur?.symbol} ${sale.change?.toStringAsFixed(2)}',
-         styles: PosStyles(align: PosAlign.left));
+        styles: PosStyles(align: PosAlign.left));
 
     // Tip (if present) - missing feature added
     if(sale.tipAmount != null && sale.tipAmount! > 0) {
@@ -1028,43 +1100,43 @@ class PrinterService extends GetxService {
       receiptData += generator.text('Account Balance: ${cur?.symbol} ${sale.customer!.currencyBalance!.firstWhere((cb) => cb.currency?.id == cur?.id, orElse: () => sale.customer!.currencyBalance!.first).balance!.toStringAsFixed(2)}',
           styles: PosStyles(align: PosAlign.right));
     }
-    
-    // QR Code - Fiscal Receipt QR (if fiscalized) or WhatsApp QR
-    if(sale.receiptQrCode != null) {
-      try {
-        // Generate QR code image from receiptQrCode URL using QrPainter
-        final qrPainter = QrPainter(
-          data: sale.receiptQrCode!,
-          version: QrVersions.auto,
-          errorCorrectionLevel: QrErrorCorrectLevel.L,
-          color: const Color(0xFF000000),
-          emptyColor: const Color(0xFFFFFFFF),
-          gapless: true,
-        );
-        
-        final picData = await qrPainter.toImageData(200);
-        if (picData != null) {
-          final img.Image qrImage = img.decodeImage(picData.buffer.asUint8List())!;
-          final img.Image grayscaleQr = img.grayscale(qrImage);
-          final img.Image resizedQr = img.copyResize(grayscaleQr, width: 200);
-          receiptData += generator.image(resizedQr);
-     receiptData += generator.feed(1);
-          
-          // Add QR code text data
-          if(sale.receiptQrData != null && sale.receiptQrData!.isNotEmpty) {
-            receiptData += generator.text(sale.receiptQrData!,
-                styles: PosStyles(align: PosAlign.center));
-          }
-          receiptData += generator.text('You can verify this receipt manually at',
-              styles: PosStyles(align: PosAlign.center));
-          receiptData += generator.text(sale.receiptQrCode!,
-              styles: PosStyles(align: PosAlign.center));
-        }
-      } catch (e) {
-        // Error generating fiscal receipt QR code - continue without it
-      }
+     
+     // QR Code - Fiscal Receipt QR (if fiscalized) or WhatsApp QR
+     if(sale.receiptQrCode != null) {
+       try {
+         // Generate QR code image from receiptQrCode URL using QrPainter
+         final qrPainter = QrPainter(
+           data: sale.receiptQrCode!,
+           version: QrVersions.auto,
+           errorCorrectionLevel: QrErrorCorrectLevel.L,
+           color: const Color(0xFF000000),
+           emptyColor: const Color(0xFFFFFFFF),
+           gapless: true,
+         );
+         
+         final picData = await qrPainter.toImageData(200);
+         if (picData != null) {
+           final img.Image qrImage = img.decodeImage(picData.buffer.asUint8List())!;
+           final img.Image grayscaleQr = img.grayscale(qrImage);
+           final img.Image resizedQr = img.copyResize(grayscaleQr, width: 200);
+           receiptData += generator.image(resizedQr);
+           receiptData += generator.feed(1);
+           
+           // Add QR code text data
+           if(sale.receiptQrData != null && sale.receiptQrData!.isNotEmpty) {
+             receiptData += generator.text(sale.receiptQrData!,
+                 styles: PosStyles(align: PosAlign.center));
+           }
+           receiptData += generator.text('You can verify this receipt manually at',
+               styles: PosStyles(align: PosAlign.center));
+           receiptData += generator.text(sale.receiptQrCode!,
+               styles: PosStyles(align: PosAlign.center));
+         }
+       } catch (e) {
+         // Error generating fiscal receipt QR code - continue without it
+       }
     } else if(sale.receiptQrCode == null && waScan) {
-        // Load whatsapp qr
+      // Load whatsapp qr
       try {
         Uint8List waImageBytes = await generateWhatsappQR(
             sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
@@ -1478,7 +1550,7 @@ class PrinterService extends GetxService {
        await SunmiPrinter.printText(companyName);
      }
 
-     await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
 
      // Company TIN
      if (company?.companyID != null && company!.companyID!.isNotEmpty) {
@@ -1528,12 +1600,34 @@ class PrinterService extends GetxService {
 
      await SunmiPrinter.printText("\n");
 
-     // Title: RECEIPT or FISCAL TAX INVOICE
-     String title = sale.fiscalized == true ? 'FISCAL TAX INVOICE' : 'RECEIPT';
+     // Receipt by
+     if (sale.cashierFullName != null && sale.cashierFullName!.isNotEmpty) {
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+       await SunmiPrinter.printText("Receipt by: ${sale.cashierFullName}");
+     }
+
+     await SunmiPrinter.printText("\n");
+
+     // Title: SALES RECEIPT or FISCAL TAX INVOICE
+     String title = sale.fiscalized == true ? 'FISCAL TAX INVOICE' : 'SALES RECEIPT';
      await SunmiPrinter.setFontSize(SunmiFontSize.XL);
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
      await SunmiPrinter.printText(title);
      await SunmiPrinter.resetFontSize();
+     await SunmiPrinter.printText("\n");
+
+     // Invoice No
+     if (sale.referenceNumber != null && sale.referenceNumber!.isNotEmpty) {
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+       await SunmiPrinter.printText("Invoice No: ${sale.referenceNumber}");
+     }
+
+     // Date
+     if (sale.timeIniated != null && sale.timeIniated!.isNotEmpty) {
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+       await SunmiPrinter.printText("Date: ${sale.timeIniated}");
+     }
+
      await SunmiPrinter.printText("\n");
 
      // Separator
@@ -1573,7 +1667,7 @@ class PrinterService extends GetxService {
        String totalLine = 'Total $currencySymbol'.padRight(40) + amount.toStringAsFixed(2);
        await SunmiPrinter.printText(totalLine);
        if (paymentName.isNotEmpty) {
-         String paymentLine = '$currencySymbol $paymentName'.padRight(40);
+         String paymentLine = '$currencySymbol $paymentName'.padRight(40) + amount.toStringAsFixed(2);
          await SunmiPrinter.printText(paymentLine);
        }
      }
@@ -1599,6 +1693,14 @@ class PrinterService extends GetxService {
      double grossAmount = sale.amountAfterDiscount ?? 0.0;
      double vatPercentage = grossAmount > 0 ? (sale.totalTaxAmount ?? 0.0) / grossAmount * 100 : 0.0;
      
+     // Amount Paid - right-align amount
+     String amountPaidLine = 'Amount Paid'.padRight(40) + (cur?.symbol ?? '') + ' ' + (sale.amountPaid?.toStringAsFixed(2) ?? '0.00');
+     await SunmiPrinter.printText(amountPaidLine);
+     
+     // Change - right-align amount
+     String changeLine = 'Change:'.padRight(40) + (sale.change?.toStringAsFixed(2) ?? '0.00');
+     await SunmiPrinter.printText(changeLine);
+     
      // Net Amount - right-align amount
      String netLine = 'Net Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + netAmount.toStringAsFixed(2);
      await SunmiPrinter.printText(netLine);
@@ -1612,9 +1714,6 @@ class PrinterService extends GetxService {
      // Gross Amount - right-align amount
      String grossLine = 'Gross Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + grossAmount.toStringAsFixed(2);
      await SunmiPrinter.printText(grossLine);
-     
-     // Change
-     await SunmiPrinter.printText("Change: ${cur?.symbol ?? ''} ${sale.change?.toStringAsFixed(2)}\n");
      if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false))
        {
          await SunmiPrinter.printText(
@@ -1896,11 +1995,11 @@ class PrinterService extends GetxService {
     try {
       final Uint8List imageBytes = await readLocalFileBytes();
       if (imageBytes.isNotEmpty) {
-      final img.Image? image = img.decodeImage(imageBytes);
-      if (image != null) {
-        final img.Image resized = img.copyResize(image, width: 200);
-        bytes += generator.image(resized);
-        bytes += generator.feed(1);
+        final img.Image? image = img.decodeImage(imageBytes);
+        if (image != null) {
+          final img.Image resized = img.copyResize(image, width: 200);
+          bytes += generator.image(resized);
+          bytes += generator.feed(1);
         }
       }
     } catch (e) {
@@ -1977,11 +2076,11 @@ class PrinterService extends GetxService {
     try {
       final Uint8List imageBytes = await readLocalFileBytes();
       if (imageBytes.isNotEmpty) {
-      final img.Image? image = img.decodeImage(imageBytes);
-      if (image != null) {
-        final img.Image resized = img.copyResize(image, width: 200);
-        bytes += generator.image(resized);
-        bytes += generator.feed(1);
+        final img.Image? image = img.decodeImage(imageBytes);
+        if (image != null) {
+          final img.Image resized = img.copyResize(image, width: 200);
+          bytes += generator.image(resized);
+          bytes += generator.feed(1);
         }
       }
     } catch (e) {
