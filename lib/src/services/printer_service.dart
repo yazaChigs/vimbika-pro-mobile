@@ -347,28 +347,28 @@ class PrinterService extends GetxService {
       // Phone: From company mobilePhone - accessed like company?.name
       String? phone = company?.mobilePhone;
       
-       // Print address, email, and phone if available (with labels)
+       // Print address, email, and phone if available (centered, no labels)
        if (address != null && address.isNotEmpty) {
        receiptData.add(LineText(
          type: LineText.TYPE_TEXT,
-          content: 'Company Address: $address',
-          align: LineText.ALIGN_LEFT,
+          content: address,
+          align: LineText.ALIGN_CENTER,
         linefeed: 1,
       ));
       }
       if (email != null && email.isNotEmpty) {
         receiptData.add(LineText(
           type: LineText.TYPE_TEXT,
-          content: 'Email: $email',
-          align: LineText.ALIGN_LEFT,
+          content: email,
+          align: LineText.ALIGN_CENTER,
           linefeed: 1,
         ));
       }
       if (phone != null && phone.isNotEmpty) {
         receiptData.add(LineText(
           type: LineText.TYPE_TEXT,
-          content: 'Phone: $phone',
-          align: LineText.ALIGN_LEFT,
+          content: phone,
+          align: LineText.ALIGN_CENTER,
           linefeed: 1,
         ));
       }
@@ -903,18 +903,18 @@ class PrinterService extends GetxService {
        // Phone: From company mobilePhone - accessed like company?.name
        String? phone = company?.mobilePhone;
        
-       // Print address, email, and phone if available (with labels)
+       // Print address, email, and phone if available (centered, no labels)
        if (address != null && address.isNotEmpty) {
-         receiptData += generator.text('Company Address: $address',
-             styles: PosStyles(align: PosAlign.left));
+         receiptData += generator.text(address,
+             styles: PosStyles(align: PosAlign.center));
        }
        if (email != null && email.isNotEmpty) {
-         receiptData += generator.text('Email: $email',
-             styles: PosStyles(align: PosAlign.left));
+         receiptData += generator.text(email,
+             styles: PosStyles(align: PosAlign.center));
        }
        if (phone != null && phone.isNotEmpty) {
-         receiptData += generator.text('Phone: $phone',
-             styles: PosStyles(align: PosAlign.left));
+         receiptData += generator.text(phone,
+             styles: PosStyles(align: PosAlign.center));
        }
      } catch (e) {
        // Error reading company data - continue
@@ -1509,15 +1509,18 @@ class PrinterService extends GetxService {
        // Phone: From company mobilePhone - accessed like company?.name
        String? phone = company?.mobilePhone;
        
-       // Print address, email, and phone if available (with labels)
+       // Print address, email, and phone if available (centered, no labels)
        if (address != null && address.isNotEmpty) {
-         await SunmiPrinter.printText("Company Address: $address");
+         await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+         await SunmiPrinter.printText(address);
        }
        if (email != null && email.isNotEmpty) {
-         await SunmiPrinter.printText("Email: $email");
+         await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+         await SunmiPrinter.printText(email);
        }
        if (phone != null && phone.isNotEmpty) {
-         await SunmiPrinter.printText("Phone: $phone");
+         await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+         await SunmiPrinter.printText(phone);
        }
      } catch (e) {
        // Error reading company data - continue
