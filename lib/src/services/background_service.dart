@@ -37,7 +37,7 @@ class BackgroundService extends GetxService {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     var shiftModel = box.read(AppConstants.SHIFT_SETTING) ?? {};
     shiftSetting = ShiftSettingModel.fromMap(Map<String, dynamic>.from(shiftModel));
-    Timer.periodic(Duration(minutes: 8), (timer) async {
+    Timer.periodic(Duration(minutes: 3), (timer) async {
       print("Background task running every 10 minutes");
         await syncOfflineSales(true);
       });

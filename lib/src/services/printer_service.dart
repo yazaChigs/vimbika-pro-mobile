@@ -255,17 +255,30 @@ class PrinterService extends GetxService {
 
     // Get Company and Branch information
     CompanyModel? company;
+    Map<String, dynamic>? companyDataMap;
     BranchModel? branch = sale.branch;
+    Map<String, dynamic>? branchDataMap;
     try {
       var companyData = box.read(AppConstants.ACTIVE_COMPANY);
       if (companyData != null && companyData is Map) {
-        company = CompanyModel.fromMap(companyData);
+        companyDataMap = Map<String, dynamic>.from(companyData);
+        company = CompanyModel.fromMap(companyDataMap);
       }
     } catch (e) {
       // Error reading company - continue without it
     }
+    
+    // Get raw branch data from storage (branch has street, city, contactNumber)
+    try {
+      var branchData = box.read(AppConstants.SELECTED_BRANCH);
+      if (branchData != null && branchData is Map) {
+        branchDataMap = Map<String, dynamic>.from(branchData);
+      }
+    } catch (e) {
+      // Error reading branch - continue without it
+    }
 
-    // Add the logo to the receipt
+   // Add the logo to the receipt
     print("print logo ..");
     receiptData.add(LineText(
       type: LineText.TYPE_IMAGE,
@@ -280,72 +293,106 @@ class PrinterService extends GetxService {
     String companyName = company?.name ?? '';
     String branchName = branch?.name ?? '';
     if (companyName.isNotEmpty && branchName.isNotEmpty) {
-      receiptData.add(LineText(
-        type: LineText.TYPE_TEXT,
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
         content: '$companyName - $branchName',
-        align: LineText.ALIGN_CENTER,
-        linefeed: 1,
-      ));
+      align: LineText.ALIGN_CENTER,
+      linefeed: 1,
+    ));
     } else if (companyName.isNotEmpty) {
-      receiptData.add(LineText(
-        type: LineText.TYPE_TEXT,
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
         content: companyName,
         align: LineText.ALIGN_CENTER,
-        linefeed: 1,
-      ));
+      linefeed: 1,
+    ));
     }
 
     // Company TIN
     if (company?.companyID != null && company!.companyID!.isNotEmpty) {
-      receiptData.add(LineText(
-        type: LineText.TYPE_TEXT,
-        content: 'Company TIN: ${company.companyID}',
-        align: LineText.ALIGN_LEFT,
-        linefeed: 1,
-      ));
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+        content: 'TIN: ${company.companyID}',
+        align: LineText.ALIGN_CENTER,
+      linefeed: 1,
+    ));
     }
 
     // Company VAT
     if (vatNumber != null && vatNumber.isNotEmpty) {
-      receiptData.add(LineText(
-        type: LineText.TYPE_TEXT,
-        content: 'Company VAT: $vatNumber',
-        align: LineText.ALIGN_LEFT,
-        linefeed: 1,
-      ));
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
+        content: 'VAT No: $vatNumber',
+        align: LineText.ALIGN_CENTER,
+      linefeed: 1,
+    ));
     }
 
-    // Company Address, Email, Phone (from settings if available)
+    // Company Address, Email, Phone (matching web receipt logic: branch address if branch exists, otherwise company address; phone and email always from company)
     try {
-      var settings = box.read(AppConstants.COMPANY_SETTINGS);
-      if (settings != null && settings is Map) {
-        if (settings["address"] != null && settings["address"].toString().isNotEmpty) {
-          receiptData.add(LineText(
-            type: LineText.TYPE_TEXT,
-            content: 'Company Address: ${settings["address"]}',
-            align: LineText.ALIGN_LEFT,
-            linefeed: 1,
-          ));
-        }
-        if (settings["email"] != null && settings["email"].toString().isNotEmpty) {
-          receiptData.add(LineText(
-            type: LineText.TYPE_TEXT,
-            content: 'Email: ${settings["email"]}',
-            align: LineText.ALIGN_LEFT,
-            linefeed: 1,
-          ));
-        }
-        if (settings["phone"] != null && settings["phone"].toString().isNotEmpty) {
-          receiptData.add(LineText(
-            type: LineText.TYPE_TEXT,
-            content: 'Phone: ${settings["phone"]}',
-            align: LineText.ALIGN_LEFT,
-            linefeed: 1,
-          ));
+      String? address;
+      
+      // Address: Use branch.getAddress() if branch exists, otherwise company.getAddress() (matches web FiscalTaxReceiptPdf.java lines 75-78)
+      if (branchDataMap != null && (branchDataMap["street"] != null || branchDataMap["city"] != null)) {
+        // Branch address: combine street and city (matches Branch.getAddress() method)
+        List<String> branchAddressParts = [];
+        String? branchStreet = branchDataMap["street"]?.toString();
+        String? branchCity = branchDataMap["city"]?.toString();
+        if (branchStreet != null && branchStreet.isNotEmpty) branchAddressParts.add(branchStreet);
+        if (branchCity != null && branchCity.isNotEmpty) branchAddressParts.add(branchCity);
+        if (branchAddressParts.isNotEmpty) {
+          address = branchAddressParts.join(' ');
         }
       }
+      
+      // Fallback to company address if branch address not available
+      if ((address == null || address.isEmpty) && companyDataMap != null) {
+        // Company address: combine street, stateProvince, and city (matches Company.getAddress() method)
+        List<String> companyAddressParts = [];
+        String? companyStreet = companyDataMap["street"]?.toString();
+        String? companyStateProvince = companyDataMap["stateProvince"]?.toString();
+        String? companyCity = companyDataMap["city"]?.toString();
+        if (companyStreet != null && companyStreet.isNotEmpty) companyAddressParts.add(companyStreet);
+        if (companyStateProvince != null && companyStateProvince.isNotEmpty) companyAddressParts.add(companyStateProvince);
+        if (companyCity != null && companyCity.isNotEmpty) companyAddressParts.add(companyCity);
+        if (companyAddressParts.isNotEmpty) {
+          address = companyAddressParts.join(' ');
+        }
+      }
+      
+      // Email: Always from company email (backend Company model field: email)
+      String? email = companyDataMap?["email"]?.toString();
+      
+      // Phone: Always from company mobilePhone (matches web FiscalTaxReceiptPdf.java line 79: sale.getCompany().getMobilePhone())
+      String? phone = companyDataMap?["mobilePhone"]?.toString();
+      
+      // Print address, email, and phone if available
+      if (address != null && address.isNotEmpty) {
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
+          content: address,
+          align: LineText.ALIGN_CENTER,
+        linefeed: 1,
+      ));
+      }
+      if (email != null && email.isNotEmpty) {
+        receiptData.add(LineText(
+          type: LineText.TYPE_TEXT,
+          content: email,
+          align: LineText.ALIGN_CENTER,
+          linefeed: 1,
+        ));
+      }
+      if (phone != null && phone.isNotEmpty) {
+        receiptData.add(LineText(
+          type: LineText.TYPE_TEXT,
+          content: phone,
+          align: LineText.ALIGN_CENTER,
+          linefeed: 1,
+        ));
+      }
     } catch (e) {
-      // Error reading settings - continue
+      // Error reading branch or company data - continue
     }
 
     receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
@@ -370,7 +417,7 @@ class PrinterService extends GetxService {
       align: LineText.ALIGN_CENTER,
       linefeed: 1,
     ));
-    
+
     // Items Header - with proper spacing
     String headerLine = 'Description'.padRight(40) + 'Amount';
     receiptData.add(LineText(
@@ -392,7 +439,7 @@ class PrinterService extends GetxService {
       double total = item.total ?? 0;
       total = total * cur!.rate!;
       String amountStr = total.toStringAsFixed(2);
-      
+
       // Format: Description left-padded to 40 chars, then amount
       String itemLine = itemName.padRight(40) + amountStr;
       receiptData.add(LineText(
@@ -435,8 +482,8 @@ class PrinterService extends GetxService {
     }
 
     // Separator
-    receiptData.add(LineText(
-      type: LineText.TYPE_TEXT,
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
       content: '------------------------------------------------',
       align: LineText.ALIGN_CENTER,
       linefeed: 1,
@@ -448,17 +495,17 @@ class PrinterService extends GetxService {
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
       content: itemsLine,
-      align: LineText.ALIGN_LEFT,
-      linefeed: 1,
-    ));
+        align: LineText.ALIGN_LEFT,
+        linefeed: 1,
+      ));
 
     // Separator (double)
-    receiptData.add(LineText(
-      type: LineText.TYPE_TEXT,
+      receiptData.add(LineText(
+        type: LineText.TYPE_TEXT,
       content: '------------------------------------------------',
-      align: LineText.ALIGN_CENTER,
-      linefeed: 1,
-    ));
+        align: LineText.ALIGN_CENTER,
+        linefeed: 1,
+      ));
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
       content: '------------------------------------------------',
@@ -479,18 +526,18 @@ class PrinterService extends GetxService {
       align: LineText.ALIGN_LEFT,
       linefeed: 1,
     ));
-    
+
     // VAT with percentage - right-align amount
     if (sale.totalTaxAmount != null && sale.totalTaxAmount! > 0) {
       String vatLine = 'VAT (${vatPercentage.toStringAsFixed(0)}%)'.padRight(40) + (cur?.symbol ?? '') + ' ' + sale.totalTaxAmount!.toStringAsFixed(2);
-      receiptData.add(LineText(
-        type: LineText.TYPE_TEXT,
+    receiptData.add(LineText(
+      type: LineText.TYPE_TEXT,
         content: vatLine,
         align: LineText.ALIGN_LEFT,
-        linefeed: 1,
-      ));
+      linefeed: 1,
+    ));
     }
-    
+
     // Gross Amount - right-align amount
     String grossLine = 'Gross Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + grossAmount.toStringAsFixed(2);
     receiptData.add(LineText(
@@ -512,7 +559,7 @@ class PrinterService extends GetxService {
     if(sale.tipAmount != null && sale.tipAmount! > 0) {
       receiptData.add(LineText(
         type: LineText.TYPE_TEXT,
-        content: 'Tip: ${cur.symbol} ${sale.tipAmount!.toStringAsFixed(2)}',
+        content: 'Tip: ${cur?.symbol ?? ''} ${sale.tipAmount!.toStringAsFixed(2)}',
         align: LineText.ALIGN_RIGHT,
         linefeed: 1,
       ));
@@ -522,7 +569,7 @@ class PrinterService extends GetxService {
     if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty) {
       receiptData.add(LineText(
         type: LineText.TYPE_TEXT,
-        content: 'Account Balance: ${cur.symbol} ${sale.customer!.currencyBalance!.firstWhere((cb) => cb.currency?.id == cur?.id, orElse: () => sale.customer!.currencyBalance!.first).balance!.toStringAsFixed(2)}',
+        content: 'Account Balance: ${cur?.symbol ?? ''} ${sale.customer!.currencyBalance!.firstWhere((cb) => cb.currency?.id == cur?.id, orElse: () => sale.customer!.currencyBalance!.first).balance!.toStringAsFixed(2)}',
         align: LineText.ALIGN_RIGHT,
         linefeed: 1,
       ));
@@ -788,31 +835,44 @@ class PrinterService extends GetxService {
 
      // Get Company and Branch information
      CompanyModel? company;
+     Map<String, dynamic>? companyDataMap;
      BranchModel? branch = sale.branch;
+     Map<String, dynamic>? branchDataMap;
      try {
        var companyData = box.read(AppConstants.ACTIVE_COMPANY);
        if (companyData != null && companyData is Map) {
-         company = CompanyModel.fromMap(companyData);
+         companyDataMap = Map<String, dynamic>.from(companyData);
+         company = CompanyModel.fromMap(companyDataMap);
        }
      } catch (e) {
        // Error reading company - continue without it
      }
+     
+     // Get raw branch data from storage (branch has street, city, contactNumber)
+     try {
+       var branchData = box.read(AppConstants.SELECTED_BRANCH);
+       if (branchData != null && branchData is Map) {
+         branchDataMap = Map<String, dynamic>.from(branchData);
+       }
+     } catch (e) {
+       // Error reading branch - continue without it
+     }
 
      // Load company logo
      try {
-       Uint8List imageBytes = await readLocalFileBytes();
-       
+     Uint8List imageBytes = await readLocalFileBytes();
+     
        if (imageBytes.isNotEmpty) {
-         // Convert image to ESC/POS compatible format
-         try {
-           final img.Image? image = img.decodeImage(imageBytes);
-           if (image != null) {
-             // Resize image to fit receipt width (max 384 pixels for 80mm paper)
-             final img.Image resized = img.copyResize(image, width: 200);
-             receiptData += generator.image(resized);
-             receiptData += generator.feed(1);
-           }
-         } catch (e) {
+     // Convert image to ESC/POS compatible format
+     try {
+       final img.Image? image = img.decodeImage(imageBytes);
+       if (image != null) {
+         // Resize image to fit receipt width (max 384 pixels for 80mm paper)
+         final img.Image resized = img.copyResize(image, width: 200);
+         receiptData += generator.image(resized);
+         receiptData += generator.feed(1);
+       }
+     } catch (e) {
            // Error processing logo - continue without logo
          }
        }
@@ -833,35 +893,69 @@ class PrinterService extends GetxService {
 
      // Company TIN (from companyID or settings)
      if (company?.companyID != null && company!.companyID!.isNotEmpty) {
-       receiptData += generator.text('Company TIN: ${company.companyID}',
-           styles: PosStyles(align: PosAlign.left));
+       receiptData += generator.text('TIN: ${company.companyID}',
+           styles: PosStyles(align: PosAlign.center));
      }
 
      // Company VAT
      if (vatNumber != null && vatNumber.isNotEmpty) {
-       receiptData += generator.text('Company VAT: $vatNumber',
-           styles: PosStyles(align: PosAlign.left));
+       receiptData += generator.text('VAT No: $vatNumber',
+           styles: PosStyles(align: PosAlign.center));
      }
 
-     // Company Address (from settings if available)
+     // Company Address, Email, Phone (matching web receipt logic: branch address if branch exists, otherwise company address; phone and email always from company)
      try {
-       var settings = box.read(AppConstants.COMPANY_SETTINGS);
-       if (settings != null && settings is Map) {
-         if (settings["address"] != null && settings["address"].toString().isNotEmpty) {
-           receiptData += generator.text('Company Address: ${settings["address"]}',
-               styles: PosStyles(align: PosAlign.left));
-         }
-         if (settings["email"] != null && settings["email"].toString().isNotEmpty) {
-           receiptData += generator.text('Email: ${settings["email"]}',
-               styles: PosStyles(align: PosAlign.left));
-         }
-         if (settings["phone"] != null && settings["phone"].toString().isNotEmpty) {
-           receiptData += generator.text('Phone: ${settings["phone"]}',
-               styles: PosStyles(align: PosAlign.left));
+       String? address;
+       
+       // Address: Use branch.getAddress() if branch exists, otherwise company.getAddress() (matches web FiscalTaxReceiptPdf.java lines 75-78)
+       if (branchDataMap != null && (branchDataMap["street"] != null || branchDataMap["city"] != null)) {
+         // Branch address: combine street and city (matches Branch.getAddress() method)
+         List<String> branchAddressParts = [];
+         String? branchStreet = branchDataMap["street"]?.toString();
+         String? branchCity = branchDataMap["city"]?.toString();
+         if (branchStreet != null && branchStreet.isNotEmpty) branchAddressParts.add(branchStreet);
+         if (branchCity != null && branchCity.isNotEmpty) branchAddressParts.add(branchCity);
+         if (branchAddressParts.isNotEmpty) {
+           address = branchAddressParts.join(' ');
          }
        }
+       
+       // Fallback to company address if branch address not available
+       if ((address == null || address.isEmpty) && companyDataMap != null) {
+         // Company address: combine street, stateProvince, and city (matches Company.getAddress() method)
+         List<String> companyAddressParts = [];
+         String? companyStreet = companyDataMap["street"]?.toString();
+         String? companyStateProvince = companyDataMap["stateProvince"]?.toString();
+         String? companyCity = companyDataMap["city"]?.toString();
+         if (companyStreet != null && companyStreet.isNotEmpty) companyAddressParts.add(companyStreet);
+         if (companyStateProvince != null && companyStateProvince.isNotEmpty) companyAddressParts.add(companyStateProvince);
+         if (companyCity != null && companyCity.isNotEmpty) companyAddressParts.add(companyCity);
+         if (companyAddressParts.isNotEmpty) {
+           address = companyAddressParts.join(' ');
+         }
+       }
+       
+       // Email: Always from company email (backend Company model field: email)
+       String? email = companyDataMap?["email"]?.toString();
+       
+       // Phone: Always from company mobilePhone (matches web FiscalTaxReceiptPdf.java line 79: sale.getCompany().getMobilePhone())
+       String? phone = companyDataMap?["mobilePhone"]?.toString();
+       
+       // Print address, email, and phone if available
+       if (address != null && address.isNotEmpty) {
+         receiptData += generator.text(address,
+             styles: PosStyles(align: PosAlign.center));
+       }
+       if (email != null && email.isNotEmpty) {
+         receiptData += generator.text(email,
+             styles: PosStyles(align: PosAlign.center));
+       }
+       if (phone != null && phone.isNotEmpty) {
+         receiptData += generator.text(phone,
+             styles: PosStyles(align: PosAlign.center));
+       }
      } catch (e) {
-       // Error reading settings - continue
+       // Error reading branch or company data - continue
      }
 
      receiptData += generator.feed(1);
@@ -897,7 +991,7 @@ class PrinterService extends GetxService {
        // Format: Description left-padded to 40 chars, then amount right-aligned
        String itemLine = itemName.padRight(40) + amountStr;
        receiptData += generator.text(itemLine,
-           styles: PosStyles(align: PosAlign.left));
+         styles: PosStyles(align: PosAlign.left));
      }
 
      // Separator
@@ -915,7 +1009,7 @@ class PrinterService extends GetxService {
        if (paymentName.isNotEmpty) {
          String paymentLine = '$currencySymbol $paymentName'.padRight(40);
          receiptData += generator.text(paymentLine,
-             styles: PosStyles(align: PosAlign.left));
+           styles: PosStyles(align: PosAlign.left));
        }
      }
 
@@ -943,8 +1037,8 @@ class PrinterService extends GetxService {
      // Net Amount - right-align amount
      String netLine = 'Net Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + netAmount.toStringAsFixed(2);
      receiptData += generator.text(netLine,
-         styles: PosStyles(align: PosAlign.left));
-     
+           styles: PosStyles(align: PosAlign.left));
+
      // VAT with percentage - right-align amount
      if (sale.totalTaxAmount != null && sale.totalTaxAmount! > 0) {
        String vatLine = 'VAT (${vatPercentage.toStringAsFixed(0)}%)'.padRight(40) + (cur?.symbol ?? '') + ' ' + sale.totalTaxAmount!.toStringAsFixed(2);
@@ -957,8 +1051,8 @@ class PrinterService extends GetxService {
      receiptData += generator.text(grossLine,
          styles: PosStyles(align: PosAlign.left));
 
-     // Change
-     receiptData += generator.text('Change: ${cur?.symbol} ${sale.change?.toStringAsFixed(2)}',
+    // Change
+    receiptData += generator.text('Change: ${cur?.symbol} ${sale.change?.toStringAsFixed(2)}',
          styles: PosStyles(align: PosAlign.left));
 
     // Tip (if present) - missing feature added
@@ -992,7 +1086,7 @@ class PrinterService extends GetxService {
           final img.Image grayscaleQr = img.grayscale(qrImage);
           final img.Image resizedQr = img.copyResize(grayscaleQr, width: 200);
           receiptData += generator.image(resizedQr);
-          receiptData += generator.feed(1);
+     receiptData += generator.feed(1);
           
           // Add QR code text data
           if(sale.receiptQrData != null && sale.receiptQrData!.isNotEmpty) {
@@ -1008,7 +1102,7 @@ class PrinterService extends GetxService {
         // Error generating fiscal receipt QR code - continue without it
       }
     } else if(sale.receiptQrCode == null && waScan) {
-      // Load whatsapp qr
+        // Load whatsapp qr
       try {
         Uint8List waImageBytes = await generateWhatsappQR(
             sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
@@ -1379,14 +1473,27 @@ class PrinterService extends GetxService {
 
      // Get Company and Branch information
      CompanyModel? company;
+     Map<String, dynamic>? companyDataMap;
      BranchModel? branch = sale.branch;
+     Map<String, dynamic>? branchDataMap;
      try {
        var companyData = box.read(AppConstants.ACTIVE_COMPANY);
        if (companyData != null && companyData is Map) {
-         company = CompanyModel.fromMap(companyData);
+         companyDataMap = Map<String, dynamic>.from(companyData);
+         company = CompanyModel.fromMap(companyDataMap);
        }
      } catch (e) {
        // Error reading company - continue without it
+     }
+     
+     // Get raw branch data from storage (branch has street, city, contactNumber)
+     try {
+       var branchData = box.read(AppConstants.SELECTED_BRANCH);
+       if (branchData != null && branchData is Map) {
+         branchDataMap = Map<String, dynamic>.from(branchData);
+       }
+     } catch (e) {
+       // Error reading branch - continue without it
      }
 
      Uint8List imageBytes = await readLocalFileBytes();
@@ -1413,30 +1520,64 @@ class PrinterService extends GetxService {
 
      // Company TIN
      if (company?.companyID != null && company!.companyID!.isNotEmpty) {
-       await SunmiPrinter.printText("Company TIN: ${company.companyID}");
+       await SunmiPrinter.printText("TIN: ${company.companyID}");
      }
 
      // Company VAT
      if (vatNumber != null && vatNumber.isNotEmpty) {
-       await SunmiPrinter.printText("Company VAT: $vatNumber");
+       await SunmiPrinter.printText("VAT No: $vatNumber");
      }
 
-     // Company Address, Email, Phone (from settings if available)
+     // Company Address, Email, Phone (matching web receipt logic: branch address if branch exists, otherwise company address; phone and email always from company)
      try {
-       var settings = box.read(AppConstants.COMPANY_SETTINGS);
-       if (settings != null && settings is Map) {
-         if (settings["address"] != null && settings["address"].toString().isNotEmpty) {
-           await SunmiPrinter.printText("Company Address: ${settings["address"]}");
-         }
-         if (settings["email"] != null && settings["email"].toString().isNotEmpty) {
-           await SunmiPrinter.printText("Email: ${settings["email"]}");
-         }
-         if (settings["phone"] != null && settings["phone"].toString().isNotEmpty) {
-           await SunmiPrinter.printText("Phone: ${settings["phone"]}");
+       String? address;
+       
+       // Address: Use branch.getAddress() if branch exists, otherwise company.getAddress() (matches web FiscalTaxReceiptPdf.java lines 75-78)
+       if (branchDataMap != null && (branchDataMap["street"] != null || branchDataMap["city"] != null)) {
+         // Branch address: combine street and city (matches Branch.getAddress() method)
+         List<String> branchAddressParts = [];
+         String? branchStreet = branchDataMap["street"]?.toString();
+         String? branchCity = branchDataMap["city"]?.toString();
+         if (branchStreet != null && branchStreet.isNotEmpty) branchAddressParts.add(branchStreet);
+         if (branchCity != null && branchCity.isNotEmpty) branchAddressParts.add(branchCity);
+         if (branchAddressParts.isNotEmpty) {
+           address = branchAddressParts.join(' ');
          }
        }
+       
+       // Fallback to company address if branch address not available
+       if ((address == null || address.isEmpty) && companyDataMap != null) {
+         // Company address: combine street, stateProvince, and city (matches Company.getAddress() method)
+         List<String> companyAddressParts = [];
+         String? companyStreet = companyDataMap["street"]?.toString();
+         String? companyStateProvince = companyDataMap["stateProvince"]?.toString();
+         String? companyCity = companyDataMap["city"]?.toString();
+         if (companyStreet != null && companyStreet.isNotEmpty) companyAddressParts.add(companyStreet);
+         if (companyStateProvince != null && companyStateProvince.isNotEmpty) companyAddressParts.add(companyStateProvince);
+         if (companyCity != null && companyCity.isNotEmpty) companyAddressParts.add(companyCity);
+         if (companyAddressParts.isNotEmpty) {
+           address = companyAddressParts.join(' ');
+         }
+       }
+       
+       // Email: Always from company email (backend Company model field: email)
+       String? email = companyDataMap?["email"]?.toString();
+       
+       // Phone: Always from company mobilePhone (matches web FiscalTaxReceiptPdf.java line 79: sale.getCompany().getMobilePhone())
+       String? phone = companyDataMap?["mobilePhone"]?.toString();
+       
+       // Print address, email, and phone if available
+       if (address != null && address.isNotEmpty) {
+         await SunmiPrinter.printText(address);
+       }
+       if (email != null && email.isNotEmpty) {
+         await SunmiPrinter.printText(email);
+       }
+       if (phone != null && phone.isNotEmpty) {
+         await SunmiPrinter.printText(phone);
+       }
      } catch (e) {
-       // Error reading settings - continue
+       // Error reading branch or company data - continue
      }
 
      await SunmiPrinter.printText("\n");
@@ -1809,11 +1950,11 @@ class PrinterService extends GetxService {
     try {
       final Uint8List imageBytes = await readLocalFileBytes();
       if (imageBytes.isNotEmpty) {
-        final img.Image? image = img.decodeImage(imageBytes);
-        if (image != null) {
-          final img.Image resized = img.copyResize(image, width: 200);
-          bytes += generator.image(resized);
-          bytes += generator.feed(1);
+      final img.Image? image = img.decodeImage(imageBytes);
+      if (image != null) {
+        final img.Image resized = img.copyResize(image, width: 200);
+        bytes += generator.image(resized);
+        bytes += generator.feed(1);
         }
       }
     } catch (e) {
@@ -1890,11 +2031,11 @@ class PrinterService extends GetxService {
     try {
       final Uint8List imageBytes = await readLocalFileBytes();
       if (imageBytes.isNotEmpty) {
-        final img.Image? image = img.decodeImage(imageBytes);
-        if (image != null) {
-          final img.Image resized = img.copyResize(image, width: 200);
-          bytes += generator.image(resized);
-          bytes += generator.feed(1);
+      final img.Image? image = img.decodeImage(imageBytes);
+      if (image != null) {
+        final img.Image resized = img.copyResize(image, width: 200);
+        bytes += generator.image(resized);
+        bytes += generator.feed(1);
         }
       }
     } catch (e) {
