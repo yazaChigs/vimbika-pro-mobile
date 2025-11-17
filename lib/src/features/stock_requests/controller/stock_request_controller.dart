@@ -105,6 +105,7 @@ class StockRequestController extends GetxController {
 
   @override
   void onClose() {
+    _saveRequestDebouncer?.cancel();
     super.onClose();
   }
   List<BaseNameModel> loadItems( GetStorage box, String itemType) {
@@ -554,11 +555,5 @@ class StockRequestController extends GetxController {
       Get.snackbar("Requisition Status", "Failed to cancel request!", snackPosition: SnackPosition.BOTTOM);
     }
 
-  }
-
-  @override
-  void onClose() {
-    _saveRequestDebouncer?.cancel();
-    super.onClose();
   }
 }

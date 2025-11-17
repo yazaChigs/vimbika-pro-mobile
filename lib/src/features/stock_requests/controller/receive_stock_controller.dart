@@ -77,7 +77,7 @@ class ReceiveStockController extends GetxController {
     transferHistory.refresh();
   }
 
-  void receiveStock() async{
+  Future<void> receiveStock() async{
     for (int i = 0; i < transferHistory.value.transferItems!.length; i++) {
       if (transferHistory.value.transferItems![i].allocated == null || transferHistory.value.transferItems![i].allocated! < 0) {
         errorMessages[i] = "Invalid value. Must be 0 or more.";

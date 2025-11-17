@@ -146,7 +146,7 @@ class SubmitCashScreen extends StatelessWidget {
                             ? Colors.grey
                             : null,
                       ),
-                    ),
+                    )),
                   ),
                   SizedBox(height: 10),
                 ],
