@@ -376,7 +376,7 @@ class PrinterService extends GetxService {
       // Error reading company data - continue
     }
 
-    receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
+    // receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
 
     // Receipt by
     if (sale.cashierFullName != null && sale.cashierFullName!.isNotEmpty) {
@@ -388,7 +388,7 @@ class PrinterService extends GetxService {
       ));
     }
 
-    receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
+    // receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
 
     // Title: SALES RECEIPT or FISCAL TAX INVOICE
     String title = sale.fiscalized == true ? 'FISCAL TAX INVOICE' : 'SALES RECEIPT';
@@ -401,7 +401,7 @@ class PrinterService extends GetxService {
           linefeed: 1,
         ));
 
-    receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
+    // receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
 
     // Invoice No
     if (sale.referenceNumber != null && sale.referenceNumber!.isNotEmpty) {
@@ -423,18 +423,18 @@ class PrinterService extends GetxService {
       ));
     }
 
-    receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
+    // receiptData.add(LineText(type: LineText.TYPE_TEXT, content: '\n', linefeed: 1));
 
     // Separator
         receiptData.add(LineText(
           type: LineText.TYPE_TEXT,
-      content: '------------------------------------------------',
+      content: '----------------------------',
       align: LineText.ALIGN_CENTER,
           linefeed: 1,
         ));
 
     // Items Header - with proper spacing
-    String headerLine = 'Description'.padRight(40) + 'Amount';
+    String headerLine = 'Description'.padRight(30) + 'Amount';
         receiptData.add(LineText(
           type: LineText.TYPE_TEXT,
       content: headerLine,
@@ -443,7 +443,7 @@ class PrinterService extends GetxService {
         ));
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-      content: '------------------------------------------------',
+      content: '----------------------------',
       align: LineText.ALIGN_CENTER,
       linefeed: 1,
     ));
@@ -456,7 +456,7 @@ class PrinterService extends GetxService {
       String amountStr = total.toStringAsFixed(2);
 
       // Format: Description left-padded to 40 chars, then amount
-      String itemLine = itemName.padRight(40) + amountStr;
+      String itemLine = itemName.padRight(30) + amountStr;
       receiptData.add(LineText(
         type: LineText.TYPE_TEXT,
         content: itemLine,
@@ -468,7 +468,7 @@ class PrinterService extends GetxService {
     // Separator
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-      content: '------------------------------------------------',
+      content: '----------------------------',
       align: LineText.ALIGN_CENTER,
       linefeed: 1,
     ));
@@ -478,7 +478,7 @@ class PrinterService extends GetxService {
       String currencySymbol = paymentType.currency?.symbol ?? cur?.symbol ?? '';
       double amount = (paymentType.amount ?? 0.0) * (paymentType.currency?.rate ?? cur?.rate ?? 1.0);
       String paymentName = paymentType.paymentType?.name ?? '';
-      String totalLine = 'Total $currencySymbol'.padRight(40) + amount.toStringAsFixed(2);
+      String totalLine = 'Total $currencySymbol'.padRight(30) + amount.toStringAsFixed(2);
       receiptData.add(LineText(
         type: LineText.TYPE_TEXT,
         content: totalLine,
@@ -486,7 +486,7 @@ class PrinterService extends GetxService {
         linefeed: 1,
       ));
       if (paymentName.isNotEmpty) {
-        String paymentLine = '$currencySymbol $paymentName'.padRight(40) + amount.toStringAsFixed(2);
+        String paymentLine = '$currencySymbol $paymentName'.padRight(30) + amount.toStringAsFixed(2);
         receiptData.add(LineText(
           type: LineText.TYPE_TEXT,
           content: paymentLine,
@@ -517,13 +517,13 @@ class PrinterService extends GetxService {
     // Separator (double)
       receiptData.add(LineText(
         type: LineText.TYPE_TEXT,
-      content: '------------------------------------------------',
+      content: '----------------------------',
         align: LineText.ALIGN_CENTER,
         linefeed: 1,
       ));
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-      content: '------------------------------------------------',
+      content: '----------------------------',
       align: LineText.ALIGN_CENTER,
       linefeed: 1,
     ));
@@ -534,7 +534,7 @@ class PrinterService extends GetxService {
     double vatPercentage = grossAmount > 0 ? (sale.totalTaxAmount ?? 0.0) / grossAmount * 100 : 0.0;
     
     // Amount Paid - right-align amount
-    String amountPaidLine = 'Amount Paid'.padRight(40) + (cur?.symbol ?? '') + ' ' + (sale.amountPaid?.toStringAsFixed(2) ?? '0.00');
+    String amountPaidLine = 'Amount Paid'.padRight(30) + (cur?.symbol ?? '') + ' ' + (sale.amountPaid?.toStringAsFixed(2) ?? '0.00');
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
       content: amountPaidLine,
@@ -543,7 +543,7 @@ class PrinterService extends GetxService {
     ));
     
     // Change - right-align amount
-    String changeLine = 'Change:'.padRight(40) + (cur?.symbol ?? '') + ' ' + (sale.change?.toStringAsFixed(2) ?? '0.00');
+    String changeLine = 'Change:'.padRight(30) + (cur?.symbol ?? '') + ' ' + (sale.change?.toStringAsFixed(2) ?? '0.00');
       receiptData.add(LineText(
         type: LineText.TYPE_TEXT,
       content: changeLine,
@@ -552,7 +552,7 @@ class PrinterService extends GetxService {
       ));
     
     // Net Amount - right-align amount
-    String netLine = 'Net Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + netAmount.toStringAsFixed(2);
+    String netLine = 'Net Amount'.padRight(30) + (cur?.symbol ?? '') + ' ' + netAmount.toStringAsFixed(2);
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
       content: netLine,
@@ -562,7 +562,7 @@ class PrinterService extends GetxService {
 
     // VAT with percentage - right-align amount
     if (sale.totalTaxAmount != null && sale.totalTaxAmount! > 0) {
-      String vatLine = 'VAT (${vatPercentage.toStringAsFixed(0)}%)'.padRight(40) + (cur?.symbol ?? '') + ' ' + sale.totalTaxAmount!.toStringAsFixed(2);
+      String vatLine = 'VAT (${vatPercentage.toStringAsFixed(0)}%)'.padRight(30) + (cur?.symbol ?? '') + ' ' + sale.totalTaxAmount!.toStringAsFixed(2);
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
         content: vatLine,
@@ -572,7 +572,7 @@ class PrinterService extends GetxService {
     }
 
     // Gross Amount - right-align amount
-    String grossLine = 'Gross Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + grossAmount.toStringAsFixed(2);
+    String grossLine = 'Gross Amount'.padRight(30) + (cur?.symbol ?? '') + ' ' + grossAmount.toStringAsFixed(2);
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
       content: grossLine,
@@ -620,17 +620,8 @@ class PrinterService extends GetxService {
       }
     }
 
-    receiptData.add(LineText(
-      type: LineText.TYPE_TEXT,
-      content: '\n',
-      align: LineText.ALIGN_CENTER,
-      linefeed: 1,
-    ));
-
     // QR Code
     if(sale.receiptQrCode != null) {
-
-      print("Printing qr code..");
       Uint8List imageBytes = await generateBlueToothQR(sale.receiptQrCode!);
       String qrCode = base64Encode(imageBytes);
       receiptData.add(LineText(
@@ -658,6 +649,19 @@ class PrinterService extends GetxService {
         align: LineText.ALIGN_CENTER,
         linefeed: 1,
       ));
+
+        receiptData.add(LineText(
+          type: LineText.TYPE_TEXT,
+          content: 'Device Serial No: $deviceSerialNo',
+          align: LineText.ALIGN_LEFT,
+          linefeed: 1,
+        ));
+        receiptData.add(LineText(
+          type: LineText.TYPE_TEXT,
+          content: 'Device ID: $deviceId',
+          align: LineText.ALIGN_LEFT,
+          linefeed: 1,
+        ));
     } else if(sale.receiptQrCode==null && waScan){
       Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
       String waQrCode = base64Encode(waImageBytes);
@@ -1632,14 +1636,14 @@ class PrinterService extends GetxService {
 
      // Separator
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-     await SunmiPrinter.printText("------------------------------------------------");
+     await SunmiPrinter.printText("----------------------------------------");
      
      // Items Header - with proper spacing
      String headerLine = 'Description'.padRight(40) + 'Amount';
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
      await SunmiPrinter.printText(headerLine);
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-     await SunmiPrinter.printText("------------------------------------------------");
+     await SunmiPrinter.printText("----------------------------------------");
 
      // Items - description left, amount right-aligned
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
@@ -1656,7 +1660,7 @@ class PrinterService extends GetxService {
 
      // Separator
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-     await SunmiPrinter.printText("------------------------------------------------");
+     await SunmiPrinter.printText("----------------------------------------");
 
      // Payment Types: Total [Currency] [Amount] and [Currency] [PaymentName]
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
@@ -1674,7 +1678,7 @@ class PrinterService extends GetxService {
 
      // Separator
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-     await SunmiPrinter.printText("------------------------------------------------");
+     await SunmiPrinter.printText("----------------------------------------");
 
      // Number of items
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
@@ -1684,8 +1688,8 @@ class PrinterService extends GetxService {
 
      // Separator (double)
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-     await SunmiPrinter.printText("------------------------------------------------");
-     await SunmiPrinter.printText("------------------------------------------------");
+     await SunmiPrinter.printText("----------------------------------------");
+     await SunmiPrinter.printText("----------------------------------------");
 
      // Calculate net and gross amounts
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
