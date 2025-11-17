@@ -785,6 +785,7 @@ class CartController extends GetxController {
         } else {
           SaleInfoModel? infoModel = await getSale(responseFromServerSale.id!);
           if (infoModel != null) {
+            print("receiptQrCode: ${infoModel.sale!.receiptQrCode}");
             saleInfoModel = infoModel;
           } else {
             saleInfoModel =

@@ -1106,6 +1106,7 @@ class PrinterService extends GetxService {
        await SunmiPrinter.printText(sale.receiptQrCode! + "");
      } else if(sale.receiptQrCode==null && waScan){
        Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
        await SunmiPrinter.printImage(waImageBytes);
      }
 

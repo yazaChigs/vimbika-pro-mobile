@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/controller/receive_stock_controller.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/model/transfer_history_model.dart';
 
+import '../../../constants/app_routes.dart';
+
 class ReceiveStockScreen extends StatelessWidget {
   final ReceiveStockController controller = Get.put(ReceiveStockController());
   final TransferHistoryModel transferHistory;
@@ -14,26 +16,33 @@ class ReceiveStockScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Receive Stock"),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.blueGrey[900],
-      ),
-      backgroundColor: Colors.grey[100],
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
-        child: Column(
-          children: [
-            _buildHeader(context),
-            SizedBox(height: 10),
-            Obx(() => _buildReceiveAllToggle()),
-            SizedBox(height: 10),
-            Expanded(child: Obx(() => _buildItemList())),
-            SizedBox(height: 20),
-            _buildReceiveButton(),
-          ],
+    return WillPopScope(
+      onWillPop: () async {
+        // Navigate to a specific screen when back button is pressed
+        Get.offNamed(AppRoutes.STOCK_REQUESTS_MENU); // Replace with your desired route
+        return false; // Prevent default back button behavior
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text("Receive Stock"),
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: Colors.blueGrey[900],
+        ),
+        backgroundColor: Colors.grey[100],
+        body: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+          child: Column(
+            children: [
+              _buildHeader(context),
+              SizedBox(height: 10),
+              Obx(() => _buildReceiveAllToggle()),
+              SizedBox(height: 10),
+              Expanded(child: Obx(() => _buildItemList())),
+              SizedBox(height: 20),
+              _buildReceiveButton(),
+            ],
+          ),
         ),
       ),
     );
