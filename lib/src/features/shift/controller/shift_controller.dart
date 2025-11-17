@@ -207,6 +207,7 @@ class ShiftController extends GetxController {
     try {
       await openShift();
     } catch (e) {
+      e.printError();
       Get.snackbar("Error", "Failed to open shift: ${e.toString()}",
           snackPosition: SnackPosition.BOTTOM);
     } finally {
@@ -252,7 +253,7 @@ class ShiftController extends GetxController {
       if(allReceipts!=null && allReceipts.isNotEmpty) {
         var sale = allReceipts.firstWhere((sale) => currencyAmount.paymentType!.startsWith("CASH-") &&
           (sale.sale?.posReference == currencyAmount.posReference || sale.sale?.referenceNumber == currencyAmount.posReference) &&
-            sale.sale?.currency?.id == currencyId,orElse: () => SaleInfoModel(sale: null,syncStatus: false)).sale;
+            sale.sale?.currency?.id == currencyId && currencyAmount.amountType == "SALE",orElse: () => SaleInfoModel(sale: null,syncStatus: false)).sale;
         if(sale!=null){
           for(PaymentReceivedModel paymentReceived in sale.paymentTypes!){
             if(paymentReceived.paymentType!.name!.startsWith("CASH")){
