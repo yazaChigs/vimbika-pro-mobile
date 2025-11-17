@@ -65,16 +65,24 @@ class TicketFormScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(8.0),
                   child: SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (controller.ticketFormKeyForm.currentState!.validate()) {
-                          controller.ticketFormKeyForm.currentState!.save(); // Save the form fields
-                          controller.showConfirmDialogToSaveItem();
-
-                        }
-                      },
-                      child: Text('SAVE TICKET'),
-                    ),
+                    child: Obx(() => ElevatedButton(
+                      onPressed: controller.isSaving.value 
+                        ? null 
+                        : () {
+                            if (controller.ticketFormKeyForm.currentState!.validate()) {
+                              controller.ticketFormKeyForm.currentState!.save(); // Save the form fields
+                              controller.showConfirmDialogToSaveItem();
+                            }
+                          },
+                      child: Text(
+                        controller.isSaving.value ? 'SAVING...' : 'SAVE TICKET'
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: controller.isSaving.value
+                            ? Colors.grey
+                            : null,
+                      ),
+                    )),
                   ),
                 ),
               ],

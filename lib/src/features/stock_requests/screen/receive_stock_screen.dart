@@ -171,13 +171,17 @@ class ReceiveStockScreen extends StatelessWidget {
 
   /// Modern Receive Button
   Widget _buildReceiveButton() {
-    return ElevatedButton(
-      onPressed: controller.showConfirmDialogToReceiveStock,
+    return Obx(() => ElevatedButton(
+      onPressed: controller.isReceiving.value 
+        ? null 
+        : () => controller.showConfirmDialogToReceiveStock(),
       style: ElevatedButton.styleFrom(
         elevation: 5,
         padding: EdgeInsets.symmetric(horizontal: 30, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-        backgroundColor: Colors.green,
+        backgroundColor: controller.isReceiving.value
+            ? Colors.grey
+            : Colors.green,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -185,11 +189,11 @@ class ReceiveStockScreen extends StatelessWidget {
           Icon(Icons.check, color: Colors.white),
           SizedBox(width: 8),
           Text(
-            "Receive Transfer",
+            controller.isReceiving.value ? "RECEIVING..." : "Receive Transfer",
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
           ),
         ],
       ),
-    );
+    ));
   }
 }

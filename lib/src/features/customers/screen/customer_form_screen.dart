@@ -257,24 +257,27 @@ class CustomerFormScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(8.0),
                   child: SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (controller.formKeyForm.currentState!.validate()) {
-                          controller.formKeyForm.currentState!
-                              .save(); // Save the form fields
-                          if (controller.editCustomer.value)
-                            controller.updateCustomerInfo();
-                          else
-                            controller.saveCustomerInfo();
-                        }
-                      },
-                      child: Text('SAVE CUSTOMER'),
+                    child: Obx(() => ElevatedButton(
+                      onPressed: controller.isSaving.value 
+                        ? null 
+                        : () {
+                            if (controller.formKeyForm.currentState!.validate()) {
+                              controller.formKeyForm.currentState!
+                                  .save(); // Save the form fields
+                              controller.debouncedSaveCustomer();
+                            }
+                          },
+                      child: Text(
+                        controller.isSaving.value ? 'SAVING...' : 'SAVE CUSTOMER'
+                      ),
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.pinkAccent,
+                          backgroundColor: controller.isSaving.value
+                              ? Colors.grey
+                              : Colors.pinkAccent,
                           textStyle: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold)),
-                    ),
+                    )),
                   ),
                 ),
               ],

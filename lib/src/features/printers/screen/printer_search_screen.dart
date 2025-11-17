@@ -94,9 +94,12 @@ class NetworkPrintersScreen extends StatelessWidget {
                               Obx(() => printerController.selectedPrinter.value == printer && printerController.isConnected.isTrue
                                   ? IconButton(
                                 icon: Icon(Icons.save),
-                                onPressed: () {
-                                  printerController.saveSelectedPrinter(printer);
-                                },
+                                onPressed: printerController.isSaving.value
+                                    ? null
+                                    : () {
+                                        printerController.debouncedSaveSelectedPrinter(printer);
+                                      },
+                                tooltip: printerController.isSaving.value ? 'Saving...' : 'Save',
                               )
                                   : SizedBox.shrink(), // Hide if this printer is not connected
                               ),

@@ -1,4 +1,5 @@
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 
@@ -48,6 +49,16 @@ class ShiftController extends GetxController {
   var activeShift = ShiftModel().obs;
   var shiftAvailable = false.obs;
   late GetStorage box;
+
+  // Debouncer for close shift operation
+  Timer? _closeShiftDebouncer;
+  var isClosingShift = false.obs;
+  bool _isClosingShift = false;
+
+  // Debouncer for open shift operation
+  Timer? _openShiftDebouncer;
+  var isOpeningShift = false.obs;
+  bool _isOpeningShift = false;
 
   // This will store the total amounts grouped by currency
   // final List<Map<String, dynamic>> totalAmountsByCurrency = [];
@@ -169,6 +180,39 @@ class ShiftController extends GetxController {
       // Handle error or invalid input
     }
     currencyAmountList[index].amount = amount;
+  }
+
+  // Debounced open shift method
+  void debouncedOpenShift() {
+    _openShiftDebouncer?.cancel();
+    
+    if (_isOpeningShift) {
+      Get.snackbar("Info", "Open shift operation in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
+    _openShiftDebouncer = Timer(Duration(milliseconds: 500), () {
+      _performOpenShift();
+    });
+  }
+
+  // Internal method that performs the actual open shift
+  Future<void> _performOpenShift() async {
+    if (_isOpeningShift) return;
+    
+    _isOpeningShift = true;
+    isOpeningShift.value = true;
+    
+    try {
+      await openShift();
+    } catch (e) {
+      Get.snackbar("Error", "Failed to open shift: ${e.toString()}",
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      _isOpeningShift = false;
+      isOpeningShift.value = false;
+    }
   }
 
   Future<void> openShift() async {
@@ -451,6 +495,13 @@ class ShiftController extends GetxController {
     }
   }
   void showConfirmDialogCloseShift() {
+    // Prevent multiple dialogs
+    if (_isClosingShift) {
+      Get.snackbar("Info", "Close shift operation in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
     Get.defaultDialog(
       title: "Confirmation",
       middleText: "Are you sure you want to proceed?",
@@ -460,10 +511,43 @@ class ShiftController extends GetxController {
         Get.back(); // Close the dialog
       },
       onConfirm: () {
-        closeActiveShift();
-
+        Get.back(); // Close dialog first
+        debouncedCloseShift();
       },
     );
+  }
+
+  // Debounced close shift method to prevent double-clicks
+  void debouncedCloseShift() {
+    _closeShiftDebouncer?.cancel();
+    
+    if (_isClosingShift) {
+      Get.snackbar("Info", "Close shift operation in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
+    _closeShiftDebouncer = Timer(Duration(milliseconds: 500), () {
+      _performCloseShift();
+    });
+  }
+
+  // Internal method that performs the actual close shift
+  Future<void> _performCloseShift() async {
+    if (_isClosingShift) return;
+    
+    _isClosingShift = true;
+    isClosingShift.value = true;
+    
+    try {
+      await closeActiveShift();
+    } catch (e) {
+      Get.snackbar("Error", "Failed to close shift: ${e.toString()}",
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      _isClosingShift = false;
+      isClosingShift.value = false;
+    }
   }
 
   void printShift(ShiftModel shift) async {
@@ -549,4 +633,10 @@ class ShiftController extends GetxController {
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
   }
 
+  @override
+  void onClose() {
+    _closeShiftDebouncer?.cancel();
+    _openShiftDebouncer?.cancel();
+    super.onClose();
+  }
 }

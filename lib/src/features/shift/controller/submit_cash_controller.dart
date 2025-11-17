@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -32,6 +34,11 @@ class SubmitCashController extends GetxController {
   var shiftAvailable = false.obs;
   var cashSubmitCLicked = false.obs;
   late GetStorage box;
+
+  // Debouncer for submit cash operation
+  Timer? _submitCashDebouncer;
+  var isSubmitting = false.obs;
+  bool _isSubmitting = false;
   var totalAmountsByCurrency = <Map<String, dynamic>>[].obs;
   final PrinterService _printerService = Get.put(PrinterService());
   Rx<UserModel?> user = UserModel(firstName: "", lastName: "", userName: "").obs;
@@ -114,6 +121,13 @@ class SubmitCashController extends GetxController {
   }
 
   void showConfirmDialog() {
+    // Prevent multiple dialogs
+    if (_isSubmitting) {
+      Get.snackbar("Info", "Submit cash operation in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
     Get.defaultDialog(
       title: "Confirmation",
       middleText: "Are you sure you want to proceed?",
@@ -123,14 +137,48 @@ class SubmitCashController extends GetxController {
         Get.back(); // Close the dialog
       },
       onConfirm: () {
-        if(cashSubmitCLicked.isFalse) {
-          cashSubmitCLicked.value = true;
-          submitCash();
-          openCashDrawer();
-          Get.snackbar("Confirmed", "Cash submitted successfully");
-        }
+        Get.back(); // Close dialog first
+        debouncedSubmitCash();
       },
     );
+  }
+
+  // Debounced submit cash method
+  void debouncedSubmitCash() {
+    _submitCashDebouncer?.cancel();
+    
+    if (_isSubmitting) {
+      Get.snackbar("Info", "Submit cash operation in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
+    _submitCashDebouncer = Timer(Duration(milliseconds: 500), () {
+      _performSubmitCash();
+    });
+  }
+
+  // Internal method that performs the actual submit cash
+  Future<void> _performSubmitCash() async {
+    if (_isSubmitting) return;
+    
+    _isSubmitting = true;
+    isSubmitting.value = true;
+    
+    try {
+      if(cashSubmitCLicked.isFalse) {
+        cashSubmitCLicked.value = true;
+        await submitCash();
+        await openCashDrawer();
+        Get.snackbar("Confirmed", "Cash submitted successfully");
+      }
+    } catch (e) {
+      Get.snackbar("Error", "Failed to submit cash: ${e.toString()}",
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      _isSubmitting = false;
+      isSubmitting.value = false;
+    }
   }
 
 
@@ -156,5 +204,11 @@ class SubmitCashController extends GetxController {
     Get.put(ShiftController());
     Get.offNamed(AppRoutes.VIEW_SHIFT);
 
+  }
+
+  @override
+  void onClose() {
+    _submitCashDebouncer?.cancel();
+    super.onClose();
   }
 }

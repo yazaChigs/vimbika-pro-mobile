@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -140,6 +141,11 @@ class CartController extends GetxController {
   }
   RxBool zimraFiscalizeReceipt = false.obs;
   Rx<CompanyModel?> company = CompanyModel().obs;
+
+  // Debouncer for charge operation
+  Timer? _chargeDebouncer;
+  var isCharging = false.obs;
+  bool _isCharging = false;
 
   // Text controllers for the add new customer dialog
   final nameController = TextEditingController();
@@ -646,7 +652,40 @@ class CartController extends GetxController {
   }
 
   void showConfirmDialogChargeSale() {
-    chargeSale("COMPLETE", false, "", "", "", cartItems, saleTicketId.value);
+    debouncedChargeSale();
+  }
+
+  // Debounced charge method to prevent double-clicks
+  void debouncedChargeSale() {
+    _chargeDebouncer?.cancel();
+    
+    if (_isCharging) {
+      Get.snackbar("Info", "Charge operation in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
+    _chargeDebouncer = Timer(Duration(milliseconds: 500), () {
+      _performCharge();
+    });
+  }
+
+  // Internal method that performs the actual charge
+  Future<void> _performCharge() async {
+    if (_isCharging) return;
+    
+    _isCharging = true;
+    isCharging.value = true;
+    
+    try {
+      chargeSale("COMPLETE", false, "", "", "", cartItems, saleTicketId.value);
+    } catch (e) {
+      Get.snackbar("Error", "Failed to charge: ${e.toString()}",
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      _isCharging = false;
+      isCharging.value = false;
+    }
   }
 
   List<SaleItemModel> cartItemsToSaleItems(List<CartItemModel> saleCartItems){
@@ -1352,5 +1391,11 @@ class CartController extends GetxController {
     } finally {
       isNfcReading.value = false;
     }
+  }
+
+  @override
+  void onClose() {
+    _chargeDebouncer?.cancel();
+    super.onClose();
   }
 }

@@ -163,12 +163,21 @@ class StockRequestCartScreen extends StatelessWidget {
 
 
                       SizedBox(height: 10),
-                      ElevatedButton(
-                        onPressed: () {
-                          stockRequestController.saveRequest();
-                        },
-                        child: Text('SAVE'),
-                      ),
+                      Obx(() => ElevatedButton(
+                        onPressed: stockRequestController.isSaving.value 
+                          ? null 
+                          : () {
+                              stockRequestController.debouncedSaveRequest();
+                            },
+                        child: Text(
+                          stockRequestController.isSaving.value ? 'SAVING...' : 'SAVE'
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: stockRequestController.isSaving.value
+                              ? Colors.grey
+                              : null,
+                        ),
+                      )),
                     ],
                   ),
                 ),

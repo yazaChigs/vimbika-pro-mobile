@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
@@ -22,6 +23,11 @@ class ReceiveStockController extends GetxController {
   late GetStorage box;
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
   final LocalStorageService _localStorageService = LocalStorageService();
+
+  // Debouncer for receive stock operation
+  Timer? _receiveStockDebouncer;
+  var isReceiving = false.obs;
+  bool _isReceiving = false;
   @override
   Future<void> onInit() async {
     super.onInit();
@@ -104,6 +110,13 @@ class ReceiveStockController extends GetxController {
     }
   }
   void showConfirmDialogToReceiveStock() {
+    // Prevent multiple dialogs
+    if (_isReceiving) {
+      Get.snackbar("Info", "Receive stock operation in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
     Get.defaultDialog(
       title: "Confirmation",
       middleText: "Are you sure you want to proceed?",
@@ -113,9 +126,48 @@ class ReceiveStockController extends GetxController {
         Get.back(); // Close the dialog
       },
       onConfirm: () {
-        receiveStock();
-
+        Get.back(); // Close dialog first
+        debouncedReceiveStock();
       },
     );
+  }
+
+  // Debounced receive stock method
+  void debouncedReceiveStock() {
+    _receiveStockDebouncer?.cancel();
+    
+    if (_isReceiving) {
+      Get.snackbar("Info", "Receive stock operation in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
+    _receiveStockDebouncer = Timer(Duration(milliseconds: 500), () {
+      _performReceiveStock();
+    });
+  }
+
+  // Internal method that performs the actual receive stock
+  Future<void> _performReceiveStock() async {
+    if (_isReceiving) return;
+    
+    _isReceiving = true;
+    isReceiving.value = true;
+    
+    try {
+      await receiveStock();
+    } catch (e) {
+      Get.snackbar("Error", "Failed to receive stock: ${e.toString()}",
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      _isReceiving = false;
+      isReceiving.value = false;
+    }
+  }
+
+  @override
+  void onClose() {
+    _receiveStockDebouncer?.cancel();
+    super.onClose();
   }
 }

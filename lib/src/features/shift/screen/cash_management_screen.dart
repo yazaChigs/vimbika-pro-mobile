@@ -33,32 +33,45 @@ class CashManagementScreen extends StatelessWidget {
                   child: Row(
                     children: [
                       Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            if (controller.formKeyCashForm.currentState!.validate()) {
-                              controller.formKeyCashForm.currentState!.save();
-                              controller.payInPayOut("CASH_IN");
-                            }
-                          },
-                          child: Text('CASH IN'),
-                        ),
+                        child: Obx(() => ElevatedButton(
+                          onPressed: controller.isProcessing.value 
+                            ? null 
+                            : () {
+                                if (controller.formKeyCashForm.currentState!.validate()) {
+                                  controller.formKeyCashForm.currentState!.save();
+                                  controller.debouncedPayInPayOut("CASH_IN");
+                                }
+                              },
+                          child: Text(
+                            controller.isProcessing.value ? 'PROCESSING...' : 'CASH IN'
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: controller.isProcessing.value
+                                ? Colors.grey
+                                : null,
+                          ),
+                        )),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            if (controller.formKeyCashForm.currentState!.validate()) {
-                              controller.formKeyCashForm.currentState!.save();
-
-                                controller.payInPayOut("CASH_OUT");
-                                // if (controller.shouldViewReceipt.value) {
-                                //   controller.viewOrPrintReceipt("CASH_OUT");
-                                // }
-
-                            }
-                          },
-                          child: Text('CASH OUT'),
-                        ),
+                        child: Obx(() => ElevatedButton(
+                          onPressed: controller.isProcessing.value 
+                            ? null 
+                            : () {
+                                if (controller.formKeyCashForm.currentState!.validate()) {
+                                  controller.formKeyCashForm.currentState!.save();
+                                  controller.debouncedPayInPayOut("CASH_OUT");
+                                }
+                              },
+                          child: Text(
+                            controller.isProcessing.value ? 'PROCESSING...' : 'CASH OUT'
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: controller.isProcessing.value
+                                ? Colors.grey
+                                : null,
+                          ),
+                        )),
                       ),
                     ],
                   ),

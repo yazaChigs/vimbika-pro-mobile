@@ -128,15 +128,24 @@ class SubmitCashScreen extends StatelessWidget {
                   ),
                   Padding(
                     padding: const EdgeInsets.all(8.0),
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (formKey.currentState!.validate()) {
-                          controller.showConfirmDialog();
-                        } else {
-                          print("validation error");
-                        }
-                      },
-                      child: Text('SUBMIT CASH'),
+                    child: Obx(() => ElevatedButton(
+                      onPressed: controller.isSubmitting.value 
+                        ? null 
+                        : () {
+                            if (formKey.currentState!.validate()) {
+                              controller.showConfirmDialog();
+                            } else {
+                              print("validation error");
+                            }
+                          },
+                      child: Text(
+                        controller.isSubmitting.value ? 'SUBMITTING...' : 'SUBMIT CASH'
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: controller.isSubmitting.value
+                            ? Colors.grey
+                            : null,
+                      ),
                     ),
                   ),
                   SizedBox(height: 10),

@@ -1607,23 +1607,26 @@ class SaleScreen extends GetView {
                                                   SizedBox(width: 5),
                                                   Expanded(
                                                     child: ElevatedButton(
-                                                      onPressed: () {
-                                                        // ticketController.getTickets();
-                                                        if(!saleController.saveTicketClicked.value) {
-                                                          saleController.saveTicketClicked.value = true;
-                                                          ticketController.ticketActionButton(
-                                                              cartController.selectedCurrency.value!,
-                                                              cartController.cartItems,
-                                                              cartController.selectedCustomer.value!.name !="WalkIn"
-                                                                  ? cartController.selectedCustomer.value!.name.toString()
-                                                                  : "Table ${ticketController.openedTicketsCount + 1}");
-                                                          ticketController.openedTicketsCount - 1;
-                                                          saleController.saveTicketClicked.value = false;
-                                                        }
-                                                      },
+                                                      onPressed: ticketController.isPerformingTicketAction.value
+                                                        ? null
+                                                        : () {
+                                                            // ticketController.getTickets();
+                                                            if(!saleController.saveTicketClicked.value) {
+                                                              saleController.saveTicketClicked.value = true;
+                                                              ticketController.debouncedTicketActionButton(
+                                                                  cartController.selectedCurrency.value!,
+                                                                  cartController.cartItems,
+                                                                  cartController.selectedCustomer.value!.name !="WalkIn"
+                                                                      ? cartController.selectedCustomer.value!.name.toString()
+                                                                      : "Table ${ticketController.openedTicketsCount + 1}");
+                                                              ticketController.openedTicketsCount - 1;
+                                                              saleController.saveTicketClicked.value = false;
+                                                            }
+                                                          },
                                                       style: ElevatedButton.styleFrom(
-                                                        backgroundColor:
-                                                        Colors.deepOrange,
+                                                        backgroundColor: ticketController.isPerformingTicketAction.value
+                                                            ? Colors.grey
+                                                            : Colors.deepOrange,
                                                         padding: EdgeInsets.symmetric(
                                                             vertical: 14.0),
                                                         textStyle: TextStyle(
@@ -1632,12 +1635,12 @@ class SaleScreen extends GetView {
                                                             fontWeight:
                                                             FontWeight.bold),
                                                       ),
-                                                      child: Text(
-                                                        'SAVE',
+                                                      child: Obx(() => Text(
+                                                        ticketController.isPerformingTicketAction.value ? 'SAVING...' : 'SAVE',
                                                         style: TextStyle(
                                                             color: Colors.white,
                                                             fontSize: 18),
-                                                      ),
+                                                      )),
                                                     ),
                                                   ),
                                                 ],
@@ -2258,13 +2261,15 @@ class SaleScreen extends GetView {
                                                   SnackPosition.TOP);
                                               return;
                                             }
-                                            if (!saleController.chargeClicked.value) {
+                                            if (!saleController.chargeClicked.value && !cartController.isCharging.value) {
                                               cartController.showConfirmDialogChargeSale();
                                               saleController.chargeClicked.value = true;
                                             }
                                           },
                                           style: TextButton.styleFrom(
-                                            backgroundColor: Colors.lightGreenAccent[400],
+                                            backgroundColor: cartController.isCharging.value
+                                                ? Colors.grey
+                                                : Colors.lightGreenAccent[400],
                                             // Set button color to red
                                             foregroundColor: Colors.black,
                                             // Set text color to red
@@ -2273,7 +2278,9 @@ class SaleScreen extends GetView {
                                                 color: Colors.white,
                                                 fontWeight: FontWeight.bold), // Set text size
                                           ),
-                                          child: Text('Charge'),
+                                          child: Obx(() => Text(
+                                            cartController.isCharging.value ? 'CHARGING...' : 'Charge'
+                                          )),
                                         ),
                                       )
                                               :Container(
@@ -2293,7 +2300,7 @@ class SaleScreen extends GetView {
                                               return;
                                             }
                                             if (!saleController
-                                                .chargeClicked.value) {
+                                                .chargeClicked.value && !cartController.isCharging.value) {
                                               // cartController.selectedPaymentTypes.add(cartController.selectedPaymentType.value!);
                                               cartController.onChangePaymentType(cartController.filteredPaymentTypesList.firstWhereOrNull((pt)=>pt.name!.startsWith("CASH-"))!, false);
                                               cartController.fiscalizeReceipt.value = false;

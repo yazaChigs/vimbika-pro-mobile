@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
 
@@ -102,6 +103,14 @@ class CustomerController extends GetxController {
   var nfcCardType = "".obs;
   GlobalKey<FormState> formKeyForm = GlobalKey<FormState>();
 
+  // Debouncer for save operations
+  Timer? _saveDebouncer;
+  Timer? _paymentDebouncer;
+  var isSaving = false.obs;
+  var isSavingPayment = false.obs;
+  bool _isSaving = false;
+  bool _isSavingPayment = false;
+
   // NFC Service
   final NfcService _nfcService = Get.put(NfcService());
 
@@ -169,6 +178,39 @@ class CustomerController extends GetxController {
             (map) => PaymentReceivedModel.fromMap(map),
             box);
     return list;
+  }
+
+  // Debounced save customer method
+  void debouncedSaveCustomer() {
+    _saveDebouncer?.cancel();
+    
+    if (_isSaving) {
+      Get.snackbar("Info", "Save operation in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
+    _saveDebouncer = Timer(Duration(milliseconds: 500), () {
+      _performSaveCustomer();
+    });
+  }
+
+  // Internal method that performs the actual save
+  Future<void> _performSaveCustomer() async {
+    if (_isSaving) return;
+    
+    _isSaving = true;
+    isSaving.value = true;
+    
+    try {
+      await saveCustomerInfo();
+    } catch (e) {
+      Get.snackbar("Error", "Failed to save customer: ${e.toString()}",
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      _isSaving = false;
+      isSaving.value = false;
+    }
   }
 
   saveCustomerInfo() async{
@@ -497,6 +539,39 @@ class CustomerController extends GetxController {
     }else{
       Get.snackbar("Error", "Failed to connect to server",
           snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
+  // Debounced save payment method
+  void debouncedSavePayment() {
+    _paymentDebouncer?.cancel();
+    
+    if (_isSavingPayment) {
+      Get.snackbar("Info", "Save payment operation in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
+    _paymentDebouncer = Timer(Duration(milliseconds: 500), () {
+      _performSavePayment();
+    });
+  }
+
+  // Internal method that performs the actual save payment
+  Future<void> _performSavePayment() async {
+    if (_isSavingPayment) return;
+    
+    _isSavingPayment = true;
+    isSavingPayment.value = true;
+    
+    try {
+      await savePayment();
+    } catch (e) {
+      Get.snackbar("Error", "Failed to save payment: ${e.toString()}",
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      _isSavingPayment = false;
+      isSavingPayment.value = false;
     }
   }
 
@@ -990,5 +1065,12 @@ class CustomerController extends GetxController {
         colorText: Colors.white,
       );
     }
+  }
+
+  @override
+  void onClose() {
+    _saveDebouncer?.cancel();
+    _paymentDebouncer?.cancel();
+    super.onClose();
   }
 }

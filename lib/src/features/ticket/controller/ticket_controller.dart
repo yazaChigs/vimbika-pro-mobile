@@ -50,6 +50,14 @@ class TicketController extends GetxController {
   final PrinterService _printerService = Get.put(PrinterService());
   Timer? _syncTimer; // Add a timer variable
 
+  // Debouncer for save operations
+  Timer? _saveDebouncer;
+  Timer? _ticketActionDebouncer;
+  var isSaving = false.obs;
+  var isPerformingTicketAction = false.obs;
+  bool _isSaving = false;
+  bool _isPerformingTicketAction = false;
+
   @override
   Future<void> onInit() async {
     super.onInit();
@@ -73,6 +81,8 @@ class TicketController extends GetxController {
   void onClose() {
     // Cancel the timer when the controller is disposed
     // _syncTimer?.cancel();
+    _saveDebouncer?.cancel();
+    _ticketActionDebouncer?.cancel();
     super.onClose();
   }
 
@@ -130,7 +140,40 @@ class TicketController extends GetxController {
     }).toList();
   }
   void showConfirmDialogToSaveItem() {
-    saveItem();
+    debouncedSaveItem();
+  }
+
+  // Debounced save item method
+  void debouncedSaveItem() {
+    _saveDebouncer?.cancel();
+    
+    if (_isSaving) {
+      Get.snackbar("Info", "Save operation in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
+    _saveDebouncer = Timer(Duration(milliseconds: 500), () {
+      _performSaveItem();
+    });
+  }
+
+  // Internal method that performs the actual save
+  Future<void> _performSaveItem() async {
+    if (_isSaving) return;
+    
+    _isSaving = true;
+    isSaving.value = true;
+    
+    try {
+      saveItem();
+    } catch (e) {
+      Get.snackbar("Error", "Failed to save ticket: ${e.toString()}",
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      _isSaving = false;
+      isSaving.value = false;
+    }
   }
 
   saveItem() {
@@ -159,6 +202,39 @@ class TicketController extends GetxController {
     // Navigator.of(Get.overlayContext!).pop();
     Get.offNamed(AppRoutes.SALE);
 
+  }
+
+  // Debounced ticket action button method
+  void debouncedTicketActionButton(CurrencyModel currency, List<CartItemModel> cartItems, String customerOrTable) {
+    _ticketActionDebouncer?.cancel();
+    
+    if (_isPerformingTicketAction) {
+      Get.snackbar("Info", "Ticket action in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
+    _ticketActionDebouncer = Timer(Duration(milliseconds: 500), () {
+      _performTicketAction(currency, cartItems, customerOrTable);
+    });
+  }
+
+  // Internal method that performs the actual ticket action
+  void _performTicketAction(CurrencyModel currency, List<CartItemModel> cartItems, String customerOrTable) {
+    if (_isPerformingTicketAction) return;
+    
+    _isPerformingTicketAction = true;
+    isPerformingTicketAction.value = true;
+    
+    try {
+      ticketActionButton(currency, cartItems, customerOrTable);
+    } catch (e) {
+      Get.snackbar("Error", "Failed to perform ticket action: ${e.toString()}",
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      _isPerformingTicketAction = false;
+      isPerformingTicketAction.value = false;
+    }
   }
 
   ticketActionButton(CurrencyModel currency, List<CartItemModel> cartItems,String customerOrTable){

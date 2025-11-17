@@ -27,6 +27,11 @@ class SettingsController extends GetxController {
   RxBool isFiscalisationEnabled = false.obs;
   RxBool useNfc = false.obs;
 
+  // Debouncer for save fiscal setting operation
+  Timer? _saveFiscalDebouncer;
+  var isSaving = false.obs;
+  bool _isSaving = false;
+
   @override
   void onInit() {
     super.onInit();
@@ -117,6 +122,39 @@ class SettingsController extends GetxController {
     print(defaultPaymentMethodId);
     paymentTypesList.refresh(); // Notify the UI of changes
   }
+  // Debounced save fiscal setting method
+  void debouncedSaveFiscalSetting() {
+    _saveFiscalDebouncer?.cancel();
+    
+    if (_isSaving) {
+      Get.snackbar("Info", "Save operation in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
+    _saveFiscalDebouncer = Timer(Duration(milliseconds: 500), () {
+      _performSaveFiscalSetting();
+    });
+  }
+
+  // Internal method that performs the actual save
+  void _performSaveFiscalSetting() {
+    if (_isSaving) return;
+    
+    _isSaving = true;
+    isSaving.value = true;
+    
+    try {
+      saveFiscalSetting();
+    } catch (e) {
+      Get.snackbar("Error", "Failed to save settings: ${e.toString()}",
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      _isSaving = false;
+      isSaving.value = false;
+    }
+  }
+
   void saveFiscalSetting() {
     box.write(AppConstants.DEFAULT_FISCAL_SETTING, isFiscalisationEnabled.value);
     // Get.toNamed(AppRoutes.DEFAULT_FISCAL_SETTINGS);
@@ -127,6 +165,12 @@ class SettingsController extends GetxController {
       snackPosition: SnackPosition.BOTTOM,
     );
 
+  }
+
+  @override
+  void onClose() {
+    _saveFiscalDebouncer?.cancel();
+    super.onClose();
   }
 
 }

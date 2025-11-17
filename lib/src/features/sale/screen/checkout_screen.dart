@@ -706,17 +706,20 @@ class CheckoutScreen extends StatelessWidget {
                         }
                       }),
                       SizedBox(height: 10),
-                      ElevatedButton(
-                        onPressed: () {
-                          if (cartController.formKey.currentState!.validate()) {
-                            cartController.formKey.currentState!
-                                .save(); // Save the form fields
-                            cartController.showConfirmDialogChargeSale();
-                          }
-                        },
+                      Obx(() => ElevatedButton(
+                        onPressed: cartController.isCharging.value 
+                          ? null 
+                          : () {
+                              if (cartController.formKey.currentState!.validate()) {
+                                cartController.formKey.currentState!
+                                    .save(); // Save the form fields
+                                cartController.showConfirmDialogChargeSale();
+                              }
+                            },
                         style: TextButton.styleFrom(
-                          backgroundColor: Colors
-                              .lightGreenAccent, // Set button color to red
+                          backgroundColor: cartController.isCharging.value
+                              ? Colors.grey
+                              : Colors.lightGreenAccent, // Set button color to red
                           foregroundColor:
                               Colors.black, // Set text color to red
                           textStyle: TextStyle(
@@ -724,8 +727,10 @@ class CheckoutScreen extends StatelessWidget {
                               color: Colors.white,
                               fontWeight: FontWeight.bold), // Set text size
                         ),
-                        child: Text('Charge'),
-                      ),
+                        child: Text(
+                          cartController.isCharging.value ? 'CHARGING...' : 'Charge'
+                        ),
+                      )),
                       SizedBox(height: 10),
                       ElevatedButton(
                         style: TextButton.styleFrom(

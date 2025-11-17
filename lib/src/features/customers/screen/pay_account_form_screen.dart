@@ -113,22 +113,28 @@ class PayAccountFormScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(8.0),
                   child: SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        print(controller.selectedPaymentType.toJson());
-                        if (controller.selectedCurrency!=null && controller.payAccAmtEditingController.text.isNotEmpty && controller.isPaymentTypeSelected.value) {
-                          // controller.formKeyForm.currentState!.save(); // Save the form fields
-                          controller.savePayment();
-                        }else{
-                          Get.snackbar("Error", "Please select a currency and payment type");
-                        }
-                      },
-                      child: Text('SAVE'),
+                    child: Obx(() => ElevatedButton(
+                      onPressed: controller.isSavingPayment.value 
+                        ? null 
+                        : () {
+                            print(controller.selectedPaymentType.toJson());
+                            if (controller.selectedCurrency!=null && controller.payAccAmtEditingController.text.isNotEmpty && controller.isPaymentTypeSelected.value) {
+                              // controller.formKeyForm.currentState!.save(); // Save the form fields
+                              controller.debouncedSavePayment();
+                            }else{
+                              Get.snackbar("Error", "Please select a currency and payment type");
+                            }
+                          },
+                      child: Text(
+                        controller.isSavingPayment.value ? 'SAVING...' : 'SAVE'
+                      ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
+                        backgroundColor: controller.isSavingPayment.value
+                            ? Colors.grey
+                            : Colors.blue,
                         textStyle: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)
                       ),
-                    ),
+                    )),
                   ),
                 ),
               ],

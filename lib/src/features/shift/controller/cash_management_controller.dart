@@ -1,4 +1,4 @@
-
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -36,6 +36,11 @@ class CashManagementController extends GetxController {
   var cashInClicked = false.obs;
   var cashOutClicked = false.obs;
   var comments = "".obs;
+
+  // Debouncer for pay in/out operations
+  Timer? _payInPayOutDebouncer;
+  var isProcessing = false.obs;
+  bool _isProcessing = false;
   late GetStorage box;
   var shouldViewReceipt = false.obs;
   final PrinterService _printerService = Get.put(PrinterService());
@@ -75,6 +80,39 @@ class CashManagementController extends GetxController {
   onCurrencyChange(CurrencyModel newValue){
     isCurrencySelected.value = true;
     selectedCurrency.value = newValue;
+  }
+
+  // Debounced pay in/out method
+  void debouncedPayInPayOut(String payType) {
+    _payInPayOutDebouncer?.cancel();
+    
+    if (_isProcessing) {
+      Get.snackbar("Info", "Cash operation in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
+    _payInPayOutDebouncer = Timer(Duration(milliseconds: 500), () {
+      _performPayInPayOut(payType);
+    });
+  }
+
+  // Internal method that performs the actual pay in/out
+  void _performPayInPayOut(String payType) {
+    if (_isProcessing) return;
+    
+    _isProcessing = true;
+    isProcessing.value = true;
+    
+    try {
+      payInPayOut(payType);
+    } catch (e) {
+      Get.snackbar("Error", "Failed to process cash operation: ${e.toString()}",
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      _isProcessing = false;
+      isProcessing.value = false;
+    }
   }
 
   payInPayOut(String payType){
@@ -175,6 +213,10 @@ class CashManagementController extends GetxController {
   }
 // Generate a PDF receipt based on transaction type
 
-
+  @override
+  void onClose() {
+    _payInPayOutDebouncer?.cancel();
+    super.onClose();
+  }
 
 }

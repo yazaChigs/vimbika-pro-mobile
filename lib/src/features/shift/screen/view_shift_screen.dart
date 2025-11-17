@@ -104,17 +104,23 @@ class ViewShiftScreen extends StatelessWidget {
                         padding: const EdgeInsets.all(8.0),
                         child: SizedBox(
                           width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              shiftController.showConfirmDialogCloseShift();
-                            },
+                          child: Obx(() => ElevatedButton(
+                            onPressed: shiftController.isClosingShift.value 
+                              ? null 
+                              : () {
+                                  shiftController.showConfirmDialogCloseShift();
+                                },
                             style: TextButton.styleFrom(
-                              backgroundColor: Colors.red, // Set button color to red
+                              backgroundColor: shiftController.isClosingShift.value
+                                  ? Colors.grey
+                                  : Colors.red, // Set button color to red
                               foregroundColor: Colors.white, // Set text color to red
                               textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
                             ),
-                            child: Text('CLOSE SHIFT'),
-                          ),
+                            child: Text(
+                              shiftController.isClosingShift.value ? 'CLOSING...' : 'CLOSE SHIFT'
+                            ),
+                          )),
                         ),
                       ),
                     ),

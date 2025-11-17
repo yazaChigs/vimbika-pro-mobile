@@ -48,6 +48,11 @@ class StockRequestController extends GetxController {
   Rx<CompanyModel?> company = CompanyModel().obs;
   var isBrandSelected = false.obs;
   var isCatSelected = false.obs;
+
+  // Debouncer for save request operation
+  Timer? _saveRequestDebouncer;
+  var isSaving = false.obs;
+  bool _isSaving = false;
   Rx<BaseNameModel?> selectedBrand = BaseNameModel().obs;
   Rx<BaseNameModel?> selectedCategory = BaseNameModel(id: "All Items", name: "All Items").obs;
   final TextEditingController searchTextEditingController = TextEditingController(text: "");
@@ -268,6 +273,39 @@ class StockRequestController extends GetxController {
     }
     //calculateTotalAmounts(cartItems);
     cartItems.refresh();
+  }
+
+  // Debounced save request method
+  void debouncedSaveRequest() {
+    _saveRequestDebouncer?.cancel();
+    
+    if (_isSaving) {
+      Get.snackbar("Info", "Save operation in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
+    _saveRequestDebouncer = Timer(Duration(milliseconds: 500), () {
+      _performSaveRequest();
+    });
+  }
+
+  // Internal method that performs the actual save
+  Future<void> _performSaveRequest() async {
+    if (_isSaving) return;
+    
+    _isSaving = true;
+    isSaving.value = true;
+    
+    try {
+      await saveRequest();
+    } catch (e) {
+      Get.snackbar("Error", "Failed to save request: ${e.toString()}",
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      _isSaving = false;
+      isSaving.value = false;
+    }
   }
 
   saveRequest() async{
@@ -518,5 +556,9 @@ class StockRequestController extends GetxController {
 
   }
 
-
+  @override
+  void onClose() {
+    _saveRequestDebouncer?.cancel();
+    super.onClose();
+  }
 }

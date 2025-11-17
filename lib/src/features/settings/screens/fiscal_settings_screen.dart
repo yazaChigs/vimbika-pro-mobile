@@ -44,14 +44,22 @@ class FiscalSettingsScreen extends StatelessWidget {
             // Save Button
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  // Action to save settings
-                  controller.saveFiscalSetting();
-
-                },
-                child: Text('Save'),
-              ),
+              child: Obx(() => ElevatedButton(
+                onPressed: controller.isSaving.value 
+                  ? null 
+                  : () {
+                      // Action to save settings
+                      controller.debouncedSaveFiscalSetting();
+                    },
+                child: Text(
+                  controller.isSaving.value ? 'SAVING...' : 'Save'
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: controller.isSaving.value
+                      ? Colors.grey
+                      : null,
+                ),
+              )),
             ),
           ],
         ),

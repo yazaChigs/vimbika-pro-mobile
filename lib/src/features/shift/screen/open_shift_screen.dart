@@ -137,17 +137,26 @@ class OpenShiftScreen extends StatelessWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (formKey.currentState!.validate()) {
-                        // Handle the logic to save or process multiple currency amounts
-                        shiftController.openShift();
-                      } else {
-                        print("validation error");
-                      }
-                    },
-                    child: Text('OPEN SHIFT'),
-                  ),
+                  child: Obx(() => ElevatedButton(
+                    onPressed: shiftController.isOpeningShift.value 
+                      ? null 
+                      : () {
+                          if (formKey.currentState!.validate()) {
+                            // Handle the logic to save or process multiple currency amounts
+                            shiftController.debouncedOpenShift();
+                          } else {
+                            print("validation error");
+                          }
+                        },
+                    child: Text(
+                      shiftController.isOpeningShift.value ? 'OPENING...' : 'OPEN SHIFT'
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: shiftController.isOpeningShift.value
+                          ? Colors.grey
+                          : null,
+                    ),
+                  )),
                 ),
                 SizedBox(height: 10),
               ],

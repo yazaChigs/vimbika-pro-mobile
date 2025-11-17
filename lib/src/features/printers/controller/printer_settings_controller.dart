@@ -30,6 +30,11 @@ class PrinterSettingsController extends GetxController {
   RxBool isAlwaysPrintEnabled = false.obs;
   RxBool useKOT = false.obs;
 
+  // Debouncer for save printer operation
+  Timer? _savePrinterDebouncer;
+  var isSaving = false.obs;
+  bool _isSaving = false;
+
   PrinterManager _printerManager = PrinterManager.instance;
   var isConnected = false.obs; // Add this to track connection status
   RxList<AvailablePrinterModel> availablePrinters = <AvailablePrinterModel>[].obs;
@@ -302,6 +307,39 @@ class PrinterSettingsController extends GetxController {
     Get.snackbar('Success', 'Printer disconnected successfully');
   }
 
+
+// Debounced save selected printer method
+  void debouncedSaveSelectedPrinter(PrinterDevice printer) {
+    _savePrinterDebouncer?.cancel();
+    
+    if (_isSaving) {
+      Get.snackbar("Info", "Save printer operation in progress...",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
+    _savePrinterDebouncer = Timer(Duration(milliseconds: 500), () {
+      _performSaveSelectedPrinter(printer);
+    });
+  }
+
+  // Internal method that performs the actual save
+  Future<void> _performSaveSelectedPrinter(PrinterDevice printer) async {
+    if (_isSaving) return;
+    
+    _isSaving = true;
+    isSaving.value = true;
+    
+    try {
+      await saveSelectedPrinter(printer);
+    } catch (e) {
+      Get.snackbar("Error", "Failed to save printer: ${e.toString()}",
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      _isSaving = false;
+      isSaving.value = false;
+    }
+  }
 
 // Save the selected printer
   Future<void> saveSelectedPrinter(PrinterDevice printer) async {
@@ -610,6 +648,12 @@ class PrinterSettingsController extends GetxController {
     await bluetoothPrint.printReceipt(config, list);
   }
 
+  @override
+  void onClose() {
+    _savePrinterDebouncer?.cancel();
+    super.onClose();
   }
+
+}
 
 
