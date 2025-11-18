@@ -302,7 +302,7 @@ class SyncService {
         AppConstants.PAYMENT_RECEIVED_LIST,
             (map) => PaymentReceivedModel.fromMap(map),
         box);
-    payments = payments.where((customer) => customer.id == null).toList();
+    payments = payments.where((payment) => payment.id == null).toList();
     for(PaymentReceivedModel paymentsModel in payments) {
       String jsonSaleItems = paymentsModel.toJson();
       var response = await BaseHttpClient()

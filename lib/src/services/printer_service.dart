@@ -1542,15 +1542,18 @@ class PrinterService extends GetxService {
      // Header - Logo
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
      await SunmiPrinter.printImage(imageBytes); // Directly print the image bytes
+     await SunmiPrinter.printText("\n");
 
      // Company Name and Branch
      String companyName = company?.name ?? '';
      String branchName = branch?.name ?? '';
      if (companyName.isNotEmpty && branchName.isNotEmpty) {
        await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-       await SunmiPrinter.printText("$companyName - $branchName");
+       await SunmiPrinter.printText("$companyName");
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+       await SunmiPrinter.printText("$branchName");
      } else if (companyName.isNotEmpty) {
-       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+       await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
        await SunmiPrinter.printText(companyName);
      }
 
@@ -1574,7 +1577,8 @@ class PrinterService extends GetxService {
        List<String> companyAddressParts = [];
        if (company?.street != null && company!.street!.isNotEmpty) companyAddressParts.add(company.street!);
        if (company?.stateProvince != null && company!.stateProvince!.isNotEmpty) companyAddressParts.add(company.stateProvince!);
-       if (company?.city != null && company!.city!.isNotEmpty) companyAddressParts.add(company.city!);
+       if (company?.city != null && company!.city!.isNotEmpty) companyAddressParts.add(
+           "\n${company.city!}");
        if (companyAddressParts.isNotEmpty) {
          address = companyAddressParts.join(' ');
        }
@@ -1602,7 +1606,7 @@ class PrinterService extends GetxService {
        // Error reading company data - continue
      }
 
-     await SunmiPrinter.printText("\n");
+     // await SunmiPrinter.printText("\n");
 
      // Receipt by
      if (sale.cashierFullName != null && sale.cashierFullName!.isNotEmpty) {
@@ -1610,7 +1614,7 @@ class PrinterService extends GetxService {
        await SunmiPrinter.printText("Receipt by: ${sale.cashierFullName}");
      }
 
-     await SunmiPrinter.printText("\n");
+     // await SunmiPrinter.printText("\n");
 
      // Title: SALES RECEIPT or FISCAL TAX INVOICE
      String title = sale.fiscalized == true ? 'FISCAL TAX INVOICE' : 'SALES RECEIPT';
@@ -1618,7 +1622,7 @@ class PrinterService extends GetxService {
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
      await SunmiPrinter.printText(title);
      await SunmiPrinter.resetFontSize();
-     await SunmiPrinter.printText("\n");
+     // await SunmiPrinter.printText("\n");
 
      // Invoice No
      if (sale.referenceNumber != null && sale.referenceNumber!.isNotEmpty) {
@@ -1632,18 +1636,18 @@ class PrinterService extends GetxService {
        await SunmiPrinter.printText("Date: ${sale.timeIniated}");
      }
 
-     await SunmiPrinter.printText("\n");
+     // await SunmiPrinter.printText("\n");
 
      // Separator
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-     await SunmiPrinter.printText("----------------------------------------");
+     await SunmiPrinter.printText("---------------------------");
      
      // Items Header - with proper spacing
-     String headerLine = 'Description'.padRight(40) + 'Amount';
+     String headerLine = 'Description'.padRight(25) + 'Amount';
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
      await SunmiPrinter.printText(headerLine);
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-     await SunmiPrinter.printText("----------------------------------------");
+     await SunmiPrinter.printText("---------------------------");
 
      // Items - description left, amount right-aligned
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
@@ -1654,13 +1658,13 @@ class PrinterService extends GetxService {
        String amountStr = total.toStringAsFixed(2);
        
        // Format: Description left-padded to 40 chars, then amount
-       String itemLine = itemName.padRight(40) + amountStr;
+       String itemLine = itemName.padRight(25) + amountStr;
        await SunmiPrinter.printText(itemLine);
      }
 
      // Separator
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-     await SunmiPrinter.printText("----------------------------------------");
+     await SunmiPrinter.printText("---------------------------");
 
      // Payment Types: Total [Currency] [Amount] and [Currency] [PaymentName]
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
@@ -1668,28 +1672,27 @@ class PrinterService extends GetxService {
        String currencySymbol = paymentType.currency?.symbol ?? cur?.symbol ?? '';
        double amount = (paymentType.amount ?? 0.0) * (paymentType.currency?.rate ?? cur?.rate ?? 1.0);
        String paymentName = paymentType.paymentType?.name ?? '';
-       String totalLine = 'Total $currencySymbol'.padRight(40) + amount.toStringAsFixed(2);
+       String totalLine = 'Total'.padRight(22) +' $currencySymbol '+ amount.toStringAsFixed(2);
        await SunmiPrinter.printText(totalLine);
        if (paymentName.isNotEmpty) {
-         String paymentLine = '$currencySymbol $paymentName'.padRight(40) + amount.toStringAsFixed(2);
+         String paymentLine = '$paymentName'.padRight(22) + '$currencySymbol '+amount.toStringAsFixed(2);
          await SunmiPrinter.printText(paymentLine);
        }
      }
 
      // Separator
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-     await SunmiPrinter.printText("----------------------------------------");
+     await SunmiPrinter.printText("---------------------------");
 
      // Number of items
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
      int itemCount = sale.items?.length ?? 0;
-     String itemsLine = 'Number of items'.padRight(40) + itemCount.toString();
+     String itemsLine = 'Number of items'.padRight(25) + itemCount.toString();
      await SunmiPrinter.printText(itemsLine);
 
      // Separator (double)
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-     await SunmiPrinter.printText("----------------------------------------");
-     await SunmiPrinter.printText("----------------------------------------");
+     await SunmiPrinter.printText("---------------------------");
 
      // Calculate net and gross amounts
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
@@ -1698,25 +1701,25 @@ class PrinterService extends GetxService {
      double vatPercentage = grossAmount > 0 ? (sale.totalTaxAmount ?? 0.0) / grossAmount * 100 : 0.0;
      
      // Amount Paid - right-align amount
-     String amountPaidLine = 'Amount Paid'.padRight(40) + (cur?.symbol ?? '') + ' ' + (sale.amountPaid?.toStringAsFixed(2) ?? '0.00');
+     String amountPaidLine = 'Amount Paid'.padRight(22) + (cur?.symbol ?? '') + ' ' + (sale.amountPaid?.toStringAsFixed(2) ?? '0.00');
      await SunmiPrinter.printText(amountPaidLine);
      
      // Change - right-align amount
-     String changeLine = 'Change:'.padRight(40) + (cur?.symbol ?? '') + ' ' + (sale.change?.toStringAsFixed(2) ?? '0.00');
+     String changeLine = 'Change:'.padRight(22) + (cur?.symbol ?? '') + ' ' + (sale.change?.toStringAsFixed(2) ?? '0.00');
      await SunmiPrinter.printText(changeLine);
      
      // Net Amount - right-align amount
-     String netLine = 'Net Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + netAmount.toStringAsFixed(2);
+     String netLine = 'Net Amount'.padRight(22) + (cur?.symbol ?? '') + ' ' + netAmount.toStringAsFixed(2);
      await SunmiPrinter.printText(netLine);
      
      // VAT with percentage - right-align amount
      if (sale.totalTaxAmount != null && sale.totalTaxAmount! > 0) {
-       String vatLine = 'VAT (${vatPercentage.toStringAsFixed(0)}%)'.padRight(40) + (cur?.symbol ?? '') + ' ' + sale.totalTaxAmount!.toStringAsFixed(2);
+       String vatLine = 'VAT (${sale.totalTaxAmount!>0?15:0.0}%)'.padRight(22) + (cur?.symbol ?? '') + ' ' + sale.totalTaxAmount!.toStringAsFixed(2);
        await SunmiPrinter.printText(vatLine);
      }
      
      // Gross Amount - right-align amount
-     String grossLine = 'Gross Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + grossAmount.toStringAsFixed(2);
+     String grossLine = 'Gross Amount'.padRight(22) + (cur?.symbol ?? '') + ' ' + grossAmount.toStringAsFixed(2);
      await SunmiPrinter.printText(grossLine);
      if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false))
        {
@@ -1727,6 +1730,7 @@ class PrinterService extends GetxService {
                  .balance!
                  .toStringAsFixed(2)}");
        }
+     await SunmiPrinter.printText("\n");
 
 
 
@@ -1745,6 +1749,7 @@ class PrinterService extends GetxService {
        Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
        await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
        await SunmiPrinter.printImage(waImageBytes);
+       await SunmiPrinter.printText("\n");
      }
 
      // Fiscal Device details (from backend format - if fiscalized)

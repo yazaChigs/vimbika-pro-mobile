@@ -18,13 +18,6 @@ class FiscalSettingsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Section Header
-            // Text(
-            //   'Fiscal Settings',
-            //   style: Theme.of(context).textTheme.displayLarge,
-            // ),
-            // SizedBox(height: 16),
-
             // Checkbox
             Obx(() => CheckboxListTile(
               title: Text(

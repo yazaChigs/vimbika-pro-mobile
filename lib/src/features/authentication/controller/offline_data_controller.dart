@@ -286,9 +286,7 @@ class OfflineDataController extends GetxController {
     });
 
     if(response != null) {
-      print("printing response");
       if(response.toString().length >0) {
-        print("fiscal device available");
         FiscalDeviceModel itemConverted = FiscalDeviceModel.fromJson(response);
         box.write(AppConstants.FISCAL_DEVICE, itemConverted.toMap());
         box.write(AppConstants.IS_FISCALISATION_ENABLED, true);

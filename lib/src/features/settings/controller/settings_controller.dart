@@ -157,7 +157,6 @@ class SettingsController extends GetxController {
 
   void saveFiscalSetting() {
     box.write(AppConstants.DEFAULT_FISCAL_SETTING, isFiscalisationEnabled.value);
-    // Get.toNamed(AppRoutes.DEFAULT_FISCAL_SETTINGS);
     Get.back();
     Get.snackbar(
       'Settings Saved',

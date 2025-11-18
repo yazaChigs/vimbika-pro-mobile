@@ -4,12 +4,14 @@ class BranchModel {
   BranchModel({
     this.id,
     this.name,
-    this.isWarehouse
+    this.isWarehouse,
+    this.alwaysFiscalize,
   });
 
   String? id;
   String? name;
   bool? isWarehouse;
+  bool? alwaysFiscalize;
 
   factory BranchModel.fromJson(String str) => BranchModel.fromMap(json.decode(str));
 
@@ -19,11 +21,13 @@ class BranchModel {
     id: json["id"],
     name: json["name"],
     isWarehouse: json["isWarehouse"],
+    alwaysFiscalize: json["alwaysFiscalize"],
   );
 
   Map<String, dynamic> toMap() => {
     "id": id,
     "name": name,
     "isWarehouse": isWarehouse,
+    "alwaysFiscalize": alwaysFiscalize,
   };
 }

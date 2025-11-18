@@ -28,6 +28,7 @@ import '../../../utils/app_helper.dart';
 import '../../sale/controller/cart_controller.dart';
 import '../../../services/nfc_service.dart';
 import '../../../constants/app_routes.dart';
+import '../../shift/controller/shift_controller.dart';
 
 class CustomerProjectionModel {
   CustomerProjectionModel(
@@ -132,8 +133,6 @@ class CustomerController extends GetxController {
           customers.where((cus) => cus.branch != null && cus.branch!.name == branch!.name).toList();
     } else
       filteredCustomers.value = customers;
-    List<PaymentReceivedModel> paymentReceiveds = loadPaymentReceived(box);
-    paymentReceivedList.value = paymentReceiveds;
 
     getOfflineCurrencyList(box);
     List<PaymentTypeModel> tempList = getOfflinePaymentTypeList(box);
@@ -578,6 +577,8 @@ class CustomerController extends GetxController {
   savePayment() async {
     CustomerModel customer = selectedCustomer.value!;
     cartController.selectedCustomer.value = selectedCustomer.value;
+    List<PaymentReceivedModel> paymentReceiveds = loadPaymentReceived(box);
+    paymentReceivedList.value = paymentReceiveds;
     GetStorage bb = GetStorage();
     onCurrencyChange(selectedCurrency.value!);
      var ref = AppConstants.getDateNowRef("OFF", 1);
@@ -595,7 +596,6 @@ class CustomerController extends GetxController {
       paymentDescription: "PAY_ACCOUNT",
         accountType: "CUSTOMER_ACCOUNT"
     );
-    print(paymentReceivedModel.bank!.toJson());
     List<PaymentReceivedModel> prlist = paymentReceivedList.value;
     prlist.add(paymentReceivedModel);
     paymentReceivedList.value = prlist;
@@ -635,6 +635,8 @@ class CustomerController extends GetxController {
     selectedCustomer.value = CustomerModel();
     amountPaidTextEditingController.clear();
     // clearForm();
+    Get.delete<ShiftController>();
+    Get.reload();
     payAccAmtEditingController.clear();
     if(isInternetAccess.value){
       await SyncService.savePaymentReceived(user, box);

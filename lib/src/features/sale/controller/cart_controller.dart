@@ -118,16 +118,17 @@ class CartController extends GetxController {
   RxBool rearScreenAvailable = false.obs; // Observing the state of the checkbox
   RxBool addAmtToAcc = false.obs; // Observing the state of the checkbox
   late SettingsModel settingsModel = SettingsModel(sellNilItems: false);
-  RxBool isFiscaliseReceiptEnabled = true.obs;
+  RxBool isFiscaliseReceiptEnabled = false.obs;
   RxBool isCustomerEmailValid = false.obs;
   RxBool emailReceipt = false.obs;
   RxBool fiscalizeReceipt = false.obs;
+  RxBool zimraFiscalizeReceipt = false.obs;
   
   // Method to check and update fiscal status from storage (similar to web version)
   void checkFiscalDeviceStatus() {
     final fiscalStatus = box.read(AppConstants.IS_FISCALISATION_ENABLED) ?? false;
     final deviceFiscalSetting = box.read(AppConstants.DEFAULT_FISCAL_SETTING) ?? false;
-    
+
     if (fiscalStatus != fiscalizeReceipt.value) {
       fiscalizeReceipt.value = fiscalStatus;
       if (fiscalStatus && deviceFiscalSetting) {
@@ -139,7 +140,6 @@ class CartController extends GetxController {
       }
     }
   }
-  RxBool zimraFiscalizeReceipt = false.obs;
   Rx<CompanyModel?> company = CompanyModel().obs;
 
   // Debouncer for charge operation
@@ -197,23 +197,23 @@ class CartController extends GetxController {
     var model = box.read(AppConstants.USER_INFO) ?? {};
     user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
     isUserSelected.value = true;
+    var branchModel = box.read(AppConstants.SELECTED_BRANCH) ?? {};
+    branch.value = BranchModel.fromMap(Map<String, dynamic>.from(branchModel));
 
     // syncOfflineSales();
     var fiscalStatus = box.read(AppConstants.IS_FISCALISATION_ENABLED) ?? false;
     var deviceFiscalSetting =
         box.read(AppConstants.DEFAULT_FISCAL_SETTING) ?? false;
-    if (fiscalStatus) {
-      fiscalizeReceipt.value = true;
-      if (deviceFiscalSetting) {
-        isFiscaliseReceiptEnabled.value = true;
-        zimraFiscalizeReceipt.value = true;
-      } else {
-        isFiscaliseReceiptEnabled.value = false;
-        zimraFiscalizeReceipt.value = false;
+    if(fiscalStatus) {
+      zimraFiscalizeReceipt.value = branch.value!.alwaysFiscalize ?? false;
+      isFiscaliseReceiptEnabled.value = deviceFiscalSetting;
+      if (zimraFiscalizeReceipt.isFalse) {
+        zimraFiscalizeReceipt.value = deviceFiscalSetting;
       }
-    } else {
-      fiscalizeReceipt.value = false;
+    }else{
+      zimraFiscalizeReceipt.value = false;
       isFiscaliseReceiptEnabled.value = false;
+      fiscalizeReceipt.value = false;
     }
     tipAmtTextEditingController.text = "0.00";
     amtToAccTextEditingController.text = "0.00";
@@ -222,9 +222,6 @@ class CartController extends GetxController {
     var settings = box.read(AppConstants.COMPANY_SETTINGS) ?? {};
     settingsModel = SettingsModel.fromMap(Map<String, dynamic>.from(settings));
     sellNilItems = settingsModel.sellNilItems ?? false;
-
-    var branchModel = box.read(AppConstants.SELECTED_BRANCH) ?? {};
-    branch.value = BranchModel.fromMap(Map<String, dynamic>.from(branchModel));
     List<UserModel> tempUserList = loadUsers(box);
     userList.value = tempUserList;
     List<ShiftModel> tempShiftList = loadShifts(box);
@@ -516,7 +513,7 @@ class CartController extends GetxController {
   calculateTotalAmounts(List<CartItemModel> items) {
     double totalCostInBCurrency =
         items.fold(0.0, (sum, item) => sum + item.totalPrice);
-    double? rate = selectedCurrency.value?.rate! ?? 1;
+    double? rate = selectedCurrency.value?.rate ?? 1;
     totalCostInBaseCurrency.value = totalCostInBCurrency;
     totalCostInSelectedCurrency.value = totalCostInBCurrency * rate;
     totalTaxInBaseCurrency.value =
@@ -705,10 +702,8 @@ class CartController extends GetxController {
         quantity: cartItem.quantity,
         total: cartItem.totalPrice * rate,
         baseCurrencyTotal: cartItem.totalPrice,
-        taxAmount:
-        double.parse((cartItem.totalTaxAmount * rate).toStringAsFixed(2)),
-        baseTaxAmount:
-        double.parse(cartItem.totalTaxAmount.toStringAsFixed(2)),
+        taxAmount: double.parse((cartItem.totalTaxAmount * rate).toStringAsFixed(2)),
+        baseTaxAmount:double.parse(cartItem.totalTaxAmount.toStringAsFixed(2)),
         inventoryItem: productItem,
         branch: branch.value,
         usedCodesString: cartItem.usedCodes);
@@ -808,8 +803,8 @@ class CartController extends GetxController {
         posReference: ref,
         customer: isWalkIn ? null : selectedCustomer.value,
         isWalkInCustomer: isWalkIn,
-        taxInvoice: isFiscaliseReceiptEnabled.value,
-        fiscalized: zimraFiscalizeReceipt.value,
+        taxInvoice: zimraFiscalizeReceipt.value,
+        fiscalized: false,
         emailReceipt: emailReceipt.value,
         totalDiscount: 0,
         ticketName: ticketName,
@@ -839,9 +834,11 @@ class CartController extends GetxController {
           saleInfoModel =
               SaleInfoModel(sale: responseFromServerSale, syncStatus: true);
         } else {
-          SaleInfoModel? infoModel = await getSale(responseFromServerSale.id!);
+          SaleInfoModel? infoModel;
+          if(isFiscaliseReceiptEnabled.value) {
+            infoModel = await getSale(responseFromServerSale.id!);
+          }
           if (infoModel != null) {
-            print("receiptQrCode: ${infoModel.sale!.receiptQrCode}");
             saleInfoModel = infoModel;
           } else {
             saleInfoModel =
