@@ -22,6 +22,7 @@ import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
 import '../../../services/sync_service.dart';
+import '../../shift/controller/shift_controller.dart';
 import '../../shift/model/shift_model.dart';
 import '../screen/receipt_screen.dart';
 
@@ -201,16 +202,18 @@ class ReceiptController extends GetxController {
       saveSales();
       allReceipts.refresh();
       filteredReceipts.refresh();
-      var currencyAmount = activeShift.value.shiftCurrencyAmounts!
-          .firstWhereOrNull((element) =>
+      List<CurrencyAmount> currencyAmount = activeShift.value.shiftCurrencyAmounts!
+          .where((element) =>
               element.posReference == saleInfo.sale!.posReference ||
-              element.posReference == saleInfo.sale!.referenceNumber);
-      if (currencyAmount != null) {
-        activeShift.value.shiftCurrencyAmounts?.remove(currencyAmount);
+              element.posReference == saleInfo.sale!.referenceNumber).toList();
+      if (currencyAmount.isNotEmpty) {
+        activeShift.value.shiftCurrencyAmounts?.removeWhere((ca)=>currencyAmount.contains(ca));
         ShiftModel temp = activeShift.value;
         List<ShiftModel> shi = _localStorageService.replaceShift(temp, shifts);
         _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
       }
+      Get.delete<ShiftController>();
+      Get.reload();
       AppHelper.hideLoading();
       Get.snackbar("Success", "Sale reversed");
     }

@@ -774,6 +774,10 @@ class CartController extends GetxController {
     String fullName = user.value!.firstName + " " + user.value!.lastName;
     var saleTotal =
         saleItems.fold<double>(0.0, (sum, item) => sum + item.total!);
+    if(amtToAccTextEditingController.text.isEmpty)
+      amtToAccTextEditingController.text = "0.00";
+    if(tipAmtTextEditingController.text.isEmpty)
+      tipAmtTextEditingController.text = "0.00";
     SaleModel sale = SaleModel(
         id: saleTicketId.value.length > 2 ? saleTicketId.value : null,
         active: true,
