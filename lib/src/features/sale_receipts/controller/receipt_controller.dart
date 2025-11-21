@@ -21,9 +21,14 @@ import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
+import '../../../services/background_service.dart';
 import '../../../services/sync_service.dart';
+import '../../customers/controller/customer_controller.dart';
+import '../../sale/controller/cart_controller.dart';
+import '../../sale/controller/sale_controller.dart';
 import '../../shift/controller/shift_controller.dart';
 import '../../shift/model/shift_model.dart';
+import '../../ticket/controller/ticket_controller.dart';
 import '../screen/receipt_screen.dart';
 
 
@@ -33,6 +38,7 @@ class ReceiptController extends GetxController {
   RxList<SaleInfoModel> allReceipts = <SaleInfoModel>[].obs;
   RxList<SaleInfoModel> tickets = <SaleInfoModel>[].obs;
   RxList<SaleInfoModel> filteredReceipts = <SaleInfoModel>[].obs;
+  RxList<SaleInfoModel> offlineSales = <SaleInfoModel>[].obs;
   Rx<String> searchQuery = "".obs;
   var isInternetAccess = false.obs;
   late GetStorage box;
@@ -85,7 +91,36 @@ class ReceiptController extends GetxController {
   }
 
   refreshFilter() async {
+    AppHelper.showLoading();
+    var syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;;
+    while(syncing){
+      print("waiting for sync...");
+      syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;
+      if(syncing)
+        await Future.delayed(Duration(seconds: 1));
+    }
+    List<SaleInfoModel> allSales = getExistingOfflineSales(box);
+    offlineSales.value = allSales.where((sale)=> sale.syncStatus == false).toList();
+    bool stat = await _connectivityService.checkServerConnection();
+    if(user.id.isNullOrBlank!){
+      var model = box.read(AppConstants.USER_INFO) ?? {};
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+    }
+    if(stat || (!stat && offlineSales.isEmpty) ) {
+      if(stat){
+        if(!offlineSales.isEmpty)
+          await BackgroundService().syncOfflineSales(false);
+        await SyncService.savePaymentReceived(user, box);
+        await SyncService.saveCustomer(user, box);
+      }
+      SyncService.syncOfflineShifts(user, box);
+      refreshPages();
+    }
+    else {
+      Get.snackbar("Error", "You have unsynced sales. Please sync them before closing the shift", snackPosition: SnackPosition.BOTTOM,backgroundColor: Colors.red, colorText: Colors.white);
+    }
     await getSalesByDate(todayDate.value, todayDate.value, "", branch.value!.id!);
+    AppHelper.hideLoading();
   }
   cancelFilter(){
     startDate.value = "";
@@ -94,6 +129,19 @@ class ReceiptController extends GetxController {
     selectedCategory.value = BaseNameModel();
     startDateController.text = "";
     endDateController.text = "";
+  }
+
+
+  refreshPages() {
+    Get.delete<SaleController>();
+    Get.delete<CartController>();
+    Get.delete<ShiftController>();
+    Get.delete<ReceiptController>();
+    Get.delete<TicketController>();
+    Get.delete<CustomerController>();
+    Navigator.pushReplacement(Get.context!,
+        MaterialPageRoute(builder: (BuildContext context) => ReceiptScreen()));
+    Get.reload();
   }
 
   List<ShiftModel> loadShifts( GetStorage box) {
@@ -202,6 +250,11 @@ class ReceiptController extends GetxController {
       saveSales();
       allReceipts.refresh();
       filteredReceipts.refresh();
+      ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
+          loadShifts(box), box, user, true);
+      if (tempActiveShift != null) {
+        activeShift.value = tempActiveShift;
+      }
       List<CurrencyAmount> currencyAmount = activeShift.value.shiftCurrencyAmounts!
           .where((element) =>
               element.posReference == saleInfo.sale!.posReference ||

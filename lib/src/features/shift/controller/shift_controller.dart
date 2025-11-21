@@ -421,9 +421,6 @@ class ShiftController extends GetxController {
     });
   }
 
-
-
-
   closeShift(){
     ShiftModel temp  = activeShift.value;
     DateTime now = DateTime.now();

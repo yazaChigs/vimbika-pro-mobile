@@ -348,7 +348,6 @@ class CartController extends GetxController {
 
   reGetCustomers() {
     List<CustomerModel> newCustomers = loadCustomers(box);
-    print("New Customers: ${newCustomers.length}");
     if (newCustomers.isNotEmpty && allCustomers.length < newCustomers.length) {
       allCustomers.value = newCustomers;
 
@@ -371,7 +370,6 @@ class CartController extends GetxController {
     } else {
       allCustomers.value = newCustomers;
     }
-    print("All Customers: ${allCustomers.length}");
   }
 
   onCustomerChange(CustomerModel? newValue) {
@@ -828,7 +826,13 @@ class CartController extends GetxController {
       writeSaleInfor(box, infos);
       String ref  = generateOrderNumber();
       printTicket(saleInfoModel, ref);
-
+    }
+    var syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;;
+    while(syncing){
+      print("waiting for sync...");
+      syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;
+      if(syncing)
+        await Future.delayed(Duration(seconds: 1));
     }
     if (stat && isFiscaliseReceiptEnabled.value && !isOnHold) {
       SaleModel? responseFromServerSale =
@@ -1014,9 +1018,10 @@ class CartController extends GetxController {
   String generateOrderNumber() {
     final NumberFormat formatter = NumberFormat('000');
     final NumberFormat dateFormatter = NumberFormat('00');
-    String ref  = "${dateFormatter.format(DateTime.now().day)}${formatter.format((activeShift.kotNumber??0)+1)}";
-    List<ShiftModel> updatedShifts = _localStorageService.replaceShift(activeShift, shiftList);
-    _localStorageService.writeItems(AppConstants.SHIFT_LIST, updatedShifts, box);
+    var kotNumber = box.read(AppConstants.KOT_NUMBER);
+    String ref  = "${dateFormatter.format(DateTime.now().day)}${formatter.format((kotNumber??0)+1)}";
+    kotNumber==null?kotNumber = 0:kotNumber++;
+    box.write(AppConstants.KOT_NUMBER, kotNumber);
     return ref;
   }
 
@@ -1060,7 +1065,7 @@ class CartController extends GetxController {
         String ref = AppConstants.getDateNowRef("SL_", count);
         CurrencyAmount currencyAmount = CurrencyAmount(
             currency: selectedCurrency.value!,
-            amountType: paymentTypeModel.branch==null?"CASH_IN":"SALE",
+            amountType: type,
             ref: paymentTypeModel.branch==null?ref + "_" +customerName.replaceAll(" ", "_"):ref,
             timeCreated: timeCreated,
             notes: "",
@@ -1093,7 +1098,6 @@ class CartController extends GetxController {
       shiftAvailable.value = false;
     }
   }
-
   Future<void> openCashDrawer() async {
     try {
       await SunmiPrinter.openDrawer();
@@ -1287,7 +1291,6 @@ class CartController extends GetxController {
     refreshCustomers();
     List<PaymentReceivedModel> paymentTypes =[];
     paymentTypes.add(paymentReceivedModel);
-    print(paymentTypes.length);
     bool networkAvailable = await _connectivityService.checkServerConnection();
     updateShiftWithNewSale(ref, paymentReceivedModel.dateTime!, paymentReceivedModel.amount!, networkAvailable,
         customer.name!, paymentTypes,"CASH_IN",customer.name!, false);

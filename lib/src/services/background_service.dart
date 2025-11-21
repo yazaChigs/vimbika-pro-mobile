@@ -37,7 +37,7 @@ class BackgroundService extends GetxService {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     var shiftModel = box.read(AppConstants.SHIFT_SETTING) ?? {};
     shiftSetting = ShiftSettingModel.fromMap(Map<String, dynamic>.from(shiftModel));
-    Timer.periodic(Duration(minutes: 15), (timer) async {
+    Timer.periodic(Duration(minutes: 3), (timer) async {
       print("Background task running every 10 minutes");
         await syncOfflineSales(true);
       });
@@ -78,6 +78,7 @@ class BackgroundService extends GetxService {
   syncOfflineSales(bool returnSales) async{
     print("syncing offline sales...");
     box = GetStorage();
+    box.write(AppConstants.SYNCING_IN_PROGRESS, true);
     bool stat = await _connectivityService.checkServerConnection();
     if(stat) {
       List<SaleInfoModel> sales = getExistingOfflineSales(box);
@@ -101,7 +102,7 @@ class BackgroundService extends GetxService {
         }
       }
 
-      actualSales = actualSales.where((sale)=> sale.syncStatus == false).toList();
+      // actualSales = actualSales.where((sale)=> sale.syncStatus == false).toList();
       actualSales = actualSales.where((sale)=> sale.syncStatus == false).toList();
       offlineSales = actualSales;
       reversedSales = reversed;
@@ -135,7 +136,6 @@ class BackgroundService extends GetxService {
           }
         }
       }
-      List<SaleInfoModel> syncedReversedSales = [];
       for (SaleInfoModel saleInfo in reversedSales) {
         CurrencyAmount saleCurrencyAmount =  currencyAmounts.firstWhere((test)=> test.posReference==saleInfo.sale!.posReference!, orElse: () => CurrencyAmount(currency: CurrencyModel(), amountType: "", ref: "", timeCreated: "", notes: "", amount: 0.0, shiftReference: null));
         if (!saleInfo.syncStatus!) {
@@ -163,7 +163,7 @@ class BackgroundService extends GetxService {
               sales.remove(saleInfo);
               sales.add(saleInfoModel);
             }
-            writeSaleInfor(box, sales);
+              writeSaleInfor(box, sales);
 
           }
         }
@@ -173,6 +173,7 @@ class BackgroundService extends GetxService {
         // Remove the synced sales from the offline list
         print(offlineSales.remove(saleInfo));
       }
+      box.write(AppConstants.SYNCING_IN_PROGRESS, false);
       // if(synced) {
         await SyncService.syncOfflineShifts(user, box);
       //   synced = false;

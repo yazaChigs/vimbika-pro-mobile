@@ -11,10 +11,12 @@ import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
+import 'package:vimbika_pos_app/src/features/sale/controller/cart_controller.dart';
 import 'package:vimbika_pos_app/src/features/shift/controller/shift_controller.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/currency_amount.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/screen/pdf_preview_screen.dart';
+import 'package:vimbika_pos_app/src/features/ticket/controller/ticket_controller.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
@@ -139,7 +141,6 @@ class CashManagementController extends GetxController {
 
     String timeCreated = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
     int count = activeShift.shiftCurrencyAmounts!.length + 1;
-    print(activeShift.toJson());
     String ref = AppConstants.getDateNowRef(payType+"_", count);
     CurrencyAmount currencyAmount = CurrencyAmount(currency: selectedCurrency.value!, amountType: payType, ref: ref, timeCreated: timeCreated,
         notes: comments.value, amount: amount.value, shiftReference: activeShift.shiftReference, paymentType: "${payType}-${selectedCurrency.value!.name}");
