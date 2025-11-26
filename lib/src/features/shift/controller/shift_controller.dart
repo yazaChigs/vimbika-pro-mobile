@@ -594,26 +594,25 @@ class ShiftController extends GetxController {
 
   signOut() async {
     GetStorage box = GetStorage();
-    await box.erase();
-    Get.offAllNamed(AppRoutes.LOGIN);
-   /* box.remove(AppConstants.CACHED_ACCESS_TOKEN);
+    
+    // Remove only shift and sales related data
+    box.remove(AppConstants.SHIFT_LIST);
+    box.remove(AppConstants.SALE_LIST);
+    box.remove(AppConstants.PAYMENT_RECEIVED_LIST);
+    
+    // Remove access token and set authentication to false (user needs to login again)
+    box.remove(AppConstants.CACHED_ACCESS_TOKEN);
     box.write(AppConstants.IS_AUTHENTICATED, false);
-    // box.remove(AppConstants.USER_INFO);
-    List<ShiftModel> tempShiftList = loadShifts(box, _localStorageService);
-    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, UserModel(firstName: "", lastName: "", userName: ""), false);
-    if(tempActiveShift != null) {
-      DateTime now = DateTime.now();
-      String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
-      tempActiveShift.isShiftClosed = true;
-      tempActiveShift.closingTime = closingTime;
-      List<ShiftModel> shi = _localStorageService.replaceShift(
-          tempActiveShift, tempShiftList);
-      _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
-      SyncService.syncOfflineShifts(user, box);
-    }
+    
+    // Note: USER_INFO, USER_PASSWORD, and IS_USER_INITIALLY_AUTHENTICATED are preserved
+    // to allow offline login after closing shift
+    
+    // Clean up controllers
     Get.delete<SaleController>();
     Get.delete<BackgroundService>();
-    Get.offNamed(AppRoutes.LOGIN);*/
+    
+    // Navigate to login screen
+    Get.offAllNamed(AppRoutes.LOGIN);
   }
 
   void addBreakage(CurrencyAmount currencyAmount, double value, String notes) {
