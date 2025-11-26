@@ -35,6 +35,8 @@ import 'package:vimbika_pos_app/src/shared/models/dynamic_query_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_received_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
+import 'package:vimbika_pos_app/src/features/authentication/model/jwt_request_model.dart';
+import 'package:vimbika_pos_app/src/features/authentication/model/jwt_response_model.dart';
 
 import '../features/sale/controller/cart_controller.dart';
 import '../features/sale/model/product_full_info_model.dart';
@@ -46,6 +48,80 @@ import '../shared/models/customer_model.dart';
 class SyncService {
 
   final FocusNode _focusNode = FocusNode();
+  
+  // Helper function to handle unauthorized errors with token refresh and retry
+  static Future<T?> handleUnauthorizedWithRetry<T>(
+    Future<T?> Function() operation,
+    String operationName,
+  ) async {
+    try {
+      return await operation();
+    } catch (onError) {
+      if (onError is UnAuthorizedException) {
+        print("Unauthorized error in $operationName, attempting to refresh token...");
+        bool tokenRefreshed = await refreshAccessToken();
+        if (tokenRefreshed) {
+          print("Token refreshed, retrying $operationName...");
+          try {
+            return await operation();
+          } catch (retryError) {
+            print("Retry failed for $operationName: $retryError");
+            AppHelper.showErroDialog(
+              title: "Error",
+              description: "Failed to complete $operationName after token refresh"
+            );
+            return null;
+          }
+        } else {
+          AppHelper.showErroDialog(
+            title: "Error",
+            description: "Unauthorized access. Please login again."
+          );
+          return null;
+        }
+      }
+      rethrow;
+    }
+  }
+  
+  // Refresh access token using stored credentials
+  static Future<bool> refreshAccessToken() async {
+    GetStorage box = GetStorage();
+    var userInfo = box.read(AppConstants.USER_INFO);
+    var password = box.read(AppConstants.USER_PASSWORD);
+    
+    if (userInfo == null || password == null || password.isEmpty) {
+      print("Cannot refresh token: Missing user credentials");
+      return false;
+    }
+    
+    try {
+      UserModel user = UserModel.fromMap(Map<String, dynamic>.from(userInfo));
+      // Remove whitespace from username (same as in auth_controller)
+      String normalizedUserName = (user.userName ?? "").replaceAll(' ', '').replaceAll('\t', '').replaceAll('\n', '');
+      JwtRequestModel jwtRequest = JwtRequestModel(
+        userName: normalizedUserName,
+        password: password
+      );
+      var data = jwtRequest.toJson();
+      
+      var response = await BaseHttpClient().post("/authentication", data).catchError((onError) {
+        print("Token refresh failed: $onError");
+        return null;
+      });
+      
+      if (response != null) {
+        final userResponseModel = JwtResponseModel.fromJson(response);
+        box.write(AppConstants.CACHED_ACCESS_TOKEN, userResponseModel.token);
+        print("Token refreshed successfully");
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print("Error refreshing token: $e");
+      return false;
+    }
+  }
 
 
   static Future<void>  getCustomers(UserModel user, GetStorage box, String companyId) async{
@@ -126,19 +202,35 @@ class SyncService {
       var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
       company = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
     }
-    var response = await BaseHttpClient().postAuthWithCompanyHeader("/sale/save", jsonSaleItems, company.id!, "POST").catchError((onError){
+    var response = await BaseHttpClient().postAuthWithCompanyHeader("/sale/save", jsonSaleItems, company.id!, "POST").catchError((onError) async {
       //AppHelper.hideLoading();
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
         print(apiError);
         AppHelper.showErroDialog(description: apiError["reason"]);
       } else if (onError is UnAuthorizedException) {
-        AppHelper.showErroDialog(title: "Error", description: "Unauthorized access");
+        // Try to refresh token and retry
+        print("Unauthorized error, attempting to refresh token...");
+        bool tokenRefreshed = await refreshAccessToken();
+        if (tokenRefreshed) {
+          print("Token refreshed, retrying sale save...");
+          // Retry the operation
+          try {
+            var retryResponse = await BaseHttpClient().postAuthWithCompanyHeader("/sale/save", jsonSaleItems, company.id!, "POST");
+            return retryResponse != null ? SaleItemResponseModel.fromJson(retryResponse).item : null;
+          } catch (retryError) {
+            print("Retry failed: $retryError");
+            AppHelper.showErroDialog(title: "Error", description: "Failed to sync sale after token refresh");
+          }
+        } else {
+          AppHelper.showErroDialog(title: "Error", description: "Unauthorized access. Please login again.");
+        }
       }
       else {
         print(onError);
         AppHelper.handleError(onError);
       }
+      return null;
     });
     // AppHelper.hideLoading();
     if(response != null){
@@ -159,19 +251,34 @@ class SyncService {
       var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
       company = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
     }
-    var response = await BaseHttpClient().postAuthWithCompanyHeader("/sale/reverse", jsonSaleItems, company.id!, "POST").catchError((onError){
+    var response = await BaseHttpClient().postAuthWithCompanyHeader("/sale/reverse", jsonSaleItems, company.id!, "POST").catchError((onError) async {
       //AppHelper.hideLoading();
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
         print(apiError);
         AppHelper.showErroDialog(description: apiError["reason"]);
       } else if (onError is UnAuthorizedException) {
-        AppHelper.showErroDialog(title: "Error", description: "Unauthorized access");
+        // Try to refresh token and retry
+        print("Unauthorized error, attempting to refresh token...");
+        bool tokenRefreshed = await refreshAccessToken();
+        if (tokenRefreshed) {
+          print("Token refreshed, retrying sale reverse...");
+          try {
+            var retryResponse = await BaseHttpClient().postAuthWithCompanyHeader("/sale/reverse", jsonSaleItems, company.id!, "POST");
+            return retryResponse != null ? SaleItemResponseModel.fromJson(retryResponse).item : null;
+          } catch (retryError) {
+            print("Retry failed: $retryError");
+            AppHelper.showErroDialog(title: "Error", description: "Failed to reverse sale after token refresh");
+          }
+        } else {
+          AppHelper.showErroDialog(title: "Error", description: "Unauthorized access. Please login again.");
+        }
       }
       else {
         print(onError);
         AppHelper.handleError(onError);
       }
+      return null;
     });
     // AppHelper.hideLoading();
     if(response != null){
@@ -189,19 +296,34 @@ class SyncService {
   static Future<RequisitionModel?> saveStockRequest(String url, RequisitionModel stockRequest, UserModel user, GetStorage box, String method) async{
     String jsonSaleItems = stockRequest.toJson();
 
-    var response = await BaseHttpClient().postAuthWithCompanyHeader(url, jsonSaleItems, user.companyId!, method).catchError((onError){
+    var response = await BaseHttpClient().postAuthWithCompanyHeader(url, jsonSaleItems, user.companyId!, method).catchError((onError) async {
       //AppHelper.hideLoading();
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
         print(apiError);
         AppHelper.showErroDialog(description: apiError["reason"]);
       } else if (onError is UnAuthorizedException) {
-        AppHelper.showErroDialog(title: "Error", description: "Unauthorized access");
+        // Try to refresh token and retry
+        print("Unauthorized error, attempting to refresh token...");
+        bool tokenRefreshed = await refreshAccessToken();
+        if (tokenRefreshed) {
+          print("Token refreshed, retrying stock request save...");
+          try {
+            var retryResponse = await BaseHttpClient().postAuthWithCompanyHeader(url, jsonSaleItems, user.companyId!, method);
+            return retryResponse != null ? RequisitionResponseModel.fromJson(retryResponse).item : null;
+          } catch (retryError) {
+            print("Retry failed: $retryError");
+            AppHelper.showErroDialog(title: "Error", description: "Failed to save stock request after token refresh");
+          }
+        } else {
+          AppHelper.showErroDialog(title: "Error", description: "Unauthorized access. Please login again.");
+        }
       }
       else {
         print(onError);
         AppHelper.handleError(onError);
       }
+      return null;
     });
     // AppHelper.hideLoading();
     if(response != null){
@@ -217,19 +339,34 @@ class SyncService {
   static Future<TransferHistoryModel?> saveTransfer(TransferHistoryModel transfer, UserModel user, GetStorage box) async{
     String jsonSaleItems = transfer.toJson();
     log(jsonSaleItems);
-    var response = await BaseHttpClient().postAuthWithCompanyHeader("/transfer-history/transfer", jsonSaleItems, user.companyId!, "POST").catchError((onError){
+    var response = await BaseHttpClient().postAuthWithCompanyHeader("/transfer-history/transfer", jsonSaleItems, user.companyId!, "POST").catchError((onError) async {
       //AppHelper.hideLoading();
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
         print(apiError);
         AppHelper.showErroDialog(description: apiError["reason"]);
       } else if (onError is UnAuthorizedException) {
-        AppHelper.showErroDialog(title: "Error", description: "Unauthorized access");
+        // Try to refresh token and retry
+        print("Unauthorized error, attempting to refresh token...");
+        bool tokenRefreshed = await refreshAccessToken();
+        if (tokenRefreshed) {
+          print("Token refreshed, retrying transfer save...");
+          try {
+            var retryResponse = await BaseHttpClient().postAuthWithCompanyHeader("/transfer-history/transfer", jsonSaleItems, user.companyId!, "POST");
+            return retryResponse != null ? TransferHistoryResponseModel.fromJson(retryResponse).item : null;
+          } catch (retryError) {
+            print("Retry failed: $retryError");
+            AppHelper.showErroDialog(title: "Error", description: "Failed to save transfer after token refresh");
+          }
+        } else {
+          AppHelper.showErroDialog(title: "Error", description: "Unauthorized access. Please login again.");
+        }
       }
       else {
         print(onError);
         AppHelper.handleError(onError);
       }
+      return null;
     });
     // AppHelper.hideLoading();
     if(response != null){
@@ -262,19 +399,33 @@ class SyncService {
       var response = await BaseHttpClient()
           .postAuthWithCompanyHeader(url,
               jsonSaleItems, user.companyId!, method)
-          .catchError((onError) {
+          .catchError((onError) async {
         //AppHelper.hideLoading();
         if (onError is BadRequestException) {
           var apiError = json.decode(onError.message!);
           print(apiError);
           AppHelper.showErroDialog(description: apiError["reason"]);
         } else if (onError is UnAuthorizedException) {
-          AppHelper.showErroDialog(
-              title: "Error", description: "Unauthorized access");
+          // Try to refresh token and retry
+          print("Unauthorized error, attempting to refresh token...");
+          bool tokenRefreshed = await refreshAccessToken();
+          if (tokenRefreshed) {
+            print("Token refreshed, retrying customer save...");
+            try {
+              var retryResponse = await BaseHttpClient().postAuthWithCompanyHeader(url, jsonSaleItems, user.companyId!, method);
+              return retryResponse;
+            } catch (retryError) {
+              print("Retry failed: $retryError");
+              AppHelper.showErroDialog(title: "Error", description: "Failed to save customer after token refresh");
+            }
+          } else {
+            AppHelper.showErroDialog(title: "Error", description: "Unauthorized access. Please login again.");
+          }
         } else {
           print(onError);
           AppHelper.handleError(onError);
         }
+        return null;
       });
       // AppHelper.hideLoading();
       if (response != null) {
@@ -308,19 +459,33 @@ class SyncService {
       var response = await BaseHttpClient()
           .postAuthWithCompanyHeader("/payments/received/receive-payment",
               jsonSaleItems, user.companyId!, "POST")
-          .catchError((onError) {
+          .catchError((onError) async {
         //AppHelper.hideLoading();
         if (onError is BadRequestException) {
           var apiError = json.decode(onError.message!);
           print(apiError);
           AppHelper.showErroDialog(description: apiError["reason"]);
         } else if (onError is UnAuthorizedException) {
-          AppHelper.showErroDialog(
-              title: "Error", description: "Unauthorized access");
+          // Try to refresh token and retry
+          print("Unauthorized error, attempting to refresh token...");
+          bool tokenRefreshed = await refreshAccessToken();
+          if (tokenRefreshed) {
+            print("Token refreshed, retrying payment received save...");
+            try {
+              var retryResponse = await BaseHttpClient().postAuthWithCompanyHeader("/payments/received/receive-payment", jsonSaleItems, user.companyId!, "POST");
+              return retryResponse;
+            } catch (retryError) {
+              print("Retry failed: $retryError");
+              AppHelper.showErroDialog(title: "Error", description: "Failed to save payment after token refresh");
+            }
+          } else {
+            AppHelper.showErroDialog(title: "Error", description: "Unauthorized access. Please login again.");
+          }
         } else {
           print(onError);
           AppHelper.handleError(onError);
         }
+        return null;
       });
       // AppHelper.hideLoading();
       if (response != null) {
@@ -625,15 +790,32 @@ class SyncService {
       var shiftCurrencyResponse = await BaseHttpClient()
           .postAuthWithCompanyHeader("/mobile/pos/shift/save-currency-amounts",
           jsonShiftCurrencyItems, user.companyId!, "POST")
-          .catchError((onError) {
+          .catchError((onError) async {
         print(onError);
         AppHelper.hideLoading();
         if (onError is BadRequestException) {
           var apiError = json.decode(onError.message!);
           AppHelper.showErroDialog(description: apiError["reason"]);
+        } else if (onError is UnAuthorizedException) {
+          // Try to refresh token and retry
+          print("Unauthorized error, attempting to refresh token...");
+          bool tokenRefreshed = await refreshAccessToken();
+          if (tokenRefreshed) {
+            print("Token refreshed, retrying currency amounts save...");
+            try {
+              var retryResponse = await BaseHttpClient().postAuthWithCompanyHeader("/mobile/pos/shift/save-currency-amounts", jsonShiftCurrencyItems, user.companyId!, "POST");
+              return retryResponse;
+            } catch (retryError) {
+              print("Retry failed: $retryError");
+              AppHelper.showErroDialog(title: "Error", description: "Failed to save currency amounts after token refresh");
+            }
+          } else {
+            AppHelper.showErroDialog(title: "Error", description: "Unauthorized access. Please login again.");
+          }
         } else {
           AppHelper.handleError(onError);
         }
+        return null;
       });
       if (shiftCurrencyResponse != null) {
         ShiftCurrencyResponseModel saleResponseModel =
