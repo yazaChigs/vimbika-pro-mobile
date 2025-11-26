@@ -214,10 +214,10 @@ class SyncService {
         bool tokenRefreshed = await refreshAccessToken();
         if (tokenRefreshed) {
           print("Token refreshed, retrying sale save...");
-          // Retry the operation
+          // Retry the operation - return raw string response, not parsed model
           try {
             var retryResponse = await BaseHttpClient().postAuthWithCompanyHeader("/sale/save", jsonSaleItems, company.id!, "POST");
-            return retryResponse != null ? SaleItemResponseModel.fromJson(retryResponse).item : null;
+            return retryResponse; // Return raw string, let the code below parse it
           } catch (retryError) {
             print("Retry failed: $retryError");
             AppHelper.showErroDialog(title: "Error", description: "Failed to sync sale after token refresh");
@@ -265,7 +265,7 @@ class SyncService {
           print("Token refreshed, retrying sale reverse...");
           try {
             var retryResponse = await BaseHttpClient().postAuthWithCompanyHeader("/sale/reverse", jsonSaleItems, company.id!, "POST");
-            return retryResponse != null ? SaleItemResponseModel.fromJson(retryResponse).item : null;
+            return retryResponse; // Return raw string, let the code below parse it
           } catch (retryError) {
             print("Retry failed: $retryError");
             AppHelper.showErroDialog(title: "Error", description: "Failed to reverse sale after token refresh");
@@ -310,7 +310,7 @@ class SyncService {
           print("Token refreshed, retrying stock request save...");
           try {
             var retryResponse = await BaseHttpClient().postAuthWithCompanyHeader(url, jsonSaleItems, user.companyId!, method);
-            return retryResponse != null ? RequisitionResponseModel.fromJson(retryResponse).item : null;
+            return retryResponse; // Return raw string, let the code below parse it
           } catch (retryError) {
             print("Retry failed: $retryError");
             AppHelper.showErroDialog(title: "Error", description: "Failed to save stock request after token refresh");
@@ -353,7 +353,7 @@ class SyncService {
           print("Token refreshed, retrying transfer save...");
           try {
             var retryResponse = await BaseHttpClient().postAuthWithCompanyHeader("/transfer-history/transfer", jsonSaleItems, user.companyId!, "POST");
-            return retryResponse != null ? TransferHistoryResponseModel.fromJson(retryResponse).item : null;
+            return retryResponse; // Return raw string, let the code below parse it
           } catch (retryError) {
             print("Retry failed: $retryError");
             AppHelper.showErroDialog(title: "Error", description: "Failed to save transfer after token refresh");
