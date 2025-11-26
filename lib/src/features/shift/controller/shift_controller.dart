@@ -364,7 +364,7 @@ class ShiftController extends GetxController {
         }
       }
     }
-    for(CurrencyAmount currencyAmount in activeShift.value.shiftCurrencyAmounts!) {
+    for(CurrencyAmount currencyAmount in activeShift.value.shiftCurrencyAmounts??[]) {
       if (currencyAmount.amountType == "BREAKAGE") {
         SaleInfoModel sale = allReceipts.firstWhere((sale) => sale.sale!.posReference == currencyAmount.posReference);
         print(sale.sale!.toJson());
@@ -441,8 +441,7 @@ class ShiftController extends GetxController {
     List<SaleInfoModel> allSales = getExistingOfflineSales(box);
     offlineSales.value = allSales.where((sale)=> sale.syncStatus == false).toList();
     bool stat = await _connectivityService.checkServerConnection();
-    if(user.id.isNullOrBlank!){
-      print("User is null");
+    if(user.id==null){
       var model = box.read(AppConstants.USER_INFO) ?? {};
       user = UserModel.fromMap(Map<String, dynamic>.from(model));
     }
