@@ -230,7 +230,10 @@ class AuthController extends GetxController {
         var userInfo = box.read(AppConstants.USER_INFO) ?? {};
         var pass = box.read(AppConstants.USER_PASSWORD) ?? "";
         UserModel user = UserModel.fromMap(Map<String, dynamic>.from(userInfo));
-        if(user.userName == userName && password == pass){
+        // Normalize username comparison (remove whitespace) to match online login behavior
+        String normalizedEnteredUserName = userName.removeAllWhitespace;
+        String normalizedStoredUserName = (user.userName ?? "").removeAllWhitespace;
+        if(normalizedStoredUserName == normalizedEnteredUserName && password == pass){
           Get.offNamed(AppRoutes.CHOOSE_BRANCH);
         } else{
           Get.snackbar("Login Failed", "Incorrect Credentials", snackPosition: SnackPosition.BOTTOM);
