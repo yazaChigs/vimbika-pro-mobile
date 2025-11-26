@@ -203,6 +203,12 @@ class AuthController extends GetxController {
         } else if (onError is UnAuthorizedException) {
           AppHelper.showErroDialog(title: "Incorrect Credentials", description: "Please check your login details");
         }
+        // If network/server error, fall back to offline login
+        else if (onError is FetchDataException || onError is ApiNotRespondingException) {
+          print("Network error, falling back to offline login: $onError");
+          // Fall through to offline login logic below
+          return null; // Return null to trigger offline login
+        }
         else {
           print(onError);
           AppHelper.handleError(onError);
@@ -221,7 +227,23 @@ class AuthController extends GetxController {
         box.write(AppConstants.USER_INFO, userResponseModel.user!.toMap());
         Get.offNamed(AppRoutes.CHOOSE_BRANCH);
       } else{
-        Get.snackbar("Login Failed", "Invalid credentials", snackPosition: SnackPosition.BOTTOM);
+        // If response is null due to network error, try offline login
+        // Check if we have stored credentials for offline login
+        var isInitialAuthenticated = box.read(AppConstants.IS_USER_INITIALLY_AUTHENTICATED) ?? false;
+        if(isInitialAuthenticated){
+          var userInfo = box.read(AppConstants.USER_INFO) ?? {};
+          var pass = box.read(AppConstants.USER_PASSWORD) ?? "";
+          UserModel user = UserModel.fromMap(Map<String, dynamic>.from(userInfo));
+          // Normalize username comparison (remove whitespace) to match online login behavior
+          String normalizedEnteredUserName = userName.removeAllWhitespace;
+          String normalizedStoredUserName = (user.userName ?? "").removeAllWhitespace;
+          if(normalizedStoredUserName == normalizedEnteredUserName && password == pass){
+            Get.offNamed(AppRoutes.CHOOSE_BRANCH);
+            return; // Exit early if offline login succeeds
+          }
+        }
+        // If offline login also fails, show error
+        Get.snackbar("Login Failed", "Invalid credentials or server unreachable", snackPosition: SnackPosition.BOTTOM);
       }
     } else{
       AppHelper.hideLoading();
