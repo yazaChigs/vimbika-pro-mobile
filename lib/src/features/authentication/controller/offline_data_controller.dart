@@ -167,7 +167,12 @@ class OfflineDataController extends GetxController {
       branchList.value = [];
       isBranchSelected.value = false;
       selectedBranch.value = BranchModel();
-     getBranches(user, box, company.id!);
+      
+      // Load cached branches immediately for offline support
+      loadCachedBranchesByCompany(box, company.id!);
+      
+      // Try to fetch fresh branches from server
+      getBranches(user, box, company.id!);
   }
 
   Future<void>  getBranches(UserModel user, GetStorage box, String companyId) async{
@@ -176,7 +181,13 @@ class OfflineDataController extends GetxController {
         var apiError = json.decode(onError.message!);
         AppHelper.showErroDialog(description: apiError["reason"]);
       } else {
-        AppHelper.handleError(onError);
+        // If network/server error, load cached branches filtered by company
+        if (onError is FetchDataException || onError is ApiNotRespondingException) {
+          print("Network error loading branches, using cached data");
+          loadCachedBranchesByCompany(box, companyId);
+        } else {
+          AppHelper.handleError(onError);
+        }
       }
     });
     if(response != null) {
@@ -189,6 +200,23 @@ class OfflineDataController extends GetxController {
           item.toMap()).toList();
       //showSnackBar("Message", "Branches downloaded successfully");
       box.write(AppConstants.BRANCH_LIST, itemsListMap);
+    } else {
+      // If response is null and no error was caught, try loading cached branches
+      loadCachedBranchesByCompany(box, companyId);
+    }
+  }
+  
+  // Load cached branches (branches in cache are already filtered by company)
+  void loadCachedBranchesByCompany(GetStorage box, String companyId) {
+    List<BranchModel> cachedBranches = getBranchList(box);
+    // Branches in BRANCH_LIST are already filtered by company when saved
+    // So we can just load all cached branches
+    if(cachedBranches.isNotEmpty) {
+      branchList.value = cachedBranches;
+      branchList.refresh();
+      print("Loaded ${cachedBranches.length} cached branches for company $companyId");
+    } else {
+      print("No cached branches found for company $companyId");
     }
   }
 
