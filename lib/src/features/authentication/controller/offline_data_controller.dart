@@ -61,7 +61,11 @@ class OfflineDataController extends GetxController {
   }
 
   Future<void> getOfflineData(UserModel user, GetStorage box) async{
+    // Always load cached data first to ensure app works offline
+    loadCachedData(box);
+    
     if(isInternetAccess.value){
+      // Try to fetch fresh data from server
       getCompanies(user, box);
       getSettings(user, box);
       getBranches(user, box, user.companyId!);//download branches
@@ -97,6 +101,61 @@ class OfflineDataController extends GetxController {
         List<BranchModel> storageBranchList = getBranchList(box);
         branchList.value = storageBranchList;
       }
+    }
+  }
+  
+  // Load cached data from local storage
+  void loadCachedData(GetStorage box) {
+    // Load companies
+    List<CompanyModel> cachedCompanies = _localStorageService.getOfflineList<CompanyModel>(
+      AppConstants.COMPANY_LIST,
+      (map) => CompanyModel.fromMap(map),
+      box
+    );
+    if(cachedCompanies.isNotEmpty) {
+      companyList.value = cachedCompanies;
+    }
+    
+    // Load branches
+    List<BranchModel> cachedBranches = getBranchList(box);
+    if(cachedBranches.isNotEmpty) {
+      branchList.value = cachedBranches;
+    }
+    
+    // Load currencies
+    List<CurrencyModel> cachedCurrencies = _localStorageService.getOfflineList<CurrencyModel>(
+      AppConstants.CURRENCY_LIST,
+      (map) => CurrencyModel.fromMap(map),
+      box
+    );
+    if(cachedCurrencies.isNotEmpty) {
+      currencyList.value = cachedCurrencies;
+    }
+    
+    // Load payment types
+    List<PaymentTypeModel> cachedPaymentTypes = _localStorageService.getOfflineList<PaymentTypeModel>(
+      AppConstants.PAYMENT_TYPE_LIST,
+      (map) => PaymentTypeModel.fromMap(map),
+      box
+    );
+    if(cachedPaymentTypes.isNotEmpty) {
+      paymentTypeList.value = cachedPaymentTypes;
+    }
+    
+    // Load customers
+    List<CustomerModel> cachedCustomers = _localStorageService.getCustomers(box);
+    if(cachedCustomers.isNotEmpty) {
+      customerList.value = cachedCustomers;
+    }
+    
+    // Load banks
+    List<BankModel> cachedBanks = _localStorageService.getOfflineList<BankModel>(
+      AppConstants.BANK_LIST,
+      (map) => BankModel.fromMap(map),
+      box
+    );
+    if(cachedBanks.isNotEmpty) {
+      bankList.value = cachedBanks;
     }
   }
   downloadBranchRelatedInfor(UserModel user, GetStorage box, String branchId){
