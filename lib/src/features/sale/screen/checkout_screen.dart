@@ -592,7 +592,7 @@ class CheckoutScreen extends StatelessWidget {
                             cartController,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: _buildQuickAmountButton(
                             context,
@@ -601,7 +601,7 @@ class CheckoutScreen extends StatelessWidget {
                             cartController,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: _buildQuickAmountButton(
                             context,
@@ -610,7 +610,7 @@ class CheckoutScreen extends StatelessWidget {
                             cartController,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: _buildQuickAmountButton(
                             context,
@@ -619,7 +619,7 @@ class CheckoutScreen extends StatelessWidget {
                             cartController,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: _buildQuickAmountButton(
                             context,
@@ -628,7 +628,7 @@ class CheckoutScreen extends StatelessWidget {
                             cartController,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: _buildQuickAmountButton(
                             context,
@@ -637,7 +637,7 @@ class CheckoutScreen extends StatelessWidget {
                             cartController,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: _buildClearButton(
                             context,
@@ -923,7 +923,7 @@ class CheckoutScreen extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
@@ -952,7 +952,7 @@ class CheckoutScreen extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.deepOrange,
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
