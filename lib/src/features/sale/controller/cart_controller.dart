@@ -79,11 +79,13 @@ class CartController extends GetxController {
   Rx<PaymentTypeModel?> selectedPaymentType = PaymentTypeModel().obs;
   RxList<PaymentTypeModel> selectedPaymentTypes = <PaymentTypeModel>[].obs;
   Rx<BankModel?> selectedBank = BankModel().obs;
+  var isFirstQuickAmountButtonUsed = false.obs;
   RxList<PaymentReceivedModel> paymentTypes = <PaymentReceivedModel>[].obs;
   RxList<PaymentTypeModel> paymentTypesList = <PaymentTypeModel>[].obs;
   RxList<PaymentTypeModel> filteredPaymentTypesList = <PaymentTypeModel>[].obs;
   var isPaymentTypeSelected = false.obs;
   final TextEditingController amountPaidTextEditingController = TextEditingController();
+  var hasAmountText = false.obs;
   final TextEditingController amtToAccTextEditingController = TextEditingController();
   final TextEditingController tipAmtTextEditingController = TextEditingController();
 
@@ -518,6 +520,7 @@ class CartController extends GetxController {
         items.fold(0, (sum, item) => sum + item.totalTaxAmount);
     amountPaidTextEditingController.text =
         totalCostInSelectedCurrency.value.toStringAsFixed(2);
+    hasAmountText.value = true;
     amountPaid.value = totalCostInSelectedCurrency.value;
     customerAmountPaid.value = totalCostInSelectedCurrency.value;
     if (selectedPaymentType.value != null  && !multiple.value) {
@@ -664,6 +667,16 @@ class CartController extends GetxController {
 
   // Add quick amount to current amount paid (for tablet quick buttons)
   void addQuickAmount(double amount) {
+    // Clear field on first button use
+    if (!isFirstQuickAmountButtonUsed.value) {
+      amountPaidTextEditingController.clear();
+      amountPaid.value = 0.0;
+      customerAmountPaid.value = 0.0;
+      change.value = 0.0;
+      hasAmountText.value = false;
+      isFirstQuickAmountButtonUsed.value = true;
+    }
+    
     String currentText = amountPaidTextEditingController.text;
     double currentAmount = 0.0;
     
@@ -678,6 +691,7 @@ class CartController extends GetxController {
     double newAmount = currentAmount + amount;
     String newAmountText = newAmount.toStringAsFixed(2);
     amountPaidTextEditingController.text = newAmountText;
+    hasAmountText.value = true;
     // Update all amount-related values to ensure validation passes
     amountPaid.value = newAmount;
     customerAmountPaid.value = newAmount;
@@ -690,6 +704,8 @@ class CartController extends GetxController {
     amountPaid.value = 0.0;
     customerAmountPaid.value = 0.0;
     change.value = 0.0;
+    hasAmountText.value = false;
+    isFirstQuickAmountButtonUsed.value = false; // Reset flag when cleared
   }
 
   void showConfirmDialogChargeSale() {
@@ -1185,6 +1201,9 @@ class CartController extends GetxController {
     amountPaid.value = 0.0;
     change.value = 0.0;
     accountPayType.value = "";
+    amountPaidTextEditingController.clear();
+    hasAmountText.value = false;
+    isFirstQuickAmountButtonUsed.value = false; // Reset flag for next sale
     postToRearScreen();
     resetFormKey();
     Get.delete<SaleController>();
@@ -1223,6 +1242,7 @@ class CartController extends GetxController {
     double totalCostInSelCurrency =
         totalCostInBaseCurrency.value * newValue.rate!;
     amountPaidTextEditingController.text = totalCostInSelCurrency.toStringAsFixed(2);
+    hasAmountText.value = true;
     double totalTaxInSelCurrency =
         totalTaxInBaseCurrency.value * newValue.rate!;
     totalCostInSelectedCurrency.value = totalCostInSelCurrency;

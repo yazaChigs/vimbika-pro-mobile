@@ -637,13 +637,6 @@ class CheckoutScreen extends StatelessWidget {
                             cartController,
                           ),
                         ),
-                        const SizedBox(width: 2),
-                        Expanded(
-                          child: _buildClearButton(
-                            context,
-                            cartController,
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -657,11 +650,23 @@ class CheckoutScreen extends StatelessWidget {
                       FilteringTextInputFormatter.allow(
                           RegExp(r'^\d+\.?\d{0,2}')),
                     ],
-                    decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.money),
+                    decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.money),
+                        suffixIcon: Obx(() => 
+                          cartController.hasAmountText.value
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, color: Colors.grey),
+                                onPressed: () {
+                                  cartController.clearAmountPaid();
+                                  FocusScope.of(context).unfocus();
+                                },
+                              )
+                            : const SizedBox.shrink(),
+                        ),
                         labelText: "Amount",
                         hintText: "Amount"),
                     onChanged: (String val) {
+                      cartController.hasAmountText.value = val.isNotEmpty;
                       if (val.isNotEmpty) {
                         cartController.amountPaidChange(val);
                       }
@@ -921,7 +926,7 @@ class CheckoutScreen extends StatelessWidget {
         FocusScope.of(context).unfocus();
       },
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.indigo,
+        backgroundColor: Colors.grey[400],
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         shape: RoundedRectangleBorder(
@@ -935,43 +940,6 @@ class CheckoutScreen extends StatelessWidget {
           fontSize: 14,
           fontWeight: FontWeight.bold,
         ),
-      ),
-    );
-  }
-
-  // Helper widget for clear button
-  Widget _buildClearButton(
-    BuildContext context,
-    CartController cartController,
-  ) {
-    return ElevatedButton(
-      onPressed: () {
-        cartController.clearAmountPaid();
-        FocusScope.of(context).unfocus();
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.deepOrange,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        elevation: 2,
-      ),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.clear, size: 14),
-          SizedBox(width: 2),
-          Text(
-            'Clear',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
       ),
     );
   }

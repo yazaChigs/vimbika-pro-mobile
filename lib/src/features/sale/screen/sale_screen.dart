@@ -1331,6 +1331,7 @@ class SaleScreen extends GetView {
                                         cartController
                                             .totalCostInSelectedCurrency.value
                                             .toStringAsFixed(2);
+                                    cartController.hasAmountText.value = true;
                                     cartController.amountPaid.value =
                                         cartController
                                             .totalCostInSelectedCurrency.value;
@@ -1349,6 +1350,7 @@ class SaleScreen extends GetView {
                                         cartController
                                             .totalCostInSelectedCurrency.value
                                             .toStringAsFixed(2);
+                                    cartController.hasAmountText.value = true;
                                     cartController.amountPaid.value =
                                         cartController
                                             .totalCostInSelectedCurrency.value;
@@ -1736,13 +1738,6 @@ class SaleScreen extends GetView {
                                                             cartController,
                                                           ),
                                                         ),
-                                                        const SizedBox(width: 2),
-                                                        Expanded(
-                                                          child: _buildClearButton(
-                                                            context,
-                                                            cartController,
-                                                          ),
-                                                        ),
                                                       ],
                                                     ),
                                                   const SizedBox(height: 8),
@@ -1789,11 +1784,23 @@ class SaleScreen extends GetView {
                                                             prefixIcon:
                                                                 const Icon(Icons
                                                                     .money),
+                                                            suffixIcon: Obx(() => 
+                                                              cartController.hasAmountText.value
+                                                                ? IconButton(
+                                                                    icon: const Icon(Icons.clear, color: Colors.grey),
+                                                                    onPressed: () {
+                                                                      cartController.clearAmountPaid();
+                                                                      FocusScope.of(context).unfocus();
+                                                                    },
+                                                                  )
+                                                                : const SizedBox.shrink(),
+                                                            ),
                                                             labelText:
                                                                 "Amount Paid",
                                                             hintText:
                                                                 "Amount Paid"),
                                                     onChanged: (String val) {
+                                                      cartController.hasAmountText.value = val.isNotEmpty;
                                                       if (val.isNotEmpty) {
                                                         cartController.amountPaidChange(val);
                                                         cartController.amountPaid.value = double.parse(val);
@@ -2078,6 +2085,7 @@ class SaleScreen extends GetView {
                                                           if (saleController.multiple.value == true) {
                                                             cartController.amountPaidTextEditingController.clear();
                                                             cartController.amountPaidTextEditingController.text =0.00.toStringAsFixed(2);
+                                                            cartController.hasAmountText.value = true;
                                                             cartController.amountPaid.value = 0.00;
                                                             cartController.customerAmountPaid.value = 0.00;
                                                           }
@@ -2476,6 +2484,7 @@ class SaleScreen extends GetView {
                         cartController.selectedPaymentTypes[index].amount!;
                     cartController.amountPaidTextEditingController.text =
                         cartController.amountPaid.value.toStringAsFixed(2);
+                    cartController.hasAmountText.value = true;
                     cartController.selectedPaymentTypes.refresh();
                     saleController.amountTextEditingController.clear();
                     Get.back(); // Close the dialog after adding
@@ -2675,7 +2684,7 @@ class SaleScreen extends GetView {
         FocusScope.of(context).unfocus();
       },
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.indigo,
+        backgroundColor: Colors.grey[400],
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         shape: RoundedRectangleBorder(
@@ -2693,40 +2702,4 @@ class SaleScreen extends GetView {
     );
   }
 
-  // Helper widget for clear button
-  Widget _buildClearButton(
-    BuildContext context,
-    CartController cartController,
-  ) {
-    return ElevatedButton(
-      onPressed: () {
-        cartController.clearAmountPaid();
-        FocusScope.of(context).unfocus();
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.deepOrange,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        elevation: 2,
-      ),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.clear, size: 14),
-          SizedBox(width: 2),
-          Text(
-            'Clear',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
