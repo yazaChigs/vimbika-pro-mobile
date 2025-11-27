@@ -1670,10 +1670,8 @@ class SaleScreen extends GetView {
                                               child: Column(
                                                 children: [
                                                   // Quick amount buttons for tablet view
-                                                  Padding(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 8.0),
-                                                    child: Row(
-                                                      children: [
+                                                  Row(
+                                                    children: [
                                                         Expanded(
                                                           child: _buildQuickAmountButton(
                                                             context,
@@ -1736,7 +1734,6 @@ class SaleScreen extends GetView {
                                                         ),
                                                       ],
                                                     ),
-                                                  ),
                                                   const SizedBox(height: 8),
                                                   TextFormField(
                                                     controller: cartController
