@@ -579,6 +579,75 @@ class CheckoutScreen extends StatelessWidget {
                   }),
                 ),
                 const SizedBox(height: 20),
+                // Quick amount buttons for tablet view
+                if (MediaQuery.of(context).size.width >= 950.0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildQuickAmountButton(
+                            context,
+                            '0.5',
+                            0.5,
+                            cartController,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildQuickAmountButton(
+                            context,
+                            '1',
+                            1.0,
+                            cartController,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildQuickAmountButton(
+                            context,
+                            '2',
+                            2.0,
+                            cartController,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildQuickAmountButton(
+                            context,
+                            '5',
+                            5.0,
+                            cartController,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildQuickAmountButton(
+                            context,
+                            '10',
+                            10.0,
+                            cartController,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildQuickAmountButton(
+                            context,
+                            '20',
+                            20.0,
+                            cartController,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildClearButton(
+                            context,
+                            cartController,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: TextFormField(
@@ -834,6 +903,73 @@ class CheckoutScreen extends StatelessWidget {
               }
             },
             child: Text("Add"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper widget for quick amount buttons
+  Widget _buildQuickAmountButton(
+    BuildContext context,
+    String label,
+    double amount,
+    CartController cartController,
+  ) {
+    return ElevatedButton(
+      onPressed: () {
+        cartController.addQuickAmount(amount);
+        FocusScope.of(context).unfocus();
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        elevation: 2,
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  // Helper widget for clear button
+  Widget _buildClearButton(
+    BuildContext context,
+    CartController cartController,
+  ) {
+    return ElevatedButton(
+      onPressed: () {
+        cartController.clearAmountPaid();
+        FocusScope.of(context).unfocus();
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.deepOrange,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        elevation: 2,
+      ),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.clear, size: 18),
+          SizedBox(width: 4),
+          Text(
+            'Clear',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),

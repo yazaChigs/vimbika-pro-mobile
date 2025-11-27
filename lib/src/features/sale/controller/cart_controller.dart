@@ -646,6 +646,33 @@ class CartController extends GetxController {
     }
   }
 
+  // Add quick amount to current amount paid (for tablet quick buttons)
+  void addQuickAmount(double amount) {
+    String currentText = amountPaidTextEditingController.text;
+    double currentAmount = 0.0;
+    
+    if (currentText.isNotEmpty) {
+      try {
+        currentAmount = double.parse(currentText);
+      } catch (e) {
+        currentAmount = 0.0;
+      }
+    }
+    
+    double newAmount = currentAmount + amount;
+    String newAmountText = newAmount.toStringAsFixed(2);
+    amountPaidTextEditingController.text = newAmountText;
+    amountPaidChange(newAmountText);
+  }
+
+  // Clear amount paid field (for tablet clear button)
+  void clearAmountPaid() {
+    amountPaidTextEditingController.clear();
+    amountPaid.value = 0.0;
+    customerAmountPaid.value = 0.0;
+    change.value = 0.0;
+  }
+
   void showConfirmDialogChargeSale() {
     debouncedChargeSale();
   }
