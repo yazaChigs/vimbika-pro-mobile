@@ -71,6 +71,17 @@ class SaleScreen extends GetView {
         "${saleController.user.firstName} ${saleController.user.lastName}";
     String initials =
         saleController.user.firstName[0] + saleController.user.lastName[0];
+    
+    // Sync default payment type to saleController for highlighting
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (cartController.selectedPaymentType.value != null &&
+          cartController.selectedPaymentType.value!.id != null &&
+          !saleController.selectedPaymentTypes.any((pt) => pt.id == cartController.selectedPaymentType.value!.id)) {
+        saleController.selectedPaymentTypes.add(cartController.selectedPaymentType.value!);
+        saleController.selectedPaymentType = cartController.selectedPaymentType.value!;
+      }
+    });
+    
     if (isMobile(context)) {
       return GestureDetector(
         behavior: HitTestBehavior.translucent,
@@ -2115,7 +2126,8 @@ class SaleScreen extends GetView {
                                                                   style: ElevatedButton
                                                                       .styleFrom(
                                                                     backgroundColor: saleController.selectedPaymentTypes.contains(cartController.filteredPaymentTypesList[
-                                                                            index])
+                                                                            index]) ||
+                                                                        cartController.selectedPaymentType.value?.id == cartController.filteredPaymentTypesList[index].id
                                                                         ? Colors
                                                                             .pinkAccent
                                                                         : Colors
