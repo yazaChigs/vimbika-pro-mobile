@@ -662,6 +662,9 @@ class CartController extends GetxController {
     double newAmount = currentAmount + amount;
     String newAmountText = newAmount.toStringAsFixed(2);
     amountPaidTextEditingController.text = newAmountText;
+    // Update all amount-related values to ensure validation passes
+    amountPaid.value = newAmount;
+    customerAmountPaid.value = newAmount;
     amountPaidChange(newAmountText);
   }
 

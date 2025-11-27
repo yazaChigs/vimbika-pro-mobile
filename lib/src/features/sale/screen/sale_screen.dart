@@ -2668,7 +2668,7 @@ class SaleScreen extends GetView {
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
@@ -2677,7 +2677,7 @@ class SaleScreen extends GetView {
       child: Text(
         label,
         style: const TextStyle(
-          fontSize: 16,
+          fontSize: 14,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -2697,7 +2697,7 @@ class SaleScreen extends GetView {
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.deepOrange,
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
@@ -2706,12 +2706,12 @@ class SaleScreen extends GetView {
       child: const Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.clear, size: 18),
+          Icon(Icons.clear, size: 16),
           SizedBox(width: 4),
           Text(
             'Clear',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
             ),
           ),
