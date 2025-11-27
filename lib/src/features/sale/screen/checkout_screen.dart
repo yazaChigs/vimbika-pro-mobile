@@ -637,7 +637,7 @@ class CheckoutScreen extends StatelessWidget {
                             cartController,
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 2),
                         Expanded(
                           child: _buildClearButton(
                             context,
@@ -960,13 +960,14 @@ class CheckoutScreen extends StatelessWidget {
       ),
       child: const Row(
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.clear, size: 16),
-          SizedBox(width: 4),
+          Icon(Icons.clear, size: 14),
+          SizedBox(width: 2),
           Text(
             'Clear',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: FontWeight.bold,
             ),
           ),
