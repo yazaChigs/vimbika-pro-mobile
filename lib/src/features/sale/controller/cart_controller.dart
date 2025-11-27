@@ -591,18 +591,34 @@ class CartController extends GetxController {
           itemsListMap.map((map) => CurrencyModel.fromMap(map)));
       currencyList.value = currencies;
       var currencyId = box.read(AppConstants.DEFAULT_CURRENCY_ID) ?? "";
+      
+      // First, find and set the base currency (needed for calculations)
       for (var cur in currencies) {
         if (cur.isBaseCurrency!) {
-          selectedCurrency.value = cur;
           baseCurrency.value = cur;
-          isCurrencySelected.value = true;
+          // Set base currency as fallback if no default currency is set
+          if (currencyId.isEmpty) {
+            selectedCurrency.value = cur;
+            isCurrencySelected.value = true;
+          }
         }
       }
-      for (var cur in currencies) {
-        if (cur.id == currencyId) {
-          selectedCurrency.value = cur;
-          isCurrencySelected.value = true;
+      
+      // Then, prioritize default currency from settings if it exists
+      if (currencyId.isNotEmpty) {
+        for (var cur in currencies) {
+          if (cur.id == currencyId) {
+            selectedCurrency.value = cur;
+            isCurrencySelected.value = true;
+            break; // Found default currency, no need to continue
+          }
         }
+      }
+      
+      // If no currency is selected yet (shouldn't happen, but safety check)
+      if (!isCurrencySelected.value && currencies.isNotEmpty) {
+        selectedCurrency.value = currencies.first;
+        isCurrencySelected.value = true;
       }
       return currencies;
     } else {
