@@ -580,10 +580,9 @@ class CheckoutScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 // Quick amount buttons for tablet view
-                if (MediaQuery.of(context).size.width >= 950.0)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-                    child: Row(
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                  child: Row(
                       children: [
                         Expanded(
                           child: _buildQuickAmountButton(
