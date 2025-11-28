@@ -560,6 +560,20 @@ class ShiftController extends GetxController {
     SyncService.syncOfflineShifts(user, box);
 
     AppHelper.hideLoading();
+    
+    // Explicitly preserve company and branch for auto-fill on next login
+    // This ensures they are available after close shift, just like after logout
+    var selectedBranch = box.read(AppConstants.SELECTED_BRANCH);
+    var activeCompany = box.read(AppConstants.ACTIVE_COMPANY);
+    if(selectedBranch != null) {
+      box.write(AppConstants.SELECTED_BRANCH, selectedBranch);
+      print("Preserved SELECTED_BRANCH for auto-fill after close shift");
+    }
+    if(activeCompany != null) {
+      box.write(AppConstants.ACTIVE_COMPANY, activeCompany);
+      print("Preserved ACTIVE_COMPANY for auto-fill after close shift");
+    }
+    
     signOut();
   }
   void showConfirmDialogCloseShift() {
@@ -756,6 +770,9 @@ class ShiftController extends GetxController {
     
     // Note: USER_INFO, USER_PASSWORD, and IS_USER_INITIALLY_AUTHENTICATED are preserved
     // to allow offline login after closing shift
+    
+    // Note: SELECTED_BRANCH and ACTIVE_COMPANY are preserved (not removed)
+    // to allow auto-fill of company and branch on next login, both after logout and close shift
     
     // Clean up controllers
     Get.delete<SaleController>();

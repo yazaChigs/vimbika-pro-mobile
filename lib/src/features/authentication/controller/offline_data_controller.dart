@@ -116,10 +116,59 @@ class OfflineDataController extends GetxController {
       companyList.value = cachedCompanies;
     }
     
+    // Auto-select company from storage if it exists (for auto-fill after logout/close shift)
+    var activeCompany = box.read(AppConstants.ACTIVE_COMPANY);
+    if(activeCompany != null && activeCompany is Map) {
+      try {
+        CompanyModel savedCompany = CompanyModel.fromMap(Map<String, dynamic>.from(activeCompany));
+        // Verify the company exists in the cached list
+        try {
+          CompanyModel foundCompany = companyList.firstWhere((c) => c.id == savedCompany.id);
+          selectedCompany.value = foundCompany;
+          isCompanySelected.value = true;
+          print("Auto-selected company: ${foundCompany.name} (ID: ${foundCompany.id})");
+        } catch (e) {
+          print("Company ${savedCompany.id} not found in cached list, skipping auto-selection");
+        }
+      } catch (e) {
+        print("Error auto-selecting company: $e");
+      }
+    }
+    
     // Load branches
     List<BranchModel> cachedBranches = getBranchList(box);
     if(cachedBranches.isNotEmpty) {
       branchList.value = cachedBranches;
+    }
+    
+    // Auto-select branch from storage if it exists (for auto-fill after logout/close shift)
+    var selectedBranchData = box.read(AppConstants.SELECTED_BRANCH);
+    if(selectedBranchData != null && selectedBranchData is Map) {
+      try {
+        BranchModel savedBranch = BranchModel.fromMap(Map<String, dynamic>.from(selectedBranchData));
+        // Verify the branch exists in the cached list
+        try {
+          BranchModel foundBranch = branchList.firstWhere((b) => b.id == savedBranch.id);
+          selectedBranch.value = foundBranch;
+          isBranchSelected.value = true;
+          print("Auto-selected branch: ${foundBranch.name} (ID: ${foundBranch.id})");
+          
+          // If company is also selected, ensure they match
+          if(isCompanySelected.isTrue && selectedCompany.value != null) {
+            // Verify branch belongs to selected company
+            if(foundBranch.company?.id != selectedCompany.value!.id) {
+              // Branch doesn't match company, clear branch selection
+              print("Branch ${foundBranch.name} doesn't match selected company, clearing branch selection");
+              selectedBranch.value = BranchModel();
+              isBranchSelected.value = false;
+            }
+          }
+        } catch (e) {
+          print("Branch ${savedBranch.id} not found in cached list, skipping auto-selection");
+        }
+      } catch (e) {
+        print("Error auto-selecting branch: $e");
+      }
     }
     
     // Load currencies
