@@ -21,6 +21,13 @@ class ViewShiftScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     String fullName = "${shiftController.user.firstName} ${shiftController.user.lastName}";
     String initials = shiftController.user.firstName[0] + shiftController.user.lastName[0];
+    
+    // Refresh shift information when shift view screen is accessed
+    // This ensures the correct shift is displayed for the current user
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      shiftController.shiftInfo();
+    });
+    
     return WillPopScope(
       onWillPop: () async {
         // Navigate to a specific screen when back button is pressed

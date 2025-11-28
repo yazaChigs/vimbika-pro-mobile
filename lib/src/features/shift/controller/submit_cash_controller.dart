@@ -74,18 +74,46 @@ class SubmitCashController extends GetxController {
     return list;
   }
   shiftInfo() async {
+    // Reload user to ensure we have the current logged-in user
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
+      print("Submit Cash: Loaded user ${user.value!.userName} with ID ${user.value!.id}");
+    }
 
     shifts = loadShifts(box);
     shiftList.value = shifts;
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(shifts, box, user.value!, true);
     if(tempActiveShift != null) {
-      print("Updating shift");
+      print("Submit Cash: Found active shift ${tempActiveShift.shiftReference} for user ${user.value!.userName} (ID: ${user.value!.id})");
       activeShift.value = tempActiveShift;
       shiftAvailable.value = true;
+    } else {
+      print("Submit Cash: No active shift found for user ${user.value!.userName} (ID: ${user.value!.id})");
     }
   }
 
-  void addCurrencyAmount(CurrencyModel currency) {
+  void addCurrencyAmount(CurrencyModel currency) async {
+    // Reload user and shift to ensure we have the current user's shift
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
+    }
+    
+    // Reload shifts and get the active shift for the current user
+    shifts = loadShifts(box);
+    shiftList.value = shifts;
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(shifts, box, user.value!, true);
+    if(tempActiveShift != null) {
+      activeShift.value = tempActiveShift;
+      shiftAvailable.value = true;
+      print("Add Currency Amount: Using shift ${activeShift.value.shiftReference} for user ${user.value!.userName} (ID: ${user.value!.id})");
+    } else {
+      print("Add Currency Amount: No active shift found for user ${user.value!.userName} (ID: ${user.value!.id})");
+      Get.snackbar("Error", "No active shift found!", snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
     DateTime now = DateTime.now();
     String timeInit = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(now);
     int count = currencyAmountList.length + 1;
@@ -191,6 +219,26 @@ class SubmitCashController extends GetxController {
   }
 
   Future<void> submitCash() async {
+    // Reload user and shift to ensure we have the current user's shift
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
+    }
+    
+    // Reload shifts and get the active shift for the current user
+    shifts = loadShifts(box);
+    shiftList.value = shifts;
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(shifts, box, user.value!, true);
+    if(tempActiveShift != null) {
+      activeShift.value = tempActiveShift;
+      shiftAvailable.value = true;
+      print("Submit Cash: Using shift ${activeShift.value.shiftReference} for user ${user.value!.userName} (ID: ${user.value!.id})");
+    } else {
+      print("Submit Cash: No active shift found for user ${user.value!.userName} (ID: ${user.value!.id})");
+      Get.snackbar("Error", "No active shift found!", snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
     ShiftModel shift = activeShift.value;
     currencyAmountList.forEach((element) {
       shift.shiftCurrencyAmounts!.add(element);

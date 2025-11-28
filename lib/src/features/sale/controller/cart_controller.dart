@@ -168,6 +168,32 @@ class CartController extends GetxController {
 
   get formKeyAddAmount => null;
 
+  // Method to refresh shift information for the current user
+  // This should be called when the sale screen is accessed to ensure correct shift is loaded
+  Future<void> refreshShiftForCurrentUser() async {
+    // Reload user to ensure we have the latest user data
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
+    }
+    
+    // Reload shifts and get the active shift for the current user
+    List<ShiftModel> tempShiftList = loadShifts(box);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
+        tempShiftList, box, user.value!, true);
+    
+    if (tempActiveShift != null) {
+      activeShift = tempActiveShift;
+      shiftAvailable.value = true;
+      shiftList.value = tempShiftList;
+      print("Refreshed shift: ${activeShift.shiftReference} for user ${user.value!.userName} (ID: ${user.value!.id})");
+    } else {
+      shiftAvailable.value = false;
+      shiftList.value = tempShiftList;
+      print("No active shift found for user ${user.value!.userName} (ID: ${user.value!.id})");
+    }
+  }
+
   @override
   Future<void> onInit() async {
     super.onInit();
@@ -833,6 +859,27 @@ class CartController extends GetxController {
     }
     AppHelper.showLoading("Saving new sale..");
 
+    // Reload user and shift information to ensure we have the current user's shift
+    // This is critical when a user logs in after another user has logged out
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
+    }
+    
+    // Reload shifts and get the active shift for the current user
+    List<ShiftModel> tempShiftList = loadShifts(box);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
+        tempShiftList, box, user.value!, true);
+    
+    if (tempActiveShift != null) {
+      activeShift = tempActiveShift;
+      shiftAvailable.value = true;
+      print("Charge Sale: Using shift ${activeShift.shiftReference} for user ${user.value!.userName} (ID: ${user.value!.id})");
+    } else {
+      shiftAvailable.value = false;
+      print("Charge Sale: No active shift found for user ${user.value!.userName} (ID: ${user.value!.id})");
+    }
+
     saleTicketId.value = saleId;
 
     saleItems = cartItemsToSaleItems(saleCartItems);
@@ -1151,11 +1198,23 @@ class CartController extends GetxController {
       bool stat,
       String posReference,
       List<PaymentReceivedModel> paymentTypes, String type, String customerName ,bool breakage) async {
+    // Reload user to ensure we have the current logged-in user
+    // This is critical when a user logs in after another user has logged out
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
+    }
+    
+    // Get the active shift for the current user
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
         loadShifts(box), box, user.value!, true);
     if (tempActiveShift != null) {
       activeShift = tempActiveShift;
       shiftAvailable.value = true;
+      print("Update Shift: Using shift ${activeShift.shiftReference} for user ${user.value!.userName} (ID: ${user.value!.id})");
+    } else {
+      print("Update Shift: No active shift found for user ${user.value!.userName} (ID: ${user.value!.id})");
+    }
       for (PaymentReceivedModel paymentTypeModel in paymentTypes) {
         var isCash = paymentTypeModel.paymentType!.name!.startsWith("CASH");
         int count = activeShift.shiftCurrencyAmounts!.length + 1;

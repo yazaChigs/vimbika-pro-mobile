@@ -72,6 +72,12 @@ class SaleScreen extends GetView {
     String initials =
         saleController.user.firstName[0] + saleController.user.lastName[0];
     
+    // Refresh shift information when sale screen is accessed
+    // This ensures the correct shift is loaded for the current user
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      cartController.refreshShiftForCurrentUser();
+    });
+    
     // Sync default payment type to saleController for highlighting
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (cartController.selectedPaymentType.value != null &&

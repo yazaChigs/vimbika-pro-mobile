@@ -669,17 +669,22 @@ class SyncService {
   //   }
   // }
   static  syncOfflineShifts(UserModel user,  GetStorage box) async {
+    // Always reload user to ensure we have the current logged-in user
+    // This is critical when a user logs in after another user has logged out
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+      print("Sync Offline Shifts: Loaded user ${user.userName} with ID ${user.id}");
+    } else if(user.id.isNullOrBlank!){
+      print("Sync Offline Shifts: User is null and no USER_INFO found");
+      return; // Cannot sync without user info
+    }
+    
     List<ShiftModel> shiftInfo = loadShiftInfo(box);
     RxList itemsToBeSynced = [].obs;
     List<ShiftModel> upToDateItems = [];
     List<ShiftModel> updateItems = [];
     List<CurrencyAmount> updateCurrencyItems = [];
-
-    if(user.id.isNullOrBlank!){
-      print("User is null");
-      var model = box.read(AppConstants.USER_INFO) ?? {};
-      user = UserModel.fromMap(Map<String, dynamic>.from(model));
-    }
 
     for (ShiftModel sh in shiftInfo) {
       if (!sh.stopSync! && !sh.isShiftClosed!) {

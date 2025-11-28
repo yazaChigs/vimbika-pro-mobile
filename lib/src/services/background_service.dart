@@ -46,8 +46,16 @@ class BackgroundService extends GetxService {
   }
 
   checkShiftStatus(GetStorage box, LocalStorageService _localStorageService) async {
+    // Reload user to ensure we have the current logged-in user
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    UserModel currentUser = UserModel(firstName: "", lastName: "", userName: "");
+    if(model.isNotEmpty){
+      currentUser = UserModel.fromMap(Map<String, dynamic>.from(model));
+      print("Check Shift Status: Loaded user ${currentUser.userName} with ID ${currentUser.id}");
+    }
+    
     List<ShiftModel> tempShiftList = loadShifts(box, _localStorageService);
-    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, UserModel(firstName: "", lastName: "", userName: ""), false);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, currentUser, false);
     if(tempActiveShift != null) {
        DateTime openingTime = DateTime.parse(tempActiveShift.openingTime!);
        // DateTime closingTime = openingTime.add(Duration(hours: shiftSetting.shiftDuration??24));
@@ -78,6 +86,15 @@ class BackgroundService extends GetxService {
   syncOfflineSales(bool returnSales) async{
     print("syncing offline sales...");
     box = GetStorage();
+    
+    // Reload user to ensure we have the current logged-in user
+    // This is critical when a user logs in after another user has logged out
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+      print("Sync Offline Sales: Loaded user ${user.userName} with ID ${user.id}");
+    }
+    
     box.write(AppConstants.SYNCING_IN_PROGRESS, true);
     bool stat = await _connectivityService.checkServerConnection();
     if(stat) {
