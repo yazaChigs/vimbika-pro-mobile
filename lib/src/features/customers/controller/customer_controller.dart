@@ -852,6 +852,9 @@ class CustomerController extends GetxController {
         }
       }
     }
+    // Exclude credit payment types when crediting customer account
+    tempList = tempList.where((type) => !type.isCredit!).toList();
+    
     // If the customer is 'WalkIn', filter out payment types containing 'credit'
     if (selectedCus.name != null &&
         selectedCus.name!.toLowerCase() == 'walkin') {

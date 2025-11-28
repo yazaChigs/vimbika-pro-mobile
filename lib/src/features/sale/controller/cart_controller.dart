@@ -398,6 +398,9 @@ class CartController extends GetxController {
       tempList = tempList.where((type)=>!type.name!.startsWith("ACC-")).toList();
     }
 
+    // Exclude credit payment types when adding to account
+    tempList = tempList.where((type) => !type.isCredit!).toList();
+
     // If the customer is 'WalkIn', filter out payment types containing 'credit'
     if (selectedCus.name != null &&
         selectedCus.name!.toLowerCase() == 'walkin') {

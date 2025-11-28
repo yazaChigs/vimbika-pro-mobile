@@ -937,7 +937,7 @@ class CheckoutScreen extends StatelessWidget {
       child: Text(
         label,
         style: const TextStyle(
-          fontSize: 14,
+          fontSize: 18,
           fontWeight: FontWeight.bold,
         ),
       ),
