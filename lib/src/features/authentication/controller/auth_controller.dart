@@ -254,8 +254,11 @@ class AuthController extends GetxController {
             box.write(AppConstants.USER_INFO, userInfo);
             box.write(AppConstants.USER_PASSWORD, password);
             box.write(AppConstants.IS_USER_INITIALLY_AUTHENTICATED, true);
+            print("Offline login successful for user: ${userInfo['userName'] ?? 'unknown'}");
             Get.offNamed(AppRoutes.CHOOSE_BRANCH);
             return; // Exit early if offline login succeeds
+          } else {
+            print("Offline login failed: Password mismatch for user: ${userInfo['userName'] ?? 'unknown'}");
           }
         }
         
@@ -290,8 +293,11 @@ class AuthController extends GetxController {
           box.write(AppConstants.USER_INFO, userInfo);
           box.write(AppConstants.USER_PASSWORD, password);
           box.write(AppConstants.IS_USER_INITIALLY_AUTHENTICATED, true);
+          print("Offline login successful (no server) for user: ${userInfo['userName'] ?? 'unknown'}");
           Get.offNamed(AppRoutes.CHOOSE_BRANCH);
           return;
+        } else {
+          print("Offline login failed (no server): Password mismatch for user: ${userInfo['userName'] ?? 'unknown'}");
         }
       }
       
