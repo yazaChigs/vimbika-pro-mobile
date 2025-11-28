@@ -612,6 +612,7 @@ class ShiftController extends GetxController {
       
       // Preserve shifts that are referenced by unsynced sales
       // This allows shifts to be updated when sales are synced later
+      // IMPORTANT: Merge with existing preserved shifts from other users to avoid overwriting them
       List<ShiftModel> allShifts = loadShifts(box);
       Set<String> shiftReferences = unsyncedSales
           .where((sale) => sale.sale?.shiftReference != null && sale.sale!.shiftReference!.isNotEmpty)
@@ -619,19 +620,60 @@ class ShiftController extends GetxController {
           .toSet();
       
       if (shiftReferences.isNotEmpty) {
-        List<ShiftModel> shiftsToPreserve = allShifts
-            .where((shift) => shiftReferences.contains(shift.shiftReference))
+        // Get current user ID if not already set
+        if(user.id == null){
+          var model = box.read(AppConstants.USER_INFO) ?? {};
+          user = UserModel.fromMap(Map<String, dynamic>.from(model));
+        }
+        
+        // Find shifts that belong to the current user AND are referenced by unsynced sales
+        List<ShiftModel> currentUserShiftsToPreserve = allShifts
+            .where((shift) => 
+                shiftReferences.contains(shift.shiftReference) &&
+                shift.userId != null && 
+                user.id != null && 
+                shift.userId == user.id)
             .toList();
         
-        if (shiftsToPreserve.isNotEmpty) {
-          List<Map<String, dynamic>> shiftsMap = shiftsToPreserve.map((item) => item.toMap()).toList();
+        // Find shifts from OTHER users that should be preserved (they have unsynced sales from previous logouts)
+        // These are shifts that don't belong to current user but are in the existing preserved list
+        List<ShiftModel> otherUsersPreservedShifts = allShifts
+            .where((shift) => 
+                shift.userId != null && 
+                user.id != null && 
+                shift.userId != user.id)
+            .toList();
+        
+        // Merge current user's shifts with other users' preserved shifts
+        List<ShiftModel> allShiftsToPreserve = [
+          ...currentUserShiftsToPreserve,
+          ...otherUsersPreservedShifts,
+        ];
+        
+        if (allShiftsToPreserve.isNotEmpty) {
+          List<Map<String, dynamic>> shiftsMap = allShiftsToPreserve.map((item) => item.toMap()).toList();
           box.write(AppConstants.SHIFT_LIST, shiftsMap);
-          print("Preserved ${shiftsToPreserve.length} shift(s) associated with unsynced sales");
+          print("Preserved ${currentUserShiftsToPreserve.length} shift(s) for user ${user.id} and ${otherUsersPreservedShifts.length} shift(s) from other users");
         } else {
           box.remove(AppConstants.SHIFT_LIST);
         }
       } else {
-        box.remove(AppConstants.SHIFT_LIST);
+        // No shift references in current user's unsynced sales
+        // But we should preserve shifts from other users if they exist
+        List<ShiftModel> otherUsersPreservedShifts = allShifts
+            .where((shift) => 
+                shift.userId != null && 
+                user.id != null && 
+                shift.userId != user.id)
+            .toList();
+        
+        if (otherUsersPreservedShifts.isNotEmpty) {
+          List<Map<String, dynamic>> shiftsMap = otherUsersPreservedShifts.map((item) => item.toMap()).toList();
+          box.write(AppConstants.SHIFT_LIST, shiftsMap);
+          print("Preserved ${otherUsersPreservedShifts.length} shift(s) from other users (no shifts for current user)");
+        } else {
+          box.remove(AppConstants.SHIFT_LIST);
+        }
       }
     } else {
       // No unsynced sales, remove both sales and shifts
