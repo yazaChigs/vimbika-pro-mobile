@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:vimbika_pos_app/src/features/sale/widget/custom_dropdown_widget.dart';
 import 'package:vimbika_pos_app/src/features/sale_receipts/controller/receipt_controller.dart';
+import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
@@ -19,6 +20,137 @@ class ReceiptScreen extends StatelessWidget {
   final InactivityController inactivityController = Get.put(InactivityController());
   final ReceiptController receiptController = Get.put(ReceiptController());
 
+  // Format date header (Today, Yesterday, or full date)
+  String _formatDateHeader(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(Duration(days: 1));
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    
+    if (dateOnly == today) {
+      return 'Today';
+    } else if (dateOnly == yesterday) {
+      return 'Yesterday';
+    } else {
+      // Format as "Monday, January 15, 2024"
+      return DateFormat('EEEE, MMMM d, yyyy').format(date);
+    }
+  }
+
+  // Build day divider widget
+  Widget _buildDayDivider(String dateText) {
+    return Container(
+      margin: EdgeInsets.only(top: 16, bottom: 8, left: 8, right: 8),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border(
+          bottom: BorderSide(color: Colors.blue[200]!, width: 2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.calendar_today, color: Colors.blue[700], size: 20),
+          SizedBox(width: 8),
+          Text(
+            dateText,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[900],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Get shift by reference
+  ShiftModel? _getShiftByReference(String? shiftReference) {
+    if (shiftReference == null || shiftReference.isEmpty) {
+      return null;
+    }
+    try {
+      final shift = receiptController.shifts.firstWhere(
+        (shift) => shift.shiftReference == shiftReference,
+        orElse: () => ShiftModel(),
+      );
+      // Return null if shift is empty (not found)
+      if (shift.shiftReference == null || shift.shiftReference!.isEmpty) {
+        return null;
+      }
+      return shift;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Format shift header text
+  String _formatShiftHeader(ShiftModel? shift, String? shiftReference) {
+    if (shift == null) {
+      return shiftReference ?? 'Unknown Shift';
+    }
+    
+    String shiftRef = shift.shiftReference ?? 'Unknown';
+    String openingTime = '';
+    
+    if (shift.openingTime != null && shift.openingTime!.isNotEmpty) {
+      try {
+        // Parse and format opening time
+        DateTime? openTime;
+        if (shift.openingTime!.contains('T')) {
+          openTime = DateTime.parse(shift.openingTime!);
+        } else {
+          // Try parsing as date string
+          openTime = DateTime.tryParse(shift.openingTime!);
+        }
+        
+        if (openTime != null) {
+          openingTime = DateFormat('h:mm a').format(openTime);
+        } else {
+          openingTime = shift.openingTime!;
+        }
+      } catch (e) {
+        openingTime = shift.openingTime!;
+      }
+    }
+    
+    if (openingTime.isNotEmpty) {
+      return 'Shift $shiftRef | Opened: $openingTime';
+    } else {
+      return 'Shift $shiftRef';
+    }
+  }
+
+  // Build shift divider widget
+  Widget _buildShiftDivider(String shiftText) {
+    return Container(
+      margin: EdgeInsets.only(top: 8, bottom: 8, left: 8, right: 8),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.green[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border(
+          bottom: BorderSide(color: Colors.green[200]!, width: 1.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.access_time, color: Colors.green[700], size: 18),
+          SizedBox(width: 8),
+          Text(
+            shiftText,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.green[900],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -234,84 +366,175 @@ class ReceiptScreen extends StatelessWidget {
 
               Expanded(
                 child: Obx(() {
+                  if (receiptController.filteredReceipts.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'No receipts found',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    );
+                  }
+                  
                   return ListView.builder(
                     itemCount: receiptController.filteredReceipts.length,
                     itemBuilder: (context, index) {
                       final saleInfo = receiptController.filteredReceipts[index];
                       final sale = saleInfo.sale;
-
-                      return Card(
-                        color: sale!.saleStatus=="REVERSED"?Colors.redAccent[100]:Colors.grey[300],
-                        child: ListTile(
-                          leading:
-                              Text(
-                                '${sale!.currency?.symbol ?? ''} ${sale.amountAfterDiscount!.toStringAsFixed(2).toString()}',
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold,color: Colors.lightGreen),
-                              ),
-                          title: Text(sale.referenceNumber!,
-                            style: TextStyle(
-                            fontSize: 20,color: Colors.indigo,fontWeight: FontWeight.bold
-                          ),),
-                          subtitle: Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              Column(
+                      
+                      // Get current receipt date
+                      String? currentDateStr = sale?.timeIniated;
+                      DateTime? currentDate;
+                      if (currentDateStr != null && currentDateStr.isNotEmpty) {
+                        try {
+                          currentDate = DateTime.parse(currentDateStr);
+                        } catch (e) {
+                          currentDate = null;
+                        }
+                      }
+                      
+                      // Get previous receipt date to check if we need a divider
+                      String? previousDateStr;
+                      DateTime? previousDate;
+                      if (index > 0) {
+                        previousDateStr = receiptController.filteredReceipts[index - 1].sale?.timeIniated;
+                        if (previousDateStr != null && previousDateStr.isNotEmpty) {
+                          try {
+                            previousDate = DateTime.parse(previousDateStr);
+                          } catch (e) {
+                            previousDate = null;
+                          }
+                        }
+                      }
+                      
+                      // Get current receipt shift reference
+                      String? currentShiftRef = sale?.shiftReference;
+                      
+                      // Get previous receipt shift reference
+                      String? previousShiftRef;
+                      if (index > 0) {
+                        previousShiftRef = receiptController.filteredReceipts[index - 1].sale?.shiftReference;
+                      }
+                      
+                      // Check if we need to show a day divider
+                      bool showDayDivider = false;
+                      String dayDividerText = "";
+                      if (currentDate != null) {
+                        if (index == 0) {
+                          // Always show divider for first item
+                          showDayDivider = true;
+                        } else if (previousDate != null) {
+                          // Check if date changed
+                          if (currentDate.year != previousDate.year ||
+                              currentDate.month != previousDate.month ||
+                              currentDate.day != previousDate.day) {
+                            showDayDivider = true;
+                          }
+                        }
+                        
+                        if (showDayDivider) {
+                          dayDividerText = _formatDateHeader(currentDate);
+                        }
+                      }
+                      
+                      // Check if we need to show a shift divider
+                      bool showShiftDivider = false;
+                      String shiftDividerText = "";
+                      if (currentShiftRef != null && currentShiftRef.isNotEmpty) {
+                        if (index == 0) {
+                          // Always show shift divider for first item if it has a shift
+                          showShiftDivider = true;
+                        } else {
+                          // Check if shift changed (within same day or across days)
+                          if (currentShiftRef != previousShiftRef) {
+                            showShiftDivider = true;
+                          }
+                        }
+                        
+                        if (showShiftDivider) {
+                          ShiftModel? shift = _getShiftByReference(currentShiftRef);
+                          shiftDividerText = _formatShiftHeader(shift, currentShiftRef);
+                        }
+                      }
+                      
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (showDayDivider) _buildDayDivider(dayDividerText),
+                          if (showShiftDivider) _buildShiftDivider(shiftDividerText),
+                          Card(
+                            color: sale!.saleStatus=="REVERSED"?Colors.redAccent[100]:Colors.grey[300],
+                            child: ListTile(
+                              leading:
+                                  Text(
+                                    '${sale!.currency?.symbol ?? ''} ${sale.amountAfterDiscount!.toStringAsFixed(2).toString()}',
+                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold,color: Colors.lightGreen),
+                                  ),
+                              title: Text(sale.referenceNumber!,
+                                style: TextStyle(
+                                fontSize: 20,color: Colors.indigo,fontWeight: FontWeight.bold
+                              ),),
+                              subtitle: Row(
+                                mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
-                                  Text(sale.paymentTypes!.map((paymentType)=>paymentType.paymentType!.name).join()),
-                                  Text(sale.timeIniated!.replaceFirst('T', ' ')),
-                                ],
-                                  ),
-                                Expanded(child:
-                              IconButton(onPressed: (){},
-                                  icon: saleInfo.syncStatus == true
-                                      ?Icon(Icons.check,color: Colors.green,size: 40)
-                                      :Icon(Icons.sync_problem_outlined,color: Colors.red,size: 40)
-                              )
-                              ),
-                            ],
-                          ),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                '${sale.saleStatus ?? 'N/A'}',
-                                style: sale.saleStatus!='REVERSED'? TextStyle(fontSize: 12, color: Colors.grey[700]):TextStyle(fontSize: 12, color: Colors.red[700]),
-                              ),
-                              Expanded(
-                                child: Container(
-                                  width: 110,
-                                  height: double.infinity,
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.start,
+                                  Column(
                                     children: [
-                                      IconButton(
-                                          icon: Icon(Icons.print_outlined,color: Colors.indigoAccent,size: 30),
-                                          onPressed: () async {
-                                            if(receiptController.isPrintClicked.isFalse) {
-                                              receiptController.isPrintClicked.value = true;
-                                              sale.saleStatus != 'REVERSED'
-                                                  ? receiptController
-                                                      .printSale(saleInfo)
-                                                  : null;
-                                            }
-                                          },
-                                        ),
-                                      Container(
-                                        child: sale.saleStatus != 'REVERSED'?IconButton(
-                                          enableFeedback: true,
-                                          icon: Icon(Icons.delete_forever_outlined,color: Colors.redAccent,size: 30),
-                                          onPressed: () {
-                                            receiptController.showConfirmDialogToDeleteItem(saleInfo,index);
-                                          },
-                                        ):SizedBox(),
-                                      ),
+                                      Text(sale.paymentTypes!.map((paymentType)=>paymentType.paymentType!.name).join()),
+                                      Text(sale.timeIniated!.replaceFirst('T', ' ')),
                                     ],
+                                      ),
+                                    Expanded(child:
+                                  IconButton(onPressed: (){},
+                                      icon: saleInfo.syncStatus == true
+                                          ?Icon(Icons.check,color: Colors.green,size: 40)
+                                          :Icon(Icons.sync_problem_outlined,color: Colors.red,size: 40)
+                                  )
                                   ),
-                                ),
+                                ],
                               ),
-                            ],
+                              trailing: Column(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '${sale.saleStatus ?? 'N/A'}',
+                                    style: sale.saleStatus!='REVERSED'? TextStyle(fontSize: 12, color: Colors.grey[700]):TextStyle(fontSize: 12, color: Colors.red[700]),
+                                  ),
+                                  Expanded(
+                                    child: Container(
+                                      width: 110,
+                                      height: double.infinity,
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.start,
+                                        children: [
+                                          IconButton(
+                                              icon: Icon(Icons.print_outlined,color: Colors.indigoAccent,size: 30),
+                                              onPressed: () async {
+                                                if(receiptController.isPrintClicked.isFalse) {
+                                                  receiptController.isPrintClicked.value = true;
+                                                  sale.saleStatus != 'REVERSED'
+                                                      ? receiptController
+                                                          .printSale(saleInfo)
+                                                      : null;
+                                                }
+                                              },
+                                            ),
+                                          Container(
+                                            child: sale.saleStatus != 'REVERSED'?IconButton(
+                                              enableFeedback: true,
+                                              icon: Icon(Icons.delete_forever_outlined,color: Colors.redAccent,size: 30),
+                                              onPressed: () {
+                                                receiptController.showConfirmDialogToDeleteItem(saleInfo,index);
+                                              },
+                                            ):SizedBox(),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       );
                     },
                   );

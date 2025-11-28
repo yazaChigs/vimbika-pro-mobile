@@ -122,9 +122,29 @@ class BackgroundService extends GetxService {
             } else{
               saleInfoModel = SaleInfoModel(sale: saleModel, syncStatus: true);
             }
-            saleCurrencyAmount.posReference = saleInfoModel.sale?.posReference;
-            var list = [saleCurrencyAmount];
-            shiftList.firstWhereOrNull((shift)=>shift.shiftReference==saleInfoModel.sale!.shiftReference)?.shiftCurrencyAmounts = [...list];
+            
+            // Update shift currency amount with new posReference from server
+            if (saleInfoModel.sale?.shiftReference != null) {
+              ShiftModel? shift = shiftList.firstWhereOrNull(
+                (shift) => shift.shiftReference == saleInfoModel.sale!.shiftReference
+              );
+              if (shift != null && shift.shiftCurrencyAmounts != null) {
+                // Find and update the currency amount with new posReference
+                int index = shift.shiftCurrencyAmounts!.indexWhere(
+                  (ca) => ca.posReference == saleInfo.sale!.posReference || 
+                          ca.posReference == saleInfo.sale!.referenceNumber
+                );
+                if (index != -1) {
+                  // Update existing currency amount with new posReference
+                  shift.shiftCurrencyAmounts![index].posReference = saleInfoModel.sale?.posReference;
+                } else if (saleCurrencyAmount.posReference != null && saleCurrencyAmount.posReference!.isNotEmpty) {
+                  // Add new currency amount if not found
+                  saleCurrencyAmount.posReference = saleInfoModel.sale?.posReference;
+                  shift.shiftCurrencyAmounts!.add(saleCurrencyAmount);
+                }
+              }
+            }
+            
             if(sales.any((saleInfo)=> saleInfo.sale?.posReference == saleInfo.sale?.posReference)){
               sales.remove(saleInfo);
               sales.add(saleInfoModel);
@@ -154,10 +174,29 @@ class BackgroundService extends GetxService {
             } else{
               saleInfoModel = SaleInfoModel(sale: saleModel, syncStatus: true);
             }
-            saleCurrencyAmount.posReference = saleInfoModel.sale?.posReference;
-            var list = [saleCurrencyAmount];
-            shiftList.firstWhere((shift)=>shift.shiftReference==saleInfoModel.sale!.shiftReference).shiftCurrencyAmounts = [...list];
-            print(shiftList.firstWhere((shift)=>shift.shiftReference==saleInfoModel.sale!.shiftReference).toJson());
+            
+            // Update shift currency amount with new posReference from server
+            if (saleInfoModel.sale?.shiftReference != null) {
+              ShiftModel? shift = shiftList.firstWhereOrNull(
+                (shift) => shift.shiftReference == saleInfoModel.sale!.shiftReference
+              );
+              if (shift != null && shift.shiftCurrencyAmounts != null) {
+                // Find and update the currency amount with new posReference
+                int index = shift.shiftCurrencyAmounts!.indexWhere(
+                  (ca) => ca.posReference == saleInfo.sale!.posReference || 
+                          ca.posReference == saleInfo.sale!.referenceNumber
+                );
+                if (index != -1) {
+                  // Update existing currency amount with new posReference
+                  shift.shiftCurrencyAmounts![index].posReference = saleInfoModel.sale?.posReference;
+                } else if (saleCurrencyAmount.posReference != null && saleCurrencyAmount.posReference!.isNotEmpty) {
+                  // Add new currency amount if not found
+                  saleCurrencyAmount.posReference = saleInfoModel.sale?.posReference;
+                  shift.shiftCurrencyAmounts!.add(saleCurrencyAmount);
+                }
+              }
+            }
+            
             // Update the sale in the local storage
             if(sales.any((saleInfo)=> saleInfo.sale?.posReference == saleInfo.sale?.posReference)){
               sales.remove(saleInfo);
@@ -173,6 +212,12 @@ class BackgroundService extends GetxService {
         // Remove the synced sales from the offline list
         print(offlineSales.remove(saleInfo));
       }
+      
+      // Save updated shifts to storage after syncing sales
+      // This ensures shift currency amounts are updated when sales are synced later
+      LocalStorageService _localStorageService = LocalStorageService();
+      _localStorageService.writeItems(AppConstants.SHIFT_LIST, shiftList, box);
+      
       box.write(AppConstants.SYNCING_IN_PROGRESS, false);
       // if(synced) {
         await SyncService.syncOfflineShifts(user, box);

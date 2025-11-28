@@ -485,9 +485,7 @@ class ShiftController extends GetxController {
     if (!offlineSales.isEmpty) {
       Get.snackbar("Shift Closed", 
           "Shift closed successfully. ${offlineSales.length} unsynced sale(s) preserved for later syncing.",
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.orange,
-          colorText: Colors.white);
+          snackPosition: SnackPosition.BOTTOM);
     } else {
       Get.snackbar("Success", "Shift closed successfully",
           snackPosition: SnackPosition.BOTTOM);
@@ -602,10 +600,6 @@ class ShiftController extends GetxController {
   signOut() async {
     GetStorage box = GetStorage();
     
-    // Remove shift and payment received data
-    box.remove(AppConstants.SHIFT_LIST);
-    box.remove(AppConstants.PAYMENT_RECEIVED_LIST);
-    
     // Preserve unsynced sales for later syncing - only remove synced sales
     List<SaleInfoModel> allSales = getExistingOfflineSales(box);
     List<SaleInfoModel> unsyncedSales = allSales.where((sale) => sale.syncStatus == false).toList();
@@ -615,10 +609,38 @@ class ShiftController extends GetxController {
       List<Map<String, dynamic>> unsyncedSalesMap = unsyncedSales.map((item) => item.toMap()).toList();
       box.write(AppConstants.SALE_LIST, unsyncedSalesMap);
       print("Preserved ${unsyncedSales.length} unsynced sale(s) for later syncing");
+      
+      // Preserve shifts that are referenced by unsynced sales
+      // This allows shifts to be updated when sales are synced later
+      List<ShiftModel> allShifts = loadShifts(box);
+      Set<String> shiftReferences = unsyncedSales
+          .where((sale) => sale.sale?.shiftReference != null && sale.sale!.shiftReference!.isNotEmpty)
+          .map((sale) => sale.sale!.shiftReference!)
+          .toSet();
+      
+      if (shiftReferences.isNotEmpty) {
+        List<ShiftModel> shiftsToPreserve = allShifts
+            .where((shift) => shiftReferences.contains(shift.shiftReference))
+            .toList();
+        
+        if (shiftsToPreserve.isNotEmpty) {
+          List<Map<String, dynamic>> shiftsMap = shiftsToPreserve.map((item) => item.toMap()).toList();
+          box.write(AppConstants.SHIFT_LIST, shiftsMap);
+          print("Preserved ${shiftsToPreserve.length} shift(s) associated with unsynced sales");
+        } else {
+          box.remove(AppConstants.SHIFT_LIST);
+        }
+      } else {
+        box.remove(AppConstants.SHIFT_LIST);
+      }
     } else {
-      // No unsynced sales, remove the list completely
+      // No unsynced sales, remove both sales and shifts
       box.remove(AppConstants.SALE_LIST);
+      box.remove(AppConstants.SHIFT_LIST);
     }
+    
+    // Remove payment received data
+    box.remove(AppConstants.PAYMENT_RECEIVED_LIST);
     
     // Remove access token and set authentication to false (user needs to login again)
     box.remove(AppConstants.CACHED_ACCESS_TOKEN);
