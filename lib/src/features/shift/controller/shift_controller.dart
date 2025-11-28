@@ -445,51 +445,58 @@ class ShiftController extends GetxController {
       var model = box.read(AppConstants.USER_INFO) ?? {};
       user = UserModel.fromMap(Map<String, dynamic>.from(model));
     }
-    if(stat || (!stat && offlineSales.isEmpty) ) {
-      AppHelper.showLoading();
-      if(stat){
-        if(!offlineSales.isEmpty)
-          await BackgroundService().syncOfflineSales(false);
-        await SyncService.savePaymentReceived(user, box);
-        await SyncService.saveCustomer(user, box);
+    // Allow closing shift even with unsynced sales - they will be preserved for later syncing
+    AppHelper.showLoading();
+    if(stat){
+      if(!offlineSales.isEmpty)
+        await BackgroundService().syncOfflineSales(false);
+      await SyncService.savePaymentReceived(user, box);
+      await SyncService.saveCustomer(user, box);
+    }
+    List<ShiftModel> itemsToBeSynced = [];
+    ShiftModel temp = activeShift.value;
+    DateTime now = DateTime.now();
+    String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+    temp.isShiftClosed = true;
+    temp.active = true;
+    temp.closingTime = closingTime;
+    itemsToBeSynced.add(temp);
+
+    String jsonShiftItems = json.encode(
+        itemsToBeSynced.map((shift) => shift.toMap()).toList());
+    var response = await BaseHttpClient()
+        .postAuthWithCompanyHeader(
+        "/mobile/pos/shift/save", jsonShiftItems, user.companyId!, "POST")
+        .catchError((onError) {
+      print(onError);
+      AppHelper.hideLoading();
+      if (onError is BadRequestException) {
+        var apiError = json.decode(onError.message!);
+        AppHelper.showErroDialog(description: apiError["reason"]);
+      } else {
+        AppHelper.handleError(onError);
       }
-      List<ShiftModel> itemsToBeSynced = [];
-      ShiftModel temp = activeShift.value;
-      DateTime now = DateTime.now();
-      String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
-      temp.isShiftClosed = true;
-      temp.active = true;
-      temp.closingTime = closingTime;
-      itemsToBeSynced.add(temp);
+    });
 
-      String jsonShiftItems = json.encode(
-          itemsToBeSynced.map((shift) => shift.toMap()).toList());
-      var response = await BaseHttpClient()
-          .postAuthWithCompanyHeader(
-          "/mobile/pos/shift/save", jsonShiftItems, user.companyId!, "POST")
-          .catchError((onError) {
-        print(onError);
-        AppHelper.hideLoading();
-        if (onError is BadRequestException) {
-          var apiError = json.decode(onError.message!);
-          AppHelper.showErroDialog(description: apiError["reason"]);
-        } else {
-          AppHelper.handleError(onError);
-        }
-      });
-
-      List<ShiftModel> shi = _localStorageService.replaceShift(temp, shifts);
-      _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
+    List<ShiftModel> shi = _localStorageService.replaceShift(temp, shifts);
+    _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
+    
+    // Show message about unsynced sales if any
+    if (!offlineSales.isEmpty) {
+      Get.snackbar("Shift Closed", 
+          "Shift closed successfully. ${offlineSales.length} unsynced sale(s) preserved for later syncing.",
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.orange,
+          colorText: Colors.white);
+    } else {
       Get.snackbar("Success", "Shift closed successfully",
           snackPosition: SnackPosition.BOTTOM);
-      SyncService.syncOfflineShifts(user, box);
+    }
+    
+    SyncService.syncOfflineShifts(user, box);
 
-      AppHelper.hideLoading();
-      signOut();
-    }
-    else {
-      Get.snackbar("Error", "You have unsynced sales. Please sync them before closing the shift", snackPosition: SnackPosition.BOTTOM,backgroundColor: Colors.red, colorText: Colors.white);
-    }
+    AppHelper.hideLoading();
+    signOut();
   }
   void showConfirmDialogCloseShift() {
     // Prevent multiple dialogs
@@ -595,10 +602,23 @@ class ShiftController extends GetxController {
   signOut() async {
     GetStorage box = GetStorage();
     
-    // Remove only shift and sales related data
+    // Remove shift and payment received data
     box.remove(AppConstants.SHIFT_LIST);
-    box.remove(AppConstants.SALE_LIST);
     box.remove(AppConstants.PAYMENT_RECEIVED_LIST);
+    
+    // Preserve unsynced sales for later syncing - only remove synced sales
+    List<SaleInfoModel> allSales = getExistingOfflineSales(box);
+    List<SaleInfoModel> unsyncedSales = allSales.where((sale) => sale.syncStatus == false).toList();
+    
+    if (unsyncedSales.isNotEmpty) {
+      // Save only unsynced sales back to storage
+      List<Map<String, dynamic>> unsyncedSalesMap = unsyncedSales.map((item) => item.toMap()).toList();
+      box.write(AppConstants.SALE_LIST, unsyncedSalesMap);
+      print("Preserved ${unsyncedSales.length} unsynced sale(s) for later syncing");
+    } else {
+      // No unsynced sales, remove the list completely
+      box.remove(AppConstants.SALE_LIST);
+    }
     
     // Remove access token and set authentication to false (user needs to login again)
     box.remove(AppConstants.CACHED_ACCESS_TOKEN);
