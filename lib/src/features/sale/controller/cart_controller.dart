@@ -398,8 +398,15 @@ class CartController extends GetxController {
       tempList = tempList.where((type)=>!type.name!.startsWith("ACC-")).toList();
     }
 
-    // Exclude credit payment types (isCredit == true AND name starts with "CREDIT-") when adding to account
-    tempList = tempList.where((type) => !(type.isCredit! && type.name!.startsWith("CREDIT-"))).toList();
+    // Check if "Add to Account" button is active (amountPaid > 0, cart is empty, customer is loyal)
+    bool isAddToAccountMode = amountPaid.value > 0 && 
+                               cartItems.isEmpty && 
+                               (selectedCus.isLoyalCustomer ?? false);
+    
+    // Exclude credit payment types (isCredit == true AND name starts with "CREDIT-") only when adding to account
+    if (isAddToAccountMode) {
+      tempList = tempList.where((type) => !(type.isCredit! && type.name!.startsWith("CREDIT-"))).toList();
+    }
 
     // If the customer is 'WalkIn', filter out payment types containing 'credit'
     if (selectedCus.name != null &&
@@ -431,6 +438,10 @@ class CartController extends GetxController {
       }
       cartItems.refresh();
       calculateTotalAmounts(cartItems);
+      // Refresh payment types when cart items change (affects "Add to Account" mode)
+      if (selectedCurrency.value != null && selectedCustomer.value != null) {
+        filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
+      }
     }
   }
 
@@ -487,6 +498,10 @@ class CartController extends GetxController {
   void removeFromCart(CartItemModel cartItem) {
     cartItems.remove(cartItem);
     calculateTotalAmounts(cartItems);
+    // Refresh payment types when cart items change (affects "Add to Account" mode)
+    if (selectedCurrency.value != null && selectedCustomer.value != null) {
+      filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
+    }
   }
 
   void incrementQuantity(CartItemModel cartItem) {
@@ -661,10 +676,15 @@ class CartController extends GetxController {
   amountPaidChange(String val) {
     double amountPaid = double.parse(val);
     customerAmountPaid.value = amountPaid;
+    this.amountPaid.value = amountPaid;
     if (amountPaid >= totalCostInSelectedCurrency.value) {
       change.value = amountPaid - totalCostInSelectedCurrency.value - double.parse(amtToAccTextEditingController.text) - double.parse(tipAmtTextEditingController.text);
     } else {
       change.value = 0.0;
+    }
+    // Refresh payment types when amount changes (affects "Add to Account" mode)
+    if (selectedCurrency.value != null && selectedCustomer.value != null) {
+      filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
     }
   }
 
@@ -709,6 +729,10 @@ class CartController extends GetxController {
     change.value = 0.0;
     hasAmountText.value = false;
     isFirstQuickAmountButtonUsed.value = false; // Reset flag when cleared
+    // Refresh payment types when amount is cleared (affects "Add to Account" mode)
+    if (selectedCurrency.value != null && selectedCustomer.value != null) {
+      filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
+    }
   }
 
   void showConfirmDialogChargeSale() {
