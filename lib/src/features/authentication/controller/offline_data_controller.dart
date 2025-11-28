@@ -152,17 +152,8 @@ class OfflineDataController extends GetxController {
           selectedBranch.value = foundBranch;
           isBranchSelected.value = true;
           print("Auto-selected branch: ${foundBranch.name} (ID: ${foundBranch.id})");
-          
-          // If company is also selected, ensure they match
-          if(isCompanySelected.isTrue && selectedCompany.value != null) {
-            // Verify branch belongs to selected company
-            if(foundBranch.company?.id != selectedCompany.value!.id) {
-              // Branch doesn't match company, clear branch selection
-              print("Branch ${foundBranch.name} doesn't match selected company, clearing branch selection");
-              selectedBranch.value = BranchModel();
-              isBranchSelected.value = false;
-            }
-          }
+          // Note: Company-branch relationship will be validated when user selects company
+          // or when they try to proceed (branches are filtered by company at that point)
         } catch (e) {
           print("Branch ${savedBranch.id} not found in cached list, skipping auto-selection");
         }
