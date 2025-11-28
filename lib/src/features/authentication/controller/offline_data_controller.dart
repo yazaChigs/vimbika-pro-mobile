@@ -66,7 +66,8 @@ class OfflineDataController extends GetxController {
     
     if(isInternetAccess.value){
       // Try to fetch fresh data from server
-      getCompanies(user, box);
+      // Use await to ensure companies are loaded before UI renders dropdown
+      await getCompanies(user, box);
       getSettings(user, box);
       getBranches(user, box, user.companyId!);//download branches
       getCurrencies(user, box);//download currencies
@@ -112,7 +113,17 @@ class OfflineDataController extends GetxController {
       (map) => CompanyModel.fromMap(map),
       box
     );
+    
+    // Deduplicate companies by ID to prevent dropdown errors
+    // Keep only the first occurrence of each company ID
     if(cachedCompanies.isNotEmpty) {
+      Map<String, CompanyModel> uniqueCompanies = {};
+      for (CompanyModel company in cachedCompanies) {
+        if (company.id != null && !uniqueCompanies.containsKey(company.id)) {
+          uniqueCompanies[company.id!] = company;
+        }
+      }
+      cachedCompanies = uniqueCompanies.values.toList();
       companyList.value = cachedCompanies;
     }
     
@@ -345,6 +356,16 @@ class OfflineDataController extends GetxController {
   }
 
   Future<void>  getCompanies(UserModel user, GetStorage box) async{
+    // Store the selected company ID before fetching (if one was auto-selected)
+    String? previouslySelectedCompanyId;
+    if(isCompanySelected.isTrue && selectedCompany.value != null) {
+      previouslySelectedCompanyId = selectedCompany.value!.id;
+      // Temporarily clear selection to prevent dropdown errors during fetch
+      // We'll re-select after the new list is loaded
+      selectedCompany.value = CompanyModel(fiscalisationEnabled: false);
+      isCompanySelected.value = false;
+    }
+    
     var response = await BaseHttpClient().getAuthWithCompanyHeader("/company/get-all", user.companyId!).catchError((onError){
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
@@ -356,11 +377,55 @@ class OfflineDataController extends GetxController {
     if(response != null) {
       List<dynamic> list = jsonDecode(response);
       List<CompanyModel> itemsList = List<CompanyModel>.from(list.map((i) => CompanyModel.fromMap(i)));
+      
+      // Deduplicate companies by ID to prevent dropdown errors
+      // Keep only the first occurrence of each company ID
+      Map<String, CompanyModel> uniqueCompanies = {};
+      for (CompanyModel company in itemsList) {
+        if (company.id != null && !uniqueCompanies.containsKey(company.id)) {
+          uniqueCompanies[company.id!] = company;
+        }
+      }
+      itemsList = uniqueCompanies.values.toList();
+      
       companyList.value = itemsList;
       List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
           item.toMap()).toList();
       //showSnackBar("Message", "Companies downloaded successfully");
       box.write(AppConstants.COMPANY_LIST, itemsListMap);
+      
+      // Re-select company from storage if it was auto-selected earlier
+      // This ensures the selected company instance matches the one in the dropdown list
+      if(previouslySelectedCompanyId != null) {
+        try {
+          CompanyModel foundCompany = companyList.firstWhere((c) => c.id == previouslySelectedCompanyId);
+          selectedCompany.value = foundCompany;
+          isCompanySelected.value = true;
+          print("Re-selected company after server fetch: ${foundCompany.name} (ID: ${foundCompany.id})");
+        } catch (e) {
+          print("Company ${previouslySelectedCompanyId} not found in server list, keeping selection cleared");
+          // Also check if it exists in ACTIVE_COMPANY storage
+          var activeCompany = box.read(AppConstants.ACTIVE_COMPANY);
+          if(activeCompany != null && activeCompany is Map) {
+            CompanyModel savedCompany = CompanyModel.fromMap(Map<String, dynamic>.from(activeCompany));
+            if(savedCompany.id == previouslySelectedCompanyId) {
+              print("Company ${previouslySelectedCompanyId} exists in storage but not in server list - may have been deleted");
+            }
+          }
+        }
+      }
+    } else {
+      // If fetch failed, restore the previous selection if it existed
+      if(previouslySelectedCompanyId != null) {
+        try {
+          CompanyModel foundCompany = companyList.firstWhere((c) => c.id == previouslySelectedCompanyId);
+          selectedCompany.value = foundCompany;
+          isCompanySelected.value = true;
+          print("Restored company selection after failed fetch: ${foundCompany.name} (ID: ${foundCompany.id})");
+        } catch (e) {
+          print("Could not restore company selection after failed fetch");
+        }
+      }
     }
   }
   Future<void>  getSettings(UserModel user, GetStorage box) async{
