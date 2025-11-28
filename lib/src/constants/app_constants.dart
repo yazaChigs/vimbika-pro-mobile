@@ -54,6 +54,7 @@ class AppConstants {
 
   static const USER_PASSWORD = "USER_PASSWORD";
   static const IS_USER_INITIALLY_AUTHENTICATED = "IS_USER_INITIALLY_AUTHENTICATED";
+  static const SAVED_USER_CREDENTIALS = "SAVED_USER_CREDENTIALS"; // Map of username -> {userInfo, password}
   static const APP_DATE_TIME_FMT = "yyyy-MM-dd HH:mm:ss";
 
 

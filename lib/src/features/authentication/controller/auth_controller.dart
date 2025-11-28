@@ -225,17 +225,46 @@ class AuthController extends GetxController {
         box.write(AppConstants.USER_PASSWORD, password);
         userResponseModel.token = null;
         box.write(AppConstants.USER_INFO, userResponseModel.user!.toMap());
+        
+        // Save credentials for this user (keyed by normalized username) for offline login
+        // This allows multiple users to log in offline, not just the last one
+        String normalizedUserName = userName.removeAllWhitespace;
+        Map<String, dynamic> savedCredentials = box.read(AppConstants.SAVED_USER_CREDENTIALS) ?? {};
+        savedCredentials[normalizedUserName] = {
+          'userInfo': userResponseModel.user!.toMap(),
+          'password': password,
+        };
+        box.write(AppConstants.SAVED_USER_CREDENTIALS, savedCredentials);
+        
         Get.offNamed(AppRoutes.CHOOSE_BRANCH);
       } else{
         // If response is null due to network error, try offline login
         // Check if we have stored credentials for offline login
+        String normalizedEnteredUserName = userName.removeAllWhitespace;
+        
+        // First, try to find credentials in the saved credentials map (supports multiple users)
+        Map<String, dynamic> savedCredentials = box.read(AppConstants.SAVED_USER_CREDENTIALS) ?? {};
+        if(savedCredentials.containsKey(normalizedEnteredUserName)){
+          var userCreds = savedCredentials[normalizedEnteredUserName];
+          var userInfo = userCreds['userInfo'] ?? {};
+          var pass = userCreds['password'] ?? "";
+          
+          if(password == pass){
+            // Update current user info for backward compatibility
+            box.write(AppConstants.USER_INFO, userInfo);
+            box.write(AppConstants.USER_PASSWORD, password);
+            box.write(AppConstants.IS_USER_INITIALLY_AUTHENTICATED, true);
+            Get.offNamed(AppRoutes.CHOOSE_BRANCH);
+            return; // Exit early if offline login succeeds
+          }
+        }
+        
+        // Fallback to old method for backward compatibility
         var isInitialAuthenticated = box.read(AppConstants.IS_USER_INITIALLY_AUTHENTICATED) ?? false;
         if(isInitialAuthenticated){
           var userInfo = box.read(AppConstants.USER_INFO) ?? {};
           var pass = box.read(AppConstants.USER_PASSWORD) ?? "";
           UserModel user = UserModel.fromMap(Map<String, dynamic>.from(userInfo));
-          // Normalize username comparison (remove whitespace) to match online login behavior
-          String normalizedEnteredUserName = userName.removeAllWhitespace;
           String normalizedStoredUserName = (user.userName ?? "").removeAllWhitespace;
           if(normalizedStoredUserName == normalizedEnteredUserName && password == pass){
             Get.offNamed(AppRoutes.CHOOSE_BRANCH);
@@ -247,20 +276,41 @@ class AuthController extends GetxController {
       }
     } else{
       AppHelper.hideLoading();
+      String normalizedEnteredUserName = userName.removeAllWhitespace;
+      
+      // First, try to find credentials in the saved credentials map (supports multiple users)
+      Map<String, dynamic> savedCredentials = box.read(AppConstants.SAVED_USER_CREDENTIALS) ?? {};
+      if(savedCredentials.containsKey(normalizedEnteredUserName)){
+        var userCreds = savedCredentials[normalizedEnteredUserName];
+        var userInfo = userCreds['userInfo'] ?? {};
+        var pass = userCreds['password'] ?? "";
+        
+        if(password == pass){
+          // Update current user info for backward compatibility
+          box.write(AppConstants.USER_INFO, userInfo);
+          box.write(AppConstants.USER_PASSWORD, password);
+          box.write(AppConstants.IS_USER_INITIALLY_AUTHENTICATED, true);
+          Get.offNamed(AppRoutes.CHOOSE_BRANCH);
+          return;
+        }
+      }
+      
+      // Fallback to old method for backward compatibility
       var isInitialAuthenticated = box.read(AppConstants.IS_USER_INITIALLY_AUTHENTICATED) ?? false;
       if(isInitialAuthenticated){
         var userInfo = box.read(AppConstants.USER_INFO) ?? {};
         var pass = box.read(AppConstants.USER_PASSWORD) ?? "";
         UserModel user = UserModel.fromMap(Map<String, dynamic>.from(userInfo));
-        // Normalize username comparison (remove whitespace) to match online login behavior
-        String normalizedEnteredUserName = userName.removeAllWhitespace;
         String normalizedStoredUserName = (user.userName ?? "").removeAllWhitespace;
         if(normalizedStoredUserName == normalizedEnteredUserName && password == pass){
           Get.offNamed(AppRoutes.CHOOSE_BRANCH);
-        } else{
-          Get.snackbar("Login Failed", "Incorrect Credentials", snackPosition: SnackPosition.BOTTOM);
+          return;
         }
-
+      }
+      
+      // If no credentials found or password doesn't match
+      if(savedCredentials.isNotEmpty || isInitialAuthenticated){
+        Get.snackbar("Login Failed", "Incorrect Credentials", snackPosition: SnackPosition.BOTTOM);
       } else{
         if(!isServerAccessible.value && isInternetAccess.value) {
           Get.snackbar("Login Failed", "Internet available but server not reachable",
