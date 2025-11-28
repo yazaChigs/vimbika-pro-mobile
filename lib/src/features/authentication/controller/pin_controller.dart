@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:intl/intl.dart';
@@ -32,17 +33,23 @@ class PinController extends GetxController {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     print("PIN Screen: Loaded user ${user.userName} with ID ${user.id}");
     
+    // First, check local shifts immediately (no server call) to show dialog quickly
     List<ShiftModel> tempShiftList = loadShifts(box);
-    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, user, true);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, user, false);
+    
     if(tempActiveShift != null) {
-      print("Active Shift Found: ${tempActiveShift.shiftReference}");
+      print("Active Shift Found (local): ${tempActiveShift.shiftReference}");
       shiftAvailable.value = true;
       DateTime openingTime = DateTime.parse(tempActiveShift.openingTime!);
       if(DateTime.now().day != openingTime.day || DateTime.now().month != openingTime.month){//shift is from a different day
+        // Show dialog immediately based on local data
         showConfirmDialog(tempActiveShift,tempShiftList);
       }
     } else{
+      // No local shift found, check server (this may be slow, but only happens when no local shift)
       shiftAvailable.value = false;
+      // Check server in background, but don't block UI
+      _checkServerForShift(box, tempShiftList);
     }
 
     var selectedBranch = box.read(AppConstants.SELECTED_BRANCH) ?? null;
@@ -54,31 +61,51 @@ class PinController extends GetxController {
   }
 
 
+  // Check server for shift in background (non-blocking)
+  Future<void> _checkServerForShift(GetStorage box, List<ShiftModel> tempShiftList) async {
+    try {
+      ShiftModel? serverShift = await _localStorageService.getActiveShift(tempShiftList, box, user, true);
+      if(serverShift != null) {
+        print("Active Shift Found (server): ${serverShift.shiftReference}");
+        shiftAvailable.value = true;
+        DateTime openingTime = DateTime.parse(serverShift.openingTime!);
+        if(DateTime.now().day != openingTime.day || DateTime.now().month != openingTime.month){
+          // Show dialog if shift is from different day
+          showConfirmDialog(serverShift, tempShiftList);
+        }
+      }
+    } catch (e) {
+      print("Error checking server for shift: $e");
+      // Silently fail - user can still proceed without shift
+    }
+  }
+
   void showConfirmDialog(ShiftModel shift, List<ShiftModel> tempShiftList) {
-    DateTime openingTime = DateTime.parse(shift.openingTime!);
-    openingTime = openingTime.add(Duration(hours:2)); //ocean digital is 2 hours behind our local time
-    Get.defaultDialog(
-      title: "Confirmation",
-      middleText: "Continue with old shift ${shift.shiftReference} opened on ${openingTime}?",
-      textCancel: "No, Close & Open New Shift",
-      textConfirm: "Yes, Continue old  with Shift",
-      onCancel: () {
-        GetStorage box = GetStorage();
-       shiftAvailable.value =  false;
-       shift.closingTime =  DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
-       shift.isShiftClosed = true;
-       shift.stopSync =  false;
-          List<ShiftModel> shi =  _localStorageService.replaceShift(shift, tempShiftList);
-          _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
-      },
-      onConfirm: () {
-        shiftAvailable.value =  true;
-        Get.snackbar("Confirmed", "Shift ${shift.shiftReference} is confirmed");
-        Get.back(closeOverlays: true);
-
-
-      },
-    );
+    // Use WidgetsBinding to ensure dialog shows immediately after frame is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DateTime openingTime = DateTime.parse(shift.openingTime!);
+      openingTime = openingTime.add(Duration(hours:2)); //ocean digital is 2 hours behind our local time
+      Get.defaultDialog(
+        title: "Confirmation",
+        middleText: "Continue with old shift ${shift.shiftReference} opened on ${openingTime}?",
+        textCancel: "No, Close & Open New Shift",
+        textConfirm: "Yes, Continue old  with Shift",
+        onCancel: () {
+          GetStorage box = GetStorage();
+         shiftAvailable.value =  false;
+         shift.closingTime =  DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+         shift.isShiftClosed = true;
+         shift.stopSync =  false;
+            List<ShiftModel> shi =  _localStorageService.replaceShift(shift, tempShiftList);
+            _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
+        },
+        onConfirm: () {
+          shiftAvailable.value =  true;
+          Get.snackbar("Confirmed", "Shift ${shift.shiftReference} is confirmed");
+          Get.back(closeOverlays: true);
+        },
+      );
+    });
   }
   Future<void> onNumberEntered(int number) async {
     if (enteredPin.value.length < 6) {
