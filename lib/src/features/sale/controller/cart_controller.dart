@@ -400,7 +400,7 @@ class CartController extends GetxController {
 
     // Check if "Add to Account" button is active (amountPaid > 0, cart is empty, customer is loyal)
     bool isAddToAccountMode = amountPaid.value > 0 && 
-                               cartItems.isEmpty && 
+                               cartItems.value.isEmpty && 
                                (selectedCus.isLoyalCustomer ?? false);
     
     // Exclude credit payment types (isCredit == true AND name starts with "CREDIT-") only when adding to account
@@ -1004,8 +1004,13 @@ class CartController extends GetxController {
           var index = allCustomers.indexOf(customer);
           if(customer.currencyBalance!=null && !customer.currencyBalance!.isEmpty) {
             var prev = customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance;
-            customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance = (prev! -
-                paymentTypes.firstWhere((pt) => pt.paymentType!.name!.startsWith("ACC-")).amount!);
+            // Handle both ACC- and CREDIT- payment types
+            var creditPaymentType = paymentTypes.firstWhereOrNull((pt) => 
+                pt.paymentType!.name!.startsWith("ACC-") || pt.paymentType!.name!.startsWith("CREDIT-"));
+            if (creditPaymentType != null) {
+              customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance = (prev! -
+                  creditPaymentType.amount!);
+            }
           }else{
             CustomerCurrencyAmount currencyAmount = CustomerCurrencyAmount(
             currency: selectedCurrency.value!, balance: (0 - amountPaid.value),
