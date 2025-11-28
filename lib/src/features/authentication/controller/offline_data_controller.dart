@@ -69,7 +69,16 @@ class OfflineDataController extends GetxController {
       // Use await to ensure companies are loaded before UI renders dropdown
       await getCompanies(user, box);
       getSettings(user, box);
-      getBranches(user, box, user.companyId!);//download branches
+      // Only fetch branches if a company is selected (branches are company-specific)
+      if(isCompanySelected.isTrue && selectedCompany.value != null) {
+        await getBranches(user, box, selectedCompany.value!.id!);//download branches
+      } else {
+        // If no company selected yet, branches will be loaded when company is selected
+        // But we should still try to load branches for the user's default company
+        if(user.companyId != null) {
+          await getBranches(user, box, user.companyId!);//download branches
+        }
+      }
       getCurrencies(user, box);//download currencies
 
       getPaymentTypes(user, box);
@@ -148,7 +157,17 @@ class OfflineDataController extends GetxController {
     
     // Load branches
     List<BranchModel> cachedBranches = getBranchList(box);
+    
+    // Deduplicate branches by ID to prevent dropdown errors
+    // Keep only the first occurrence of each branch ID
     if(cachedBranches.isNotEmpty) {
+      Map<String, BranchModel> uniqueBranches = {};
+      for (BranchModel branch in cachedBranches) {
+        if (branch.id != null && !uniqueBranches.containsKey(branch.id)) {
+          uniqueBranches[branch.id!] = branch;
+        }
+      }
+      cachedBranches = uniqueBranches.values.toList();
       branchList.value = cachedBranches;
     }
     
@@ -227,6 +246,16 @@ class OfflineDataController extends GetxController {
   }
 
   Future<void>  getBranches(UserModel user, GetStorage box, String companyId) async{
+    // Store the selected branch ID before fetching (if one was auto-selected)
+    String? previouslySelectedBranchId;
+    if(isBranchSelected.isTrue && selectedBranch.value != null && selectedBranch.value!.id != null) {
+      previouslySelectedBranchId = selectedBranch.value!.id;
+      // Temporarily clear selection to prevent dropdown errors during fetch
+      // We'll re-select after the new list is loaded
+      selectedBranch.value = BranchModel();
+      isBranchSelected.value = false;
+    }
+    
     var response = await BaseHttpClient().getAuthWithCompanyHeader("/branch/get-by-company", companyId).catchError((onError){
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
@@ -244,16 +273,59 @@ class OfflineDataController extends GetxController {
     if(response != null) {
       List<dynamic> list = jsonDecode(response);
       List<BranchModel> itemsList = List<BranchModel>.from(list.map((i) => BranchModel.fromMap(i)));
+      
+      // Deduplicate branches by ID to prevent dropdown errors
+      // Keep only the first occurrence of each branch ID
+      Map<String, BranchModel> uniqueBranches = {};
+      for (BranchModel branch in itemsList) {
+        if (branch.id != null && !uniqueBranches.containsKey(branch.id)) {
+          uniqueBranches[branch.id!] = branch;
+        }
+      }
+      itemsList = uniqueBranches.values.toList();
+      
       branchList.value = itemsList;
-
       branchList.refresh();
       List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
           item.toMap()).toList();
       //showSnackBar("Message", "Branches downloaded successfully");
       box.write(AppConstants.BRANCH_LIST, itemsListMap);
+      
+      // Re-select branch from storage if it was auto-selected earlier
+      // This ensures the selected branch instance matches the one in the dropdown list
+      if(previouslySelectedBranchId != null) {
+        try {
+          BranchModel foundBranch = branchList.firstWhere((b) => b.id == previouslySelectedBranchId);
+          selectedBranch.value = foundBranch;
+          isBranchSelected.value = true;
+          print("Re-selected branch after server fetch: ${foundBranch.name} (ID: ${foundBranch.id})");
+        } catch (e) {
+          print("Branch ${previouslySelectedBranchId} not found in server list, keeping selection cleared");
+          // Also check if it exists in SELECTED_BRANCH storage
+          var selectedBranchData = box.read(AppConstants.SELECTED_BRANCH);
+          if(selectedBranchData != null && selectedBranchData is Map) {
+            BranchModel savedBranch = BranchModel.fromMap(Map<String, dynamic>.from(selectedBranchData));
+            if(savedBranch.id == previouslySelectedBranchId) {
+              print("Branch ${previouslySelectedBranchId} exists in storage but not in server list - may have been deleted");
+            }
+          }
+        }
+      }
     } else {
       // If response is null and no error was caught, try loading cached branches
       loadCachedBranchesByCompany(box, companyId);
+      
+      // If fetch failed, restore the previous selection if it existed
+      if(previouslySelectedBranchId != null) {
+        try {
+          BranchModel foundBranch = branchList.firstWhere((b) => b.id == previouslySelectedBranchId);
+          selectedBranch.value = foundBranch;
+          isBranchSelected.value = true;
+          print("Restored branch selection after failed fetch: ${foundBranch.name} (ID: ${foundBranch.id})");
+        } catch (e) {
+          print("Could not restore branch selection after failed fetch");
+        }
+      }
     }
   }
   
@@ -262,7 +334,16 @@ class OfflineDataController extends GetxController {
     List<BranchModel> cachedBranches = getBranchList(box);
     // Branches in BRANCH_LIST are already filtered by company when saved
     // So we can just load all cached branches
+    
+    // Deduplicate branches by ID to prevent dropdown errors
     if(cachedBranches.isNotEmpty) {
+      Map<String, BranchModel> uniqueBranches = {};
+      for (BranchModel branch in cachedBranches) {
+        if (branch.id != null && !uniqueBranches.containsKey(branch.id)) {
+          uniqueBranches[branch.id!] = branch;
+        }
+      }
+      cachedBranches = uniqueBranches.values.toList();
       branchList.value = cachedBranches;
       branchList.refresh();
       print("Loaded ${cachedBranches.length} cached branches for company $companyId");
