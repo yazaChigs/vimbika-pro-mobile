@@ -68,20 +68,17 @@ class ReceiptScreen extends StatelessWidget {
 
   // Get shift by reference
   ShiftModel? _getShiftByReference(String? shiftReference) {
-    if (shiftReference == null || shiftReference.isEmpty) {
+    if (shiftReference == null || shiftReference.isEmpty || receiptController.shifts.isEmpty) {
       return null;
     }
     try {
-      final shift = receiptController.shifts.firstWhere(
+      // Use firstWhereOrNull to safely find the shift
+      final shift = receiptController.shifts.firstWhereOrNull(
         (shift) => shift.shiftReference == shiftReference,
-        orElse: () => ShiftModel(),
       );
-      // Return null if shift is empty (not found)
-      if (shift.shiftReference == null || shift.shiftReference!.isEmpty) {
-        return null;
-      }
       return shift;
     } catch (e) {
+      print("Error finding shift: $e");
       return null;
     }
   }
@@ -89,20 +86,20 @@ class ReceiptScreen extends StatelessWidget {
   // Format shift header text
   String _formatShiftHeader(ShiftModel? shift, String? shiftReference) {
     if (shift == null) {
-      return shiftReference ?? 'Unknown Shift';
+      return 'Shift: ${shiftReference ?? 'Unknown'}';
     }
     
     String shiftRef = shift.shiftReference ?? 'Unknown';
-    String openingTime = '';
+    List<String> parts = ['Shift: $shiftRef'];
     
+    // Format opening time
+    String openingTime = '';
     if (shift.openingTime != null && shift.openingTime!.isNotEmpty) {
       try {
-        // Parse and format opening time
         DateTime? openTime;
         if (shift.openingTime!.contains('T')) {
           openTime = DateTime.parse(shift.openingTime!);
         } else {
-          // Try parsing as date string
           openTime = DateTime.tryParse(shift.openingTime!);
         }
         
@@ -117,10 +114,44 @@ class ReceiptScreen extends StatelessWidget {
     }
     
     if (openingTime.isNotEmpty) {
-      return 'Shift $shiftRef | Opened: $openingTime';
-    } else {
-      return 'Shift $shiftRef';
+      parts.add('Opened: $openingTime');
     }
+    
+    // Format closing time (Option 1)
+    String closingTime = '';
+    if (shift.closingTime != null && shift.closingTime!.isNotEmpty) {
+      try {
+        DateTime? closeTime;
+        if (shift.closingTime!.contains('T')) {
+          closeTime = DateTime.parse(shift.closingTime!);
+        } else {
+          closeTime = DateTime.tryParse(shift.closingTime!);
+        }
+        
+        if (closeTime != null) {
+          closingTime = DateFormat('h:mm a').format(closeTime);
+        } else {
+          closingTime = shift.closingTime!;
+        }
+      } catch (e) {
+        closingTime = shift.closingTime!;
+      }
+    }
+    
+    if (closingTime.isNotEmpty) {
+      parts.add('Closed: $closingTime');
+    }
+    
+    // Add shift status (Option 2)
+    String status = shift.isShiftClosed == true ? 'Closed' : 'Active';
+    parts.add('Status: $status');
+    
+    // Add cashier name if available
+    if (shift.userFullName != null && shift.userFullName!.isNotEmpty) {
+      parts.add('Cashier: ${shift.userFullName}');
+    }
+    
+    return parts.join(' | ');
   }
 
   // Build shift divider widget
