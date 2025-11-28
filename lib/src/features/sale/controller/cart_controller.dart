@@ -1212,9 +1212,7 @@ class CartController extends GetxController {
       activeShift = tempActiveShift;
       shiftAvailable.value = true;
       print("Update Shift: Using shift ${activeShift.shiftReference} for user ${user.value!.userName} (ID: ${user.value!.id})");
-    } else {
-      print("Update Shift: No active shift found for user ${user.value!.userName} (ID: ${user.value!.id})");
-    }
+      
       for (PaymentReceivedModel paymentTypeModel in paymentTypes) {
         var isCash = paymentTypeModel.paymentType!.name!.startsWith("CASH");
         int count = activeShift.shiftCurrencyAmounts!.length + 1;
@@ -1251,6 +1249,7 @@ class CartController extends GetxController {
           SyncService.syncOfflineShifts(user.value!, box);
         }
     } else {
+      print("Update Shift: No active shift found for user ${user.value!.userName} (ID: ${user.value!.id})");
       shiftAvailable.value = false;
     }
   }
@@ -1288,10 +1287,10 @@ class CartController extends GetxController {
     cartItems.value = [];
     selectedPaymentTypes.value = [];
     selectedPaymentTypes.clear();
-    totalCostInBaseCurrency == 0.0;
-    totalCostInSelectedCurrency == 0.0;
-    totalTaxInBaseCurrency == 0.0;
-    totalTaxInSelectedCurrency == 0.0;
+    totalCostInBaseCurrency.value = 0.0;
+    totalCostInSelectedCurrency.value = 0.0;
+    totalTaxInBaseCurrency.value = 0.0;
+    totalTaxInSelectedCurrency.value = 0.0;
     amountPaid.value = 0.0;
     change.value = 0.0;
     accountPayType.value = "";
