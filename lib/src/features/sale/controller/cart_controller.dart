@@ -403,9 +403,12 @@ class CartController extends GetxController {
                                cartItems.value.isEmpty && 
                                (selectedCus.isLoyalCustomer ?? false);
     
-    // Exclude credit payment types (isCredit == true AND name starts with "CREDIT-") only when adding to account
+    // Exclude ACC- and CREDIT- payment types when adding to account (can't use account/credit to add money to account)
     if (isAddToAccountMode) {
-      tempList = tempList.where((type) => !(type.isCredit! && type.name!.startsWith("CREDIT-"))).toList();
+      tempList = tempList.where((type) => 
+        !type.name!.startsWith("ACC-") && 
+        !(type.isCredit! && type.name!.startsWith("CREDIT-"))
+      ).toList();
     }
 
     // If the customer is 'WalkIn', filter out payment types containing 'credit'
