@@ -80,7 +80,7 @@ class PinController extends GetxController {
       },
     );
   }
-  onNumberEntered(int number){
+  Future<void> onNumberEntered(int number) async {
     if (enteredPin.value.length < 6) {
       enteredPin.value += number.toString();
       
