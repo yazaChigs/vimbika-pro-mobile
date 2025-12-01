@@ -175,6 +175,16 @@ class CartController extends GetxController {
     var model = box.read(AppConstants.USER_INFO) ?? {};
     if(model.isNotEmpty){
       user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
+      
+      // Ensure user.value matches an instance in userList to prevent dropdown errors
+      if (user.value != null && user.value!.id != null && userList.isNotEmpty) {
+        try {
+          UserModel foundUser = userList.firstWhere((u) => u.id == user.value!.id);
+          user.value = foundUser; // Use the instance from the list
+        } catch (e) {
+          // User not found in list, keep current instance
+        }
+      }
     }
     
     // Reload shifts and get the active shift for the current user
@@ -252,6 +262,17 @@ class CartController extends GetxController {
     sellNilItems = settingsModel.sellNilItems ?? false;
     List<UserModel> tempUserList = loadUsers(box);
     userList.value = tempUserList;
+    
+    // Ensure user.value matches an instance in userList to prevent dropdown errors
+    if (user.value != null && user.value!.id != null && userList.isNotEmpty) {
+      try {
+        UserModel foundUser = userList.firstWhere((u) => u.id == user.value!.id);
+        user.value = foundUser; // Use the instance from the list
+      } catch (e) {
+        // User not found in list, keep current instance
+      }
+    }
+    
     List<ShiftModel> tempShiftList = loadShifts(box);
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value =
@@ -698,8 +719,23 @@ class CartController extends GetxController {
   List<UserModel> loadUsers(GetStorage box) {
     List<UserModel> list = _localStorageService.getOfflineList<UserModel>(
         AppConstants.USER_LIST, (map) => UserModel.fromMap(map), box);
-    list.add(user.value!);
-    return list;
+    
+    // Deduplicate users by ID to prevent dropdown errors
+    Map<String, UserModel> uniqueUsers = {};
+    for (UserModel userModel in list) {
+      if (userModel.id != null && !uniqueUsers.containsKey(userModel.id)) {
+        uniqueUsers[userModel.id!] = userModel;
+      }
+    }
+    
+    // Add current user if not already in the list
+    if (user.value != null && user.value!.id != null) {
+      if (!uniqueUsers.containsKey(user.value!.id)) {
+        uniqueUsers[user.value!.id!] = user.value!;
+      }
+    }
+    
+    return uniqueUsers.values.toList();
   }
 
   amountPaidChange(String val) {
