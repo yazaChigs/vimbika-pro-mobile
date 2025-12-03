@@ -743,13 +743,55 @@ class CartController extends GetxController {
     customerAmountPaid.value = amountPaid;
     this.amountPaid.value = amountPaid;
     if (amountPaid >= totalCostInSelectedCurrency.value) {
-      change.value = amountPaid - totalCostInSelectedCurrency.value - double.parse(amtToAccTextEditingController.text) - double.parse(tipAmtTextEditingController.text);
+      double tipAmount = 0.0;
+      if (tipAmtTextEditingController.text.isNotEmpty) {
+        try {
+          tipAmount = double.parse(tipAmtTextEditingController.text);
+        } catch (e) {
+          tipAmount = 0.0;
+        }
+      }
+      double amtToAcc = 0.0;
+      if (amtToAccTextEditingController.text.isNotEmpty) {
+        try {
+          amtToAcc = double.parse(amtToAccTextEditingController.text);
+        } catch (e) {
+          amtToAcc = 0.0;
+        }
+      }
+      change.value = amountPaid - totalCostInSelectedCurrency.value - amtToAcc - tipAmount;
     } else {
       change.value = 0.0;
     }
     // Refresh payment types when amount changes (affects "Add to Account" mode)
     if (selectedCurrency.value != null && selectedCustomer.value != null) {
       filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
+    }
+  }
+
+  tipAmountChange(String val) {
+    // Only update the change calculation when tip changes
+    // Don't modify amountPaid or customerAmountPaid
+    if (amountPaid.value >= totalCostInSelectedCurrency.value) {
+      double tipAmount = 0.0;
+      if (val.isNotEmpty) {
+        try {
+          tipAmount = double.parse(val);
+        } catch (e) {
+          tipAmount = 0.0;
+        }
+      }
+      double amtToAcc = 0.0;
+      if (amtToAccTextEditingController.text.isNotEmpty) {
+        try {
+          amtToAcc = double.parse(amtToAccTextEditingController.text);
+        } catch (e) {
+          amtToAcc = 0.0;
+        }
+      }
+      change.value = amountPaid.value - totalCostInSelectedCurrency.value - amtToAcc - tipAmount;
+    } else {
+      change.value = 0.0;
     }
   }
 

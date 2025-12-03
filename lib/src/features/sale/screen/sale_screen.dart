@@ -1938,9 +1938,7 @@ class SaleScreen extends GetView {
                                                               child:
                                                                   TextField(
                                                                     onChanged: (String val) {
-                                                                      if (val.isNotEmpty) {
-                                                                        cartController.amountPaidChange(val);
-                                                                      }
+                                                                      cartController.tipAmountChange(val);
                                                                     },
                                                                 controller:
                                                                     cartController.tipAmtTextEditingController,
