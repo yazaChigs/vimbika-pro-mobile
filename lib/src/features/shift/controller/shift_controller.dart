@@ -574,6 +574,24 @@ class ShiftController extends GetxController {
       print("Preserved ACTIVE_COMPANY for auto-fill after close shift");
     }
     
+    // Explicitly preserve printer settings (default printer, always print, KOT settings)
+    // This ensures printer preferences are maintained after close shift
+    var availablePrinters = box.read(AppConstants.AVAILABLE_PRINTERS);
+    var alwaysPrint = box.read(AppConstants.ALWAYS_PRINT);
+    var useKOT = box.read(AppConstants.USE_KOT);
+    if(availablePrinters != null) {
+      box.write(AppConstants.AVAILABLE_PRINTERS, availablePrinters);
+      print("Preserved AVAILABLE_PRINTERS after close shift");
+    }
+    if(alwaysPrint != null) {
+      box.write(AppConstants.ALWAYS_PRINT, alwaysPrint);
+      print("Preserved ALWAYS_PRINT after close shift");
+    }
+    if(useKOT != null) {
+      box.write(AppConstants.USE_KOT, useKOT);
+      print("Preserved USE_KOT after close shift");
+    }
+    
     signOut();
   }
   void showConfirmDialogCloseShift() {
@@ -773,6 +791,24 @@ class ShiftController extends GetxController {
     
     // Note: SELECTED_BRANCH and ACTIVE_COMPANY are preserved (not removed)
     // to allow auto-fill of company and branch on next login, both after logout and close shift
+    
+    // Explicitly preserve printer settings (default printer, always print, KOT settings)
+    // This ensures printer preferences are maintained after logout
+    var availablePrinters = box.read(AppConstants.AVAILABLE_PRINTERS);
+    var alwaysPrint = box.read(AppConstants.ALWAYS_PRINT);
+    var useKOT = box.read(AppConstants.USE_KOT);
+    if(availablePrinters != null) {
+      box.write(AppConstants.AVAILABLE_PRINTERS, availablePrinters);
+      print("Preserved AVAILABLE_PRINTERS after logout");
+    }
+    if(alwaysPrint != null) {
+      box.write(AppConstants.ALWAYS_PRINT, alwaysPrint);
+      print("Preserved ALWAYS_PRINT after logout");
+    }
+    if(useKOT != null) {
+      box.write(AppConstants.USE_KOT, useKOT);
+      print("Preserved USE_KOT after logout");
+    }
     
     // Clean up controllers
     Get.delete<SaleController>();
