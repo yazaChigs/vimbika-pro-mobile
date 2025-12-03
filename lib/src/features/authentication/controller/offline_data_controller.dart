@@ -66,9 +66,19 @@ class OfflineDataController extends GetxController {
     
     if(isInternetAccess.value){
       // Try to fetch fresh data from server
-      getCompanies(user, box);
+      // Use await to ensure companies are loaded before UI renders dropdown
+      await getCompanies(user, box);
       getSettings(user, box);
-      getBranches(user, box, user.companyId!);//download branches
+      // Only fetch branches if a company is selected (branches are company-specific)
+      if(isCompanySelected.isTrue && selectedCompany.value != null) {
+        await getBranches(user, box, selectedCompany.value!.id!);//download branches
+      } else {
+        // If no company selected yet, branches will be loaded when company is selected
+        // But we should still try to load branches for the user's default company
+        if(user.companyId != null) {
+          await getBranches(user, box, user.companyId!);//download branches
+        }
+      }
       getCurrencies(user, box);//download currencies
 
       getPaymentTypes(user, box);
@@ -112,14 +122,74 @@ class OfflineDataController extends GetxController {
       (map) => CompanyModel.fromMap(map),
       box
     );
+    
+    // Deduplicate companies by ID to prevent dropdown errors
+    // Keep only the first occurrence of each company ID
     if(cachedCompanies.isNotEmpty) {
+      Map<String, CompanyModel> uniqueCompanies = {};
+      for (CompanyModel company in cachedCompanies) {
+        if (company.id != null && !uniqueCompanies.containsKey(company.id)) {
+          uniqueCompanies[company.id!] = company;
+        }
+      }
+      cachedCompanies = uniqueCompanies.values.toList();
       companyList.value = cachedCompanies;
+    }
+    
+    // Auto-select company from storage if it exists (for auto-fill after logout/close shift)
+    var activeCompany = box.read(AppConstants.ACTIVE_COMPANY);
+    if(activeCompany != null && activeCompany is Map) {
+      try {
+        CompanyModel savedCompany = CompanyModel.fromMap(Map<String, dynamic>.from(activeCompany));
+        // Verify the company exists in the cached list
+        try {
+          CompanyModel foundCompany = companyList.firstWhere((c) => c.id == savedCompany.id);
+          selectedCompany.value = foundCompany;
+          isCompanySelected.value = true;
+          print("Auto-selected company: ${foundCompany.name} (ID: ${foundCompany.id})");
+        } catch (e) {
+          print("Company ${savedCompany.id} not found in cached list, skipping auto-selection");
+        }
+      } catch (e) {
+        print("Error auto-selecting company: $e");
+      }
     }
     
     // Load branches
     List<BranchModel> cachedBranches = getBranchList(box);
+    
+    // Deduplicate branches by ID to prevent dropdown errors
+    // Keep only the first occurrence of each branch ID
     if(cachedBranches.isNotEmpty) {
+      Map<String, BranchModel> uniqueBranches = {};
+      for (BranchModel branch in cachedBranches) {
+        if (branch.id != null && !uniqueBranches.containsKey(branch.id)) {
+          uniqueBranches[branch.id!] = branch;
+        }
+      }
+      cachedBranches = uniqueBranches.values.toList();
       branchList.value = cachedBranches;
+    }
+    
+    // Auto-select branch from storage if it exists (for auto-fill after logout/close shift)
+    var selectedBranchData = box.read(AppConstants.SELECTED_BRANCH);
+    if(selectedBranchData != null && selectedBranchData is Map) {
+      try {
+        BranchModel savedBranch = BranchModel.fromMap(Map<String, dynamic>.from(selectedBranchData));
+        // Verify the branch exists in the cached list
+        try {
+          BranchModel foundBranch = branchList.firstWhere((b) => b.id == savedBranch.id);
+          selectedBranch.value = foundBranch;
+          isBranchSelected.value = true;
+          print("Auto-selected branch: ${foundBranch.name} (ID: ${foundBranch.id})");
+          // Note: Company-branch relationship will be validated when user selects company
+          // or when they try to proceed (branches are filtered by company at that point)
+        } catch (e) {
+          print("Branch ${savedBranch.id} not found in cached list, skipping auto-selection");
+        }
+      } catch (e) {
+        print("Error auto-selecting branch: $e");
+      }
     }
     
     // Load currencies
@@ -176,6 +246,16 @@ class OfflineDataController extends GetxController {
   }
 
   Future<void>  getBranches(UserModel user, GetStorage box, String companyId) async{
+    // Store the selected branch ID before fetching (if one was auto-selected)
+    String? previouslySelectedBranchId;
+    if(isBranchSelected.isTrue && selectedBranch.value != null && selectedBranch.value!.id != null) {
+      previouslySelectedBranchId = selectedBranch.value!.id;
+      // Temporarily clear selection to prevent dropdown errors during fetch
+      // We'll re-select after the new list is loaded
+      selectedBranch.value = BranchModel();
+      isBranchSelected.value = false;
+    }
+    
     var response = await BaseHttpClient().getAuthWithCompanyHeader("/branch/get-by-company", companyId).catchError((onError){
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
@@ -193,16 +273,59 @@ class OfflineDataController extends GetxController {
     if(response != null) {
       List<dynamic> list = jsonDecode(response);
       List<BranchModel> itemsList = List<BranchModel>.from(list.map((i) => BranchModel.fromMap(i)));
+      
+      // Deduplicate branches by ID to prevent dropdown errors
+      // Keep only the first occurrence of each branch ID
+      Map<String, BranchModel> uniqueBranches = {};
+      for (BranchModel branch in itemsList) {
+        if (branch.id != null && !uniqueBranches.containsKey(branch.id)) {
+          uniqueBranches[branch.id!] = branch;
+        }
+      }
+      itemsList = uniqueBranches.values.toList();
+      
       branchList.value = itemsList;
-
       branchList.refresh();
       List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
           item.toMap()).toList();
       //showSnackBar("Message", "Branches downloaded successfully");
       box.write(AppConstants.BRANCH_LIST, itemsListMap);
+      
+      // Re-select branch from storage if it was auto-selected earlier
+      // This ensures the selected branch instance matches the one in the dropdown list
+      if(previouslySelectedBranchId != null) {
+        try {
+          BranchModel foundBranch = branchList.firstWhere((b) => b.id == previouslySelectedBranchId);
+          selectedBranch.value = foundBranch;
+          isBranchSelected.value = true;
+          print("Re-selected branch after server fetch: ${foundBranch.name} (ID: ${foundBranch.id})");
+        } catch (e) {
+          print("Branch ${previouslySelectedBranchId} not found in server list, keeping selection cleared");
+          // Also check if it exists in SELECTED_BRANCH storage
+          var selectedBranchData = box.read(AppConstants.SELECTED_BRANCH);
+          if(selectedBranchData != null && selectedBranchData is Map) {
+            BranchModel savedBranch = BranchModel.fromMap(Map<String, dynamic>.from(selectedBranchData));
+            if(savedBranch.id == previouslySelectedBranchId) {
+              print("Branch ${previouslySelectedBranchId} exists in storage but not in server list - may have been deleted");
+            }
+          }
+        }
+      }
     } else {
       // If response is null and no error was caught, try loading cached branches
       loadCachedBranchesByCompany(box, companyId);
+      
+      // If fetch failed, restore the previous selection if it existed
+      if(previouslySelectedBranchId != null) {
+        try {
+          BranchModel foundBranch = branchList.firstWhere((b) => b.id == previouslySelectedBranchId);
+          selectedBranch.value = foundBranch;
+          isBranchSelected.value = true;
+          print("Restored branch selection after failed fetch: ${foundBranch.name} (ID: ${foundBranch.id})");
+        } catch (e) {
+          print("Could not restore branch selection after failed fetch");
+        }
+      }
     }
   }
   
@@ -211,7 +334,16 @@ class OfflineDataController extends GetxController {
     List<BranchModel> cachedBranches = getBranchList(box);
     // Branches in BRANCH_LIST are already filtered by company when saved
     // So we can just load all cached branches
+    
+    // Deduplicate branches by ID to prevent dropdown errors
     if(cachedBranches.isNotEmpty) {
+      Map<String, BranchModel> uniqueBranches = {};
+      for (BranchModel branch in cachedBranches) {
+        if (branch.id != null && !uniqueBranches.containsKey(branch.id)) {
+          uniqueBranches[branch.id!] = branch;
+        }
+      }
+      cachedBranches = uniqueBranches.values.toList();
       branchList.value = cachedBranches;
       branchList.refresh();
       print("Loaded ${cachedBranches.length} cached branches for company $companyId");
@@ -305,6 +437,16 @@ class OfflineDataController extends GetxController {
   }
 
   Future<void>  getCompanies(UserModel user, GetStorage box) async{
+    // Store the selected company ID before fetching (if one was auto-selected)
+    String? previouslySelectedCompanyId;
+    if(isCompanySelected.isTrue && selectedCompany.value != null) {
+      previouslySelectedCompanyId = selectedCompany.value!.id;
+      // Temporarily clear selection to prevent dropdown errors during fetch
+      // We'll re-select after the new list is loaded
+      selectedCompany.value = CompanyModel(fiscalisationEnabled: false);
+      isCompanySelected.value = false;
+    }
+    
     var response = await BaseHttpClient().getAuthWithCompanyHeader("/company/get-all", user.companyId!).catchError((onError){
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
@@ -316,11 +458,55 @@ class OfflineDataController extends GetxController {
     if(response != null) {
       List<dynamic> list = jsonDecode(response);
       List<CompanyModel> itemsList = List<CompanyModel>.from(list.map((i) => CompanyModel.fromMap(i)));
+      
+      // Deduplicate companies by ID to prevent dropdown errors
+      // Keep only the first occurrence of each company ID
+      Map<String, CompanyModel> uniqueCompanies = {};
+      for (CompanyModel company in itemsList) {
+        if (company.id != null && !uniqueCompanies.containsKey(company.id)) {
+          uniqueCompanies[company.id!] = company;
+        }
+      }
+      itemsList = uniqueCompanies.values.toList();
+      
       companyList.value = itemsList;
       List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
           item.toMap()).toList();
       //showSnackBar("Message", "Companies downloaded successfully");
       box.write(AppConstants.COMPANY_LIST, itemsListMap);
+      
+      // Re-select company from storage if it was auto-selected earlier
+      // This ensures the selected company instance matches the one in the dropdown list
+      if(previouslySelectedCompanyId != null) {
+        try {
+          CompanyModel foundCompany = companyList.firstWhere((c) => c.id == previouslySelectedCompanyId);
+          selectedCompany.value = foundCompany;
+          isCompanySelected.value = true;
+          print("Re-selected company after server fetch: ${foundCompany.name} (ID: ${foundCompany.id})");
+        } catch (e) {
+          print("Company ${previouslySelectedCompanyId} not found in server list, keeping selection cleared");
+          // Also check if it exists in ACTIVE_COMPANY storage
+          var activeCompany = box.read(AppConstants.ACTIVE_COMPANY);
+          if(activeCompany != null && activeCompany is Map) {
+            CompanyModel savedCompany = CompanyModel.fromMap(Map<String, dynamic>.from(activeCompany));
+            if(savedCompany.id == previouslySelectedCompanyId) {
+              print("Company ${previouslySelectedCompanyId} exists in storage but not in server list - may have been deleted");
+            }
+          }
+        }
+      }
+    } else {
+      // If fetch failed, restore the previous selection if it existed
+      if(previouslySelectedCompanyId != null) {
+        try {
+          CompanyModel foundCompany = companyList.firstWhere((c) => c.id == previouslySelectedCompanyId);
+          selectedCompany.value = foundCompany;
+          isCompanySelected.value = true;
+          print("Restored company selection after failed fetch: ${foundCompany.name} (ID: ${foundCompany.id})");
+        } catch (e) {
+          print("Could not restore company selection after failed fetch");
+        }
+      }
     }
   }
   Future<void>  getSettings(UserModel user, GetStorage box) async{

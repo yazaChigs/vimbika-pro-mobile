@@ -92,6 +92,15 @@ class ReceiptController extends GetxController {
 
   refreshFilter() async {
     AppHelper.showLoading();
+    
+    // Reload user to ensure we have the current logged-in user
+    // This is critical when a user logs in after another user has logged out
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+      print("Refresh Filter: Loaded user ${user.userName} with ID ${user.id}");
+    }
+    
     var syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;;
     while(syncing){
       print("waiting for sync...");
@@ -102,10 +111,7 @@ class ReceiptController extends GetxController {
     List<SaleInfoModel> allSales = getExistingOfflineSales(box);
     offlineSales.value = allSales.where((sale)=> sale.syncStatus == false).toList();
     bool stat = await _connectivityService.checkServerConnection();
-    if(user.id.isNullOrBlank!){
-      var model = box.read(AppConstants.USER_INFO) ?? {};
-      user = UserModel.fromMap(Map<String, dynamic>.from(model));
-    }
+    // User should already be reloaded at the start of this method
     if(stat || (!stat && offlineSales.isEmpty) ) {
       if(stat){
         if(!offlineSales.isEmpty)
@@ -153,12 +159,23 @@ class ReceiptController extends GetxController {
   }
 
   shiftInfo() async {
+    // Reload user to ensure we have the current logged-in user
+    // This is critical when a user logs in after another user has logged out
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+      print("Receipt Controller Shift Info: Loaded user ${user.userName} with ID ${user.id}");
+    }
+    
     shifts = loadShifts(box);
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(shifts, box, user, true);
     if(tempActiveShift != null) {
       activeShift.value = tempActiveShift;
       shiftAvailable.value = true;
       activeShift.value.shiftCurrencyAmounts?.sort((a, b) => a.timeCreated.compareTo(b.timeCreated));
+      print("Receipt Controller: Found active shift ${tempActiveShift.shiftReference} for user ${user.userName} (ID: ${user.id})");
+    } else {
+      print("Receipt Controller: No active shift found for user ${user.userName} (ID: ${user.id})");
     }
   }
 
@@ -241,6 +258,15 @@ class ReceiptController extends GetxController {
     bool userExists = await SyncService().showAuthenticationDialog(Get.context!);
     if(userExists) {
       AppHelper.showLoading();
+      
+      // Reload user to ensure we have the current logged-in user
+      // This is critical when a user logs in after another user has logged out
+      var model = box.read(AppConstants.USER_INFO) ?? {};
+      if(model.isNotEmpty){
+        user = UserModel.fromMap(Map<String, dynamic>.from(model));
+        print("Reverse Sale: Loaded user ${user.userName} with ID ${user.id}");
+      }
+      
       saleInfo.sale!.saleStatus = "REVERSED";
       saleInfo.syncStatus = !saleInfo.syncStatus!;
       var i = allReceipts.indexOf(saleInfo);
@@ -250,10 +276,15 @@ class ReceiptController extends GetxController {
       saveSales();
       allReceipts.refresh();
       filteredReceipts.refresh();
+      
+      // Get the active shift for the current user
       ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
           loadShifts(box), box, user, true);
       if (tempActiveShift != null) {
         activeShift.value = tempActiveShift;
+        print("Reverse Sale: Using shift ${activeShift.value.shiftReference} for user ${user.userName} (ID: ${user.id})");
+      } else {
+        print("Reverse Sale: No active shift found for user ${user.userName} (ID: ${user.id})");
       }
       List<CurrencyAmount> currencyAmount = activeShift.value.shiftCurrencyAmounts!
           .where((element) =>

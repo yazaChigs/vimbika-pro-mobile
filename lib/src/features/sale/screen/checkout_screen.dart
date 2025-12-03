@@ -579,6 +579,67 @@ class CheckoutScreen extends StatelessWidget {
                   }),
                 ),
                 const SizedBox(height: 20),
+                // Quick amount buttons for tablet view
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                  child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildQuickAmountButton(
+                            context,
+                            '0.5',
+                            0.5,
+                            cartController,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: _buildQuickAmountButton(
+                            context,
+                            '1',
+                            1.0,
+                            cartController,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: _buildQuickAmountButton(
+                            context,
+                            '2',
+                            2.0,
+                            cartController,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: _buildQuickAmountButton(
+                            context,
+                            '5',
+                            5.0,
+                            cartController,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: _buildQuickAmountButton(
+                            context,
+                            '10',
+                            10.0,
+                            cartController,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: _buildQuickAmountButton(
+                            context,
+                            '20',
+                            20.0,
+                            cartController,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: TextFormField(
@@ -589,11 +650,23 @@ class CheckoutScreen extends StatelessWidget {
                       FilteringTextInputFormatter.allow(
                           RegExp(r'^\d+\.?\d{0,2}')),
                     ],
-                    decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.money),
+                    decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.money),
+                        suffixIcon: Obx(() => 
+                          cartController.hasAmountText.value
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, color: Colors.grey),
+                                onPressed: () {
+                                  cartController.clearAmountPaid();
+                                  FocusScope.of(context).unfocus();
+                                },
+                              )
+                            : const SizedBox.shrink(),
+                        ),
                         labelText: "Amount",
                         hintText: "Amount"),
                     onChanged: (String val) {
+                      cartController.hasAmountText.value = val.isNotEmpty;
                       if (val.isNotEmpty) {
                         cartController.amountPaidChange(val);
                       }
@@ -836,6 +909,37 @@ class CheckoutScreen extends StatelessWidget {
             child: Text("Add"),
           ),
         ],
+      ),
+    );
+  }
+
+  // Helper widget for quick amount buttons
+  Widget _buildQuickAmountButton(
+    BuildContext context,
+    String label,
+    double amount,
+    CartController cartController,
+  ) {
+    return ElevatedButton(
+      onPressed: () {
+        cartController.addQuickAmount(amount);
+        FocusScope.of(context).unfocus();
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.grey[400],
+        foregroundColor: Colors.black,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        elevation: 2,
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

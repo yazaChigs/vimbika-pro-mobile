@@ -102,8 +102,10 @@ class LocalStorageService {
     return updatedPrinters;
   }
   Future<ShiftModel?> getActiveShift(List<ShiftModel> shifts, GetStorage box, UserModel user, bool checkShiftFromServer) async {
+    // Filter shifts by userId to prevent users from accessing other users' shifts
+    // Only return active shifts that belong to the current user
     for(var cur in shifts)  {
-      if(!cur.isShiftClosed!){
+      if(!cur.isShiftClosed! && cur.userId != null && user.id != null && cur.userId == user.id){
         return cur;
       }
     }

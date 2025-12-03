@@ -852,6 +852,12 @@ class CustomerController extends GetxController {
         }
       }
     }
+    // Exclude ACC- and CREDIT- payment types when crediting customer account (can't use account/credit to add money to account)
+    tempList = tempList.where((type) => 
+      !type.name!.startsWith("ACC-") && 
+      !(type.isCredit! && type.name!.startsWith("CREDIT-"))
+    ).toList();
+    
     // If the customer is 'WalkIn', filter out payment types containing 'credit'
     if (selectedCus.name != null &&
         selectedCus.name!.toLowerCase() == 'walkin') {

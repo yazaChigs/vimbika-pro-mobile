@@ -71,6 +71,23 @@ class SaleScreen extends GetView {
         "${saleController.user.firstName} ${saleController.user.lastName}";
     String initials =
         saleController.user.firstName[0] + saleController.user.lastName[0];
+    
+    // Refresh shift information when sale screen is accessed
+    // This ensures the correct shift is loaded for the current user
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      cartController.refreshShiftForCurrentUser();
+    });
+    
+    // Sync default payment type to saleController for highlighting
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (cartController.selectedPaymentType.value != null &&
+          cartController.selectedPaymentType.value!.id != null &&
+          !saleController.selectedPaymentTypes.any((pt) => pt.id == cartController.selectedPaymentType.value!.id)) {
+        saleController.selectedPaymentTypes.add(cartController.selectedPaymentType.value!);
+        saleController.selectedPaymentType = cartController.selectedPaymentType.value!;
+      }
+    });
+    
     if (isMobile(context)) {
       return GestureDetector(
         behavior: HitTestBehavior.translucent,
@@ -1320,6 +1337,7 @@ class SaleScreen extends GetView {
                                         cartController
                                             .totalCostInSelectedCurrency.value
                                             .toStringAsFixed(2);
+                                    cartController.hasAmountText.value = true;
                                     cartController.amountPaid.value =
                                         cartController
                                             .totalCostInSelectedCurrency.value;
@@ -1338,6 +1356,7 @@ class SaleScreen extends GetView {
                                         cartController
                                             .totalCostInSelectedCurrency.value
                                             .toStringAsFixed(2);
+                                    cartController.hasAmountText.value = true;
                                     cartController.amountPaid.value =
                                         cartController
                                             .totalCostInSelectedCurrency.value;
@@ -1669,6 +1688,65 @@ class SaleScreen extends GetView {
                                                   const EdgeInsets.all(8.0),
                                               child: Column(
                                                 children: [
+                                                  // Quick amount buttons for tablet view
+                                                  Row(
+                                                    children: [
+                                                        Expanded(
+                                                          child: _buildQuickAmountButton(
+                                                            context,
+                                                            '0.5',
+                                                            0.5,
+                                                            cartController,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 4),
+                                                        Expanded(
+                                                          child: _buildQuickAmountButton(
+                                                            context,
+                                                            '1',
+                                                            1.0,
+                                                            cartController,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 4),
+                                                        Expanded(
+                                                          child: _buildQuickAmountButton(
+                                                            context,
+                                                            '2',
+                                                            2.0,
+                                                            cartController,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 4),
+                                                        Expanded(
+                                                          child: _buildQuickAmountButton(
+                                                            context,
+                                                            '5',
+                                                            5.0,
+                                                            cartController,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 4),
+                                                        Expanded(
+                                                          child: _buildQuickAmountButton(
+                                                            context,
+                                                            '10',
+                                                            10.0,
+                                                            cartController,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 4),
+                                                        Expanded(
+                                                          child: _buildQuickAmountButton(
+                                                            context,
+                                                            '20',
+                                                            20.0,
+                                                            cartController,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  const SizedBox(height: 8),
                                                   TextFormField(
                                                     controller: cartController
                                                         .amountPaidTextEditingController,
@@ -1712,11 +1790,23 @@ class SaleScreen extends GetView {
                                                             prefixIcon:
                                                                 const Icon(Icons
                                                                     .money),
+                                                            suffixIcon: Obx(() => 
+                                                              cartController.hasAmountText.value
+                                                                ? IconButton(
+                                                                    icon: const Icon(Icons.clear, color: Colors.grey),
+                                                                    onPressed: () {
+                                                                      cartController.clearAmountPaid();
+                                                                      FocusScope.of(context).unfocus();
+                                                                    },
+                                                                  )
+                                                                : const SizedBox.shrink(),
+                                                            ),
                                                             labelText:
                                                                 "Amount Paid",
                                                             hintText:
                                                                 "Amount Paid"),
                                                     onChanged: (String val) {
+                                                      cartController.hasAmountText.value = val.isNotEmpty;
                                                       if (val.isNotEmpty) {
                                                         cartController.amountPaidChange(val);
                                                         cartController.amountPaid.value = double.parse(val);
@@ -2001,6 +2091,7 @@ class SaleScreen extends GetView {
                                                           if (saleController.multiple.value == true) {
                                                             cartController.amountPaidTextEditingController.clear();
                                                             cartController.amountPaidTextEditingController.text =0.00.toStringAsFixed(2);
+                                                            cartController.hasAmountText.value = true;
                                                             cartController.amountPaid.value = 0.00;
                                                             cartController.customerAmountPaid.value = 0.00;
                                                           }
@@ -2049,7 +2140,8 @@ class SaleScreen extends GetView {
                                                                   style: ElevatedButton
                                                                       .styleFrom(
                                                                     backgroundColor: saleController.selectedPaymentTypes.contains(cartController.filteredPaymentTypesList[
-                                                                            index])
+                                                                            index]) ||
+                                                                        cartController.selectedPaymentType.value?.id == cartController.filteredPaymentTypesList[index].id
                                                                         ? Colors
                                                                             .pinkAccent
                                                                         : Colors
@@ -2398,6 +2490,7 @@ class SaleScreen extends GetView {
                         cartController.selectedPaymentTypes[index].amount!;
                     cartController.amountPaidTextEditingController.text =
                         cartController.amountPaid.value.toStringAsFixed(2);
+                    cartController.hasAmountText.value = true;
                     cartController.selectedPaymentTypes.refresh();
                     saleController.amountTextEditingController.clear();
                     Get.back(); // Close the dialog after adding
@@ -2583,4 +2676,36 @@ class SaleScreen extends GetView {
       ),
     );
   }
+
+  // Helper widget for quick amount buttons
+  Widget _buildQuickAmountButton(
+    BuildContext context,
+    String label,
+    double amount,
+    CartController cartController,
+  ) {
+    return ElevatedButton(
+      onPressed: () {
+        cartController.addQuickAmount(amount);
+        FocusScope.of(context).unfocus();
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.grey[400],
+        foregroundColor: Colors.black,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        elevation: 2,
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
 }

@@ -79,11 +79,13 @@ class CartController extends GetxController {
   Rx<PaymentTypeModel?> selectedPaymentType = PaymentTypeModel().obs;
   RxList<PaymentTypeModel> selectedPaymentTypes = <PaymentTypeModel>[].obs;
   Rx<BankModel?> selectedBank = BankModel().obs;
+  var isFirstQuickAmountButtonUsed = false.obs;
   RxList<PaymentReceivedModel> paymentTypes = <PaymentReceivedModel>[].obs;
   RxList<PaymentTypeModel> paymentTypesList = <PaymentTypeModel>[].obs;
   RxList<PaymentTypeModel> filteredPaymentTypesList = <PaymentTypeModel>[].obs;
   var isPaymentTypeSelected = false.obs;
   final TextEditingController amountPaidTextEditingController = TextEditingController();
+  var hasAmountText = false.obs;
   final TextEditingController amtToAccTextEditingController = TextEditingController();
   final TextEditingController tipAmtTextEditingController = TextEditingController();
 
@@ -166,6 +168,42 @@ class CartController extends GetxController {
 
   get formKeyAddAmount => null;
 
+  // Method to refresh shift information for the current user
+  // This should be called when the sale screen is accessed to ensure correct shift is loaded
+  Future<void> refreshShiftForCurrentUser() async {
+    // Reload user to ensure we have the latest user data
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
+      
+      // Ensure user.value matches an instance in userList to prevent dropdown errors
+      if (user.value != null && user.value!.id != null && userList.isNotEmpty) {
+        try {
+          UserModel foundUser = userList.firstWhere((u) => u.id == user.value!.id);
+          user.value = foundUser; // Use the instance from the list
+        } catch (e) {
+          // User not found in list, keep current instance
+        }
+      }
+    }
+    
+    // Reload shifts and get the active shift for the current user
+    List<ShiftModel> tempShiftList = loadShifts(box);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
+        tempShiftList, box, user.value!, true);
+    
+    if (tempActiveShift != null) {
+      activeShift = tempActiveShift;
+      shiftAvailable.value = true;
+      shiftList.value = tempShiftList;
+      print("Refreshed shift: ${activeShift.shiftReference} for user ${user.value!.userName} (ID: ${user.value!.id})");
+    } else {
+      shiftAvailable.value = false;
+      shiftList.value = tempShiftList;
+      print("No active shift found for user ${user.value!.userName} (ID: ${user.value!.id})");
+    }
+  }
+
   @override
   Future<void> onInit() async {
     super.onInit();
@@ -224,6 +262,17 @@ class CartController extends GetxController {
     sellNilItems = settingsModel.sellNilItems ?? false;
     List<UserModel> tempUserList = loadUsers(box);
     userList.value = tempUserList;
+    
+    // Ensure user.value matches an instance in userList to prevent dropdown errors
+    if (user.value != null && user.value!.id != null && userList.isNotEmpty) {
+      try {
+        UserModel foundUser = userList.firstWhere((u) => u.id == user.value!.id);
+        user.value = foundUser; // Use the instance from the list
+      } catch (e) {
+        // User not found in list, keep current instance
+      }
+    }
+    
     List<ShiftModel> tempShiftList = loadShifts(box);
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value =
@@ -396,6 +445,19 @@ class CartController extends GetxController {
       tempList = tempList.where((type)=>!type.name!.startsWith("ACC-")).toList();
     }
 
+    // Check if "Add to Account" button is active (amountPaid > 0, cart is empty, customer is loyal)
+    bool isAddToAccountMode = amountPaid.value > 0 && 
+                               cartItems.value.isEmpty && 
+                               (selectedCus.isLoyalCustomer ?? false);
+    
+    // Exclude ACC- and CREDIT- payment types when adding to account (can't use account/credit to add money to account)
+    if (isAddToAccountMode) {
+      tempList = tempList.where((type) => 
+        !type.name!.startsWith("ACC-") && 
+        !(type.isCredit! && type.name!.startsWith("CREDIT-"))
+      ).toList();
+    }
+
     // If the customer is 'WalkIn', filter out payment types containing 'credit'
     if (selectedCus.name != null &&
         selectedCus.name!.toLowerCase() == 'walkin') {
@@ -426,6 +488,10 @@ class CartController extends GetxController {
       }
       cartItems.refresh();
       calculateTotalAmounts(cartItems);
+      // Refresh payment types when cart items change (affects "Add to Account" mode)
+      if (selectedCurrency.value != null && selectedCustomer.value != null) {
+        filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
+      }
     }
   }
 
@@ -482,6 +548,10 @@ class CartController extends GetxController {
   void removeFromCart(CartItemModel cartItem) {
     cartItems.remove(cartItem);
     calculateTotalAmounts(cartItems);
+    // Refresh payment types when cart items change (affects "Add to Account" mode)
+    if (selectedCurrency.value != null && selectedCustomer.value != null) {
+      filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
+    }
   }
 
   void incrementQuantity(CartItemModel cartItem) {
@@ -518,6 +588,7 @@ class CartController extends GetxController {
         items.fold(0, (sum, item) => sum + item.totalTaxAmount);
     amountPaidTextEditingController.text =
         totalCostInSelectedCurrency.value.toStringAsFixed(2);
+    hasAmountText.value = true;
     amountPaid.value = totalCostInSelectedCurrency.value;
     customerAmountPaid.value = totalCostInSelectedCurrency.value;
     if (selectedPaymentType.value != null  && !multiple.value) {
@@ -591,18 +662,34 @@ class CartController extends GetxController {
           itemsListMap.map((map) => CurrencyModel.fromMap(map)));
       currencyList.value = currencies;
       var currencyId = box.read(AppConstants.DEFAULT_CURRENCY_ID) ?? "";
+      
+      // First, find and set the base currency (needed for calculations)
       for (var cur in currencies) {
         if (cur.isBaseCurrency!) {
-          selectedCurrency.value = cur;
           baseCurrency.value = cur;
-          isCurrencySelected.value = true;
+          // Set base currency as fallback if no default currency is set
+          if (currencyId.isEmpty) {
+            selectedCurrency.value = cur;
+            isCurrencySelected.value = true;
+          }
         }
       }
-      for (var cur in currencies) {
-        if (cur.id == currencyId) {
-          selectedCurrency.value = cur;
-          isCurrencySelected.value = true;
+      
+      // Then, prioritize default currency from settings if it exists
+      if (currencyId.isNotEmpty) {
+        for (var cur in currencies) {
+          if (cur.id == currencyId) {
+            selectedCurrency.value = cur;
+            isCurrencySelected.value = true;
+            break; // Found default currency, no need to continue
+          }
         }
+      }
+      
+      // If no currency is selected yet (shouldn't happen, but safety check)
+      if (!isCurrencySelected.value && currencies.isNotEmpty) {
+        selectedCurrency.value = currencies.first;
+        isCurrencySelected.value = true;
       }
       return currencies;
     } else {
@@ -632,17 +719,84 @@ class CartController extends GetxController {
   List<UserModel> loadUsers(GetStorage box) {
     List<UserModel> list = _localStorageService.getOfflineList<UserModel>(
         AppConstants.USER_LIST, (map) => UserModel.fromMap(map), box);
-    list.add(user.value!);
-    return list;
+    
+    // Deduplicate users by ID to prevent dropdown errors
+    Map<String, UserModel> uniqueUsers = {};
+    for (UserModel userModel in list) {
+      if (userModel.id != null && !uniqueUsers.containsKey(userModel.id)) {
+        uniqueUsers[userModel.id!] = userModel;
+      }
+    }
+    
+    // Add current user if not already in the list
+    if (user.value != null && user.value!.id != null) {
+      if (!uniqueUsers.containsKey(user.value!.id)) {
+        uniqueUsers[user.value!.id!] = user.value!;
+      }
+    }
+    
+    return uniqueUsers.values.toList();
   }
 
   amountPaidChange(String val) {
     double amountPaid = double.parse(val);
     customerAmountPaid.value = amountPaid;
+    this.amountPaid.value = amountPaid;
     if (amountPaid >= totalCostInSelectedCurrency.value) {
       change.value = amountPaid - totalCostInSelectedCurrency.value - double.parse(amtToAccTextEditingController.text) - double.parse(tipAmtTextEditingController.text);
     } else {
       change.value = 0.0;
+    }
+    // Refresh payment types when amount changes (affects "Add to Account" mode)
+    if (selectedCurrency.value != null && selectedCustomer.value != null) {
+      filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
+    }
+  }
+
+  // Add quick amount to current amount paid (for tablet quick buttons)
+  void addQuickAmount(double amount) {
+    // Clear field on first button use
+    if (!isFirstQuickAmountButtonUsed.value) {
+      amountPaidTextEditingController.clear();
+      amountPaid.value = 0.0;
+      customerAmountPaid.value = 0.0;
+      change.value = 0.0;
+      hasAmountText.value = false;
+      isFirstQuickAmountButtonUsed.value = true;
+    }
+    
+    String currentText = amountPaidTextEditingController.text;
+    double currentAmount = 0.0;
+    
+    if (currentText.isNotEmpty) {
+      try {
+        currentAmount = double.parse(currentText);
+      } catch (e) {
+        currentAmount = 0.0;
+      }
+    }
+    
+    double newAmount = currentAmount + amount;
+    String newAmountText = newAmount.toStringAsFixed(2);
+    amountPaidTextEditingController.text = newAmountText;
+    hasAmountText.value = true;
+    // Update all amount-related values to ensure validation passes
+    amountPaid.value = newAmount;
+    customerAmountPaid.value = newAmount;
+    amountPaidChange(newAmountText);
+  }
+
+  // Clear amount paid field (for tablet clear button)
+  void clearAmountPaid() {
+    amountPaidTextEditingController.clear();
+    amountPaid.value = 0.0;
+    customerAmountPaid.value = 0.0;
+    change.value = 0.0;
+    hasAmountText.value = false;
+    isFirstQuickAmountButtonUsed.value = false; // Reset flag when cleared
+    // Refresh payment types when amount is cleared (affects "Add to Account" mode)
+    if (selectedCurrency.value != null && selectedCustomer.value != null) {
+      filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
     }
   }
 
@@ -740,6 +894,27 @@ class CartController extends GetxController {
       ref = AppConstants.getDateNowRef("OFF", count);
     }
     AppHelper.showLoading("Saving new sale..");
+
+    // Reload user and shift information to ensure we have the current user's shift
+    // This is critical when a user logs in after another user has logged out
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
+    }
+    
+    // Reload shifts and get the active shift for the current user
+    List<ShiftModel> tempShiftList = loadShifts(box);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
+        tempShiftList, box, user.value!, true);
+    
+    if (tempActiveShift != null) {
+      activeShift = tempActiveShift;
+      shiftAvailable.value = true;
+      print("Charge Sale: Using shift ${activeShift.shiftReference} for user ${user.value!.userName} (ID: ${user.value!.id})");
+    } else {
+      shiftAvailable.value = false;
+      print("Charge Sale: No active shift found for user ${user.value!.userName} (ID: ${user.value!.id})");
+    }
 
     saleTicketId.value = saleId;
 
@@ -915,8 +1090,13 @@ class CartController extends GetxController {
           var index = allCustomers.indexOf(customer);
           if(customer.currencyBalance!=null && !customer.currencyBalance!.isEmpty) {
             var prev = customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance;
-            customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance = (prev! -
-                paymentTypes.firstWhere((pt) => pt.paymentType!.name!.startsWith("ACC-")).amount!);
+            // Handle both ACC- and CREDIT- payment types
+            var creditPaymentType = paymentTypes.firstWhereOrNull((pt) => 
+                pt.paymentType!.name!.startsWith("ACC-") || pt.paymentType!.name!.startsWith("CREDIT-"));
+            if (creditPaymentType != null) {
+              customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance = (prev! -
+                  creditPaymentType.amount!);
+            }
           }else{
             CustomerCurrencyAmount currencyAmount = CustomerCurrencyAmount(
             currency: selectedCurrency.value!, balance: (0 - amountPaid.value),
@@ -1054,11 +1234,21 @@ class CartController extends GetxController {
       bool stat,
       String posReference,
       List<PaymentReceivedModel> paymentTypes, String type, String customerName ,bool breakage) async {
+    // Reload user to ensure we have the current logged-in user
+    // This is critical when a user logs in after another user has logged out
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
+    }
+    
+    // Get the active shift for the current user
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
         loadShifts(box), box, user.value!, true);
     if (tempActiveShift != null) {
       activeShift = tempActiveShift;
       shiftAvailable.value = true;
+      print("Update Shift: Using shift ${activeShift.shiftReference} for user ${user.value!.userName} (ID: ${user.value!.id})");
+      
       for (PaymentReceivedModel paymentTypeModel in paymentTypes) {
         var isCash = paymentTypeModel.paymentType!.name!.startsWith("CASH");
         int count = activeShift.shiftCurrencyAmounts!.length + 1;
@@ -1095,6 +1285,7 @@ class CartController extends GetxController {
           SyncService.syncOfflineShifts(user.value!, box);
         }
     } else {
+      print("Update Shift: No active shift found for user ${user.value!.userName} (ID: ${user.value!.id})");
       shiftAvailable.value = false;
     }
   }
@@ -1132,13 +1323,16 @@ class CartController extends GetxController {
     cartItems.value = [];
     selectedPaymentTypes.value = [];
     selectedPaymentTypes.clear();
-    totalCostInBaseCurrency == 0.0;
-    totalCostInSelectedCurrency == 0.0;
-    totalTaxInBaseCurrency == 0.0;
-    totalTaxInSelectedCurrency == 0.0;
+    totalCostInBaseCurrency.value = 0.0;
+    totalCostInSelectedCurrency.value = 0.0;
+    totalTaxInBaseCurrency.value = 0.0;
+    totalTaxInSelectedCurrency.value = 0.0;
     amountPaid.value = 0.0;
     change.value = 0.0;
     accountPayType.value = "";
+    amountPaidTextEditingController.clear();
+    hasAmountText.value = false;
+    isFirstQuickAmountButtonUsed.value = false; // Reset flag for next sale
     postToRearScreen();
     resetFormKey();
     Get.delete<SaleController>();
@@ -1177,6 +1371,7 @@ class CartController extends GetxController {
     double totalCostInSelCurrency =
         totalCostInBaseCurrency.value * newValue.rate!;
     amountPaidTextEditingController.text = totalCostInSelCurrency.toStringAsFixed(2);
+    hasAmountText.value = true;
     double totalTaxInSelCurrency =
         totalTaxInBaseCurrency.value * newValue.rate!;
     totalCostInSelectedCurrency.value = totalCostInSelCurrency;

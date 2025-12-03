@@ -87,6 +87,29 @@ class ShiftController extends GetxController {
   }
 
   getSales() {
+    // Reload user to ensure we have the current logged-in user
+    // This ensures calculations use the correct user's shift
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+    }
+    
+    // Note: activeShift should already be set correctly by shiftInfo() which is called before getSales()
+    // But we ensure it's the current user's shift by reloading it if needed
+    if(activeShift.value.shiftReference != null && activeShift.value.userId != null && user.id != null && activeShift.value.userId != user.id){
+      // Shift doesn't belong to current user, reload it
+      shifts = loadShifts(box);
+      _localStorageService.getActiveShift(shifts, box, user, true).then((tempActiveShift) {
+        if(tempActiveShift != null) {
+          activeShift.value = tempActiveShift;
+          shiftAvailable.value = true;
+        }
+        // Recalculate after shift is updated
+        calculateTotalAmountsByCurrency();
+        calculateTotalAmountsByPaymentType();
+      });
+    }
+    
     List<SaleInfoModel> sales = getExistingOfflineSales(box);
     List<SaleInfoModel> actualSales = [];
     List<SaleInfoModel> otherSales = [];
@@ -119,16 +142,27 @@ class ShiftController extends GetxController {
     },);
   }
   shiftInfo() async {
+    // Reload user to ensure we have the current logged-in user
+    // This is critical when a user logs in after another user has logged out
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+      print("Shift Info: Loaded user ${user.userName} with ID ${user.id}");
+    }
 
     shifts = loadShifts(box);
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(shifts, box, user, true);
     if(tempActiveShift != null) {
-          tempActiveShift.shiftCurrencyAmounts!.forEach((currencyAmount)=>
-            print(currencyAmount.toJson())
-          );
+      print("Shift Info: Found active shift ${tempActiveShift.shiftReference} for user ${user.userName} (ID: ${user.id})");
+      print("Shift belongs to user ID: ${tempActiveShift.userId}");
+      tempActiveShift.shiftCurrencyAmounts!.forEach((currencyAmount)=>
+        print(currencyAmount.toJson())
+      );
       activeShift.value = tempActiveShift;
       shiftAvailable.value = true;
       activeShift.value.shiftCurrencyAmounts?.sort((a, b) => a.timeCreated.compareTo(b.timeCreated));
+    } else {
+      print("Shift Info: No active shift found for user ${user.userName} (ID: ${user.id})");
     }
     getSales();
   }
@@ -217,6 +251,14 @@ class ShiftController extends GetxController {
   }
 
   Future<void> openShift() async {
+    // Reload user to ensure we have the current logged-in user
+    // This is critical when a user logs in after another user has logged out
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+      print("Open Shift: Loaded user ${user.userName} with ID ${user.id}");
+    }
+    
     String fullName = "${user.firstName} ${user.lastName}";
     DateTime now = DateTime.now();
     int shiftCount = shifts.length + 1;
@@ -422,7 +464,20 @@ class ShiftController extends GetxController {
   }
 
   closeShift(){
+    // Reload user to ensure we have the current logged-in user
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+      print("Close Shift: Loaded user ${user.userName} with ID ${user.id}");
+    }
+    
+    // Verify the shift belongs to the current user before closing
     ShiftModel temp  = activeShift.value;
+    if(temp.userId != null && user.id != null && temp.userId != user.id){
+      Get.snackbar("Error", "Cannot close shift: This shift belongs to another user", snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    
     DateTime now = DateTime.now();
     String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
     temp.isShiftClosed = true;
@@ -438,58 +493,88 @@ class ShiftController extends GetxController {
     Get.offNamed(AppRoutes.OPEN_SHIFT);
   }
   closeActiveShift() async {
+    // Reload user to ensure we have the current logged-in user
+    // This is critical when a user logs in after another user has logged out
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+      print("Close Active Shift: Loaded user ${user.userName} with ID ${user.id}");
+    }
+    
+    // Verify the shift belongs to the current user before closing
+    if(activeShift.value.userId != null && user.id != null && activeShift.value.userId != user.id){
+      Get.snackbar("Error", "Cannot close shift: This shift belongs to another user", snackPosition: SnackPosition.BOTTOM);
+      AppHelper.hideLoading();
+      return;
+    }
+    
     List<SaleInfoModel> allSales = getExistingOfflineSales(box);
     offlineSales.value = allSales.where((sale)=> sale.syncStatus == false).toList();
     bool stat = await _connectivityService.checkServerConnection();
-    if(user.id==null){
-      var model = box.read(AppConstants.USER_INFO) ?? {};
-      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+    // Allow closing shift even with unsynced sales - they will be preserved for later syncing
+    AppHelper.showLoading();
+    if(stat){
+      if(!offlineSales.isEmpty)
+        await BackgroundService().syncOfflineSales(false);
+      await SyncService.savePaymentReceived(user, box);
+      await SyncService.saveCustomer(user, box);
     }
-    if(stat || (!stat && offlineSales.isEmpty) ) {
-      AppHelper.showLoading();
-      if(stat){
-        if(!offlineSales.isEmpty)
-          await BackgroundService().syncOfflineSales(false);
-        await SyncService.savePaymentReceived(user, box);
-        await SyncService.saveCustomer(user, box);
+    List<ShiftModel> itemsToBeSynced = [];
+    ShiftModel temp = activeShift.value;
+    DateTime now = DateTime.now();
+    String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+    temp.isShiftClosed = true;
+    temp.active = true;
+    temp.closingTime = closingTime;
+    itemsToBeSynced.add(temp);
+
+    String jsonShiftItems = json.encode(
+        itemsToBeSynced.map((shift) => shift.toMap()).toList());
+    var response = await BaseHttpClient()
+        .postAuthWithCompanyHeader(
+        "/mobile/pos/shift/save", jsonShiftItems, user.companyId!, "POST")
+        .catchError((onError) {
+      print(onError);
+      AppHelper.hideLoading();
+      if (onError is BadRequestException) {
+        var apiError = json.decode(onError.message!);
+        AppHelper.showErroDialog(description: apiError["reason"]);
+      } else {
+        AppHelper.handleError(onError);
       }
-      List<ShiftModel> itemsToBeSynced = [];
-      ShiftModel temp = activeShift.value;
-      DateTime now = DateTime.now();
-      String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
-      temp.isShiftClosed = true;
-      temp.active = true;
-      temp.closingTime = closingTime;
-      itemsToBeSynced.add(temp);
+    });
 
-      String jsonShiftItems = json.encode(
-          itemsToBeSynced.map((shift) => shift.toMap()).toList());
-      var response = await BaseHttpClient()
-          .postAuthWithCompanyHeader(
-          "/mobile/pos/shift/save", jsonShiftItems, user.companyId!, "POST")
-          .catchError((onError) {
-        print(onError);
-        AppHelper.hideLoading();
-        if (onError is BadRequestException) {
-          var apiError = json.decode(onError.message!);
-          AppHelper.showErroDialog(description: apiError["reason"]);
-        } else {
-          AppHelper.handleError(onError);
-        }
-      });
-
-      List<ShiftModel> shi = _localStorageService.replaceShift(temp, shifts);
-      _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
+    List<ShiftModel> shi = _localStorageService.replaceShift(temp, shifts);
+    _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
+    
+    // Show message about unsynced sales if any
+    if (!offlineSales.isEmpty) {
+      Get.snackbar("Shift Closed", 
+          "Shift closed successfully. ${offlineSales.length} unsynced sale(s) preserved for later syncing.",
+          snackPosition: SnackPosition.BOTTOM);
+    } else {
       Get.snackbar("Success", "Shift closed successfully",
           snackPosition: SnackPosition.BOTTOM);
-      SyncService.syncOfflineShifts(user, box);
+    }
+    
+    SyncService.syncOfflineShifts(user, box);
 
-      AppHelper.hideLoading();
-      signOut();
+    AppHelper.hideLoading();
+    
+    // Explicitly preserve company and branch for auto-fill on next login
+    // This ensures they are available after close shift, just like after logout
+    var selectedBranch = box.read(AppConstants.SELECTED_BRANCH);
+    var activeCompany = box.read(AppConstants.ACTIVE_COMPANY);
+    if(selectedBranch != null) {
+      box.write(AppConstants.SELECTED_BRANCH, selectedBranch);
+      print("Preserved SELECTED_BRANCH for auto-fill after close shift");
     }
-    else {
-      Get.snackbar("Error", "You have unsynced sales. Please sync them before closing the shift", snackPosition: SnackPosition.BOTTOM,backgroundColor: Colors.red, colorText: Colors.white);
+    if(activeCompany != null) {
+      box.write(AppConstants.ACTIVE_COMPANY, activeCompany);
+      print("Preserved ACTIVE_COMPANY for auto-fill after close shift");
     }
+    
+    signOut();
   }
   void showConfirmDialogCloseShift() {
     // Prevent multiple dialogs
@@ -595,9 +680,88 @@ class ShiftController extends GetxController {
   signOut() async {
     GetStorage box = GetStorage();
     
-    // Remove only shift and sales related data
-    box.remove(AppConstants.SHIFT_LIST);
-    box.remove(AppConstants.SALE_LIST);
+    // Preserve unsynced sales for later syncing - only remove synced sales
+    List<SaleInfoModel> allSales = getExistingOfflineSales(box);
+    List<SaleInfoModel> unsyncedSales = allSales.where((sale) => sale.syncStatus == false).toList();
+    
+    if (unsyncedSales.isNotEmpty) {
+      // Save only unsynced sales back to storage
+      List<Map<String, dynamic>> unsyncedSalesMap = unsyncedSales.map((item) => item.toMap()).toList();
+      box.write(AppConstants.SALE_LIST, unsyncedSalesMap);
+      print("Preserved ${unsyncedSales.length} unsynced sale(s) for later syncing");
+      
+      // Preserve shifts that are referenced by unsynced sales
+      // This allows shifts to be updated when sales are synced later
+      // IMPORTANT: Merge with existing preserved shifts from other users to avoid overwriting them
+      List<ShiftModel> allShifts = loadShifts(box);
+      Set<String> shiftReferences = unsyncedSales
+          .where((sale) => sale.sale?.shiftReference != null && sale.sale!.shiftReference!.isNotEmpty)
+          .map((sale) => sale.sale!.shiftReference!)
+          .toSet();
+      
+      if (shiftReferences.isNotEmpty) {
+        // Get current user ID if not already set
+        if(user.id == null){
+          var model = box.read(AppConstants.USER_INFO) ?? {};
+          user = UserModel.fromMap(Map<String, dynamic>.from(model));
+        }
+        
+        // Find shifts that belong to the current user AND are referenced by unsynced sales
+        List<ShiftModel> currentUserShiftsToPreserve = allShifts
+            .where((shift) => 
+                shiftReferences.contains(shift.shiftReference) &&
+                shift.userId != null && 
+                user.id != null && 
+                shift.userId == user.id)
+            .toList();
+        
+        // Find shifts from OTHER users that should be preserved (they have unsynced sales from previous logouts)
+        // These are shifts that don't belong to current user but are in the existing preserved list
+        List<ShiftModel> otherUsersPreservedShifts = allShifts
+            .where((shift) => 
+                shift.userId != null && 
+                user.id != null && 
+                shift.userId != user.id)
+            .toList();
+        
+        // Merge current user's shifts with other users' preserved shifts
+        List<ShiftModel> allShiftsToPreserve = [
+          ...currentUserShiftsToPreserve,
+          ...otherUsersPreservedShifts,
+        ];
+        
+        if (allShiftsToPreserve.isNotEmpty) {
+          List<Map<String, dynamic>> shiftsMap = allShiftsToPreserve.map((item) => item.toMap()).toList();
+          box.write(AppConstants.SHIFT_LIST, shiftsMap);
+          print("Preserved ${currentUserShiftsToPreserve.length} shift(s) for user ${user.id} and ${otherUsersPreservedShifts.length} shift(s) from other users");
+        } else {
+          box.remove(AppConstants.SHIFT_LIST);
+        }
+      } else {
+        // No shift references in current user's unsynced sales
+        // But we should preserve shifts from other users if they exist
+        List<ShiftModel> otherUsersPreservedShifts = allShifts
+            .where((shift) => 
+                shift.userId != null && 
+                user.id != null && 
+                shift.userId != user.id)
+            .toList();
+        
+        if (otherUsersPreservedShifts.isNotEmpty) {
+          List<Map<String, dynamic>> shiftsMap = otherUsersPreservedShifts.map((item) => item.toMap()).toList();
+          box.write(AppConstants.SHIFT_LIST, shiftsMap);
+          print("Preserved ${otherUsersPreservedShifts.length} shift(s) from other users (no shifts for current user)");
+        } else {
+          box.remove(AppConstants.SHIFT_LIST);
+        }
+      }
+    } else {
+      // No unsynced sales, remove both sales and shifts
+      box.remove(AppConstants.SALE_LIST);
+      box.remove(AppConstants.SHIFT_LIST);
+    }
+    
+    // Remove payment received data
     box.remove(AppConstants.PAYMENT_RECEIVED_LIST);
     
     // Remove access token and set authentication to false (user needs to login again)
@@ -606,6 +770,9 @@ class ShiftController extends GetxController {
     
     // Note: USER_INFO, USER_PASSWORD, and IS_USER_INITIALLY_AUTHENTICATED are preserved
     // to allow offline login after closing shift
+    
+    // Note: SELECTED_BRANCH and ACTIVE_COMPANY are preserved (not removed)
+    // to allow auto-fill of company and branch on next login, both after logout and close shift
     
     // Clean up controllers
     Get.delete<SaleController>();

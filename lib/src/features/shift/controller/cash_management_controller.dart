@@ -51,14 +51,21 @@ class CashManagementController extends GetxController {
   Future<void> onInit() async {
     super.onInit();
      box = GetStorage();
+    // Reload user to ensure we have the current logged-in user
     var model = box.read(AppConstants.USER_INFO) ?? {};
-    user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
+    if(model.isNotEmpty){
+      user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
+      print("Cash Management: Loaded user ${user.value!.userName} with ID ${user.value!.id}");
+    }
     List<ShiftModel> tempShiftList = loadShifts(box);
     shiftList.value = tempShiftList;
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, user.value!, true);
     if(tempActiveShift != null) {
       activeShift = tempActiveShift;
       shiftAvailable.value = true;
+      print("Cash Management: Found active shift ${activeShift.shiftReference} for user ${user.value!.userName} (ID: ${user.value!.id})");
+    } else {
+      print("Cash Management: No active shift found for user ${user.value!.userName} (ID: ${user.value!.id})");
     }
     List<CurrencyModel> tempList = loadCurrencies(box);
     currencyList.value = tempList;
@@ -138,6 +145,25 @@ class CashManagementController extends GetxController {
     }
   }
   payInPayOutAction(String payType) async {
+    // Reload user and shift to ensure we have the current user's shift
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
+    }
+    
+    // Reload shifts and get the active shift for the current user
+    List<ShiftModel> tempShiftList = loadShifts(box);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, user.value!, true);
+    if(tempActiveShift != null) {
+      activeShift = tempActiveShift;
+      shiftAvailable.value = true;
+      shiftList.value = tempShiftList;
+      print("Pay In/Out: Using shift ${activeShift.shiftReference} for user ${user.value!.userName} (ID: ${user.value!.id})");
+    } else {
+      print("Pay In/Out: No active shift found for user ${user.value!.userName} (ID: ${user.value!.id})");
+      Get.snackbar("Error", "No active shift found!", snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
 
     String timeCreated = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
     int count = activeShift.shiftCurrencyAmounts!.length + 1;
