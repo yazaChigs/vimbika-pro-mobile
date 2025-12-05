@@ -2014,27 +2014,46 @@ class SaleScreen extends GetView {
                                                         MainAxisAlignment
                                                             .spaceBetween,
                                                     children: [
-                                                      Container(
-                                                        height: 30,
-                                                        child: Obx(() =>
-                                                            CheckboxListTile(
-                                                              title: Text(
-                                                                  'Print Receipt'),
-                                                              value: cartController
-                                                                  .isPrintEnabled
-                                                                  .value,
-                                                              onChanged:
-                                                                  (bool?
-                                                                      value) {
-                                                                cartController
-                                                                        .isPrintEnabled
-                                                                        .value =
-                                                                    value ??
-                                                                        false;
-                                                              },
-                                                            )),
-                                                      ),
                                                       Obx(() {
+                                                        // Hide print receipt checkbox when "Add to Account" button is enabled
+                                                        bool isAddToAccountMode = cartController.amountPaid.value > 0 && 
+                                                                                  cartController.cartItems.isEmpty && 
+                                                                                  (cartController.selectedCustomer.value?.isLoyalCustomer ?? false);
+                                                        
+                                                        if (isAddToAccountMode) {
+                                                          return SizedBox.shrink();
+                                                        }
+                                                        
+                                                        return Container(
+                                                          height: 30,
+                                                          child: CheckboxListTile(
+                                                            title: Text(
+                                                                'Print Receipt'),
+                                                            value: cartController
+                                                                .isPrintEnabled
+                                                                .value,
+                                                            onChanged:
+                                                                (bool?
+                                                                    value) {
+                                                              cartController
+                                                                      .isPrintEnabled
+                                                                      .value =
+                                                                  value ??
+                                                                      false;
+                                                            },
+                                                          ),
+                                                        );
+                                                      }),
+                                                      Obx(() {
+                                                        // Hide fiscalize receipt checkbox when "Add to Account" button is enabled
+                                                        bool isAddToAccountMode = cartController.amountPaid.value > 0 && 
+                                                                                  cartController.cartItems.isEmpty && 
+                                                                                  (cartController.selectedCustomer.value?.isLoyalCustomer ?? false);
+                                                        
+                                                        if (isAddToAccountMode) {
+                                                          return SizedBox.shrink();
+                                                        }
+                                                        
                                                         // Check fiscal device status (similar to web version's isFiscalDeviceRegistered)
                                                         // This will rebuild whenever cart items change, ensuring we check storage regularly
                                                         final _ = cartController.cartItems.length;
