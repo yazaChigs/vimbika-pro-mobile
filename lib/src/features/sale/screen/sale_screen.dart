@@ -1850,122 +1850,145 @@ class SaleScreen extends GetView {
                                                               value!);
                                                     },
                                                   ),
-                                                  Row(
-                                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                                    children: [
-                                                      Text(
-                                                        'Total: ',
-                                                        style: TextStyle(
-                                                            fontSize: 15,
-                                                              ),
-                                                      ),
-                                                      Text(
-                                                        '${cartController.selectedCurrency.value!.symbol} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
-                                                        style: TextStyle(
-                                                            fontSize: 20,
-                                                            fontWeight:
+                                                  Obx(() {
+                                                    // Hide total and change displays when "Add to Account" button is enabled
+                                                    bool isAddToAccountMode = cartController.amountPaid.value > 0 && 
+                                                                              cartController.cartItems.isEmpty && 
+                                                                              (cartController.selectedCustomer.value?.isLoyalCustomer ?? false);
+                                                    
+                                                    if (isAddToAccountMode) {
+                                                      return SizedBox.shrink();
+                                                    }
+                                                    
+                                                    return SingleChildScrollView(
+                                                      scrollDirection: Axis.horizontal,
+                                                      child: Row(
+                                                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                                        children: [
+                                                          Text(
+                                                            'Total: ',
+                                                            style: TextStyle(
+                                                                fontSize: 15,
+                                                                  ),
+                                                          ),
+                                                          Text(
+                                                            '${cartController.selectedCurrency.value!.symbol} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
+                                                            style: TextStyle(
+                                                                fontSize: 20,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color: Colors
+                                                                    .indigo),
+                                                          ),
+                                                          cartController.change>0?
+                                                          Text(
+                                                            'Change: ',
+                                                            style: TextStyle(
+                                                                fontSize: 15,
+                                                            ),
+                                                          ):SizedBox.shrink(),
+                                                          cartController.change>0?
+                                                          Text(
+                                                            '${cartController.selectedCurrency.value!.symbol} ${cartController.change.toStringAsFixed(2)}',
+                                                            style: TextStyle(
+                                                                fontSize: 20,
+                                                                fontWeight:
                                                                 FontWeight
                                                                     .bold,
-                                                            color: Colors
-                                                                .indigo),
+                                                                color: Colors
+                                                                    .orange),
+                                                          ):SizedBox.shrink(),
+                                                        ],
                                                       ),
-                                                      cartController.change>0?
-                                                      Text(
-                                                        'Change: ',
-                                                        style: TextStyle(
-                                                            fontSize: 15,
-                                                        ),
-                                                      ):Text(""),
-                                                      cartController.change>0?
-                                                      Text(
-                                                        '${cartController.selectedCurrency.value!.symbol} ${cartController.change.toStringAsFixed(2)}',
-                                                        style: TextStyle(
-                                                            fontSize: 20,
-                                                            fontWeight:
-                                                            FontWeight
-                                                                .bold,
-                                                            color: Colors
-                                                                .orange),
-                                                      ):Text(""),
-                                                    ],
-                                                  ),
-                                                  Row(
-                                                    mainAxisAlignment: MainAxisAlignment.spaceAround ,
-                                                          children: [
-                                                            cartController.selectedCustomer.value!.isLoyalCustomer == true ?
-                                                            Expanded(
-                                                              flex:3,
-                                                              child:
-                                                                  TextField(
-                                                                    onChanged: (String val) {
-                                                                      cartController.amtToAccChange(val);
-                                                                    },
-                                                                controller:
-                                                                    cartController.amtToAccTextEditingController,
-                                                                keyboardType: const TextInputType
-                                                                    .numberWithOptions(
-                                                                    decimal:
-                                                                        true),
-                                                                decoration: InputDecoration(
-                                                                    enabledBorder: OutlineInputBorder(
-                                                                      borderRadius:
-                                                                          BorderRadius.circular(8.0),
-                                                                      borderSide:
-                                                                          const BorderSide(
-                                                                        color: Colors.redAccent,
-                                                                        width: 2.0,
-                                                                      ),
-                                                                    ),
-                                                                    focusedBorder: OutlineInputBorder(
-                                                                      borderRadius:
-                                                                          BorderRadius.circular(8.0),
-                                                                      borderSide:
-                                                                          const BorderSide(
-                                                                        color: Colors.redAccent,
-                                                                        width: 2.0,
-                                                                      ),
-                                                                    ),
-                                                                    prefixIcon: const Icon(Icons.monetization_on_outlined),
-                                                                    labelText: "Change TO Acc",
-                                                                    hintText: "Change TO Acc"),
-                                                              ),
-                                                            ):SizedBox(),
-                                                            (cartController.amountPaid>cartController.totalCostInSelectedCurrency.value) ?
-                                                            Expanded(
-                                                              flex:3,
-                                                              child:
-                                                                  TextField(
-                                                                    onChanged: (String val) {
-                                                                      cartController.tipAmountChange(val);
-                                                                    },
-                                                                controller:
-                                                                    cartController.tipAmtTextEditingController,
-                                                                keyboardType: const TextInputType.numberWithOptions(
-                                                                    decimal:true),
-                                                                decoration: InputDecoration(
-                                                                    enabledBorder: OutlineInputBorder(
-                                                                      borderRadius:BorderRadius.circular(8.0),
-                                                                      borderSide:
-                                                                          const BorderSide(
-                                                                        color: Colors.green,
-                                                                        width: 2.0,
-                                                                      ),
-                                                                    ),
-                                                                    focusedBorder: OutlineInputBorder(
-                                                                      borderRadius: BorderRadius.circular(8.0),
-                                                                      borderSide:
-                                                                          const BorderSide(
-                                                                        color: Colors.green,
-                                                                        width: 2.0,
-                                                                      ),
-                                                                    ),
-                                                                    prefixIcon: const Icon(Icons.monetization_on_sharp),
-                                                                    labelText: "Tip Amt",
-                                                                    hintText: "Tip amt"),
-                                                              ),
-                                                            ):SizedBox(),
-                                                          ],
-                                                        ),
+                                                    );
+                                                  }),
+                                                  Obx(() {
+                                                    // Hide change to account and tip inputs when "Add to Account" button is enabled
+                                                    bool isAddToAccountMode = cartController.amountPaid.value > 0 && 
+                                                                              cartController.cartItems.isEmpty && 
+                                                                              (cartController.selectedCustomer.value?.isLoyalCustomer ?? false);
+                                                    
+                                                    return Row(
+                                                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                                      children: [
+                                                        // Change to Account input - hide when Add to Account button is enabled
+                                                        !isAddToAccountMode && cartController.selectedCustomer.value!.isLoyalCustomer == true ?
+                                                        Expanded(
+                                                          flex:3,
+                                                          child:
+                                                              TextField(
+                                                                onChanged: (String val) {
+                                                                  cartController.amtToAccChange(val);
+                                                                },
+                                                            controller:
+                                                                cartController.amtToAccTextEditingController,
+                                                            keyboardType: const TextInputType
+                                                                .numberWithOptions(
+                                                                decimal:
+                                                                    true),
+                                                            decoration: InputDecoration(
+                                                                enabledBorder: OutlineInputBorder(
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(8.0),
+                                                                  borderSide:
+                                                                      const BorderSide(
+                                                                    color: Colors.redAccent,
+                                                                    width: 2.0,
+                                                                  ),
+                                                                ),
+                                                                focusedBorder: OutlineInputBorder(
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(8.0),
+                                                                  borderSide:
+                                                                      const BorderSide(
+                                                                    color: Colors.redAccent,
+                                                                    width: 2.0,
+                                                                  ),
+                                                                ),
+                                                                prefixIcon: const Icon(Icons.monetization_on_outlined),
+                                                                labelText: "Change TO Acc",
+                                                                hintText: "Change TO Acc"),
+                                                          ),
+                                                        ):SizedBox(),
+                                                        // Tip input - hide when Add to Account button is enabled
+                                                        !isAddToAccountMode && (cartController.amountPaid>cartController.totalCostInSelectedCurrency.value) ?
+                                                        Expanded(
+                                                          flex:3,
+                                                          child:
+                                                              TextField(
+                                                                onChanged: (String val) {
+                                                                  cartController.tipAmountChange(val);
+                                                                },
+                                                            controller:
+                                                                cartController.tipAmtTextEditingController,
+                                                            keyboardType: const TextInputType.numberWithOptions(
+                                                                decimal:true),
+                                                            decoration: InputDecoration(
+                                                                enabledBorder: OutlineInputBorder(
+                                                                  borderRadius:BorderRadius.circular(8.0),
+                                                                  borderSide:
+                                                                      const BorderSide(
+                                                                    color: Colors.green,
+                                                                    width: 2.0,
+                                                                  ),
+                                                                ),
+                                                                focusedBorder: OutlineInputBorder(
+                                                                  borderRadius: BorderRadius.circular(8.0),
+                                                                  borderSide:
+                                                                      const BorderSide(
+                                                                    color: Colors.green,
+                                                                    width: 2.0,
+                                                                  ),
+                                                                ),
+                                                                prefixIcon: const Icon(Icons.monetization_on_sharp),
+                                                                labelText: "Tip Amt",
+                                                                hintText: "Tip amt"),
+                                                          ),
+                                                        ):SizedBox(),
+                                                      ],
+                                                    );
+                                                  }),
                                                       // : SizedBox(),
                                                   cartController.selectedCustomer.value!.isLoyalCustomer == true
                                                       ? Row(
