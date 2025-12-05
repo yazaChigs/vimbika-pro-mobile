@@ -458,6 +458,23 @@ class CartController extends GetxController {
       ).toList();
     }
 
+    // Exclude ACC- and CREDIT- payment types when both amount paid and change to account are present
+    // (can't use account/credit payment when paying money AND adding money to account simultaneously)
+    double amtToAccValue = 0.0;
+    if (amtToAccTextEditingController.text.isNotEmpty) {
+      try {
+        amtToAccValue = double.parse(amtToAccTextEditingController.text);
+      } catch (e) {
+        amtToAccValue = 0.0;
+      }
+    }
+    if (amountPaid.value > 0 && amtToAccValue > 0) {
+      tempList = tempList.where((type) => 
+        !type.name!.startsWith("ACC-") && 
+        !(type.isCredit! && type.name!.startsWith("CREDIT-"))
+      ).toList();
+    }
+
     // If the customer is 'WalkIn', filter out payment types containing 'credit'
     if (selectedCus.name != null &&
         selectedCus.name!.toLowerCase() == 'walkin') {
@@ -792,6 +809,36 @@ class CartController extends GetxController {
       change.value = amountPaid.value - totalCostInSelectedCurrency.value - amtToAcc - tipAmount;
     } else {
       change.value = 0.0;
+    }
+  }
+
+  amtToAccChange(String val) {
+    // Update change calculation when "Change to Account" amount changes
+    if (amountPaid.value >= totalCostInSelectedCurrency.value) {
+      double tipAmount = 0.0;
+      if (tipAmtTextEditingController.text.isNotEmpty) {
+        try {
+          tipAmount = double.parse(tipAmtTextEditingController.text);
+        } catch (e) {
+          tipAmount = 0.0;
+        }
+      }
+      double amtToAcc = 0.0;
+      if (val.isNotEmpty) {
+        try {
+          amtToAcc = double.parse(val);
+        } catch (e) {
+          amtToAcc = 0.0;
+        }
+      }
+      change.value = amountPaid.value - totalCostInSelectedCurrency.value - amtToAcc - tipAmount;
+    } else {
+      change.value = 0.0;
+    }
+    // Refresh payment types when change to account changes
+    // This ensures ACC- and CREDIT- payment types are hidden when both amountPaid and amtToAcc are present
+    if (selectedCurrency.value != null && selectedCustomer.value != null) {
+      filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
     }
   }
 

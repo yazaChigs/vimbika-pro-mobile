@@ -225,7 +225,7 @@ class SaleScreen extends GetView {
                               ticketController.ticketActionButton(
                                   cartController.selectedCurrency.value!,
                                   cartController.cartItems,
-                                  "");
+                                  ""); 
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.cyan,
@@ -1898,12 +1898,10 @@ class SaleScreen extends GetView {
                                                               child:
                                                                   TextField(
                                                                     onChanged: (String val) {
-                                                                      if (val.isNotEmpty) {
-                                                                        cartController.amountPaidChange(val);
-                                                                      }
+                                                                      cartController.amtToAccChange(val);
                                                                     },
                                                                 controller:
-                                                                    cartController .amtToAccTextEditingController,
+                                                                    cartController.amtToAccTextEditingController,
                                                                 keyboardType: const TextInputType
                                                                     .numberWithOptions(
                                                                     decimal:
