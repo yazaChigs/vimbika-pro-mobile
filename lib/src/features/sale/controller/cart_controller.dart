@@ -310,11 +310,21 @@ class CartController extends GetxController {
       allCustomers.add(defaultCustomer);
     }
 
-    // Set "WalkIn" as the default selected customer
-    selectedCustomer.value = defaultCustomer;
-    isCustomerSelected.value = true;
-    allCustomers.value = allCustomers.where((cus) => (cus.branch != null && cus.branch!.name == branch.value!.name)|| cus.name == "WalkIn").toList();
+    // Preserve existing selection if possible, else use WalkIn
+    CustomerModel? preserved = _findMatchIn(allCustomers, selectedCustomer.value);
+    selectedCustomer.value = preserved ?? defaultCustomer;
+    isCustomerSelected.value = selectedCustomer.value != null;
+
+    // Filter by branch but keep WalkIn and current selection
+    allCustomers.value = allCustomers.where((cus) =>
+        (cus.branch != null && cus.branch!.name == branch.value!.name) ||
+        cus.name == "WalkIn" ||
+        (selectedCustomer.value != null && cus == selectedCustomer.value)
+    ).toList();
+
+    _ensureSelectedCustomerInList();
     allCustomers.refresh();
+    _rebindSelectedCustomer();
     filterPaymentTypes(selectedCurrency.value!, defaultCustomer);
     List<AvailablePrinterModel> tempPrinterList = loadAvailablePrinters(box);
     availablePrinters.value = tempPrinterList;
@@ -328,9 +338,29 @@ class CartController extends GetxController {
         selectCorrectBank();
       }
     }
+    // Only fetch customers from server if online and list is too small
     if(allCustomers.length<3){
-      await SyncService.getCustomers(user.value!, box, company.value!.id!);
-      refreshCustomers();
+      bool isOnline = await _connectivityService.checkServerConnection();
+      if(isOnline) {
+        await SyncService.getCustomers(user.value!, box, company.value!.id!);
+        refreshCustomers();
+      } else {
+        // Offline: ensure we at least have WalkIn customer
+        // This handles the case where local storage is empty or customers don't match current branch
+        if(allCustomers.isEmpty || !allCustomers.any((c) => c.name?.toLowerCase().contains('walkin') ?? false)) {
+          CustomerModel walkInCustomer = CustomerModel(
+            id: null, 
+            name: 'WalkIn', 
+            branch: branch.value != null 
+              ? BaseNameModel(id: branch.value!.id, name: branch.value!.name)
+              : null
+          );
+          allCustomers.add(walkInCustomer);
+          selectedCustomer.value = walkInCustomer;
+          isCustomerSelected.value = true;
+          allCustomers.refresh();
+        }
+      }
     }
     // Only use display manager on non-Windows platforms
     if (display != null) {
@@ -374,6 +404,19 @@ class CartController extends GetxController {
 
   refreshCustomers() {
     List<CustomerModel> customers = loadCustomers(box);
+
+    // Ensure WalkIn customer exists if list is empty
+    if(customers.isEmpty || !customers.any((c) => c.name?.toLowerCase().contains('walkin') ?? false)) {
+      CustomerModel walkInCustomer = CustomerModel(
+        id: null, 
+        name: 'WalkIn', 
+        branch: branch.value != null 
+          ? BaseNameModel(id: branch.value!.id, name: branch.value!.name)
+          : null
+      );
+      customers.add(walkInCustomer);
+    }
+
     allCustomers.value = customers;
 
     // Use firstWhereOrNull to find a customer with "WalkIn" in their name (case-insensitive)
@@ -385,14 +428,89 @@ class CartController extends GetxController {
 
     if (defaultCustomer == null) {
       // If "WalkIn" is not in the list, create and add it
-      defaultCustomer = CustomerModel(id: null, name: 'WalkIn');
+      defaultCustomer = CustomerModel(
+        id: null, 
+        name: 'WalkIn', 
+        branch: branch.value != null 
+          ? BaseNameModel(id: branch.value!.id, name: branch.value!.name)
+          : null
+      );
       allCustomers.add(defaultCustomer);
     }
 
-    // Set "WalkIn" as the default selected customer
-    selectedCustomer.value = defaultCustomer;
-    isCustomerSelected.value = true;
+    // Preserve existing selection if possible, else use WalkIn
+    CustomerModel? preserved = _findMatchIn(customers, selectedCustomer.value);
+    selectedCustomer.value = preserved ?? defaultCustomer;
+    isCustomerSelected.value = selectedCustomer.value != null;
+    
+    // Filter by branch but always include WalkIn and the current selection
+    if(branch.value != null) {
+      customers = customers.where((cus) => 
+        (cus.branch != null && cus.branch!.name == branch.value!.name) || 
+        cus.name == "WalkIn" ||
+        (selectedCustomer.value != null && cus == selectedCustomer.value)
+      ).toList();
+    }
+    
+    allCustomers.value = customers;
+    _ensureSelectedCustomerInList();
     allCustomers.refresh();
+    // Rebind selectedCustomer to the instance inside allCustomers to satisfy dropdown equality
+    _rebindSelectedCustomer();
+  }
+
+  /// Ensure selectedCustomer points to the same instance contained in allCustomers.
+  /// This is required because the dropdown compares by object identity.
+  void _rebindSelectedCustomer() {
+    if (allCustomers.isEmpty) return;
+    CustomerModel? match;
+    // Prefer match by id when available, otherwise by name.
+    if (selectedCustomer.value?.id != null) {
+      match = allCustomers.firstWhereOrNull((c) => c.id == selectedCustomer.value!.id);
+    }
+    if (match == null && selectedCustomer.value?.customerId != null) {
+      match = allCustomers.firstWhereOrNull((c) => c.customerId == selectedCustomer.value!.customerId);
+    }
+    if (match == null && selectedCustomer.value?.accountNumber != null) {
+      match = allCustomers.firstWhereOrNull((c) => c.accountNumber == selectedCustomer.value!.accountNumber);
+    }
+    match ??= allCustomers.firstWhereOrNull(
+        (c) => c.name != null && c.name == selectedCustomer.value?.name);
+
+    // If still no match and a branch-filter removed it, fallback to first entry
+    match ??= allCustomers.firstOrNull;
+
+    if (match != null) {
+      selectedCustomer.value = match;
+      isCustomerSelected.value = true;
+    }
+  }
+
+  /// Ensure the currently selected customer exists in the displayed list.
+  /// If the selected customer is filtered out, add it back to keep the dropdown selectable.
+  void _ensureSelectedCustomerInList() {
+    if (selectedCustomer.value == null) return;
+    if (!allCustomers.any((c) => c == selectedCustomer.value)) {
+      allCustomers.add(selectedCustomer.value!);
+    }
+  }
+
+  /// Find a matching customer in a list using id -> customerId -> accountNumber -> name.
+  CustomerModel? _findMatchIn(List<CustomerModel> list, CustomerModel? target) {
+    if (target == null) return null;
+    if (target.id != null) {
+      final m = list.firstWhereOrNull((c) => c.id == target.id);
+      if (m != null) return m;
+    }
+    if (target.customerId != null) {
+      final m = list.firstWhereOrNull((c) => c.customerId == target.customerId);
+      if (m != null) return m;
+    }
+    if (target.accountNumber != null) {
+      final m = list.firstWhereOrNull((c) => c.accountNumber == target.accountNumber);
+      if (m != null) return m;
+    }
+    return list.firstWhereOrNull((c) => c.name == target.name);
   }
 
   reGetCustomers() {
@@ -422,11 +540,36 @@ class CartController extends GetxController {
   }
 
   onCustomerChange(CustomerModel? newValue) {
+    if (newValue == null) return;
+    print("onCustomerChange -> incoming: ${newValue.name}, id: ${newValue.id}, customerId: ${newValue.customerId}, acc: ${newValue.accountNumber}");
+    // Rebind to instance in allCustomers to satisfy dropdown identity checks
+    CustomerModel? match;
+    if (newValue.id != null) {
+      match = allCustomers.firstWhereOrNull((c) => c.id == newValue.id);
+    }
+    if (match == null && newValue.customerId != null) {
+      match = allCustomers.firstWhereOrNull((c) => c.customerId == newValue.customerId);
+    }
+    if (match == null && newValue.accountNumber != null) {
+      match = allCustomers.firstWhereOrNull((c) => c.accountNumber != null && c.accountNumber == newValue.accountNumber);
+    }
+    match ??= allCustomers.firstWhereOrNull((c) => c.name == newValue.name);
+
+    // If not found in current list (e.g., filtered out), add it and use that instance
+    if (match == null) {
+      allCustomers.add(newValue);
+      match = newValue;
+      print("onCustomerChange -> added missing customer to list: ${newValue.name}");
+    }
+
+    selectedCustomer.value = match;
     isCustomerSelected.value = true;
-    selectedCustomer.value = newValue!;
-    validateEmail(newValue.email);
-    //filterPaymentTypesForCustomer(newValue);
-    filterPaymentTypes(selectedCurrency.value!, newValue);
+    print("onCustomerChange -> selected: ${selectedCustomer.value?.name}, id: ${selectedCustomer.value?.id}, acc: ${selectedCustomer.value?.accountNumber}");
+    validateEmail(selectedCustomer.value?.email);
+    _ensureSelectedCustomerInList();
+    allCustomers.refresh();
+    print("onCustomerChange -> allCustomers length: ${allCustomers.length}, contains selected: ${allCustomers.contains(selectedCustomer.value)}");
+    filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
   }
 
   void filterPaymentTypes(

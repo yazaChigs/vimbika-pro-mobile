@@ -76,6 +76,8 @@ class SaleScreen extends GetView {
     // This ensures the correct shift is loaded for the current user
     WidgetsBinding.instance.addPostFrameCallback((_) {
       cartController.refreshShiftForCurrentUser();
+      // Also refresh customers to ensure latest data is loaded
+      cartController.refreshCustomers();
     });
     
     // Sync default payment type to saleController for highlighting

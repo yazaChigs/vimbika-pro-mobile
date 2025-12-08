@@ -6,6 +6,8 @@ import 'package:get/get.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/customers/controller/customer_controller.dart';
 import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart';
+import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
+import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
 import 'package:vimbika_pos_app/src/widgets/nav_drawer_widget.dart';
 
 class CustomerListScreen extends StatelessWidget {
@@ -13,6 +15,14 @@ class CustomerListScreen extends StatelessWidget {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final InactivityController inactivityController = Get.put(InactivityController());
   final CustomerController customerController = Get.put(CustomerController());
+  
+  // Refresh customers when screen is built to ensure latest data
+  void _refreshCustomersOnInit() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Force reload customers from storage
+      customerController.reloadCustomersFromStorage();
+    });
+  }
   static bool isMobile(BuildContext context) =>
       MediaQuery.of(context).size.width < 950.0;
 
@@ -21,6 +31,9 @@ class CustomerListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Refresh customers when screen is built
+    _refreshCustomersOnInit();
+    
     String fullName = "${customerController.user.firstName} ${customerController.user
         .lastName}";
     String initials = customerController.user.firstName[0] +

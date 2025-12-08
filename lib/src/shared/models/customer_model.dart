@@ -49,6 +49,41 @@ class CustomerModel {
   bool? updated;
   List<CustomerCurrencyAmount>? currencyBalance;
 
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! CustomerModel) return false;
+
+    // Prefer id when available (most stable)
+    if (id != null && other.id != null) {
+      return id == other.id;
+    }
+
+    // Next prefer customerId if present
+    if (customerId != null && other.customerId != null) {
+      return customerId == other.customerId;
+    }
+
+    // Fallback: use accountNumber then name
+    if (accountNumber != null && other.accountNumber != null) {
+      return accountNumber == other.accountNumber;
+    }
+
+    // As last resort, compare name + branch id/name
+    final sameName = name != null && other.name != null && name == other.name;
+    final sameBranch = (branch?.id != null && other.branch?.id != null && branch!.id == other.branch!.id) ||
+        (branch?.name != null && other.branch?.name != null && branch!.name == other.branch!.name);
+
+    return sameName && (sameBranch || branch == null || other.branch == null);
+  }
+
+  @override
+  int get hashCode =>
+      id?.hashCode ??
+      customerId?.hashCode ??
+      accountNumber?.hashCode ??
+      Object.hash(name, branch?.id, branch?.name);
+
   factory CustomerModel.fromJson(String str) =>
       CustomerModel.fromMap(json.decode(str));
 

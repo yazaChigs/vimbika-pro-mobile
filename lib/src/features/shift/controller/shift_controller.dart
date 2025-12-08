@@ -27,7 +27,9 @@ import '../../../services/background_service.dart';
 import '../../../services/base_http_client.dart';
 import '../../../services/connectivity_service.dart';
 import '../../../utils/app_helper.dart';
+import '../../customers/controller/customer_controller.dart';
 import '../../sale/model/sale_infor_model.dart';
+import '../../../shared/models/customer_model.dart';
 
 class ShiftController extends GetxController {
   late UserModel user = UserModel(id: null, firstName: "", lastName: "", userName: "");
@@ -478,6 +480,54 @@ class ShiftController extends GetxController {
       return;
     }
     
+    // Explicitly preserve customers before closing shift
+    // This ensures customers are available when opening a new shift
+    try {
+      List<CustomerModel> customers = [];
+      
+      // Try to get customers from CustomerController if it exists
+      try {
+        CustomerController? customerController = Get.find<CustomerController>();
+        if(customerController.allCustomers.isNotEmpty) {
+          customers = customerController.allCustomers.toList();
+          print("Got ${customers.length} customer(s) from CustomerController in closeShift");
+        }
+      } catch (e) {
+        print("CustomerController not found in closeShift, trying storage: $e");
+      }
+      
+      // If no customers from controller, try CartController
+      if(customers.isEmpty) {
+        try {
+          CartController? cartController = Get.find<CartController>();
+          if(cartController.allCustomers.isNotEmpty) {
+            customers = cartController.allCustomers.toList();
+            print("Got ${customers.length} customer(s) from CartController in closeShift");
+          }
+        } catch (e) {
+          print("CartController not found in closeShift, trying storage: $e");
+        }
+      }
+      
+      // If still no customers, try storage
+      if(customers.isEmpty) {
+        final LocalStorageService _localStorageService = LocalStorageService();
+        customers = _localStorageService.getCustomers(box);
+        print("Got ${customers.length} customer(s) from storage in closeShift");
+      }
+      
+      // Write customers to storage if we have any
+      if(customers.isNotEmpty) {
+        List<Map<String, dynamic>> customersListMap = customers.map((item) => item.toMap()).toList();
+        box.write(AppConstants.CUSTOMER_LIST, customersListMap);
+        print("Preserved ${customers.length} customer(s) before closing shift");
+      } else {
+        print("No customers to preserve in closeShift - list is empty");
+      }
+    } catch (e) {
+      print("Error preserving customers in closeShift: $e");
+    }
+    
     DateTime now = DateTime.now();
     String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
     temp.isShiftClosed = true;
@@ -490,6 +540,7 @@ class ShiftController extends GetxController {
     Get.delete<ShiftController>();
     Get.delete<SaleController>();
     Get.delete<CartController>();
+    Get.delete<CustomerController>(); // Delete CustomerController to force refresh on next access
     Get.offNamed(AppRoutes.OPEN_SHIFT);
   }
   closeActiveShift() async {
@@ -590,6 +641,54 @@ class ShiftController extends GetxController {
     if(useKOT != null) {
       box.write(AppConstants.USE_KOT, useKOT);
       print("Preserved USE_KOT after close shift");
+    }
+    
+    // Explicitly preserve customers before sign out
+    // This ensures customers are available when opening a new shift
+    try {
+      List<CustomerModel> customers = [];
+      
+      // Try to get customers from CustomerController if it exists
+      try {
+        CustomerController? customerController = Get.find<CustomerController>();
+        if(customerController.allCustomers.isNotEmpty) {
+          customers = customerController.allCustomers.toList();
+          print("Got ${customers.length} customer(s) from CustomerController");
+        }
+      } catch (e) {
+        print("CustomerController not found, trying storage: $e");
+      }
+      
+      // If no customers from controller, try CartController
+      if(customers.isEmpty) {
+        try {
+          CartController? cartController = Get.find<CartController>();
+          if(cartController.allCustomers.isNotEmpty) {
+            customers = cartController.allCustomers.toList();
+            print("Got ${customers.length} customer(s) from CartController");
+          }
+        } catch (e) {
+          print("CartController not found, trying storage: $e");
+        }
+      }
+      
+      // If still no customers, try storage
+      if(customers.isEmpty) {
+        final LocalStorageService _localStorageService = LocalStorageService();
+        customers = _localStorageService.getCustomers(box);
+        print("Got ${customers.length} customer(s) from storage");
+      }
+      
+      // Write customers to storage if we have any
+      if(customers.isNotEmpty) {
+        List<Map<String, dynamic>> customersListMap = customers.map((item) => item.toMap()).toList();
+        box.write(AppConstants.CUSTOMER_LIST, customersListMap);
+        print("Preserved ${customers.length} customer(s) before sign out in closeActiveShift");
+      } else {
+        print("No customers to preserve in closeActiveShift - list is empty");
+      }
+    } catch (e) {
+      print("Error preserving customers in closeActiveShift: $e");
     }
     
     signOut();
@@ -810,9 +909,25 @@ class ShiftController extends GetxController {
       print("Preserved USE_KOT after logout");
     }
     
+    // Explicitly preserve customers before sign out
+    // This ensures customers are available when logging back in
+    try {
+      final LocalStorageService _localStorageService = LocalStorageService();
+      List<CustomerModel> customers = _localStorageService.getCustomers(box);
+      if(customers.isNotEmpty) {
+        List<Map<String, dynamic>> customersListMap = customers.map((item) => item.toMap()).toList();
+        box.write(AppConstants.CUSTOMER_LIST, customersListMap);
+        print("Preserved ${customers.length} customer(s) before sign out");
+      }
+    } catch (e) {
+      print("Error preserving customers: $e");
+    }
+    
     // Clean up controllers
     Get.delete<SaleController>();
     Get.delete<BackgroundService>();
+    Get.delete<CustomerController>(); // Delete CustomerController to force refresh on next access
+    Get.delete<CartController>(); // Also delete CartController
     
     // Navigate to login screen
     Get.offAllNamed(AppRoutes.LOGIN);
