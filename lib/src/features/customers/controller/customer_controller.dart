@@ -118,28 +118,73 @@ class CustomerController extends GetxController {
   @override
   Future<void> onInit() async {
     super.onInit();
-    box = GetStorage();
-    var model = box.read(AppConstants.USER_INFO) ?? {};
-    var rowBranch = box.read(AppConstants.SELECTED_BRANCH)!;
-
-    user = UserModel.fromMap(Map<String, dynamic>.from(model));
-    branch = BranchModel.fromMap(Map<String, dynamic>.from(rowBranch));
-    isInternetAccess.value =  await _connectivityService.checkServerConnection();
-    List<CustomerModel> customers = loadCustomers(box);
-    allCustomers.value = customers;
-    if(branch!= null) {
-          print(customers.any((cus) => cus.branch!.name == branch!.name));
-      filteredCustomers.value =
-          customers.where((cus) => cus.branch != null && cus.branch!.name == branch!.name).toList();
-    } else
-      filteredCustomers.value = customers;
-
+    await reloadCustomersFromStorage();
     getOfflineCurrencyList(box);
     List<PaymentTypeModel> tempList = getOfflinePaymentTypeList(box);
     paymentTypesList.value = tempList;
     filteredPaymentTypesList.value = tempList;
     print(filteredPaymentTypesList.map((f) => f.name! + ","));
     onCurrencyChange(selectedCurrency.value!);
+  }
+
+  // Method to reload customers from storage - can be called explicitly
+  Future<void> reloadCustomersFromStorage() async {
+    box = GetStorage();
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    var rowBranch = box.read(AppConstants.SELECTED_BRANCH);
+    
+    if(model.isNotEmpty) {
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+    }
+    
+    if(rowBranch != null) {
+      branch = BranchModel.fromMap(Map<String, dynamic>.from(rowBranch));
+    }
+    
+    isInternetAccess.value = await _connectivityService.checkServerConnection();
+    List<CustomerModel> customers = loadCustomers(box);
+    
+    print("Loaded ${customers.length} customer(s) from storage");
+    
+    // Ensure WalkIn customer exists if list is empty
+    if(customers.isEmpty || !customers.any((c) => c.name?.toLowerCase().contains('walkin') ?? false)) {
+      CustomerModel walkInCustomer = CustomerModel(
+        id: null, 
+        name: 'WalkIn', 
+        branch: branch != null 
+          ? BaseNameModel(id: branch!.id, name: branch!.name)
+          : null
+      );
+      customers.add(walkInCustomer);
+      print("Added WalkIn customer");
+    }
+    
+    allCustomers.value = customers;
+    if(branch != null) {
+      print("Filtering customers by branch: ${branch!.name}");
+      print("Customers before filter: ${customers.length}");
+      // Filter by branch but always include WalkIn
+      filteredCustomers.value =
+          customers.where((cus) => (cus.branch != null && cus.branch!.name == branch!.name) || cus.name == "WalkIn").toList();
+      print("Customers after filter: ${filteredCustomers.length}");
+    } else {
+      filteredCustomers.value = customers;
+    }
+    
+    allCustomers.refresh();
+    filteredCustomers.refresh();
+    
+    // Ensure customers are written to storage after reload
+    // This ensures they persist even if controllers are deleted
+    if(customers.isNotEmpty) {
+      try {
+        List<Map<String, dynamic>> customersListMap = customers.map((item) => item.toMap()).toList();
+        box.write(AppConstants.CUSTOMER_LIST, customersListMap);
+        print("Written ${customers.length} customer(s) to storage after reload");
+      } catch (e) {
+        print("Error writing customers to storage after reload: $e");
+      }
+    }
   }
 
   void filterCustomers(String query) {
@@ -717,9 +762,13 @@ class CustomerController extends GetxController {
 
 
   Future<void>  getCustomers(UserModel user, GetStorage box, String companyId) async{
+    // Check connectivity first
+    bool isOnline = await _connectivityService.checkServerConnection();
+    isInternetAccess.value = isOnline;
+    
     List<CustomerModel> newCustomer = _localStorageService.getCustomers(box);
     newCustomer = newCustomer.where((cust)=>cust.updated ?? false).toList();
-    if(isInternetAccess.value==true) {
+    if(isOnline) {
       var response = await BaseHttpClient()
           .getAuthWithCompanyHeader("/customer/get-all", companyId)
           .catchError((onError) {
@@ -742,13 +791,36 @@ class CustomerController extends GetxController {
         box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
       }
     } else {
-      allCustomers = _localStorageService
+      // Offline: Load from local storage
+      List<CustomerModel> offlineCustomers = _localStorageService
           .getOfflineList<CustomerModel>(AppConstants.CUSTOMER_LIST,
-              (map) => CustomerModel.fromMap(map), box)
-          .obs;
+              (map) => CustomerModel.fromMap(map), box);
+      
+      // Ensure WalkIn exists
+      if(offlineCustomers.isEmpty || !offlineCustomers.any((c) => c.name?.toLowerCase().contains('walkin') ?? false)) {
+        CustomerModel walkInCustomer = CustomerModel(
+          id: null, 
+          name: 'WalkIn', 
+          branch: branch != null 
+            ? BaseNameModel(id: branch!.id, name: branch!.name)
+            : null
+        );
+        offlineCustomers.add(walkInCustomer);
+      }
+      
+      allCustomers.value = offlineCustomers;
     }
+    
+    // Filter by branch but always include WalkIn
+    if(branch != null) {
+      filteredCustomers.value = allCustomers.value.where((cus) => 
+        (cus.branch != null && cus.branch!.name == branch!.name) || cus.name == "WalkIn"
+      ).toList();
+    } else {
+      filteredCustomers.value = allCustomers.value;
+    }
+    
     allCustomers.refresh();
-    filteredCustomers.value = allCustomers.value;
     filteredCustomers.refresh();
   }
 

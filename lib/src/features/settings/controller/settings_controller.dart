@@ -14,7 +14,14 @@ import '../../authentication/model/user_model.dart';
 
 
 class SettingsController extends GetxController {
-  final CartController cartController = Get.find();
+  CartController? get cartController {
+    try {
+      return Get.find<CartController>();
+    } catch (e) {
+      // CartController not found, create it if needed
+      return Get.put(CartController());
+    }
+  }
   RxList<CurrencyModel> currencyList = <CurrencyModel>[].obs;
   RxList<PaymentTypeModel> paymentTypesList = <PaymentTypeModel>[].obs;
 
@@ -111,9 +118,18 @@ class SettingsController extends GetxController {
     defaultCurrencyId.value = currency.id!;
     box.write(AppConstants.DEFAULT_CURRENCY_ID, currency.id);
     currencyList.refresh(); // Notify the UI of changes
-    cartController.selectedCurrency.value = currency;
-    cartController.isCurrencySelected.value = true;
-    cartController.calculateTotalAmounts(cartController.cartItems);
+    // Only update CartController if it exists (may not exist immediately after shift close)
+    try {
+      CartController? cartCtrl = cartController;
+      if (cartCtrl != null) {
+        cartCtrl.selectedCurrency.value = currency;
+        cartCtrl.isCurrencySelected.value = true;
+        cartCtrl.calculateTotalAmounts(cartCtrl.cartItems);
+      }
+    } catch (e) {
+      // CartController not available, skip update (will be updated when sale screen loads)
+      print("CartController not available for currency update: $e");
+    }
   }
   void setDefaultPaymentMethod(PaymentTypeModel paymentType) {
     defaultPaymentMethod.value = paymentType;
