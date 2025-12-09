@@ -1174,26 +1174,6 @@ class CartController extends GetxController {
         paymentTypes = [];
       }
     }
-    // Add "change to account" payment to paymentTypes BEFORE creating the sale
-    // so it's included in the sale's paymentTypes when saved
-    if(!isOnHold && amtToAccTextEditingController.text.isNotEmpty && 
-       double.parse(amtToAccTextEditingController.text) > 0) {
-      PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
-        amount: double.parse(amtToAccTextEditingController.text),
-        amountPaid: double.parse(amtToAccTextEditingController.text),
-        paymentType: selectedPaymentTypes.isNotEmpty 
-            ? selectedPaymentTypes.first 
-            : selectedPaymentType.value,
-        isPaid: true,
-        currency: selectedCurrency.value,
-        bank: selectedBank.value,
-        branch: branch.value,
-        payer: selectedCustomer.value,
-        paymentDescription: "PAY_ACCOUNT",
-        accountType: "CUSTOMER_ACCOUNT"
-      );
-      paymentTypes.add(paymentReceivedModel);
-    }
     var totalTaxInSelectedCurrency =
         saleItems.fold<double>(0.0, (sum, item) => sum + item.taxAmount!);
     String fullName = user.value!.firstName + " " + user.value!.lastName;
@@ -1290,8 +1270,17 @@ class CartController extends GetxController {
       infos.add(saleInfoModel);
       writeSaleInfor(box, infos);
       deductStock();
-      // Note: "change to account" payment is already added to paymentTypes above
-      // before the sale was created, so it's included in the sale's paymentTypes
+      if(double.parse(amtToAccTextEditingController.text)>0){
+        PaymentReceivedModel paymentReceivedModel = PaymentReceivedModel(
+            amount: double.parse(amtToAccTextEditingController.text),
+            paymentType:saleInfoModel.sale!.paymentTypes!.first.paymentType,
+            isPaid: true
+        );
+        List<PaymentReceivedModel> accList = [];
+        accList.add(paymentReceivedModel);
+        updateShiftWithNewSale(ref, timeInit, saleTotal,
+            stat, saleInfoModel.sale!.referenceNumber!,  accList, "CASH_IN", selectedCustomer.value?.name ?? "", breakage);
+      }
       updateShiftWithNewSale(ref, timeInit, saleTotal,
           stat, saleInfoModel.sale!.referenceNumber!,  paymentTypes, "SALE", selectedCustomer.value?.name ?? "", breakage);
       if (selectedTicketRef.isNotEmpty) {
@@ -1493,7 +1482,6 @@ class CartController extends GetxController {
     if (tempActiveShift != null) {
       activeShift = tempActiveShift;
       shiftAvailable.value = true;
-      print("Update Shift: Using shift ${activeShift.shiftReference} for user ${user.value!.userName} (ID: ${user.value!.id})");
       
       for (PaymentReceivedModel paymentTypeModel in paymentTypes) {
         var isCash = paymentTypeModel.paymentType!.name!.startsWith("CASH");
