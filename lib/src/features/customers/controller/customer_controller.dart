@@ -164,9 +164,18 @@ class CustomerController extends GetxController {
       print("Filtering customers by branch: ${branch!.name}");
       print("Customers before filter: ${customers.length}");
       // Filter by branch but always include WalkIn
-      filteredCustomers.value =
-          customers.where((cus) => (cus.branch != null && cus.branch!.name == branch!.name) || cus.name == "WalkIn").toList();
-      print("Customers after filter: ${filteredCustomers.length}");
+      List<CustomerModel> filteredByBranch = customers.where((cus) => 
+        (cus.branch != null && cus.branch!.name == branch!.name) || cus.name == "WalkIn"
+      ).toList();
+      
+      // If filtering leaves too few customers compared to available, fall back to original list (offline-friendly)
+      if (filteredByBranch.length < 5 && customers.length > filteredByBranch.length) {
+        filteredCustomers.value = customers; // Fallback to full list
+        print("Customers after filter (fallback to full list): ${customers.length}");
+      } else {
+        filteredCustomers.value = filteredByBranch;
+        print("Customers after filter: ${filteredCustomers.length}");
+      }
     } else {
       filteredCustomers.value = customers;
     }
@@ -766,9 +775,11 @@ class CustomerController extends GetxController {
     bool isOnline = await _connectivityService.checkServerConnection();
     isInternetAccess.value = isOnline;
     
-    List<CustomerModel> newCustomer = _localStorageService.getCustomers(box);
-    newCustomer = newCustomer.where((cust)=>cust.updated ?? false).toList();
     if(isOnline) {
+      // Online: Try to fetch from server
+      List<CustomerModel> newCustomer = _localStorageService.getCustomers(box);
+      newCustomer = newCustomer.where((cust)=>cust.updated ?? false).toList();
+      
       var response = await BaseHttpClient()
           .getAuthWithCompanyHeader("/customer/get-all", companyId)
           .catchError((onError) {
@@ -791,37 +802,45 @@ class CustomerController extends GetxController {
         box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
       }
     } else {
-      // Offline: Load from local storage
-      List<CustomerModel> offlineCustomers = _localStorageService
-          .getOfflineList<CustomerModel>(AppConstants.CUSTOMER_LIST,
-              (map) => CustomerModel.fromMap(map), box);
-      
-      // Ensure WalkIn exists
-      if(offlineCustomers.isEmpty || !offlineCustomers.any((c) => c.name?.toLowerCase().contains('walkin') ?? false)) {
-        CustomerModel walkInCustomer = CustomerModel(
-          id: null, 
-          name: 'WalkIn', 
-          branch: branch != null 
-            ? BaseNameModel(id: branch!.id, name: branch!.name)
-            : null
-        );
-        offlineCustomers.add(walkInCustomer);
-      }
-      
-      allCustomers.value = offlineCustomers;
+      // Offline: Use reloadCustomersFromStorage which has proper offline handling
+      await reloadCustomersFromStorage();
+      return; // reloadCustomersFromStorage already handles filtering and refresh
     }
     
-    // Filter by branch but always include WalkIn
+    // Filter by branch but always include WalkIn (only if online and got response)
     if(branch != null) {
-      filteredCustomers.value = allCustomers.value.where((cus) => 
+      print("Filtering customers by branch: ${branch!.name}");
+      print("Customers before filter: ${allCustomers.length}");
+      // Filter by branch but always include WalkIn
+      List<CustomerModel> filteredByBranch = allCustomers.value.where((cus) => 
         (cus.branch != null && cus.branch!.name == branch!.name) || cus.name == "WalkIn"
       ).toList();
+      
+      // If filtering leaves too few customers compared to available, fall back to original list (offline-friendly)
+      if (filteredByBranch.length < 5 && allCustomers.length > filteredByBranch.length) {
+        filteredCustomers.value = allCustomers.value; // Fallback to full list
+        print("Customers after filter (fallback to full list): ${allCustomers.length}");
+      } else {
+        filteredCustomers.value = filteredByBranch;
+        print("Customers after filter: ${filteredCustomers.length}");
+      }
     } else {
       filteredCustomers.value = allCustomers.value;
     }
     
     allCustomers.refresh();
     filteredCustomers.refresh();
+    
+    // Ensure customers are written to storage after refresh
+    if(allCustomers.isNotEmpty) {
+      try {
+        List<Map<String, dynamic>> customersListMap = allCustomers.map((item) => item.toMap()).toList();
+        box.write(AppConstants.CUSTOMER_LIST, customersListMap);
+        print("Written ${allCustomers.length} customer(s) to storage after refresh");
+      } catch (e) {
+        print("Error writing customers to storage after refresh: $e");
+      }
+    }
   }
 
   List<CurrencyModel> getOfflineCurrencyList(GetStorage box) {

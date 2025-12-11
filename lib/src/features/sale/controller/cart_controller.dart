@@ -404,6 +404,17 @@ class CartController extends GetxController {
 
   refreshCustomers() {
     List<CustomerModel> customers = loadCustomers(box);
+    final List<CustomerModel> original = List<CustomerModel>.from(customers);
+    _refreshCustomersInternal(customers, original);
+  }
+
+  /// Apply refresh logic to a provided list (used when another controller already loaded customers)
+  void refreshCustomersFromList(List<CustomerModel> customers) {
+    final List<CustomerModel> original = List<CustomerModel>.from(customers);
+    _refreshCustomersInternal(customers, original);
+  }
+
+  void _refreshCustomersInternal(List<CustomerModel> customers, List<CustomerModel> original) {
 
     // Ensure WalkIn customer exists if list is empty
     if(customers.isEmpty || !customers.any((c) => c.name?.toLowerCase().contains('walkin') ?? false)) {
@@ -445,11 +456,18 @@ class CartController extends GetxController {
     
     // Filter by branch but always include WalkIn and the current selection
     if(branch.value != null) {
-      customers = customers.where((cus) => 
+      List<CustomerModel> filteredByBranch = customers.where((cus) => 
         (cus.branch != null && cus.branch!.name == branch.value!.name) || 
         cus.name == "WalkIn" ||
         (selectedCustomer.value != null && cus == selectedCustomer.value)
       ).toList();
+
+      // If filtering leaves too few customers compared to available, fall back to original list (offline-friendly)
+      if (filteredByBranch.length < 5 && original.length > filteredByBranch.length) {
+        customers = original;
+      } else {
+        customers = filteredByBranch;
+      }
     }
     
     allCustomers.value = customers;
@@ -513,29 +531,34 @@ class CartController extends GetxController {
     return list.firstWhereOrNull((c) => c.name == target.name);
   }
 
-  reGetCustomers() {
-    List<CustomerModel> newCustomers = loadCustomers(box);
-    if (newCustomers.isNotEmpty && allCustomers.length < newCustomers.length) {
-      allCustomers.value = newCustomers;
-
-      // Use firstWhereOrNull to find a customer with "WalkIn" in their name (case-insensitive)
-      CustomerModel? defaultCustomer = newCustomers.firstWhereOrNull(
-        (customer) =>
-            customer.name != null &&
-            customer.name!.toLowerCase().contains('walkin'),
-      );
-
-      if (defaultCustomer == null) {
-        // If "WalkIn" is not in the list, create and add it
-        defaultCustomer = CustomerModel(id: null, name: 'WalkIn');
-        allCustomers.add(defaultCustomer);
+  Future<void> reGetCustomers() async {
+    // Check connectivity first
+    bool isOnline = await _connectivityService.checkServerConnection();
+    
+    if (isOnline) {
+      // Online: Try to get fresh customers from server via CustomerController
+      try {
+        CustomerController? customerController = Get.find<CustomerController>();
+        if (customerController != null && customerController.user.company != null) {
+          await customerController.getCustomers(
+            customerController.user, 
+            box, 
+            customerController.user.company!.id!
+          );
+          // After getting customers, refresh our local list
+          refreshCustomers();
+        } else {
+          // Fallback to refreshCustomers if CustomerController not available
+          refreshCustomers();
+        }
+      } catch (e) {
+        print("Error getting customers from server: $e");
+        // Fallback to refreshCustomers on error
+        refreshCustomers();
       }
-
-      // Set "WalkIn" as the default selected customer
-      selectedCustomer.value = defaultCustomer;
-      isCustomerSelected.value = true;
     } else {
-      allCustomers.value = newCustomers;
+      // Offline: Just reload from local storage
+      refreshCustomers();
     }
   }
 
