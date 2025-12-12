@@ -1807,6 +1807,9 @@ class SaleScreen extends GetView {
                                                                 "Amount Paid",
                                                             hintText:
                                                                 "Amount Paid"),
+                                                    onTap: () {
+                                                      cartController.activeInput.value = 'amountPaid';
+                                                    },
                                                     onChanged: (String val) {
                                                       cartController.hasAmountText.value = val.isNotEmpty;
                                                       if (val.isNotEmpty) {
@@ -1920,6 +1923,9 @@ class SaleScreen extends GetView {
                                                           flex:3,
                                                           child:
                                                               TextField(
+                                                                onTap: () {
+                                                                  cartController.activeInput.value = 'amtToAcc';
+                                                                },
                                                                 onChanged: (String val) {
                                                                   cartController.amtToAccChange(val);
                                                                 },
@@ -1950,7 +1956,17 @@ class SaleScreen extends GetView {
                                                                 ),
                                                                 prefixIcon: const Icon(Icons.monetization_on_outlined),
                                                                 labelText: "Change TO Acc",
-                                                                hintText: "Change TO Acc"),
+                                                                hintText: "Change TO Acc",
+                                                                suffixIcon: cartController.amtToAccTextEditingController.text.isNotEmpty
+                                                                    ? IconButton(
+                                                                        icon: const Icon(Icons.clear),
+                                                                        onPressed: () {
+                                                                          cartController.amtToAccTextEditingController.clear();
+                                                                          cartController.amtToAccChange("0");
+                                                                          cartController.activeInput.value = 'none';
+                                                                        },
+                                                                      )
+                                                                    : null),
                                                           ),
                                                         ):SizedBox(),
                                                         // Tip input - hide when Add to Account button is enabled
@@ -1959,6 +1975,9 @@ class SaleScreen extends GetView {
                                                           flex:3,
                                                           child:
                                                               TextField(
+                                                                onTap: () {
+                                                                  cartController.activeInput.value = 'tip';
+                                                                },
                                                                 onChanged: (String val) {
                                                                   cartController.tipAmountChange(val);
                                                                 },
@@ -1985,7 +2004,17 @@ class SaleScreen extends GetView {
                                                                 ),
                                                                 prefixIcon: const Icon(Icons.monetization_on_sharp),
                                                                 labelText: "Tip Amt",
-                                                                hintText: "Tip amt"),
+                                                                hintText: "Tip amt",
+                                                                suffixIcon: cartController.tipAmtTextEditingController.text.isNotEmpty
+                                                                    ? IconButton(
+                                                                        icon: const Icon(Icons.clear),
+                                                                        onPressed: () {
+                                                                          cartController.tipAmtTextEditingController.clear();
+                                                                          cartController.tipAmountChange("0");
+                                                                          cartController.activeInput.value = 'none';
+                                                                        },
+                                                                      )
+                                                                    : null),
                                                           ),
                                                         ):SizedBox(),
                                                       ],
@@ -2368,18 +2397,8 @@ class SaleScreen extends GetView {
                                       Container(
                                         width:double.infinity,
                                         child: Obx(() {
-                                          double tip = 0.0;
-                                          double amtToAcc = 0.0;
-                                          try {
-                                            if (cartController.tipAmtTextEditingController.text.isNotEmpty) {
-                                              tip = double.parse(cartController.tipAmtTextEditingController.text);
-                                            }
-                                          } catch (_) {}
-                                          try {
-                                            if (cartController.amtToAccTextEditingController.text.isNotEmpty) {
-                                              amtToAcc = double.parse(cartController.amtToAccTextEditingController.text);
-                                            }
-                                          } catch (_) {}
+                                          final tip = cartController.tipValue.value;
+                                          final amtToAcc = cartController.amtToAccValue.value;
                                           final requiredAmount = cartController.totalCostInSelectedCurrency.value + tip + amtToAcc;
                                           final paymentSelected = cartController.selectedPaymentType.value != null &&
                                               cartController.selectedPaymentType.value!.id != null;
