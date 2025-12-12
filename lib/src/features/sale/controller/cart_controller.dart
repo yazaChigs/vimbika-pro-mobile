@@ -217,8 +217,8 @@ class CartController extends GetxController {
     super.onInit();
     // isInternetAccess.value =  await _connectivityService.checkConnection();
     box = GetStorage();
-    var print = box.read(AppConstants.ALWAYS_PRINT) ?? false;
-    if (print) {
+    var alwaysPrint = box.read(AppConstants.ALWAYS_PRINT) ?? false;
+    if (alwaysPrint) {
       isPrintEnabled.value = true;
     } else {
       isPrintEnabled.value = false;
@@ -367,20 +367,28 @@ class CartController extends GetxController {
         await SyncService.getCustomers(user.value!, box, company.value!.id!);
         refreshCustomers();
       } else {
-        // Offline: ensure we at least have WalkIn customer
-        // This handles the case where local storage is empty or customers don't match current branch
-        if(allCustomers.isEmpty || !allCustomers.any((c) => c.name?.toLowerCase().contains('walkin') ?? false)) {
-          CustomerModel walkInCustomer = CustomerModel(
-            id: null, 
-            name: 'WalkIn', 
-            branch: branch.value != null 
-              ? BaseNameModel(id: branch.value!.id, name: branch.value!.name)
-              : null
-          );
-          allCustomers.add(walkInCustomer);
-          selectedCustomer.value = walkInCustomer;
-          isCustomerSelected.value = true;
-          allCustomers.refresh();
+        // Offline: Use same offline loading logic as sale screen refresh fix
+        // Try to reload from CustomerController if available (has proper offline handling)
+        try {
+          final CustomerController customerController = Get.find<CustomerController>();
+          await customerController.reloadCustomersFromStorage();
+          refreshCustomersFromList(List<CustomerModel>.from(customerController.allCustomers));
+        } catch (_) {
+          // CustomerController not available (e.g., after cancelSale deletes it)
+          // Fallback: ensure we at least have WalkIn customer
+          if(allCustomers.isEmpty || !allCustomers.any((c) => c.name?.toLowerCase().contains('walkin') ?? false)) {
+            CustomerModel walkInCustomer = CustomerModel(
+              id: null, 
+              name: 'WalkIn', 
+              branch: branch.value != null 
+                ? BaseNameModel(id: branch.value!.id, name: branch.value!.name)
+                : null
+            );
+            allCustomers.add(walkInCustomer);
+            selectedCustomer.value = walkInCustomer;
+            isCustomerSelected.value = true;
+            allCustomers.refresh();
+          }
         }
       }
     }
@@ -1423,7 +1431,15 @@ class CartController extends GetxController {
           List<Map<String, dynamic>> customersListMap =
           customers.map((item) => item.toMap()).toList();
           box.write(AppConstants.CUSTOMER_LIST, customersListMap);
-          refreshCustomers();
+          // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
+          try {
+            final CustomerController customerController = Get.find<CustomerController>();
+            await customerController.reloadCustomersFromStorage();
+            refreshCustomersFromList(List<CustomerModel>.from(customerController.allCustomers));
+          } catch (_) {
+            // Fallback: at least refresh from storage
+            refreshCustomers();
+          }
         }
       }
       if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && (double.parse(amtToAccTextEditingController.text)==0.00 &&
@@ -1456,7 +1472,15 @@ class CartController extends GetxController {
           if(stat) {
             await SyncService.saveCustomer(user.value!, box);
           }
-          refreshCustomers();
+          // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
+          try {
+            final CustomerController customerController = Get.find<CustomerController>();
+            await customerController.reloadCustomersFromStorage();
+            refreshCustomersFromList(List<CustomerModel>.from(customerController.allCustomers));
+          } catch (_) {
+            // Fallback: at least refresh from storage
+            refreshCustomers();
+          }
         }
       }
       cancelSale();
@@ -1862,7 +1886,15 @@ class CartController extends GetxController {
     List<Map<String, dynamic>> customersListMap =
     customers.map((item) => item.toMap()).toList();
     box.write(AppConstants.CUSTOMER_LIST, customersListMap);
-    refreshCustomers();
+    // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
+    try {
+      final CustomerController customerController = Get.find<CustomerController>();
+      await customerController.reloadCustomersFromStorage();
+      refreshCustomersFromList(List<CustomerModel>.from(customerController.allCustomers));
+    } catch (_) {
+      // Fallback: at least refresh from storage
+      refreshCustomers();
+    }
     List<PaymentReceivedModel> paymentTypes =[];
     paymentTypes.add(paymentReceivedModel);
     bool networkAvailable = await _connectivityService.checkServerConnection();

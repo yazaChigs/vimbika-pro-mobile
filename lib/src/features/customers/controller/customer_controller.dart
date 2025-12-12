@@ -303,7 +303,9 @@ class CustomerController extends GetxController {
           snackPosition: SnackPosition.BOTTOM);
       Navigator.of(Get.overlayContext!).pop();
       Get.back();
-      cartController.refreshCustomers();
+      // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
+      await reloadCustomersFromStorage();
+      cartController.refreshCustomersFromList(List<CustomerModel>.from(allCustomers));
     }else{
       Get.snackbar("Error", "Customer Already Exists",
           snackPosition: SnackPosition.BOTTOM);
@@ -676,7 +678,9 @@ class CustomerController extends GetxController {
     List<Map<String, dynamic>> customersListMap =
         customers.map((item) => item.toMap()).toList();
     box.write(AppConstants.CUSTOMER_LIST, customersListMap);
-    cartController.refreshCustomers();
+    // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
+    await reloadCustomersFromStorage();
+    cartController.refreshCustomersFromList(List<CustomerModel>.from(allCustomers));
     List<PaymentReceivedModel> paymentTypes =[];
     paymentReceivedModel.payer = customer;
     paymentTypes.add(paymentReceivedModel);
@@ -699,7 +703,7 @@ class CustomerController extends GetxController {
     }
   }
 
-  setLoyalCustomer(CustomerModel customer) {
+  Future<void> setLoyalCustomer(CustomerModel customer) async {
     GetStorage bb = GetStorage();
     int? index = allCustomers.indexOf((customer));
     customer.isLoyalCustomer = true;
@@ -711,7 +715,9 @@ class CustomerController extends GetxController {
     List<Map<String, dynamic>> itemsListMap =
         customers.map((item) => item.toMap()).toList();
     bb.write(AppConstants.CUSTOMER_LIST, itemsListMap);
-    cartController.refreshCustomers();
+    // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
+    await reloadCustomersFromStorage();
+    cartController.refreshCustomersFromList(List<CustomerModel>.from(allCustomers));
     allCustomers.refresh();
     filteredCustomers.refresh();
     Get.snackbar("Edit Customer", "Customer updated Successfully",
@@ -719,7 +725,7 @@ class CustomerController extends GetxController {
     clearForm();
   }
 
-  updateCustomerInfo() {
+  Future<void> updateCustomerInfo() async {
     GetStorage bb = GetStorage();
     CustomerModel? customer = allCustomers
         .firstWhereOrNull((customer) => customer.name == name.value);
@@ -746,6 +752,9 @@ class CustomerController extends GetxController {
     List<Map<String, dynamic>> itemsListMap =
         customers.map((item) => item.toMap()).toList();
     bb.write(AppConstants.CUSTOMER_LIST, itemsListMap);
+    // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
+    await reloadCustomersFromStorage();
+    cartController.refreshCustomersFromList(List<CustomerModel>.from(allCustomers));
     Get.snackbar("Edit Customer", "Customer updated Successfully",
         snackPosition: SnackPosition.BOTTOM);
     Navigator.of(Get.overlayContext!).pop();
@@ -761,10 +770,10 @@ class CustomerController extends GetxController {
       onCancel: () {
         Get.back(); // Close the dialog
       },
-      onConfirm: () {
+      onConfirm: () async {
         print("CLICKED");
-        saveCustomerInfo();
-        cartController.refreshCustomers();
+        await saveCustomerInfo();
+        // saveCustomerInfo() already reloads and refreshes customers, so this is redundant but safe
         Navigator.of(Get.overlayContext!).pop();
        Get.back();
       },

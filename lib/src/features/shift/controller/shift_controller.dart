@@ -471,7 +471,7 @@ class ShiftController extends GetxController {
     });
   }
 
-  closeShift(){
+  closeShift() async {
     // Reload user to ensure we have the current logged-in user
     var model = box.read(AppConstants.USER_INFO) ?? {};
     if(model.isNotEmpty){
@@ -534,14 +534,46 @@ class ShiftController extends GetxController {
       print("Error preserving customers in closeShift: $e");
     }
     
+    // Check for unsynced sales before closing shift
+    List<SaleInfoModel> allSales = getExistingOfflineSales(box);
+    List<SaleInfoModel> unsyncedSales = allSales.where((sale) => sale.syncStatus == false).toList();
+    bool isOnline = await _connectivityService.checkServerConnection();
+    
+    // If online, sync sales before closing shift
+    if (isOnline && unsyncedSales.isNotEmpty) {
+      print("Close Shift: Found ${unsyncedSales.length} unsynced sale(s), syncing before closing shift");
+      try {
+        await BackgroundService().syncOfflineSales(false);
+        await SyncService.savePaymentReceived(user, box);
+        await SyncService.saveCustomer(user, box);
+        print("Close Shift: Successfully synced sales before closing shift");
+      } catch (e) {
+        print("Close Shift: Error syncing sales: $e");
+        // Continue with closing shift even if sales sync fails
+      }
+    }
+    
     DateTime now = DateTime.now();
     String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
     temp.isShiftClosed = true;
     temp.active = false;
     temp.closingTime = closingTime;
+    // CRITICAL: Set stopSync = false for offline-closed shifts so they get synced when back online
+    // The sync service will set stopSync = true after successfully syncing the closed shift
+    temp.stopSync = false;
+    print("Close Shift: Marked shift ${temp.shiftReference} as closed with stopSync=false to ensure it syncs when back online");
     List<ShiftModel> shi =  _localStorageService.replaceShift(temp, shifts);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
-    Get.snackbar("Success", "Shift closed successfully", snackPosition: SnackPosition.BOTTOM);
+    
+    // Show appropriate message based on sync status
+    if (unsyncedSales.isNotEmpty && !isOnline) {
+      Get.snackbar("Shift Closed", 
+          "Shift closed successfully. ${unsyncedSales.length} unsynced sale(s) will sync when back online.",
+          snackPosition: SnackPosition.BOTTOM);
+    } else {
+      Get.snackbar("Success", "Shift closed successfully", snackPosition: SnackPosition.BOTTOM);
+    }
+    
     SyncService.syncOfflineShifts(user, box);
     Get.delete<ShiftController>();
     Get.delete<SaleController>();
