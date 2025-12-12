@@ -62,9 +62,12 @@ class CheckoutScreen extends StatelessWidget {
                         ),
                         Expanded(
                           child: Obx(() {
+                            // Create a stable snapshot of customers to prevent race conditions
+                            final List<CustomerModel> customersSnapshot = List.from(cartController.allCustomers);
+                            
                             return SearchChoices.single(
                               padding: 0,
-                              items: cartController.allCustomers
+                              items: customersSnapshot
                                   .map((CustomerModel customer) {
                                 return DropdownMenuItem<CustomerModel>(
                                   value: customer,
@@ -81,39 +84,60 @@ class CheckoutScreen extends StatelessWidget {
                                   List<DropdownMenuItem> items) {
                                 // Enhanced search: search by name, phone, ID, customer ID, or account number
                                 List<int> matches = [];
+                                if (items.isEmpty || searchTerm.isEmpty) {
+                                  // If empty search term, return all indices
+                                  if (searchTerm.isEmpty) {
+                                    for (int i = 0; i < items.length; i++) {
+                                      matches.add(i);
+                                    }
+                                  }
+                                  return matches;
+                                }
+                                
                                 for (int i = 0; i < items.length; i++) {
-                                  CustomerModel customer =
-                                      items[i].value as CustomerModel;
-                                  bool nameMatch = customer.name != null &&
-                                      customer.name!
-                                          .toLowerCase()
-                                          .contains(searchTerm.toLowerCase());
-                                  bool phoneMatch = customer.mobilePhone !=
-                                          null &&
-                                      customer.mobilePhone!
-                                          .toLowerCase()
-                                          .contains(searchTerm.toLowerCase());
-                                  bool idMatch = customer.id != null &&
-                                      customer.id!
-                                          .toLowerCase()
-                                          .contains(searchTerm.toLowerCase());
-                                  bool customerIdMatch = customer.customerId !=
-                                          null &&
-                                      customer.customerId!
-                                          .toLowerCase()
-                                          .contains(searchTerm.toLowerCase());
-                                  bool accountNumberMatch = customer
-                                              .accountNumber !=
-                                          null &&
-                                      customer.accountNumber!
-                                          .toLowerCase()
-                                          .contains(searchTerm.toLowerCase());
-                                  if (nameMatch ||
-                                      phoneMatch ||
-                                      idMatch ||
-                                      customerIdMatch ||
-                                      accountNumberMatch) {
-                                    matches.add(i);
+                                  // Safety check: ensure index is valid
+                                  if (i >= items.length) break;
+                                  
+                                  try {
+                                    final item = items[i];
+                                    if (item.value == null) continue;
+                                    
+                                    CustomerModel customer = item.value as CustomerModel;
+                                    bool nameMatch = customer.name != null &&
+                                        customer.name!
+                                            .toLowerCase()
+                                            .contains(searchTerm.toLowerCase());
+                                    bool phoneMatch = customer.mobilePhone !=
+                                            null &&
+                                        customer.mobilePhone!
+                                            .toLowerCase()
+                                            .contains(searchTerm.toLowerCase());
+                                    bool idMatch = customer.id != null &&
+                                        customer.id!
+                                            .toLowerCase()
+                                            .contains(searchTerm.toLowerCase());
+                                    bool customerIdMatch = customer.customerId !=
+                                            null &&
+                                        customer.customerId!
+                                            .toLowerCase()
+                                            .contains(searchTerm.toLowerCase());
+                                    bool accountNumberMatch = customer
+                                                .accountNumber !=
+                                            null &&
+                                        customer.accountNumber!
+                                            .toLowerCase()
+                                            .contains(searchTerm.toLowerCase());
+                                    if (nameMatch ||
+                                        phoneMatch ||
+                                        idMatch ||
+                                        customerIdMatch ||
+                                        accountNumberMatch) {
+                                      matches.add(i);
+                                    }
+                                  } catch (e) {
+                                    // Skip invalid items to prevent crashes
+                                    print("Error processing customer at index $i: $e");
+                                    continue;
                                   }
                                 }
                                 return matches;

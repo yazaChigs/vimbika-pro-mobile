@@ -802,11 +802,29 @@ class CustomerController extends GetxController {
             itemsList.map((item) => item.toMap()).toList();
         // showSnackBar("Message", "Customers downloaded successfully");
         box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
+      } else {
+        // Response is null (server error but still online) - fall back to offline storage
+        print("CustomerController getCustomers: Server response is null, falling back to offline storage");
+        await reloadCustomersFromStorage();
+        return; // reloadCustomersFromStorage already handles filtering and refresh
       }
     } else {
       // Offline: Use reloadCustomersFromStorage which has proper offline handling
       await reloadCustomersFromStorage();
       return; // reloadCustomersFromStorage already handles filtering and refresh
+    }
+    
+    // Ensure WalkIn customer exists before filtering
+    if(allCustomers.isEmpty || !allCustomers.any((c) => c.name?.toLowerCase().contains('walkin') ?? false)) {
+      CustomerModel walkInCustomer = CustomerModel(
+        id: null, 
+        name: 'WalkIn', 
+        branch: branch != null 
+          ? BaseNameModel(id: branch!.id, name: branch!.name)
+          : null
+      );
+      allCustomers.add(walkInCustomer);
+      print("CustomerController getCustomers: Added WalkIn customer before filtering");
     }
     
     // Filter by branch but always include WalkIn (only if online and got response)

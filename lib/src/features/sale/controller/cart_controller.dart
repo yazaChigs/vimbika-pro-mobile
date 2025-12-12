@@ -324,11 +324,25 @@ class CartController extends GetxController {
     isCustomerSelected.value = selectedCustomer.value != null;
 
     // Filter by branch but keep WalkIn and current selection
-    allCustomers.value = allCustomers.where((cus) =>
-        (cus.branch != null && cus.branch!.name == branch.value!.name) ||
-        cus.name == "WalkIn" ||
-        (selectedCustomer.value != null && cus == selectedCustomer.value)
-    ).toList();
+    // Store original list for fallback
+    final List<CustomerModel> originalCustomers = List<CustomerModel>.from(allCustomers);
+    
+    if(branch.value != null) {
+      List<CustomerModel> filteredByBranch = allCustomers.where((cus) =>
+          (cus.branch != null && cus.branch!.name == branch.value!.name) ||
+          cus.name == "WalkIn" ||
+          (selectedCustomer.value != null && cus == selectedCustomer.value)
+      ).toList();
+
+      // If filtering leaves too few customers compared to available, fall back to original list (offline-friendly)
+      if (filteredByBranch.length < 5 && originalCustomers.length > filteredByBranch.length) {
+        allCustomers.value = originalCustomers; // Fallback to full list
+        print("CartController onInit: Customers after filter (fallback to full list): ${originalCustomers.length}");
+      } else {
+        allCustomers.value = filteredByBranch;
+        print("CartController onInit: Customers after filter: ${filteredByBranch.length}");
+      }
+    }
 
     _ensureSelectedCustomerInList();
     allCustomers.refresh();
