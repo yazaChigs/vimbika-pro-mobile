@@ -275,6 +275,12 @@ class ShiftController extends GetxController {
     activeShift.value = shiftModel;
     shifts.add(shiftModel);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, shifts, box);
+    
+    // CRITICAL: Set SELECTED_SHIFT_REF to ensure this newly opened shift is prioritized
+    // This prevents getActiveShift from returning an old open shift when making sales
+    box.write(AppConstants.SELECTED_SHIFT_REF, ref);
+    print("Open Shift: Set SELECTED_SHIFT_REF to ${ref} for newly opened shift");
+    
     bool stat = await _connectivityService.checkServerConnection();
     if(stat) {
       await SyncService.syncOfflineShifts(user, box);
@@ -531,7 +537,7 @@ class ShiftController extends GetxController {
     DateTime now = DateTime.now();
     String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
     temp.isShiftClosed = true;
-    temp.active = true;
+    temp.active = false;
     temp.closingTime = closingTime;
     List<ShiftModel> shi =  _localStorageService.replaceShift(temp, shifts);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
@@ -575,7 +581,7 @@ class ShiftController extends GetxController {
     DateTime now = DateTime.now();
     String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
     temp.isShiftClosed = true;
-    temp.active = true;
+    temp.active = false;
     temp.closingTime = closingTime;
     itemsToBeSynced.add(temp);
 
@@ -852,7 +858,8 @@ class ShiftController extends GetxController {
           box.write(AppConstants.SHIFT_LIST, shiftsMap);
           print("Preserved ${currentUserShiftsToPreserve.length} shift(s) for user ${user.id} and ${otherUsersPreservedShifts.length} shift(s) from other users");
         } else {
-          box.remove(AppConstants.SHIFT_LIST);
+          // keep existing shifts (do not remove) to retain history
+          print("No shifts to preserve for current user; retaining existing SHIFT_LIST");
         }
       } else {
         // No shift references in current user's unsynced sales
@@ -869,13 +876,14 @@ class ShiftController extends GetxController {
           box.write(AppConstants.SHIFT_LIST, shiftsMap);
           print("Preserved ${otherUsersPreservedShifts.length} shift(s) from other users (no shifts for current user)");
         } else {
-          box.remove(AppConstants.SHIFT_LIST);
+          // keep existing shifts (do not remove) to retain history
+          print("No shifts for any user; retaining existing SHIFT_LIST");
         }
       }
     } else {
-      // No unsynced sales, remove both sales and shifts
+      // No unsynced sales, remove sales but retain shifts history
       box.remove(AppConstants.SALE_LIST);
-      box.remove(AppConstants.SHIFT_LIST);
+      print("No unsynced sales; retaining SHIFT_LIST for history");
     }
     
     // Remove payment received data

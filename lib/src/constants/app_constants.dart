@@ -47,6 +47,7 @@ class AppConstants {
   static const DEFAULT_CURRENCY_ID = "DEFAULT_CURRENCY_ID";
   static const DEFAULT_PAYMENT_METHOD_ID = "DEFAULT_PAYMENT_METHOD_ID";
   static const THEME_MODE = "THEME_MODE"; // 'light' | 'dark' | 'system'
+  static const SELECTED_SHIFT_REF = "SELECTED_SHIFT_REF";
 
   static const DEFAULT_FISCAL_SETTING = "DEFAULT_FISCAL_SETTING";
   static const USE_NFC = "USE_NFC";

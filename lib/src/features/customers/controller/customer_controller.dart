@@ -680,8 +680,10 @@ class CustomerController extends GetxController {
     List<PaymentReceivedModel> paymentTypes =[];
     paymentReceivedModel.payer = customer;
     paymentTypes.add(paymentReceivedModel);
+    // Get the active shift reference for this payment (not associated with a sale)
+    String? shiftRef = cartController.activeShift.shiftReference;
     cartController.updateShiftWithNewSale(ref, paymentReceivedModel.dateTime!, paymentReceivedModel.amount!, isInternetAccess.value,
-        customer.name!, paymentTypes,"CASH_IN",customer.name!, false);
+        customer.name!, paymentTypes,"CASH_IN",customer.name!, false, shiftRef);
     Navigator.of(Get.overlayContext!).pop();
     allCustomers.refresh();
     filteredCustomers.value = allCustomers.value;

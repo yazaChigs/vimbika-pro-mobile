@@ -754,6 +754,18 @@ class SyncService {
     }*/
 
     if(itemsToBeSynced.isNotEmpty) {
+      // CRITICAL: Preserve local opening times for newly created shifts before syncing
+      // This prevents server from overwriting the correct opening time with an old one
+      Map<String, String> localOpeningTimes = {};
+      for (ShiftModel localShift in itemsToBeSynced) {
+        if (localShift.shiftReference != null && localShift.openingTime != null) {
+          // Store opening time for shifts that are being synced (newly created or updated)
+          // This ensures we preserve the correct opening time even if server returns an old one
+          localOpeningTimes[localShift.shiftReference!] = localShift.openingTime!;
+          print("Preserving local opening time for shift ${localShift.shiftReference}: ${localShift.openingTime}");
+        }
+      }
+      
       String jsonShiftItems = json.encode(
           itemsToBeSynced.map((shift) => shift.toMap()).toList());
       var response = await BaseHttpClient()
@@ -772,6 +784,18 @@ class SyncService {
       if (response != null) {
         ShiftResponseModel saleResponseModel = ShiftResponseModel.fromJson(
             response);
+        
+        // Preserve local opening times for shifts that were just created/updated
+        for (ShiftModel serverShift in saleResponseModel.items ?? []) {
+          if (serverShift.shiftReference != null && 
+              localOpeningTimes.containsKey(serverShift.shiftReference)) {
+            // Use the local opening time instead of server's (which might be from an old shift)
+            String preservedOpeningTime = localOpeningTimes[serverShift.shiftReference!]!;
+            serverShift.openingTime = preservedOpeningTime;
+            print("Preserved local opening time ${preservedOpeningTime} for shift ${serverShift.shiftReference} (server had: ${serverShift.openingTime})");
+          }
+        }
+        
         updateItems.addAll(saleResponseModel.items ?? []);
         updateItems.addAll(upToDateItems);
 

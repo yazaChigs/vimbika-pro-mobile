@@ -412,25 +412,25 @@ class ReceiptScreen extends StatelessWidget {
                       final saleInfo = receiptController.filteredReceipts[index];
                       final sale = saleInfo.sale;
                       
-                      // Get current receipt date
+                      // Get current receipt date (convert to local to bucket correctly)
                       String? currentDateStr = sale?.timeIniated;
                       DateTime? currentDate;
                       if (currentDateStr != null && currentDateStr.isNotEmpty) {
                         try {
-                          currentDate = DateTime.parse(currentDateStr);
+                          currentDate = DateTime.parse(currentDateStr).toLocal();
                         } catch (e) {
                           currentDate = null;
                         }
                       }
                       
-                      // Get previous receipt date to check if we need a divider
+                      // Get previous receipt date to check if we need a divider (convert to local)
                       String? previousDateStr;
                       DateTime? previousDate;
                       if (index > 0) {
                         previousDateStr = receiptController.filteredReceipts[index - 1].sale?.timeIniated;
                         if (previousDateStr != null && previousDateStr.isNotEmpty) {
                           try {
-                            previousDate = DateTime.parse(previousDateStr);
+                            previousDate = DateTime.parse(previousDateStr).toLocal();
                           } catch (e) {
                             previousDate = null;
                           }

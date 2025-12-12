@@ -70,13 +70,20 @@ class ReceiptController extends GetxController {
     var branchModel = box.read(AppConstants.SELECTED_BRANCH) ?? {};
     branch.value = BranchModel.fromMap(Map<String, dynamic>.from(branchModel));
     //getSales();
-    // Get today's date in the required format
-
-    todayDate.value = DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(DateTime.now());
+    // Get today's date range (start of day to end of day) to match divider logic
+    // Dividers show "Today", "Yesterday", etc. based on full day comparison
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day, 0, 0, 0, 0);
+    final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+    
+    // Format as UTC timestamps for API
+    todayDate.value = DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(startOfToday.toUtc());
+    final endOfTodayFormatted = DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(endOfToday.toUtc());
+    
     List<BaseNameModel> catList = loadItems(box, AppConstants.CATEGORY_LIST);
     categories.value = catList;
-    // Fetch sales for today's date
-    await getSalesByDate(todayDate.value, todayDate.value, "", branch.value!.id!);
+    // Fetch sales for today's full date range (start of day to end of day)
+    await getSalesByDate(todayDate.value, endOfTodayFormatted, "", branch.value!.id!);
     shiftInfo();
   }
 
@@ -125,7 +132,13 @@ class ReceiptController extends GetxController {
     else {
       Get.snackbar("Error", "You have unsynced sales. Please sync them before closing the shift", snackPosition: SnackPosition.BOTTOM,backgroundColor: Colors.red, colorText: Colors.white);
     }
-    await getSalesByDate(todayDate.value, todayDate.value, "", branch.value!.id!);
+    // Use full day range for today (start to end of day) to match divider logic
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day, 0, 0, 0, 0);
+    final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+    final startOfTodayFormatted = DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(startOfToday.toUtc());
+    final endOfTodayFormatted = DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(endOfToday.toUtc());
+    await getSalesByDate(startOfTodayFormatted, endOfTodayFormatted, "", branch.value!.id!);
     AppHelper.hideLoading();
   }
   cancelFilter(){

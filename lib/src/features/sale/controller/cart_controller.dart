@@ -1202,11 +1202,36 @@ class CartController extends GetxController {
     }
     
     // Reload shifts and get the active shift for the current user
+    // CRITICAL: Reload from storage to ensure we have the latest shifts including any newly opened ones
     List<ShiftModel> tempShiftList = loadShifts(box);
+    
+    // Check if SELECTED_SHIFT_REF is set (indicates a shift was explicitly chosen/opened)
+    final String? selectedRef = box.read(AppConstants.SELECTED_SHIFT_REF);
+    if (selectedRef != null && selectedRef.isNotEmpty) {
+      print("Charge Sale: SELECTED_SHIFT_REF is ${selectedRef}, will prioritize this shift");
+    }
+    
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
         tempShiftList, box, user.value!, true);
     
     if (tempActiveShift != null) {
+      // Verify the shift matches SELECTED_SHIFT_REF if it's set
+      if (selectedRef != null && selectedRef.isNotEmpty && tempActiveShift.shiftReference != selectedRef) {
+        print("Charge Sale: WARNING - getActiveShift returned shift ${tempActiveShift.shiftReference} but SELECTED_SHIFT_REF is ${selectedRef}");
+        // Try to find the selected shift directly
+        ShiftModel? selectedShift = tempShiftList.firstWhereOrNull(
+          (shift) => shift.shiftReference == selectedRef &&
+                     shift.userId != null &&
+                     user.value!.id != null &&
+                     shift.userId == user.value!.id &&
+                     (shift.isShiftClosed == null || shift.isShiftClosed == false)
+        );
+        if (selectedShift != null) {
+          print("Charge Sale: Found selected shift ${selectedRef} directly, using it instead");
+          tempActiveShift = selectedShift;
+        }
+      }
+      
       activeShift = tempActiveShift;
       shiftAvailable.value = true;
       print("Charge Sale: Using shift ${activeShift.shiftReference} for user ${user.value!.userName} (ID: ${user.value!.id})");
@@ -1345,11 +1370,13 @@ class CartController extends GetxController {
         );
         List<PaymentReceivedModel> accList = [];
         accList.add(paymentReceivedModel);
+        // Use the shiftReference from the sale to ensure consistency
         updateShiftWithNewSale(ref, timeInit, saleTotal,
-            stat, saleInfoModel.sale!.referenceNumber!,  accList, "CASH_IN", selectedCustomer.value?.name ?? "", breakage);
+            stat, saleInfoModel.sale!.referenceNumber!,  accList, "CASH_IN", selectedCustomer.value?.name ?? "", breakage, saleInfoModel.sale!.shiftReference);
       }
+      // Use the shiftReference from the sale to ensure consistency
       updateShiftWithNewSale(ref, timeInit, saleTotal,
-          stat, saleInfoModel.sale!.referenceNumber!,  paymentTypes, "SALE", selectedCustomer.value?.name ?? "", breakage);
+          stat, saleInfoModel.sale!.referenceNumber!,  paymentTypes, "SALE", selectedCustomer.value?.name ?? "", breakage, saleInfoModel.sale!.shiftReference);
       if (selectedTicketRef.isNotEmpty) {
         infos.removeWhere((ticket) =>
             ticket.sale!.referenceNumber == selectedTicketRef.value);
@@ -1535,7 +1562,7 @@ class CartController extends GetxController {
       double amt,
       bool stat,
       String posReference,
-      List<PaymentReceivedModel> paymentTypes, String type, String customerName ,bool breakage) async {
+      List<PaymentReceivedModel> paymentTypes, String type, String customerName ,bool breakage, String? saleShiftReference) async {
     // Reload user to ensure we have the current logged-in user
     // This is critical when a user logs in after another user has logged out
     var model = box.read(AppConstants.USER_INFO) ?? {};
@@ -1543,9 +1570,35 @@ class CartController extends GetxController {
       user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
     }
     
-    // Get the active shift for the current user
-    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
-        loadShifts(box), box, user.value!, true);
+    // CRITICAL: Use the shiftReference from the sale to ensure sales and shifts stay synchronized
+    // This prevents sales from being associated with the wrong shift when multiple shifts are open
+    ShiftModel? tempActiveShift;
+    List<ShiftModel> allShifts = loadShifts(box);
+    
+    if (saleShiftReference != null && saleShiftReference.isNotEmpty) {
+      // Find the exact shift that was used when creating the sale
+      // NOTE: We intentionally don't check isShiftClosed here - we need to update shifts even if they're closed
+      // because the sale was created when the shift was open, and we need to update that shift
+      tempActiveShift = allShifts.firstWhereOrNull(
+        (shift) => shift.shiftReference == saleShiftReference &&
+                   shift.userId != null &&
+                   user.value!.id != null &&
+                   shift.userId == user.value!.id
+      );
+      
+      if (tempActiveShift != null) {
+        print("Update Shift: Using sale's shiftReference ${saleShiftReference} for user ${user.value!.userName}");
+      } else {
+        print("Update Shift: Sale's shiftReference ${saleShiftReference} not found, falling back to getActiveShift");
+      }
+    }
+    
+    // Fallback to getActiveShift only if sale's shiftReference not found
+    if (tempActiveShift == null) {
+      tempActiveShift = await _localStorageService.getActiveShift(
+          allShifts, box, user.value!, true);
+    }
+    
     if (tempActiveShift != null) {
       activeShift = tempActiveShift;
       shiftAvailable.value = true;
@@ -1799,8 +1852,17 @@ class CartController extends GetxController {
     List<PaymentReceivedModel> paymentTypes =[];
     paymentTypes.add(paymentReceivedModel);
     bool networkAvailable = await _connectivityService.checkServerConnection();
+    // Get the active shift reference for this payment (not associated with a sale)
+    String? shiftRef = activeShift.shiftReference;
+    if (shiftRef == null) {
+      // Fallback: try to get active shift if not already set
+      List<ShiftModel> tempShiftList = loadShifts(box);
+      ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
+          tempShiftList, box, user.value!, false); // Don't check server for payment received
+      shiftRef = tempActiveShift?.shiftReference;
+    }
     updateShiftWithNewSale(ref, paymentReceivedModel.dateTime!, paymentReceivedModel.amount!, networkAvailable,
-        customer.name!, paymentTypes,"CASH_IN",customer.name!, false);
+        customer.name!, paymentTypes,"CASH_IN",customer.name!, false, shiftRef);
     if(networkAvailable){
       await SyncService.savePaymentReceived(user.value!, box);
     }
