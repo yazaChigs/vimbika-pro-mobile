@@ -2367,53 +2367,63 @@ class SaleScreen extends GetView {
                                           cartController.cartItems.any((cartItem)=>!cartItem.breakage) || cartController.cartItems.isEmpty?
                                       Container(
                                         width:double.infinity,
-                                        child: ElevatedButton(
-                                          onPressed: () {
-                                            if (cartController
-                                                .cartItems.isEmpty) {
-                                              Get.snackbar("Error","Your cart is empty.",snackPosition:SnackPosition.TOP);
-                                              return;
+                                        child: Obx(() {
+                                          double tip = 0.0;
+                                          double amtToAcc = 0.0;
+                                          try {
+                                            if (cartController.tipAmtTextEditingController.text.isNotEmpty) {
+                                              tip = double.parse(cartController.tipAmtTextEditingController.text);
                                             }
-                                            if (cartController.selectedPaymentType.value ==null ||
-                                                cartController.selectedPaymentType.value!.id == null) {
-                                              Get.snackbar("Error",
-                                                  "Please select a payment type.",
-                                                  snackPosition:
-                                                  SnackPosition.TOP);
-                                              return;
+                                          } catch (_) {}
+                                          try {
+                                            if (cartController.amtToAccTextEditingController.text.isNotEmpty) {
+                                              amtToAcc = double.parse(cartController.amtToAccTextEditingController.text);
                                             }
-                                            if (cartController.amountPaid
-                                                    .value <
-                                                    cartController
-                                                        .totalCostInSelectedCurrency
-                                                        .value) {
-                                              Get.snackbar("Error",
-                                                  "Please enter a valid amount paid.",
-                                                  snackPosition:
-                                                  SnackPosition.TOP);
-                                              return;
-                                            }
-                                            if (!saleController.chargeClicked.value && !cartController.isCharging.value) {
-                                              cartController.showConfirmDialogChargeSale();
-                                              saleController.chargeClicked.value = true;
-                                            }
-                                          },
-                                          style: TextButton.styleFrom(
-                                            backgroundColor: cartController.isCharging.value
-                                                ? Colors.grey
-                                                : Colors.lightGreenAccent[400],
-                                            // Set button color to red
-                                            foregroundColor: Colors.black,
-                                            // Set text color to red
-                                            textStyle: TextStyle(
-                                                fontSize: 18,
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold), // Set text size
-                                          ),
-                                          child: Obx(() => Text(
-                                            cartController.isCharging.value ? 'CHARGING...' : 'Charge'
-                                          )),
-                                        ),
+                                          } catch (_) {}
+                                          final requiredAmount = cartController.totalCostInSelectedCurrency.value + tip + amtToAcc;
+                                          final paymentSelected = cartController.selectedPaymentType.value != null &&
+                                              cartController.selectedPaymentType.value!.id != null;
+                                          final canCharge = !cartController.isCharging.value &&
+                                              !saleController.chargeClicked.value &&
+                                              paymentSelected &&
+                                              cartController.amountPaid.value >= requiredAmount &&
+                                              cartController.cartItems.isNotEmpty;
+                                          return Column(
+                                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                                            children: [
+                                              ElevatedButton(
+                                                onPressed: canCharge
+                                                    ? () {
+                                                        cartController.showConfirmDialogChargeSale();
+                                                        saleController.chargeClicked.value = true;
+                                                      }
+                                                    : null,
+                                                style: TextButton.styleFrom(
+                                                  backgroundColor: canCharge
+                                                      ? Colors.lightGreenAccent[400]
+                                                      : Colors.grey,
+                                                  foregroundColor: Colors.black,
+                                                  textStyle: TextStyle(
+                                                      fontSize: 18,
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.bold),
+                                                ),
+                                                child: Text(
+                                                  cartController.isCharging.value ? 'CHARGING...' : 'Charge'
+                                                ),
+                                              ),
+                                              if (!canCharge)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(top: 4.0),
+                                                  child: Text(
+                                                    'Need at least ${requiredAmount.toStringAsFixed(2)} (have ${cartController.amountPaid.value.toStringAsFixed(2)})',
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(fontSize: 12, color: Colors.red),
+                                                  ),
+                                                ),
+                                            ],
+                                          );
+                                        }),
                                       )
                                               :Container(
                                         width:double.infinity,

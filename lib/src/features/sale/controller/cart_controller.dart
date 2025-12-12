@@ -88,6 +88,9 @@ class CartController extends GetxController {
   var hasAmountText = false.obs;
   final TextEditingController amtToAccTextEditingController = TextEditingController();
   final TextEditingController tipAmtTextEditingController = TextEditingController();
+  
+  // Flag to track if amountPaid was manually entered (to preserve it when cart changes)
+  var isAmountPaidManuallyEntered = false.obs;
 
   RxDouble totalCostInBaseCurrency = 0.0.obs;
   RxDouble totalCostInSelectedCurrency = 0.0.obs;
@@ -769,19 +772,56 @@ class CartController extends GetxController {
     totalCostInSelectedCurrency.value = totalCostInBCurrency * rate;
     totalTaxInBaseCurrency.value =
         items.fold(0, (sum, item) => sum + item.totalTaxAmount);
-    amountPaidTextEditingController.text =
-        totalCostInSelectedCurrency.value.toStringAsFixed(2);
-    hasAmountText.value = true;
-    amountPaid.value = totalCostInSelectedCurrency.value;
-    customerAmountPaid.value = totalCostInSelectedCurrency.value;
+    
+    // Preserve manual amountPaid entry (Option A)
+    // Only auto-fill if amountPaid was NOT manually entered
+    if (!isAmountPaidManuallyEntered.value) {
+      amountPaidTextEditingController.text =
+          totalCostInSelectedCurrency.value.toStringAsFixed(2);
+      hasAmountText.value = true;
+      amountPaid.value = totalCostInSelectedCurrency.value;
+      customerAmountPaid.value = totalCostInSelectedCurrency.value;
+    }
+    // If manually entered, preserve the existing amountPaid and just recalculate change
+    
     if (selectedPaymentType.value != null  && !multiple.value) {
       selectedPaymentType.value!.amount = totalCostInSelectedCurrency.value;
     }
     if (selectedPaymentTypes.isNotEmpty && !multiple.value) {
       selectedPaymentTypes.first.amount = totalCostInSelectedCurrency.value;
     }
+    
+    // Recalculate change after totals update (preserves manual amountPaid)
+    _recalculateChange();
+    
     if(rearScreenAvailable.value){
       postToRearScreen();
+    }
+  }
+  
+  /// Recalculate change based on current amountPaid, totalCost, tip, and amtToAcc
+  void _recalculateChange() {
+    double tipAmount = 0.0;
+    if (tipAmtTextEditingController.text.isNotEmpty) {
+      try {
+        tipAmount = double.parse(tipAmtTextEditingController.text);
+      } catch (e) {
+        tipAmount = 0.0;
+      }
+    }
+    double amtToAcc = 0.0;
+    if (amtToAccTextEditingController.text.isNotEmpty) {
+      try {
+        amtToAcc = double.parse(amtToAccTextEditingController.text);
+      } catch (e) {
+        amtToAcc = 0.0;
+      }
+    }
+    
+    if (amountPaid.value >= totalCostInSelectedCurrency.value) {
+      change.value = amountPaid.value - totalCostInSelectedCurrency.value - amtToAcc - tipAmount;
+    } else {
+      change.value = 0.0;
     }
   }
 
@@ -925,27 +965,13 @@ class CartController extends GetxController {
     double amountPaid = double.parse(val);
     customerAmountPaid.value = amountPaid;
     this.amountPaid.value = amountPaid;
-    if (amountPaid >= totalCostInSelectedCurrency.value) {
-      double tipAmount = 0.0;
-      if (tipAmtTextEditingController.text.isNotEmpty) {
-        try {
-          tipAmount = double.parse(tipAmtTextEditingController.text);
-        } catch (e) {
-          tipAmount = 0.0;
-        }
-      }
-      double amtToAcc = 0.0;
-      if (amtToAccTextEditingController.text.isNotEmpty) {
-        try {
-          amtToAcc = double.parse(amtToAccTextEditingController.text);
-        } catch (e) {
-          amtToAcc = 0.0;
-        }
-      }
-      change.value = amountPaid - totalCostInSelectedCurrency.value - amtToAcc - tipAmount;
-    } else {
-      change.value = 0.0;
-    }
+    
+    // Mark as manually entered when user types in the field
+    isAmountPaidManuallyEntered.value = true;
+    
+    // Recalculate change using helper method
+    _recalculateChange();
+    
     // Refresh payment types when amount changes (affects "Add to Account" mode)
     if (selectedCurrency.value != null && selectedCustomer.value != null) {
       filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
@@ -955,52 +981,13 @@ class CartController extends GetxController {
   tipAmountChange(String val) {
     // Only update the change calculation when tip changes
     // Don't modify amountPaid or customerAmountPaid
-    if (amountPaid.value >= totalCostInSelectedCurrency.value) {
-      double tipAmount = 0.0;
-      if (val.isNotEmpty) {
-        try {
-          tipAmount = double.parse(val);
-        } catch (e) {
-          tipAmount = 0.0;
-        }
-      }
-      double amtToAcc = 0.0;
-      if (amtToAccTextEditingController.text.isNotEmpty) {
-        try {
-          amtToAcc = double.parse(amtToAccTextEditingController.text);
-        } catch (e) {
-          amtToAcc = 0.0;
-        }
-      }
-      change.value = amountPaid.value - totalCostInSelectedCurrency.value - amtToAcc - tipAmount;
-    } else {
-      change.value = 0.0;
-    }
+    _recalculateChange();
   }
 
   amtToAccChange(String val) {
     // Update change calculation when "Change to Account" amount changes
-    if (amountPaid.value >= totalCostInSelectedCurrency.value) {
-      double tipAmount = 0.0;
-      if (tipAmtTextEditingController.text.isNotEmpty) {
-        try {
-          tipAmount = double.parse(tipAmtTextEditingController.text);
-        } catch (e) {
-          tipAmount = 0.0;
-        }
-      }
-      double amtToAcc = 0.0;
-      if (val.isNotEmpty) {
-        try {
-          amtToAcc = double.parse(val);
-        } catch (e) {
-          amtToAcc = 0.0;
-        }
-      }
-      change.value = amountPaid.value - totalCostInSelectedCurrency.value - amtToAcc - tipAmount;
-    } else {
-      change.value = 0.0;
-    }
+    _recalculateChange();
+    
     // Refresh payment types when change to account changes
     // This ensures ACC- and CREDIT- payment types are hidden when both amountPaid and amtToAcc are present
     if (selectedCurrency.value != null && selectedCustomer.value != null) {
@@ -1018,6 +1005,7 @@ class CartController extends GetxController {
       change.value = 0.0;
       hasAmountText.value = false;
       isFirstQuickAmountButtonUsed.value = true;
+      isAmountPaidManuallyEntered.value = false; // Reset flag when cleared
     }
     
     String currentText = amountPaidTextEditingController.text;
@@ -1038,7 +1026,17 @@ class CartController extends GetxController {
     // Update all amount-related values to ensure validation passes
     amountPaid.value = newAmount;
     customerAmountPaid.value = newAmount;
-    amountPaidChange(newAmountText);
+    
+    // Mark as manually entered when using quick buttons (user is actively setting amount)
+    isAmountPaidManuallyEntered.value = true;
+    
+    // Recalculate change
+    _recalculateChange();
+    
+    // Refresh payment types
+    if (selectedCurrency.value != null && selectedCustomer.value != null) {
+      filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
+    }
   }
 
   // Clear amount paid field (for tablet clear button)
@@ -1049,6 +1047,7 @@ class CartController extends GetxController {
     change.value = 0.0;
     hasAmountText.value = false;
     isFirstQuickAmountButtonUsed.value = false; // Reset flag when cleared
+    isAmountPaidManuallyEntered.value = false; // Reset flag when cleared
     // Refresh payment types when amount is cleared (affects "Add to Account" mode)
     if (selectedCurrency.value != null && selectedCustomer.value != null) {
       filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
@@ -1082,6 +1081,39 @@ class CartController extends GetxController {
     isCharging.value = true;
     
     try {
+      // Validate payment before charging
+      double tipAmount = 0.0;
+      if (tipAmtTextEditingController.text.isNotEmpty) {
+        try {
+          tipAmount = double.parse(tipAmtTextEditingController.text);
+        } catch (e) {
+          tipAmount = 0.0;
+        }
+      }
+      double amtToAcc = 0.0;
+      if (amtToAccTextEditingController.text.isNotEmpty) {
+        try {
+          amtToAcc = double.parse(amtToAccTextEditingController.text);
+        } catch (e) {
+          amtToAcc = 0.0;
+        }
+      }
+      
+      double requiredAmount = totalCostInSelectedCurrency.value + tipAmount + amtToAcc;
+      
+      // Validation: amountPaid must be >= (totalCost + tipAmount + amtToAcc)
+      if (amountPaid.value < requiredAmount) {
+        Get.snackbar(
+          "Insufficient Payment",
+          "Amount paid (${amountPaid.value.toStringAsFixed(2)}) must be at least ${requiredAmount.toStringAsFixed(2)} (Total: ${totalCostInSelectedCurrency.value.toStringAsFixed(2)} + Tip: ${tipAmount.toStringAsFixed(2)} + Change to Account: ${amtToAcc.toStringAsFixed(2)})",
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          duration: Duration(seconds: 4),
+        );
+        return; // Don't proceed with charge
+      }
+      
       chargeSale("COMPLETE", false, "", "", "", cartItems, saleTicketId.value);
     } catch (e) {
       Get.snackbar("Error", "Failed to charge: ${e.toString()}",
@@ -1627,8 +1659,17 @@ class CartController extends GetxController {
     isPaymentTypeSelected.value = false;
     double totalCostInSelCurrency =
         totalCostInBaseCurrency.value * newValue.rate!;
-    amountPaidTextEditingController.text = totalCostInSelCurrency.toStringAsFixed(2);
-    hasAmountText.value = true;
+    
+    // Preserve manual amountPaid entry (Option A)
+    // Only auto-fill if amountPaid was NOT manually entered
+    if (!isAmountPaidManuallyEntered.value) {
+      amountPaidTextEditingController.text = totalCostInSelCurrency.toStringAsFixed(2);
+      hasAmountText.value = true;
+      amountPaid.value = totalCostInSelCurrency;
+      customerAmountPaid.value = totalCostInSelCurrency;
+    }
+    // If manually entered, preserve the existing amountPaid and just recalculate change
+    
     double totalTaxInSelCurrency =
         totalTaxInBaseCurrency.value * newValue.rate!;
     totalCostInSelectedCurrency.value = totalCostInSelCurrency;
@@ -1636,6 +1677,8 @@ class CartController extends GetxController {
     currencyList.refresh();
     filterPaymentTypes(newValue, selectedCustomer.value!);
     selectCorrectBank();
+    
+    // Recalculate totals and change (preserves manual amountPaid)
     calculateTotalAmounts(cartItems);
   }
 
