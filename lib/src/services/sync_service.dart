@@ -135,12 +135,15 @@ class SyncService {
     });
     if(response != null) {
       List<dynamic> list = jsonDecode(response);
-      List<CustomerModel> itemsList = List<CustomerModel>.from(list.map((i) => CustomerModel.fromMap(i)));
-      // customerList.value = itemsList;
-      List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
-          item.toMap()).toList();
-      //showSnackBar("Message", "Customers downloaded successfully");
-      box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
+      if(list !=null && list.isNotEmpty) {
+        List<CustomerModel> itemsList =
+            List<CustomerModel>.from(list.map((i) => CustomerModel.fromMap(i)));
+        // customerList.value = itemsList;
+        List<Map<String, dynamic>> itemsListMap =
+            itemsList.map((item) => item.toMap()).toList();
+        //showSnackBar("Message", "Customers downloaded successfully");
+        box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
+      }
     }
     AppHelper.hideLoading();
   }

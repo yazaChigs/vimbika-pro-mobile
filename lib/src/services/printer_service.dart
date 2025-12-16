@@ -238,12 +238,14 @@ class PrinterService extends GetxService {
     
     // Get Fiscal Device information (from backend format)
     String? vatNumber;
+    String? tinNumber;
     String? deviceSerialNo;
     int? deviceId;
     try {
       var fiscalDeviceModel = box.read(AppConstants.FISCAL_DEVICE);
       if (fiscalDeviceModel != null && fiscalDeviceModel is Map) {
         vatNumber = fiscalDeviceModel["vatNumber"]?.toString();
+        tinNumber = fiscalDeviceModel["taxPayerTIN"]?.toString();
         deviceSerialNo = fiscalDeviceModel["deviceSerialNo"]?.toString();
         deviceId = fiscalDeviceModel["deviceId"] != null ? int.tryParse(fiscalDeviceModel["deviceId"].toString()) : null;
       }
@@ -309,14 +311,14 @@ class PrinterService extends GetxService {
     }
 
     // Company TIN
-    if (company?.companyID != null && company!.companyID!.isNotEmpty) {
+    // if (company?.companyID != null && company!.companyID!.isNotEmpty) {
     receiptData.add(LineText(
       type: LineText.TYPE_TEXT,
-        content: 'TIN: ${company.companyID}',
+        content: 'TIN: ${tinNumber}',
         align: LineText.ALIGN_CENTER,
       linefeed: 1,
     ));
-    }
+    // }
 
     // Company VAT
     if (vatNumber != null && vatNumber.isNotEmpty) {
