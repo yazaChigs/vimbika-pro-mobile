@@ -75,6 +75,8 @@ class CartController extends GetxController {
   RxString searchText = ''.obs;
   RxString selectedTicketRef = ''.obs;
   RxDouble totalAmountPaid = 0.0.obs;
+  // Tracks which monetary input is active for numpad/quick-amount routing: none | amountPaid | tip | amtToAcc
+  RxString activeInput = 'none'.obs;
 
   Rx<PaymentTypeModel?> selectedPaymentType = PaymentTypeModel().obs;
   RxList<PaymentTypeModel> selectedPaymentTypes = <PaymentTypeModel>[].obs;
@@ -88,6 +90,12 @@ class CartController extends GetxController {
   var hasAmountText = false.obs;
   final TextEditingController amtToAccTextEditingController = TextEditingController();
   final TextEditingController tipAmtTextEditingController = TextEditingController();
+  // Track current tip and change-to-account values as observables (for UI rebuilds/validation)
+  RxDouble tipValue = 0.0.obs;
+  RxDouble amtToAccValue = 0.0.obs;
+  
+  // Flag to track if amountPaid was manually entered (to preserve it when cart changes)
+  var isAmountPaidManuallyEntered = false.obs;
 
   RxDouble totalCostInBaseCurrency = 0.0.obs;
   RxDouble totalCostInSelectedCurrency = 0.0.obs;
@@ -209,8 +217,8 @@ class CartController extends GetxController {
     super.onInit();
     // isInternetAccess.value =  await _connectivityService.checkConnection();
     box = GetStorage();
-    var print = box.read(AppConstants.ALWAYS_PRINT) ?? false;
-    if (print) {
+    var alwaysPrint = box.read(AppConstants.ALWAYS_PRINT) ?? false;
+    if (alwaysPrint) {
       isPrintEnabled.value = true;
     } else {
       isPrintEnabled.value = false;
@@ -316,11 +324,25 @@ class CartController extends GetxController {
     isCustomerSelected.value = selectedCustomer.value != null;
 
     // Filter by branch but keep WalkIn and current selection
-    allCustomers.value = allCustomers.where((cus) =>
-        (cus.branch != null && cus.branch!.name == branch.value!.name) ||
-        cus.name == "WalkIn" ||
-        (selectedCustomer.value != null && cus == selectedCustomer.value)
-    ).toList();
+    // Store original list for fallback
+    final List<CustomerModel> originalCustomers = List<CustomerModel>.from(allCustomers);
+    
+    if(branch.value != null) {
+      List<CustomerModel> filteredByBranch = allCustomers.where((cus) =>
+          (cus.branch != null && cus.branch!.name == branch.value!.name) ||
+          cus.name == "WalkIn" ||
+          (selectedCustomer.value != null && cus == selectedCustomer.value)
+      ).toList();
+
+      // If filtering leaves too few customers compared to available, fall back to original list (offline-friendly)
+      if (filteredByBranch.length < 5 && originalCustomers.length > filteredByBranch.length) {
+        allCustomers.value = originalCustomers; // Fallback to full list
+        print("CartController onInit: Customers after filter (fallback to full list): ${originalCustomers.length}");
+      } else {
+        allCustomers.value = filteredByBranch;
+        print("CartController onInit: Customers after filter: ${filteredByBranch.length}");
+      }
+    }
 
     _ensureSelectedCustomerInList();
     allCustomers.refresh();
@@ -345,20 +367,28 @@ class CartController extends GetxController {
         await SyncService.getCustomers(user.value!, box, company.value!.id!);
         refreshCustomers();
       } else {
-        // Offline: ensure we at least have WalkIn customer
-        // This handles the case where local storage is empty or customers don't match current branch
-        if(allCustomers.isEmpty || !allCustomers.any((c) => c.name?.toLowerCase().contains('walkin') ?? false)) {
-          CustomerModel walkInCustomer = CustomerModel(
-            id: null, 
-            name: 'WalkIn', 
-            branch: branch.value != null 
-              ? BaseNameModel(id: branch.value!.id, name: branch.value!.name)
-              : null
-          );
-          allCustomers.add(walkInCustomer);
-          selectedCustomer.value = walkInCustomer;
-          isCustomerSelected.value = true;
-          allCustomers.refresh();
+        // Offline: Use same offline loading logic as sale screen refresh fix
+        // Try to reload from CustomerController if available (has proper offline handling)
+        try {
+          final CustomerController customerController = Get.find<CustomerController>();
+          await customerController.reloadCustomersFromStorage();
+          refreshCustomersFromList(List<CustomerModel>.from(customerController.allCustomers));
+        } catch (_) {
+          // CustomerController not available (e.g., after cancelSale deletes it)
+          // Fallback: ensure we at least have WalkIn customer
+          if(allCustomers.isEmpty || !allCustomers.any((c) => c.name?.toLowerCase().contains('walkin') ?? false)) {
+            CustomerModel walkInCustomer = CustomerModel(
+              id: null, 
+              name: 'WalkIn', 
+              branch: branch.value != null 
+                ? BaseNameModel(id: branch.value!.id, name: branch.value!.name)
+                : null
+            );
+            allCustomers.add(walkInCustomer);
+            selectedCustomer.value = walkInCustomer;
+            isCustomerSelected.value = true;
+            allCustomers.refresh();
+          }
         }
       }
     }
@@ -404,6 +434,17 @@ class CartController extends GetxController {
 
   refreshCustomers() {
     List<CustomerModel> customers = loadCustomers(box);
+    final List<CustomerModel> original = List<CustomerModel>.from(customers);
+    _refreshCustomersInternal(customers, original);
+  }
+
+  /// Apply refresh logic to a provided list (used when another controller already loaded customers)
+  void refreshCustomersFromList(List<CustomerModel> customers) {
+    final List<CustomerModel> original = List<CustomerModel>.from(customers);
+    _refreshCustomersInternal(customers, original);
+  }
+
+  void _refreshCustomersInternal(List<CustomerModel> customers, List<CustomerModel> original) {
 
     // Ensure WalkIn customer exists if list is empty
     if(customers.isEmpty || !customers.any((c) => c.name?.toLowerCase().contains('walkin') ?? false)) {
@@ -445,11 +486,18 @@ class CartController extends GetxController {
     
     // Filter by branch but always include WalkIn and the current selection
     if(branch.value != null) {
-      customers = customers.where((cus) => 
+      List<CustomerModel> filteredByBranch = customers.where((cus) => 
         (cus.branch != null && cus.branch!.name == branch.value!.name) || 
         cus.name == "WalkIn" ||
         (selectedCustomer.value != null && cus == selectedCustomer.value)
       ).toList();
+
+      // If filtering leaves too few customers compared to available, fall back to original list (offline-friendly)
+      if (filteredByBranch.length < 5 && original.length > filteredByBranch.length) {
+        customers = original;
+      } else {
+        customers = filteredByBranch;
+      }
     }
     
     allCustomers.value = customers;
@@ -513,29 +561,34 @@ class CartController extends GetxController {
     return list.firstWhereOrNull((c) => c.name == target.name);
   }
 
-  reGetCustomers() {
-    List<CustomerModel> newCustomers = loadCustomers(box);
-    if (newCustomers.isNotEmpty && allCustomers.length < newCustomers.length) {
-      allCustomers.value = newCustomers;
-
-      // Use firstWhereOrNull to find a customer with "WalkIn" in their name (case-insensitive)
-      CustomerModel? defaultCustomer = newCustomers.firstWhereOrNull(
-        (customer) =>
-            customer.name != null &&
-            customer.name!.toLowerCase().contains('walkin'),
-      );
-
-      if (defaultCustomer == null) {
-        // If "WalkIn" is not in the list, create and add it
-        defaultCustomer = CustomerModel(id: null, name: 'WalkIn');
-        allCustomers.add(defaultCustomer);
+  Future<void> reGetCustomers() async {
+    // Check connectivity first
+    bool isOnline = await _connectivityService.checkServerConnection();
+    
+    if (isOnline) {
+      // Online: Try to get fresh customers from server via CustomerController
+      try {
+        CustomerController? customerController = Get.find<CustomerController>();
+        if (customerController != null && customerController.user.company != null) {
+          await customerController.getCustomers(
+            customerController.user, 
+            box, 
+            customerController.user.company!.id!
+          );
+          // After getting customers, refresh our local list
+          refreshCustomers();
+        } else {
+          // Fallback to refreshCustomers if CustomerController not available
+          refreshCustomers();
+        }
+      } catch (e) {
+        print("Error getting customers from server: $e");
+        // Fallback to refreshCustomers on error
+        refreshCustomers();
       }
-
-      // Set "WalkIn" as the default selected customer
-      selectedCustomer.value = defaultCustomer;
-      isCustomerSelected.value = true;
     } else {
-      allCustomers.value = newCustomers;
+      // Offline: Just reload from local storage
+      refreshCustomers();
     }
   }
 
@@ -746,19 +799,42 @@ class CartController extends GetxController {
     totalCostInSelectedCurrency.value = totalCostInBCurrency * rate;
     totalTaxInBaseCurrency.value =
         items.fold(0, (sum, item) => sum + item.totalTaxAmount);
-    amountPaidTextEditingController.text =
-        totalCostInSelectedCurrency.value.toStringAsFixed(2);
-    hasAmountText.value = true;
-    amountPaid.value = totalCostInSelectedCurrency.value;
-    customerAmountPaid.value = totalCostInSelectedCurrency.value;
+    
+    // Preserve manual amountPaid entry (Option A)
+    // Only auto-fill if amountPaid was NOT manually entered
+    if (!isAmountPaidManuallyEntered.value) {
+      amountPaidTextEditingController.text =
+          totalCostInSelectedCurrency.value.toStringAsFixed(2);
+      hasAmountText.value = true;
+      amountPaid.value = totalCostInSelectedCurrency.value;
+      customerAmountPaid.value = totalCostInSelectedCurrency.value;
+    }
+    // If manually entered, preserve the existing amountPaid and just recalculate change
+    
     if (selectedPaymentType.value != null  && !multiple.value) {
       selectedPaymentType.value!.amount = totalCostInSelectedCurrency.value;
     }
     if (selectedPaymentTypes.isNotEmpty && !multiple.value) {
       selectedPaymentTypes.first.amount = totalCostInSelectedCurrency.value;
     }
+    
+    // Recalculate change after totals update (preserves manual amountPaid)
+    _recalculateChange();
+    
     if(rearScreenAvailable.value){
       postToRearScreen();
+    }
+  }
+  
+  /// Recalculate change based on current amountPaid, totalCost, tip, and amtToAcc
+  void _recalculateChange() {
+    final tipAmount = tipValue.value;
+    final amtToAcc = amtToAccValue.value;
+
+    if (amountPaid.value >= totalCostInSelectedCurrency.value) {
+      change.value = amountPaid.value - totalCostInSelectedCurrency.value - amtToAcc - tipAmount;
+    } else {
+      change.value = 0.0;
     }
   }
 
@@ -902,27 +978,13 @@ class CartController extends GetxController {
     double amountPaid = double.parse(val);
     customerAmountPaid.value = amountPaid;
     this.amountPaid.value = amountPaid;
-    if (amountPaid >= totalCostInSelectedCurrency.value) {
-      double tipAmount = 0.0;
-      if (tipAmtTextEditingController.text.isNotEmpty) {
-        try {
-          tipAmount = double.parse(tipAmtTextEditingController.text);
-        } catch (e) {
-          tipAmount = 0.0;
-        }
-      }
-      double amtToAcc = 0.0;
-      if (amtToAccTextEditingController.text.isNotEmpty) {
-        try {
-          amtToAcc = double.parse(amtToAccTextEditingController.text);
-        } catch (e) {
-          amtToAcc = 0.0;
-        }
-      }
-      change.value = amountPaid - totalCostInSelectedCurrency.value - amtToAcc - tipAmount;
-    } else {
-      change.value = 0.0;
-    }
+    
+    // Mark as manually entered when user types in the field
+    isAmountPaidManuallyEntered.value = true;
+    
+    // Recalculate change using helper method
+    _recalculateChange();
+    
     // Refresh payment types when amount changes (affects "Add to Account" mode)
     if (selectedCurrency.value != null && selectedCustomer.value != null) {
       filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
@@ -932,52 +994,31 @@ class CartController extends GetxController {
   tipAmountChange(String val) {
     // Only update the change calculation when tip changes
     // Don't modify amountPaid or customerAmountPaid
-    if (amountPaid.value >= totalCostInSelectedCurrency.value) {
-      double tipAmount = 0.0;
-      if (val.isNotEmpty) {
-        try {
-          tipAmount = double.parse(val);
-        } catch (e) {
-          tipAmount = 0.0;
-        }
+    double parsed = 0.0;
+    if (val.isNotEmpty) {
+      try {
+        parsed = double.parse(val);
+      } catch (_) {
+        parsed = 0.0;
       }
-      double amtToAcc = 0.0;
-      if (amtToAccTextEditingController.text.isNotEmpty) {
-        try {
-          amtToAcc = double.parse(amtToAccTextEditingController.text);
-        } catch (e) {
-          amtToAcc = 0.0;
-        }
-      }
-      change.value = amountPaid.value - totalCostInSelectedCurrency.value - amtToAcc - tipAmount;
-    } else {
-      change.value = 0.0;
     }
+    tipValue.value = parsed;
+    _recalculateChange();
   }
 
   amtToAccChange(String val) {
     // Update change calculation when "Change to Account" amount changes
-    if (amountPaid.value >= totalCostInSelectedCurrency.value) {
-      double tipAmount = 0.0;
-      if (tipAmtTextEditingController.text.isNotEmpty) {
-        try {
-          tipAmount = double.parse(tipAmtTextEditingController.text);
-        } catch (e) {
-          tipAmount = 0.0;
-        }
+    double parsed = 0.0;
+    if (val.isNotEmpty) {
+      try {
+        parsed = double.parse(val);
+      } catch (_) {
+        parsed = 0.0;
       }
-      double amtToAcc = 0.0;
-      if (val.isNotEmpty) {
-        try {
-          amtToAcc = double.parse(val);
-        } catch (e) {
-          amtToAcc = 0.0;
-        }
-      }
-      change.value = amountPaid.value - totalCostInSelectedCurrency.value - amtToAcc - tipAmount;
-    } else {
-      change.value = 0.0;
     }
+    amtToAccValue.value = parsed;
+    _recalculateChange();
+    
     // Refresh payment types when change to account changes
     // This ensures ACC- and CREDIT- payment types are hidden when both amountPaid and amtToAcc are present
     if (selectedCurrency.value != null && selectedCustomer.value != null) {
@@ -987,35 +1028,63 @@ class CartController extends GetxController {
 
   // Add quick amount to current amount paid (for tablet quick buttons)
   void addQuickAmount(double amount) {
-    // Clear field on first button use
-    if (!isFirstQuickAmountButtonUsed.value) {
-      amountPaidTextEditingController.clear();
-      amountPaid.value = 0.0;
-      customerAmountPaid.value = 0.0;
-      change.value = 0.0;
-      hasAmountText.value = false;
-      isFirstQuickAmountButtonUsed.value = true;
+    // If no active input, do nothing
+    if (activeInput.value == 'none') {
+      return;
     }
-    
-    String currentText = amountPaidTextEditingController.text;
-    double currentAmount = 0.0;
-    
-    if (currentText.isNotEmpty) {
-      try {
-        currentAmount = double.parse(currentText);
-      } catch (e) {
-        currentAmount = 0.0;
+
+    // Helper to add amount to a controller and recalc via callback
+    void _apply(
+      TextEditingController controller,
+      void Function(String) onChange,
+    ) {
+      String currentText = controller.text;
+      double currentAmount = 0.0;
+      if (currentText.isNotEmpty) {
+        try {
+          currentAmount = double.parse(currentText);
+        } catch (_) {
+          currentAmount = 0.0;
+        }
       }
+      double newAmount = currentAmount + amount;
+      String newAmountText = newAmount.toStringAsFixed(2);
+      controller.text = newAmountText;
+      onChange(newAmountText);
     }
-    
-    double newAmount = currentAmount + amount;
-    String newAmountText = newAmount.toStringAsFixed(2);
-    amountPaidTextEditingController.text = newAmountText;
-    hasAmountText.value = true;
-    // Update all amount-related values to ensure validation passes
-    amountPaid.value = newAmount;
-    customerAmountPaid.value = newAmount;
-    amountPaidChange(newAmountText);
+
+    if (activeInput.value == 'amountPaid') {
+      // Clear field on first button use for amount paid
+      if (!isFirstQuickAmountButtonUsed.value) {
+        amountPaidTextEditingController.clear();
+        amountPaid.value = 0.0;
+        customerAmountPaid.value = 0.0;
+        change.value = 0.0;
+        hasAmountText.value = false;
+        isFirstQuickAmountButtonUsed.value = true;
+        isAmountPaidManuallyEntered.value = false; // Reset flag when cleared
+      }
+      _apply(amountPaidTextEditingController, (val) {
+        isAmountPaidManuallyEntered.value = true;
+        hasAmountText.value = true;
+        amountPaid.value = double.tryParse(val) ?? 0.0;
+        customerAmountPaid.value = amountPaid.value;
+        amountPaidChange(val);
+      });
+    } else if (activeInput.value == 'tip') {
+      _apply(tipAmtTextEditingController, (val) {
+        tipAmountChange(val);
+      });
+    } else if (activeInput.value == 'amtToAcc') {
+      _apply(amtToAccTextEditingController, (val) {
+        amtToAccChange(val);
+      });
+    }
+
+    // Refresh payment types
+    if (selectedCurrency.value != null && selectedCustomer.value != null) {
+      filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
+    }
   }
 
   // Clear amount paid field (for tablet clear button)
@@ -1026,6 +1095,7 @@ class CartController extends GetxController {
     change.value = 0.0;
     hasAmountText.value = false;
     isFirstQuickAmountButtonUsed.value = false; // Reset flag when cleared
+    isAmountPaidManuallyEntered.value = false; // Reset flag when cleared
     // Refresh payment types when amount is cleared (affects "Add to Account" mode)
     if (selectedCurrency.value != null && selectedCustomer.value != null) {
       filterPaymentTypes(selectedCurrency.value!, selectedCustomer.value!);
@@ -1059,6 +1129,25 @@ class CartController extends GetxController {
     isCharging.value = true;
     
     try {
+      // Validate payment before charging
+      double tipAmount = tipValue.value;
+      double amtToAcc = amtToAccValue.value;
+      
+      double requiredAmount = totalCostInSelectedCurrency.value + tipAmount + amtToAcc;
+      
+      // Validation: amountPaid must be >= (totalCost + tipAmount + amtToAcc)
+      if (amountPaid.value < requiredAmount) {
+        Get.snackbar(
+          "Insufficient Payment",
+          "Amount paid (${amountPaid.value.toStringAsFixed(2)}) must be at least ${requiredAmount.toStringAsFixed(2)} (Total: ${totalCostInSelectedCurrency.value.toStringAsFixed(2)} + Tip: ${tipAmount.toStringAsFixed(2)} + Change to Account: ${amtToAcc.toStringAsFixed(2)})",
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          duration: Duration(seconds: 4),
+        );
+        return; // Don't proceed with charge
+      }
+      
       chargeSale("COMPLETE", false, "", "", "", cartItems, saleTicketId.value);
     } catch (e) {
       Get.snackbar("Error", "Failed to charge: ${e.toString()}",
@@ -1135,11 +1224,36 @@ class CartController extends GetxController {
     }
     
     // Reload shifts and get the active shift for the current user
+    // CRITICAL: Reload from storage to ensure we have the latest shifts including any newly opened ones
     List<ShiftModel> tempShiftList = loadShifts(box);
+    
+    // Check if SELECTED_SHIFT_REF is set (indicates a shift was explicitly chosen/opened)
+    final String? selectedRef = box.read(AppConstants.SELECTED_SHIFT_REF);
+    if (selectedRef != null && selectedRef.isNotEmpty) {
+      print("Charge Sale: SELECTED_SHIFT_REF is ${selectedRef}, will prioritize this shift");
+    }
+    
     ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
         tempShiftList, box, user.value!, true);
     
     if (tempActiveShift != null) {
+      // Verify the shift matches SELECTED_SHIFT_REF if it's set
+      if (selectedRef != null && selectedRef.isNotEmpty && tempActiveShift.shiftReference != selectedRef) {
+        print("Charge Sale: WARNING - getActiveShift returned shift ${tempActiveShift.shiftReference} but SELECTED_SHIFT_REF is ${selectedRef}");
+        // Try to find the selected shift directly
+        ShiftModel? selectedShift = tempShiftList.firstWhereOrNull(
+          (shift) => shift.shiftReference == selectedRef &&
+                     shift.userId != null &&
+                     user.value!.id != null &&
+                     shift.userId == user.value!.id &&
+                     (shift.isShiftClosed == null || shift.isShiftClosed == false)
+        );
+        if (selectedShift != null) {
+          print("Charge Sale: Found selected shift ${selectedRef} directly, using it instead");
+          tempActiveShift = selectedShift;
+        }
+      }
+      
       activeShift = tempActiveShift;
       shiftAvailable.value = true;
       print("Charge Sale: Using shift ${activeShift.shiftReference} for user ${user.value!.userName} (ID: ${user.value!.id})");
@@ -1278,11 +1392,13 @@ class CartController extends GetxController {
         );
         List<PaymentReceivedModel> accList = [];
         accList.add(paymentReceivedModel);
+        // Use the shiftReference from the sale to ensure consistency
         updateShiftWithNewSale(ref, timeInit, saleTotal,
-            stat, saleInfoModel.sale!.referenceNumber!,  accList, "CASH_IN", selectedCustomer.value?.name ?? "", breakage);
+            stat, saleInfoModel.sale!.referenceNumber!,  accList, "CASH_IN", selectedCustomer.value?.name ?? "", breakage, saleInfoModel.sale!.shiftReference);
       }
+      // Use the shiftReference from the sale to ensure consistency
       updateShiftWithNewSale(ref, timeInit, saleTotal,
-          stat, saleInfoModel.sale!.referenceNumber!,  paymentTypes, "SALE", selectedCustomer.value?.name ?? "", breakage);
+          stat, saleInfoModel.sale!.referenceNumber!,  paymentTypes, "SALE", selectedCustomer.value?.name ?? "", breakage, saleInfoModel.sale!.shiftReference);
       if (selectedTicketRef.isNotEmpty) {
         infos.removeWhere((ticket) =>
             ticket.sale!.referenceNumber == selectedTicketRef.value);
@@ -1315,7 +1431,15 @@ class CartController extends GetxController {
           List<Map<String, dynamic>> customersListMap =
           customers.map((item) => item.toMap()).toList();
           box.write(AppConstants.CUSTOMER_LIST, customersListMap);
-          refreshCustomers();
+          // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
+          try {
+            final CustomerController customerController = Get.find<CustomerController>();
+            await customerController.reloadCustomersFromStorage();
+            refreshCustomersFromList(List<CustomerModel>.from(customerController.allCustomers));
+          } catch (_) {
+            // Fallback: at least refresh from storage
+            refreshCustomers();
+          }
         }
       }
       if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && (double.parse(amtToAccTextEditingController.text)==0.00 &&
@@ -1348,7 +1472,15 @@ class CartController extends GetxController {
           if(stat) {
             await SyncService.saveCustomer(user.value!, box);
           }
-          refreshCustomers();
+          // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
+          try {
+            final CustomerController customerController = Get.find<CustomerController>();
+            await customerController.reloadCustomersFromStorage();
+            refreshCustomersFromList(List<CustomerModel>.from(customerController.allCustomers));
+          } catch (_) {
+            // Fallback: at least refresh from storage
+            refreshCustomers();
+          }
         }
       }
       cancelSale();
@@ -1468,7 +1600,7 @@ class CartController extends GetxController {
       double amt,
       bool stat,
       String posReference,
-      List<PaymentReceivedModel> paymentTypes, String type, String customerName ,bool breakage) async {
+      List<PaymentReceivedModel> paymentTypes, String type, String customerName ,bool breakage, String? saleShiftReference) async {
     // Reload user to ensure we have the current logged-in user
     // This is critical when a user logs in after another user has logged out
     var model = box.read(AppConstants.USER_INFO) ?? {};
@@ -1476,9 +1608,35 @@ class CartController extends GetxController {
       user.value = UserModel.fromMap(Map<String, dynamic>.from(model));
     }
     
-    // Get the active shift for the current user
-    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
-        loadShifts(box), box, user.value!, true);
+    // CRITICAL: Use the shiftReference from the sale to ensure sales and shifts stay synchronized
+    // This prevents sales from being associated with the wrong shift when multiple shifts are open
+    ShiftModel? tempActiveShift;
+    List<ShiftModel> allShifts = loadShifts(box);
+    
+    if (saleShiftReference != null && saleShiftReference.isNotEmpty) {
+      // Find the exact shift that was used when creating the sale
+      // NOTE: We intentionally don't check isShiftClosed here - we need to update shifts even if they're closed
+      // because the sale was created when the shift was open, and we need to update that shift
+      tempActiveShift = allShifts.firstWhereOrNull(
+        (shift) => shift.shiftReference == saleShiftReference &&
+                   shift.userId != null &&
+                   user.value!.id != null &&
+                   shift.userId == user.value!.id
+      );
+      
+      if (tempActiveShift != null) {
+        print("Update Shift: Using sale's shiftReference ${saleShiftReference} for user ${user.value!.userName}");
+      } else {
+        print("Update Shift: Sale's shiftReference ${saleShiftReference} not found, falling back to getActiveShift");
+      }
+    }
+    
+    // Fallback to getActiveShift only if sale's shiftReference not found
+    if (tempActiveShift == null) {
+      tempActiveShift = await _localStorageService.getActiveShift(
+          allShifts, box, user.value!, true);
+    }
+    
     if (tempActiveShift != null) {
       activeShift = tempActiveShift;
       shiftAvailable.value = true;
@@ -1604,8 +1762,17 @@ class CartController extends GetxController {
     isPaymentTypeSelected.value = false;
     double totalCostInSelCurrency =
         totalCostInBaseCurrency.value * newValue.rate!;
-    amountPaidTextEditingController.text = totalCostInSelCurrency.toStringAsFixed(2);
-    hasAmountText.value = true;
+    
+    // Preserve manual amountPaid entry (Option A)
+    // Only auto-fill if amountPaid was NOT manually entered
+    if (!isAmountPaidManuallyEntered.value) {
+      amountPaidTextEditingController.text = totalCostInSelCurrency.toStringAsFixed(2);
+      hasAmountText.value = true;
+      amountPaid.value = totalCostInSelCurrency;
+      customerAmountPaid.value = totalCostInSelCurrency;
+    }
+    // If manually entered, preserve the existing amountPaid and just recalculate change
+    
     double totalTaxInSelCurrency =
         totalTaxInBaseCurrency.value * newValue.rate!;
     totalCostInSelectedCurrency.value = totalCostInSelCurrency;
@@ -1613,6 +1780,8 @@ class CartController extends GetxController {
     currencyList.refresh();
     filterPaymentTypes(newValue, selectedCustomer.value!);
     selectCorrectBank();
+    
+    // Recalculate totals and change (preserves manual amountPaid)
     calculateTotalAmounts(cartItems);
   }
 
@@ -1717,12 +1886,29 @@ class CartController extends GetxController {
     List<Map<String, dynamic>> customersListMap =
     customers.map((item) => item.toMap()).toList();
     box.write(AppConstants.CUSTOMER_LIST, customersListMap);
-    refreshCustomers();
+    // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
+    try {
+      final CustomerController customerController = Get.find<CustomerController>();
+      await customerController.reloadCustomersFromStorage();
+      refreshCustomersFromList(List<CustomerModel>.from(customerController.allCustomers));
+    } catch (_) {
+      // Fallback: at least refresh from storage
+      refreshCustomers();
+    }
     List<PaymentReceivedModel> paymentTypes =[];
     paymentTypes.add(paymentReceivedModel);
     bool networkAvailable = await _connectivityService.checkServerConnection();
+    // Get the active shift reference for this payment (not associated with a sale)
+    String? shiftRef = activeShift.shiftReference;
+    if (shiftRef == null) {
+      // Fallback: try to get active shift if not already set
+      List<ShiftModel> tempShiftList = loadShifts(box);
+      ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
+          tempShiftList, box, user.value!, false); // Don't check server for payment received
+      shiftRef = tempActiveShift?.shiftReference;
+    }
     updateShiftWithNewSale(ref, paymentReceivedModel.dateTime!, paymentReceivedModel.amount!, networkAvailable,
-        customer.name!, paymentTypes,"CASH_IN",customer.name!, false);
+        customer.name!, paymentTypes,"CASH_IN",customer.name!, false, shiftRef);
     if(networkAvailable){
       await SyncService.savePaymentReceived(user.value!, box);
     }

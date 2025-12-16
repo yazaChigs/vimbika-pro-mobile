@@ -275,6 +275,12 @@ class ShiftController extends GetxController {
     activeShift.value = shiftModel;
     shifts.add(shiftModel);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, shifts, box);
+    
+    // CRITICAL: Set SELECTED_SHIFT_REF to ensure this newly opened shift is prioritized
+    // This prevents getActiveShift from returning an old open shift when making sales
+    box.write(AppConstants.SELECTED_SHIFT_REF, ref);
+    print("Open Shift: Set SELECTED_SHIFT_REF to ${ref} for newly opened shift");
+    
     bool stat = await _connectivityService.checkServerConnection();
     if(stat) {
       await SyncService.syncOfflineShifts(user, box);
@@ -465,7 +471,7 @@ class ShiftController extends GetxController {
     });
   }
 
-  closeShift(){
+  closeShift() async {
     // Reload user to ensure we have the current logged-in user
     var model = box.read(AppConstants.USER_INFO) ?? {};
     if(model.isNotEmpty){
@@ -528,14 +534,46 @@ class ShiftController extends GetxController {
       print("Error preserving customers in closeShift: $e");
     }
     
+    // Check for unsynced sales before closing shift
+    List<SaleInfoModel> allSales = getExistingOfflineSales(box);
+    List<SaleInfoModel> unsyncedSales = allSales.where((sale) => sale.syncStatus == false).toList();
+    bool isOnline = await _connectivityService.checkServerConnection();
+    
+    // If online, sync sales before closing shift
+    if (isOnline && unsyncedSales.isNotEmpty) {
+      print("Close Shift: Found ${unsyncedSales.length} unsynced sale(s), syncing before closing shift");
+      try {
+        await BackgroundService().syncOfflineSales(false);
+        await SyncService.savePaymentReceived(user, box);
+        await SyncService.saveCustomer(user, box);
+        print("Close Shift: Successfully synced sales before closing shift");
+      } catch (e) {
+        print("Close Shift: Error syncing sales: $e");
+        // Continue with closing shift even if sales sync fails
+      }
+    }
+    
     DateTime now = DateTime.now();
     String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
     temp.isShiftClosed = true;
-    temp.active = true;
+    temp.active = false;
     temp.closingTime = closingTime;
+    // CRITICAL: Set stopSync = false for offline-closed shifts so they get synced when back online
+    // The sync service will set stopSync = true after successfully syncing the closed shift
+    temp.stopSync = false;
+    print("Close Shift: Marked shift ${temp.shiftReference} as closed with stopSync=false to ensure it syncs when back online");
     List<ShiftModel> shi =  _localStorageService.replaceShift(temp, shifts);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
-    Get.snackbar("Success", "Shift closed successfully", snackPosition: SnackPosition.BOTTOM);
+    
+    // Show appropriate message based on sync status
+    if (unsyncedSales.isNotEmpty && !isOnline) {
+      Get.snackbar("Shift Closed", 
+          "Shift closed successfully. ${unsyncedSales.length} unsynced sale(s) will sync when back online.",
+          snackPosition: SnackPosition.BOTTOM);
+    } else {
+      Get.snackbar("Success", "Shift closed successfully", snackPosition: SnackPosition.BOTTOM);
+    }
+    
     SyncService.syncOfflineShifts(user, box);
     Get.delete<ShiftController>();
     Get.delete<SaleController>();
@@ -575,7 +613,7 @@ class ShiftController extends GetxController {
     DateTime now = DateTime.now();
     String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
     temp.isShiftClosed = true;
-    temp.active = true;
+    temp.active = false;
     temp.closingTime = closingTime;
     itemsToBeSynced.add(temp);
 
@@ -852,7 +890,8 @@ class ShiftController extends GetxController {
           box.write(AppConstants.SHIFT_LIST, shiftsMap);
           print("Preserved ${currentUserShiftsToPreserve.length} shift(s) for user ${user.id} and ${otherUsersPreservedShifts.length} shift(s) from other users");
         } else {
-          box.remove(AppConstants.SHIFT_LIST);
+          // keep existing shifts (do not remove) to retain history
+          print("No shifts to preserve for current user; retaining existing SHIFT_LIST");
         }
       } else {
         // No shift references in current user's unsynced sales
@@ -869,13 +908,14 @@ class ShiftController extends GetxController {
           box.write(AppConstants.SHIFT_LIST, shiftsMap);
           print("Preserved ${otherUsersPreservedShifts.length} shift(s) from other users (no shifts for current user)");
         } else {
-          box.remove(AppConstants.SHIFT_LIST);
+          // keep existing shifts (do not remove) to retain history
+          print("No shifts for any user; retaining existing SHIFT_LIST");
         }
       }
     } else {
-      // No unsynced sales, remove both sales and shifts
+      // No unsynced sales, remove sales but retain shifts history
       box.remove(AppConstants.SALE_LIST);
-      box.remove(AppConstants.SHIFT_LIST);
+      print("No unsynced sales; retaining SHIFT_LIST for history");
     }
     
     // Remove payment received data

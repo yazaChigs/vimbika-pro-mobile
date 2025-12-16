@@ -62,9 +62,12 @@ class CheckoutScreen extends StatelessWidget {
                         ),
                         Expanded(
                           child: Obx(() {
+                            // Create a stable snapshot of customers to prevent race conditions
+                            final List<CustomerModel> customersSnapshot = List.from(cartController.allCustomers);
+                            
                             return SearchChoices.single(
                               padding: 0,
-                              items: cartController.allCustomers
+                              items: customersSnapshot
                                   .map((CustomerModel customer) {
                                 return DropdownMenuItem<CustomerModel>(
                                   value: customer,
@@ -81,39 +84,60 @@ class CheckoutScreen extends StatelessWidget {
                                   List<DropdownMenuItem> items) {
                                 // Enhanced search: search by name, phone, ID, customer ID, or account number
                                 List<int> matches = [];
+                                if (items.isEmpty || searchTerm.isEmpty) {
+                                  // If empty search term, return all indices
+                                  if (searchTerm.isEmpty) {
+                                    for (int i = 0; i < items.length; i++) {
+                                      matches.add(i);
+                                    }
+                                  }
+                                  return matches;
+                                }
+                                
                                 for (int i = 0; i < items.length; i++) {
-                                  CustomerModel customer =
-                                      items[i].value as CustomerModel;
-                                  bool nameMatch = customer.name != null &&
-                                      customer.name!
-                                          .toLowerCase()
-                                          .contains(searchTerm.toLowerCase());
-                                  bool phoneMatch = customer.mobilePhone !=
-                                          null &&
-                                      customer.mobilePhone!
-                                          .toLowerCase()
-                                          .contains(searchTerm.toLowerCase());
-                                  bool idMatch = customer.id != null &&
-                                      customer.id!
-                                          .toLowerCase()
-                                          .contains(searchTerm.toLowerCase());
-                                  bool customerIdMatch = customer.customerId !=
-                                          null &&
-                                      customer.customerId!
-                                          .toLowerCase()
-                                          .contains(searchTerm.toLowerCase());
-                                  bool accountNumberMatch = customer
-                                              .accountNumber !=
-                                          null &&
-                                      customer.accountNumber!
-                                          .toLowerCase()
-                                          .contains(searchTerm.toLowerCase());
-                                  if (nameMatch ||
-                                      phoneMatch ||
-                                      idMatch ||
-                                      customerIdMatch ||
-                                      accountNumberMatch) {
-                                    matches.add(i);
+                                  // Safety check: ensure index is valid
+                                  if (i >= items.length) break;
+                                  
+                                  try {
+                                    final item = items[i];
+                                    if (item.value == null) continue;
+                                    
+                                    CustomerModel customer = item.value as CustomerModel;
+                                    bool nameMatch = customer.name != null &&
+                                        customer.name!
+                                            .toLowerCase()
+                                            .contains(searchTerm.toLowerCase());
+                                    bool phoneMatch = customer.mobilePhone !=
+                                            null &&
+                                        customer.mobilePhone!
+                                            .toLowerCase()
+                                            .contains(searchTerm.toLowerCase());
+                                    bool idMatch = customer.id != null &&
+                                        customer.id!
+                                            .toLowerCase()
+                                            .contains(searchTerm.toLowerCase());
+                                    bool customerIdMatch = customer.customerId !=
+                                            null &&
+                                        customer.customerId!
+                                            .toLowerCase()
+                                            .contains(searchTerm.toLowerCase());
+                                    bool accountNumberMatch = customer
+                                                .accountNumber !=
+                                            null &&
+                                        customer.accountNumber!
+                                            .toLowerCase()
+                                            .contains(searchTerm.toLowerCase());
+                                    if (nameMatch ||
+                                        phoneMatch ||
+                                        idMatch ||
+                                        customerIdMatch ||
+                                        accountNumberMatch) {
+                                      matches.add(i);
+                                    }
+                                  } catch (e) {
+                                    // Skip invalid items to prevent crashes
+                                    print("Error processing customer at index $i: $e");
+                                    continue;
                                   }
                                 }
                                 return matches;
@@ -269,6 +293,9 @@ class CheckoutScreen extends StatelessWidget {
                                     prefixIcon: Icon(Icons.money),
                                     labelText: "Amount",
                                     hintText: "Amount"),
+                                onTap: () {
+                                  cartController.activeInput.value = 'amountPaid';
+                                },
                                 onChanged: (String val) {
                                   if (val.isNotEmpty) {
                                     cartController.amountPaidChange(val);
@@ -779,31 +806,56 @@ class CheckoutScreen extends StatelessWidget {
                         }
                       }),
                       SizedBox(height: 10),
-                      Obx(() => ElevatedButton(
-                        onPressed: cartController.isCharging.value 
-                          ? null 
-                          : () {
-                              if (cartController.formKey.currentState!.validate()) {
-                                cartController.formKey.currentState!
-                                    .save(); // Save the form fields
-                                cartController.showConfirmDialogChargeSale();
-                              }
-                            },
-                        style: TextButton.styleFrom(
-                          backgroundColor: cartController.isCharging.value
-                              ? Colors.grey
-                              : Colors.lightGreenAccent, // Set button color to red
-                          foregroundColor:
-                              Colors.black, // Set text color to red
-                          textStyle: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold), // Set text size
-                        ),
-                        child: Text(
-                          cartController.isCharging.value ? 'CHARGING...' : 'Charge'
-                        ),
-                      )),
+                      Obx(() {
+                        final tip = cartController.tipValue.value;
+                        final amtToAcc = cartController.amtToAccValue.value;
+                        final requiredAmount = cartController.totalCostInSelectedCurrency.value + tip + amtToAcc;
+                        final paymentSelected = cartController.selectedPaymentType.value != null &&
+                            cartController.selectedPaymentType.value!.id != null;
+                        final canCharge = !cartController.isCharging.value &&
+                            paymentSelected &&
+                            cartController.amountPaid.value >= requiredAmount &&
+                            cartController.cartItems.isNotEmpty;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ElevatedButton(
+                              onPressed: canCharge
+                                  ? () {
+                                      if (cartController.formKey.currentState!.validate()) {
+                                        cartController.formKey.currentState!
+                                            .save(); // Save the form fields
+                                        cartController.showConfirmDialogChargeSale();
+                                      }
+                                    }
+                                  : null,
+                              style: TextButton.styleFrom(
+                                backgroundColor: canCharge
+                                    ? Colors.lightGreenAccent
+                                    : Colors.grey, // Set button color to red
+                                foregroundColor:
+                                    Colors.black, // Set text color to red
+                                textStyle: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold), // Set text size
+                              ),
+                              child: Text(
+                                cartController.isCharging.value ? 'CHARGING...' : 'Charge'
+                              ),
+                            ),
+                            if (!canCharge)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Text(
+                                  'Need at least ${requiredAmount.toStringAsFixed(2)} (have ${cartController.amountPaid.value.toStringAsFixed(2)})',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 12, color: Colors.red),
+                                ),
+                              ),
+                          ],
+                        );
+                      }),
                       SizedBox(height: 10),
                       ElevatedButton(
                         style: TextButton.styleFrom(

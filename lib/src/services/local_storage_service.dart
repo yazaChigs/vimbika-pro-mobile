@@ -102,21 +102,84 @@ class LocalStorageService {
     return updatedPrinters;
   }
   Future<ShiftModel?> getActiveShift(List<ShiftModel> shifts, GetStorage box, UserModel user, bool checkShiftFromServer) async {
-    // Filter shifts by userId to prevent users from accessing other users' shifts
-    // Only return active shifts that belong to the current user
-    for(var cur in shifts)  {
-      if(!cur.isShiftClosed! && cur.userId != null && user.id != null && cur.userId == user.id){
+    // First, honor explicitly selected shift reference if present
+    final String? selectedRef = box.read(AppConstants.SELECTED_SHIFT_REF);
+    if (selectedRef != null && selectedRef.isNotEmpty) {
+      // Try to find the selected shift in the provided list
+      var selected = shifts.firstWhere(
+        (cur) => !cur.isShiftClosed! && cur.userId != null && user.id != null && cur.userId == user.id && cur.shiftReference == selectedRef,
+        orElse: () => ShiftModel(),
+      );
+      
+      // If not found in provided list, reload from storage to ensure we have the latest data
+      if (selected.shiftReference == null) {
+        print("getActiveShift: SELECTED_SHIFT_REF ${selectedRef} set but shift not found in provided list, reloading from storage");
+        List<ShiftModel> reloadedShifts = getOfflineList<ShiftModel>(
+            AppConstants.SHIFT_LIST,
+            (map) => ShiftModel.fromMap(map),
+            box);
+        selected = reloadedShifts.firstWhere(
+          (cur) => !cur.isShiftClosed! && cur.userId != null && user.id != null && cur.userId == user.id && cur.shiftReference == selectedRef,
+          orElse: () => ShiftModel(),
+        );
+      }
+      
+      if (selected.shiftReference != null) {
+        print("getActiveShift: Found selected shift ${selectedRef} for user ${user.userName}");
+        return selected;
+      } else {
+        print("getActiveShift: SELECTED_SHIFT_REF ${selectedRef} set but shift not found even after reloading - will not check server to avoid returning wrong shift");
+        // If SELECTED_SHIFT_REF is set but shift not found locally, don't check server
+        // This prevents returning a different shift when a new shift was just opened
+        return null;
+      }
+    }
+
+    // Otherwise, return first open shift for the current user
+    for (var cur in shifts) {
+      if (!cur.isShiftClosed! && cur.userId != null && user.id != null && cur.userId == user.id) {
         return cur;
       }
     }
-    if(checkShiftFromServer) {
+
+    // Optionally check server for open shift (only if no SELECTED_SHIFT_REF is set)
+    if (checkShiftFromServer) {
       ShiftModel? sh = await SyncService.getOpenedShift(user, box);
       if (sh != null) {
         int index = shifts.indexWhere((shift) => shift.shiftReference == sh.shiftReference);
-        // if (index != -1) {
-        if (index != -1) {
-        } else{
+        if (index == -1) {
+          // New shift from server - add it
           shifts.add(sh);
+          writeItems(AppConstants.SHIFT_LIST, shifts, box);
+        } else {
+          // Shift already exists locally - preserve local opening time if it's newer or if local shift has no id (newly created)
+          // This prevents server from overwriting a newly created shift's opening time
+          ShiftModel localShift = shifts[index];
+          bool shouldPreserveLocalOpeningTime = false;
+          
+          // Preserve if local shift is newly created (no id) or if local opening time is newer
+          if (localShift.id == null) {
+            shouldPreserveLocalOpeningTime = true;
+            print("Preserving opening time for newly created shift (no id): ${localShift.openingTime}");
+          } else if (localShift.openingTime != null && sh.openingTime != null) {
+            try {
+              DateTime localOpeningTime = DateTime.parse(localShift.openingTime!);
+              DateTime serverOpeningTime = DateTime.parse(sh.openingTime!);
+              // If local opening time is newer (more recent), preserve it
+              if (localOpeningTime.isAfter(serverOpeningTime)) {
+                shouldPreserveLocalOpeningTime = true;
+                print("Preserving local opening time ${localShift.openingTime} (newer than server: ${sh.openingTime})");
+              }
+            } catch (e) {
+              print("Error comparing opening times: $e");
+            }
+          }
+          
+          // Update local shift with server data but preserve opening time if needed
+          if (shouldPreserveLocalOpeningTime && localShift.openingTime != null) {
+            sh.openingTime = localShift.openingTime;
+          }
+          shifts[index] = sh;
           writeItems(AppConstants.SHIFT_LIST, shifts, box);
         }
         return sh;

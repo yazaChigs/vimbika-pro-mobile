@@ -52,6 +52,13 @@ class ViewShiftScreen extends StatelessWidget {
             ),
             actions: [
               IconButton(
+                icon: Icon(Icons.history),
+                tooltip: 'View Shifts History',
+                onPressed: () {
+                  Get.toNamed(AppRoutes.SHIFTS_HISTORY);
+                },
+              ),
+              IconButton(
                 icon: Icon(Icons.refresh),
                 onPressed: () {
                   shiftController.shiftInfo();

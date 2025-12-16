@@ -102,7 +102,10 @@ class BackgroundService extends GetxService {
       List<SaleInfoModel> actualSales = [];
       List<SaleInfoModel> reversed = [];
       List<CurrencyAmount> currencyAmounts = [];
+      // Load ALL shifts (including closed ones) to ensure sales can be matched to their correct shift
+      // This is critical when syncing sales from a closed shift
       List<ShiftModel> shiftList = loadShiftInfo(box);
+      print("Sync: Loaded ${shiftList.length} shift(s) (including closed) for matching sales");
       bool synced =  false;
       for(ShiftModel sh in shiftList){
         if(sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty){
@@ -141,25 +144,52 @@ class BackgroundService extends GetxService {
             }
             
             // Update shift currency amount with new posReference from server
+            // CRITICAL: Use the shiftReference from the synced sale to ensure correct association
+            // This works even if the shift is closed - we match by shiftReference regardless of isShiftClosed
             if (saleInfoModel.sale?.shiftReference != null) {
+              // Find the shift by the exact shiftReference from the sale
+              // NOTE: We intentionally don't check isShiftClosed here - closed shifts can still have sales synced to them
               ShiftModel? shift = shiftList.firstWhereOrNull(
-                (shift) => shift.shiftReference == saleInfoModel.sale!.shiftReference
+                (shift) => shift.shiftReference == saleInfoModel.sale!.shiftReference &&
+                           shift.userId != null &&
+                           user.id != null &&
+                           shift.userId == user.id // Ensure shift belongs to current user
               );
+              
               if (shift != null && shift.shiftCurrencyAmounts != null) {
+                String shiftStatus = shift.isShiftClosed == true ? "CLOSED" : "OPEN";
+                print("Sync: Updating ${shiftStatus} shift ${shift.shiftReference} with sale ${saleInfoModel.sale?.posReference}");
                 // Find and update the currency amount with new posReference
                 int index = shift.shiftCurrencyAmounts!.indexWhere(
                   (ca) => ca.posReference == saleInfo.sale!.posReference || 
-                          ca.posReference == saleInfo.sale!.referenceNumber
+                          ca.posReference == saleInfo.sale!.referenceNumber ||
+                          (ca.shiftReference == saleInfoModel.sale!.shiftReference && 
+                           ca.posReference == null) // Match by shiftReference if posReference not set yet
                 );
                 if (index != -1) {
-                  // Update existing currency amount with new posReference
+                  // Update existing currency amount with new posReference from server
                   shift.shiftCurrencyAmounts![index].posReference = saleInfoModel.sale?.posReference;
-                } else if (saleCurrencyAmount.posReference != null && saleCurrencyAmount.posReference!.isNotEmpty) {
-                  // Add new currency amount if not found
+                  print("Sync: Updated existing currency amount at index $index");
+                } else if (saleCurrencyAmount.shiftReference == saleInfoModel.sale!.shiftReference) {
+                  // Only add if the currency amount's shiftReference matches the sale's shiftReference
                   saleCurrencyAmount.posReference = saleInfoModel.sale?.posReference;
                   shift.shiftCurrencyAmounts!.add(saleCurrencyAmount);
+                  print("Sync: Added new currency amount to shift ${shift.shiftReference}");
+                } else {
+                  print("Sync: Warning - Currency amount shiftReference (${saleCurrencyAmount.shiftReference}) doesn't match sale shiftReference (${saleInfoModel.sale!.shiftReference})");
                 }
+                
+                // Persist the updated shift
+                int shiftIndex = shiftList.indexWhere((s) => s.shiftReference == shift.shiftReference);
+                if (shiftIndex != -1) {
+                  shiftList[shiftIndex] = shift;
+                  LocalStorageService().writeItems(AppConstants.SHIFT_LIST, shiftList, box);
+                }
+              } else {
+                print("Sync: Warning - Shift ${saleInfoModel.sale!.shiftReference} not found or doesn't belong to user ${user.id}");
               }
+            } else {
+              print("Sync: Warning - Sale ${saleInfoModel.sale?.posReference} has no shiftReference");
             }
             
             if(sales.any((saleInfo)=> saleInfo.sale?.posReference == saleInfo.sale?.posReference)){
@@ -192,26 +222,53 @@ class BackgroundService extends GetxService {
               saleInfoModel = SaleInfoModel(sale: saleModel, syncStatus: true);
             }
             
-            // Update shift currency amount with new posReference from server
+            // Update shift currency amount with new posReference from server (for reversed sales)
+            // CRITICAL: Use the shiftReference from the synced sale to ensure correct association
+            // This works even if the shift is closed - we match by shiftReference regardless of isShiftClosed
             if (saleInfoModel.sale?.shiftReference != null) {
+              // Find the shift by the exact shiftReference from the sale
+              // NOTE: We intentionally don't check isShiftClosed here - closed shifts can still have sales synced to them
               ShiftModel? shift = shiftList.firstWhereOrNull(
-                (shift) => shift.shiftReference == saleInfoModel.sale!.shiftReference
+                (shift) => shift.shiftReference == saleInfoModel.sale!.shiftReference &&
+                           shift.userId != null &&
+                           user.id != null &&
+                           shift.userId == user.id // Ensure shift belongs to current user
               );
+              
               if (shift != null && shift.shiftCurrencyAmounts != null) {
+                String shiftStatus = shift.isShiftClosed == true ? "CLOSED" : "OPEN";
+                print("Sync (Reversed): Updating ${shiftStatus} shift ${shift.shiftReference} with sale ${saleInfoModel.sale?.posReference}");
                 // Find and update the currency amount with new posReference
                 int index = shift.shiftCurrencyAmounts!.indexWhere(
                   (ca) => ca.posReference == saleInfo.sale!.posReference || 
-                          ca.posReference == saleInfo.sale!.referenceNumber
+                          ca.posReference == saleInfo.sale!.referenceNumber ||
+                          (ca.shiftReference == saleInfoModel.sale!.shiftReference && 
+                           ca.posReference == null) // Match by shiftReference if posReference not set yet
                 );
                 if (index != -1) {
-                  // Update existing currency amount with new posReference
+                  // Update existing currency amount with new posReference from server
                   shift.shiftCurrencyAmounts![index].posReference = saleInfoModel.sale?.posReference;
-                } else if (saleCurrencyAmount.posReference != null && saleCurrencyAmount.posReference!.isNotEmpty) {
-                  // Add new currency amount if not found
+                  print("Sync (Reversed): Updated existing currency amount at index $index");
+                } else if (saleCurrencyAmount.shiftReference == saleInfoModel.sale!.shiftReference) {
+                  // Only add if the currency amount's shiftReference matches the sale's shiftReference
                   saleCurrencyAmount.posReference = saleInfoModel.sale?.posReference;
                   shift.shiftCurrencyAmounts!.add(saleCurrencyAmount);
+                  print("Sync (Reversed): Added new currency amount to shift ${shift.shiftReference}");
+                } else {
+                  print("Sync (Reversed): Warning - Currency amount shiftReference (${saleCurrencyAmount.shiftReference}) doesn't match sale shiftReference (${saleInfoModel.sale!.shiftReference})");
                 }
+                
+                // Persist the updated shift
+                int shiftIndex = shiftList.indexWhere((s) => s.shiftReference == shift.shiftReference);
+                if (shiftIndex != -1) {
+                  shiftList[shiftIndex] = shift;
+                  LocalStorageService().writeItems(AppConstants.SHIFT_LIST, shiftList, box);
+                }
+              } else {
+                print("Sync (Reversed): Warning - Shift ${saleInfoModel.sale!.shiftReference} not found or doesn't belong to user ${user.id}");
               }
+            } else {
+              print("Sync (Reversed): Warning - Sale ${saleInfoModel.sale?.posReference} has no shiftReference");
             }
             
             // Update the sale in the local storage

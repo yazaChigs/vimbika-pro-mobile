@@ -6,6 +6,7 @@ import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
+import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart';
 
@@ -16,6 +17,7 @@ class PinController extends GetxController {
   RxBool isPinVisible = false.obs;
   var shiftAvailable = false.obs;
   final LocalStorageService _localStorageService = LocalStorageService();
+  final ConnectivityService _connectivityService = ConnectivityService();
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
 
   @override
@@ -33,79 +35,149 @@ class PinController extends GetxController {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     print("PIN Screen: Loaded user ${user.userName} with ID ${user.id}");
     
-    // First, check local shifts immediately (no server call) to show dialog quickly
-    List<ShiftModel> tempShiftList = loadShifts(box);
-    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, user, false);
-    
-    if(tempActiveShift != null) {
-      print("Active Shift Found (local): ${tempActiveShift.shiftReference}");
-      shiftAvailable.value = true;
-      DateTime openingTime = DateTime.parse(tempActiveShift.openingTime!);
-      if(DateTime.now().day != openingTime.day || DateTime.now().month != openingTime.month){//shift is from a different day
-        // Show dialog immediately based on local data
-        showConfirmDialog(tempActiveShift,tempShiftList);
+    // Check if a shift has already been selected (user clicked on existing shift in modal)
+    // If so, don't show the modal again - just wait for PIN entry
+    final String? selectedRef = box.read(AppConstants.SELECTED_SHIFT_REF);
+    if (selectedRef != null && selectedRef.isNotEmpty) {
+      print("PIN Screen: Shift ${selectedRef} already selected, skipping modal - waiting for PIN entry");
+      // Verify the selected shift exists and is valid
+      List<ShiftModel> tempShiftList = loadShifts(box);
+      final selectedShift = tempShiftList.firstWhereOrNull(
+        (s) => s.shiftReference == selectedRef &&
+               s.userId != null &&
+               user.id != null &&
+               s.userId == user.id &&
+               (s.isShiftClosed == null || s.isShiftClosed == false)
+      );
+      if (selectedShift != null) {
+        shiftAvailable.value = true;
+        print("PIN Screen: Confirmed selected shift ${selectedRef} is valid");
+        // Don't show modal, just wait for PIN entry
+        return;
+      } else {
+        print("PIN Screen: Selected shift ${selectedRef} not found or invalid, clearing and showing modal");
+        box.remove(AppConstants.SELECTED_SHIFT_REF);
       }
-    } else{
-      // No local shift found, check server (this may be slow, but only happens when no local shift)
-      shiftAvailable.value = false;
-      // Check server in background, but don't block UI
-      _checkServerForShift(box, tempShiftList);
     }
+    
+    // Load shifts and show open-shift picker (local first, optionally server)
+    List<ShiftModel> tempShiftList = loadShifts(box);
+    await _maybeFetchServerShifts(box, tempShiftList); // merge server shifts if online
+    
+    // Reload shifts after potential server merge to ensure modal shows all available shifts
+    tempShiftList = loadShifts(box);
+    _showOpenShiftPicker(tempShiftList);
 
+    // Only check for branch if no shift has been selected yet
+    // If a shift is selected, the user is already past branch selection
     var selectedBranch = box.read(AppConstants.SELECTED_BRANCH) ?? null;
-    //print(selectedBranch);
-    if(selectedBranch == null){
+    if(selectedBranch == null && (selectedRef == null || selectedRef.isEmpty)){
+      print("PIN Screen: No branch selected and no shift selected, navigating to branch selection");
       Get.offNamed(AppRoutes.CHOOSE_BRANCH);
+    } else if (selectedBranch == null && selectedRef != null && selectedRef.isNotEmpty) {
+      print("PIN Screen: Shift ${selectedRef} selected but no branch - this shouldn't happen, but continuing anyway");
     }
 
   }
 
 
-  // Check server for shift in background (non-blocking)
-  Future<void> _checkServerForShift(GetStorage box, List<ShiftModel> tempShiftList) async {
+  Future<void> _maybeFetchServerShifts(GetStorage box, List<ShiftModel> tempShiftList) async {
+    // Only check server if online to avoid confusion and delays
+    final bool isOnline = await _connectivityService.checkServerConnection();
+    if (!isOnline) {
+      print("Offline: Skipping server shift check, using local shifts only");
+      return;
+    }
+    
     try {
+      print("Online: Checking server for open shifts");
       ShiftModel? serverShift = await _localStorageService.getActiveShift(tempShiftList, box, user, true);
-      if(serverShift != null) {
+      if (serverShift != null) {
         print("Active Shift Found (server): ${serverShift.shiftReference}");
-        shiftAvailable.value = true;
-        DateTime openingTime = DateTime.parse(serverShift.openingTime!);
-        if(DateTime.now().day != openingTime.day || DateTime.now().month != openingTime.month){
-          // Show dialog if shift is from different day
-          showConfirmDialog(serverShift, tempShiftList);
-        }
+        // If newly added, tempShiftList already updated via writeItems in getActiveShift
       }
     } catch (e) {
       print("Error checking server for shift: $e");
-      // Silently fail - user can still proceed without shift
     }
   }
 
-  void showConfirmDialog(ShiftModel shift, List<ShiftModel> tempShiftList) {
-    // Use WidgetsBinding to ensure dialog shows immediately after frame is built
+  void _showOpenShiftPicker(List<ShiftModel> allShifts) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      DateTime openingTime = DateTime.parse(shift.openingTime!);
-      openingTime = openingTime.add(Duration(hours:2)); //ocean digital is 2 hours behind our local time
+      final GetStorage box = GetStorage();
+      final List<ShiftModel> openShifts = allShifts.where((s) =>
+        s.userId != null &&
+        user.id != null &&
+        s.userId == user.id &&
+        (s.isShiftClosed == null || s.isShiftClosed == false)
+      ).toList();
+
+      if (openShifts.isEmpty) {
+        // No open shifts: proceed to open shift flow
+        shiftAvailable.value = false;
+        return;
+      }
+
       Get.defaultDialog(
-        title: "Confirmation",
-        middleText: "Continue with old shift ${shift.shiftReference} opened on ${openingTime}?",
-        textCancel: "No, Close & Open New Shift",
-        textConfirm: "Yes, Continue old  with Shift",
-        onCancel: () {
-          GetStorage box = GetStorage();
-         shiftAvailable.value =  false;
-         shift.closingTime =  DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
-         shift.isShiftClosed = true;
-         shift.stopSync =  false;
-            List<ShiftModel> shi =  _localStorageService.replaceShift(shift, tempShiftList);
-            _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
-        },
-        onConfirm: () {
-          shiftAvailable.value =  true;
-          Get.snackbar("Confirmed", "Shift ${shift.shiftReference} is confirmed");
-          Get.back(closeOverlays: true);
-        },
+        title: "Select Open Shift",
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ...openShifts.map((shift) {
+                final openingTime = DateTime.tryParse(shift.openingTime ?? "") ?? DateTime.now();
+                return ListTile(
+                  title: Text("Shift ${shift.shiftReference ?? ''}"),
+                  subtitle: Text("Opened: $openingTime"),
+                  onTap: () {
+                    // Mark selected shift
+                    _persistSelectedShift(shift, allShifts, box);
+                    shiftAvailable.value = true;
+                    Get.back(closeOverlays: true);
+                    print("Selected existing shift ${shift.shiftReference} - waiting for PIN validation");
+                    // Note: Navigation will happen after PIN validation in onNumberEntered -> startSelling()
+                  },
+                );
+              }).toList(),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.add),
+                title: const Text("Open New Shift"),
+                onTap: () {
+                  // Clear selected ref so new shift flow can run
+                  box.remove(AppConstants.SELECTED_SHIFT_REF);
+                  shiftAvailable.value = false;
+                  Get.back(closeOverlays: true);
+                  Get.offNamed(AppRoutes.OPEN_SHIFT);
+                },
+              ),
+            ],
+          ),
+        ),
+        barrierDismissible: false,
       );
     });
+  }
+
+  void _persistSelectedShift(ShiftModel selected, List<ShiftModel> allShifts, GetStorage box) {
+    print("_persistSelectedShift: Persisting shift ${selected.shiftReference} for user ${user.userName}");
+    
+    // Mark selected as active, keep others unchanged (they may remain open)
+    for (var i = 0; i < allShifts.length; i++) {
+      if (allShifts[i].shiftReference == selected.shiftReference) {
+        allShifts[i].active = true;
+        allShifts[i].isShiftClosed = false;
+        print("_persistSelectedShift: Marked shift ${allShifts[i].shiftReference} as active");
+      }
+    }
+    // Persist list and the selected ref
+    _localStorageService.writeItems(AppConstants.SHIFT_LIST, allShifts, box);
+    box.write(AppConstants.SELECTED_SHIFT_REF, selected.shiftReference);
+    print("_persistSelectedShift: Set SELECTED_SHIFT_REF to ${selected.shiftReference} and persisted ${allShifts.length} shifts");
+    
+    // Verify the shift was saved correctly
+    final String? savedRef = box.read(AppConstants.SELECTED_SHIFT_REF);
+    print("_persistSelectedShift: Verification - SELECTED_SHIFT_REF in storage is: $savedRef");
   }
   Future<void> onNumberEntered(int number) async {
     if (enteredPin.value.length < 6) {
@@ -160,9 +232,57 @@ class PinController extends GetxController {
       user = UserModel.fromMap(Map<String, dynamic>.from(model));
     }
     
+    // Check connectivity to determine if we should check server
+    final bool isOnline = await _connectivityService.checkServerConnection();
+    
+    // Check if a shift was explicitly selected (e.g., from modal)
+    final String? selectedRef = box.read(AppConstants.SELECTED_SHIFT_REF);
+    
     // Reload shifts and check for active shift belonging to this user
     List<ShiftModel> tempShiftList = loadShifts(box);
-    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, user, true);
+    print("After PIN validation: Loaded ${tempShiftList.length} shifts from storage");
+    
+    ShiftModel? tempActiveShift;
+    
+    // If a shift was explicitly selected, prioritize finding that specific shift
+    if (selectedRef != null && selectedRef.isNotEmpty) {
+      print("After PIN validation: Looking for explicitly selected shift: $selectedRef (${isOnline ? 'Online' : 'Offline'})");
+      print("After PIN validation: Available shift references: ${tempShiftList.map((s) => s.shiftReference).join(', ')}");
+      tempActiveShift = tempShiftList.firstWhere(
+        (cur) => cur.shiftReference == selectedRef &&
+                 cur.userId != null &&
+                 user.id != null &&
+                 cur.userId == user.id &&
+                 (cur.isShiftClosed == null || cur.isShiftClosed == false),
+        orElse: () => ShiftModel(),
+      );
+      
+      // If found, verify and use it; otherwise fall back to getActiveShift
+      if (tempActiveShift.shiftReference != null) {
+        // Double-check: verify the shift belongs to the current user
+        if (tempActiveShift.userId != null && user.id != null && tempActiveShift.userId == user.id) {
+          print("After PIN validation: Found and verified selected shift ${tempActiveShift.shiftReference} for user ${user.userName} (${isOnline ? 'Online' : 'Offline'})");
+          shiftAvailable.value = true;
+          // Don't return early - let the flow continue to startSelling()
+          return;
+        } else {
+          print("After PIN validation: Selected shift $selectedRef found but belongs to different user (${tempActiveShift.userId} vs ${user.id})");
+          // Clear invalid selected ref
+          box.remove(AppConstants.SELECTED_SHIFT_REF);
+          tempActiveShift = null;
+        }
+      } else {
+        print("After PIN validation: Selected shift $selectedRef not found in local list (loaded ${tempShiftList.length} shifts), trying getActiveShift");
+        // Don't clear SELECTED_SHIFT_REF yet - let getActiveShift try to find it (it will reload from storage)
+        // If getActiveShift also fails, it will handle clearing
+      }
+    }
+    
+    // If no explicit selection or selected shift not found, use standard getActiveShift
+    // Only check server if online to avoid confusion and delays when offline
+    final bool shouldCheckServer = isOnline;
+    print("After PIN validation: Using getActiveShift (${shouldCheckServer ? 'will check server' : 'local only'})");
+    tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, user, shouldCheckServer);
     
     if(tempActiveShift != null) {
       print("After PIN validation: Active shift found for user ${user.userName} (ID: ${user.id}): ${tempActiveShift.shiftReference}");

@@ -1100,9 +1100,12 @@ class SaleScreen extends GetView {
                         borderRadius: BorderRadius.circular(8.0),
                       ),
                       child: Obx(() {
+                        // Create a stable snapshot of customers to prevent race conditions
+                        final List<CustomerModel> customersSnapshot = List.from(cartController.allCustomers);
+                        
                         return SearchChoices.single(
                           padding: 0,
-                          items: cartController.allCustomers
+                          items: customersSnapshot
                               .map((CustomerModel customer) {
                             return DropdownMenuItem<CustomerModel>(
                               value: customer,
@@ -1119,40 +1122,62 @@ class SaleScreen extends GetView {
                           searchFn:
                               (String searchTerm, List<DropdownMenuItem> items) {
                             // Enhanced search: search by name, phone, ID, customer ID, or account number
+                            // Add bounds checking to prevent RangeError
                             List<int> matches = [];
+                            if (items.isEmpty || searchTerm.isEmpty) {
+                              // If empty search term, return all indices
+                              if (searchTerm.isEmpty) {
+                                for (int i = 0; i < items.length; i++) {
+                                  matches.add(i);
+                                }
+                              }
+                              return matches;
+                            }
+                            
                             for (int i = 0; i < items.length; i++) {
-                              CustomerModel customer =
-                                  items[i].value as CustomerModel;
+                              // Safety check: ensure index is valid
+                              if (i >= items.length) break;
+                              
+                              try {
+                                final item = items[i];
+                                if (item.value == null) continue;
+                                
+                                CustomerModel customer = item.value as CustomerModel;
 
-                              bool nameMatch = customer.name != null &&
-                                  customer.name!
-                                      .toLowerCase()
-                                      .contains(searchTerm.toLowerCase());
-                              bool phoneMatch = customer.mobilePhone != null &&
-                                  customer.mobilePhone!
-                                      .toLowerCase()
-                                      .contains(searchTerm.toLowerCase());
-                              bool idMatch = customer.id != null &&
-                                  customer.id!
-                                      .toLowerCase()
-                                      .contains(searchTerm.toLowerCase());
-                              bool customerIdMatch =
-                                  customer.customerId != null &&
-                                      customer.customerId!
-                                          .toLowerCase()
-                                          .contains(searchTerm.toLowerCase());
-                              bool accountNumberMatch =
-                                  customer.accountNumber != null &&
-                                      customer.accountNumber!
-                                          .toLowerCase()
-                                          .contains(searchTerm.toLowerCase());
+                                bool nameMatch = customer.name != null &&
+                                    customer.name!
+                                        .toLowerCase()
+                                        .contains(searchTerm.toLowerCase());
+                                bool phoneMatch = customer.mobilePhone != null &&
+                                    customer.mobilePhone!
+                                        .toLowerCase()
+                                        .contains(searchTerm.toLowerCase());
+                                bool idMatch = customer.id != null &&
+                                    customer.id!
+                                        .toLowerCase()
+                                        .contains(searchTerm.toLowerCase());
+                                bool customerIdMatch =
+                                    customer.customerId != null &&
+                                        customer.customerId!
+                                            .toLowerCase()
+                                            .contains(searchTerm.toLowerCase());
+                                bool accountNumberMatch =
+                                    customer.accountNumber != null &&
+                                        customer.accountNumber!
+                                            .toLowerCase()
+                                            .contains(searchTerm.toLowerCase());
 
-                              if (nameMatch ||
-                                  phoneMatch ||
-                                  idMatch ||
-                                  customerIdMatch ||
-                                  accountNumberMatch) {
-                                matches.add(i);
+                                if (nameMatch ||
+                                    phoneMatch ||
+                                    idMatch ||
+                                    customerIdMatch ||
+                                    accountNumberMatch) {
+                                  matches.add(i);
+                                }
+                              } catch (e) {
+                                // Skip invalid items to prevent crashes
+                                print("Error processing customer at index $i: $e");
+                                continue;
                               }
                             }
 
@@ -1807,6 +1832,9 @@ class SaleScreen extends GetView {
                                                                 "Amount Paid",
                                                             hintText:
                                                                 "Amount Paid"),
+                                                    onTap: () {
+                                                      cartController.activeInput.value = 'amountPaid';
+                                                    },
                                                     onChanged: (String val) {
                                                       cartController.hasAmountText.value = val.isNotEmpty;
                                                       if (val.isNotEmpty) {
@@ -1920,6 +1948,9 @@ class SaleScreen extends GetView {
                                                           flex:3,
                                                           child:
                                                               TextField(
+                                                                onTap: () {
+                                                                  cartController.activeInput.value = 'amtToAcc';
+                                                                },
                                                                 onChanged: (String val) {
                                                                   cartController.amtToAccChange(val);
                                                                 },
@@ -1950,7 +1981,17 @@ class SaleScreen extends GetView {
                                                                 ),
                                                                 prefixIcon: const Icon(Icons.monetization_on_outlined),
                                                                 labelText: "Change TO Acc",
-                                                                hintText: "Change TO Acc"),
+                                                                hintText: "Change TO Acc",
+                                                                suffixIcon: cartController.amtToAccTextEditingController.text.isNotEmpty
+                                                                    ? IconButton(
+                                                                        icon: const Icon(Icons.clear),
+                                                                        onPressed: () {
+                                                                          cartController.amtToAccTextEditingController.clear();
+                                                                          cartController.amtToAccChange("0");
+                                                                          cartController.activeInput.value = 'none';
+                                                                        },
+                                                                      )
+                                                                    : null),
                                                           ),
                                                         ):SizedBox(),
                                                         // Tip input - hide when Add to Account button is enabled
@@ -1959,6 +2000,9 @@ class SaleScreen extends GetView {
                                                           flex:3,
                                                           child:
                                                               TextField(
+                                                                onTap: () {
+                                                                  cartController.activeInput.value = 'tip';
+                                                                },
                                                                 onChanged: (String val) {
                                                                   cartController.tipAmountChange(val);
                                                                 },
@@ -1985,7 +2029,17 @@ class SaleScreen extends GetView {
                                                                 ),
                                                                 prefixIcon: const Icon(Icons.monetization_on_sharp),
                                                                 labelText: "Tip Amt",
-                                                                hintText: "Tip amt"),
+                                                                hintText: "Tip amt",
+                                                                suffixIcon: cartController.tipAmtTextEditingController.text.isNotEmpty
+                                                                    ? IconButton(
+                                                                        icon: const Icon(Icons.clear),
+                                                                        onPressed: () {
+                                                                          cartController.tipAmtTextEditingController.clear();
+                                                                          cartController.tipAmountChange("0");
+                                                                          cartController.activeInput.value = 'none';
+                                                                        },
+                                                                      )
+                                                                    : null),
                                                           ),
                                                         ):SizedBox(),
                                                       ],
@@ -2367,53 +2421,53 @@ class SaleScreen extends GetView {
                                           cartController.cartItems.any((cartItem)=>!cartItem.breakage) || cartController.cartItems.isEmpty?
                                       Container(
                                         width:double.infinity,
-                                        child: ElevatedButton(
-                                          onPressed: () {
-                                            if (cartController
-                                                .cartItems.isEmpty) {
-                                              Get.snackbar("Error","Your cart is empty.",snackPosition:SnackPosition.TOP);
-                                              return;
-                                            }
-                                            if (cartController.selectedPaymentType.value ==null ||
-                                                cartController.selectedPaymentType.value!.id == null) {
-                                              Get.snackbar("Error",
-                                                  "Please select a payment type.",
-                                                  snackPosition:
-                                                  SnackPosition.TOP);
-                                              return;
-                                            }
-                                            if (cartController.amountPaid
-                                                    .value <
-                                                    cartController
-                                                        .totalCostInSelectedCurrency
-                                                        .value) {
-                                              Get.snackbar("Error",
-                                                  "Please enter a valid amount paid.",
-                                                  snackPosition:
-                                                  SnackPosition.TOP);
-                                              return;
-                                            }
-                                            if (!saleController.chargeClicked.value && !cartController.isCharging.value) {
-                                              cartController.showConfirmDialogChargeSale();
-                                              saleController.chargeClicked.value = true;
-                                            }
-                                          },
-                                          style: TextButton.styleFrom(
-                                            backgroundColor: cartController.isCharging.value
-                                                ? Colors.grey
-                                                : Colors.lightGreenAccent[400],
-                                            // Set button color to red
-                                            foregroundColor: Colors.black,
-                                            // Set text color to red
-                                            textStyle: TextStyle(
-                                                fontSize: 18,
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold), // Set text size
-                                          ),
-                                          child: Obx(() => Text(
-                                            cartController.isCharging.value ? 'CHARGING...' : 'Charge'
-                                          )),
-                                        ),
+                                        child: Obx(() {
+                                          final tip = cartController.tipValue.value;
+                                          final amtToAcc = cartController.amtToAccValue.value;
+                                          final requiredAmount = cartController.totalCostInSelectedCurrency.value + tip + amtToAcc;
+                                          final paymentSelected = cartController.selectedPaymentType.value != null &&
+                                              cartController.selectedPaymentType.value!.id != null;
+                                          final canCharge = !cartController.isCharging.value &&
+                                              !saleController.chargeClicked.value &&
+                                              paymentSelected &&
+                                              cartController.amountPaid.value >= requiredAmount &&
+                                              cartController.cartItems.isNotEmpty;
+                                          return Column(
+                                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                                            children: [
+                                              ElevatedButton(
+                                                onPressed: canCharge
+                                                    ? () {
+                                                        cartController.showConfirmDialogChargeSale();
+                                                        saleController.chargeClicked.value = true;
+                                                      }
+                                                    : null,
+                                                style: TextButton.styleFrom(
+                                                  backgroundColor: canCharge
+                                                      ? Colors.lightGreenAccent[400]
+                                                      : Colors.grey,
+                                                  foregroundColor: Colors.black,
+                                                  textStyle: TextStyle(
+                                                      fontSize: 18,
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.bold),
+                                                ),
+                                                child: Text(
+                                                  cartController.isCharging.value ? 'CHARGING...' : 'Charge'
+                                                ),
+                                              ),
+                                              if (!canCharge)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(top: 4.0),
+                                                  child: Text(
+                                                    'Need at least ${requiredAmount.toStringAsFixed(2)} (have ${cartController.amountPaid.value.toStringAsFixed(2)})',
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(fontSize: 12, color: Colors.red),
+                                                  ),
+                                                ),
+                                            ],
+                                          );
+                                        }),
                                       )
                                               :Container(
                                         width:double.infinity,

@@ -35,6 +35,8 @@ import '../../../services/customer_display.dart';
 import '../../../services/printer_service.dart';
 import '../../shift/model/currency_amount.dart';
 import '../../shift/model/shift_model.dart';
+import '../../customers/controller/customer_controller.dart';
+import '../../../shared/models/customer_model.dart';
 
 class SaleController extends GetxController {
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
@@ -217,27 +219,123 @@ class SaleController extends GetxController {
   }
 
   Future<void> syncData() async {
-    AppHelper.showLoading("Syncing....");
-    print("syncing products..");
-    getBranchStock(box);
-    // print("syncing offline sales..");
-    // await syncOfflineSales();
-    // print("syncing tickets..");
-     //await SyncService.syncOfflineTickets(user, box);
-    print("syncing new Customers..");
-    await SyncService.saveCustomer(user, box);
-    await SyncService.savePaymentReceived(user, box);
-    print("syncing shifts..");
-    await SyncService.syncOfflineShifts(user, box);
-    print("syncing currencies..");
-    await SyncService.getCurrencies(user, box);
-    print("syncing payments..");
-    await SyncService.getPaymentTypes(user, box);
-    print("syncing new Payments..");
-    await SyncService.getCustomers(user, box,user.companyId!);
-    print("hiding loading");
+    try {
+      // Check connectivity first
+      bool isOnline = await _connectivityService.checkServerConnection();
+      isServerReachable.value = isOnline;
+
+      // If offline, clear any existing loader before proceeding
+      if (!isOnline) {
+        _hideLoadingOnce();
+      }
+      
+      if (isOnline) {
+        // Online: Proceed with sync operations
+        _showLoadingOnce("Syncing....");
+        print("syncing products..");
+        bool productsOk = await getBranchStock(box);
+        if (!productsOk) {
+          _hideLoadingOnce(); // ensure syncing overlay is closed if we fail immediately
+          await _refreshOffline();
+          return;
+        }
+        print("syncing new Customers..");
+        await SyncService.saveCustomer(user, box);
+        await SyncService.savePaymentReceived(user, box);
+        if (await _abortIfOffline()) return;
+        print("syncing shifts..");
+        await SyncService.syncOfflineShifts(user, box);
+        if (await _abortIfOffline()) return;
+        print("syncing currencies..");
+        await SyncService.getCurrencies(user, box);
+        if (await _abortIfOffline()) return;
+        print("syncing payments..");
+        await SyncService.getPaymentTypes(user, box);
+        if (await _abortIfOffline()) return;
+        print("syncing new Payments..");
+        await SyncService.getCustomers(user, box,user.companyId!);
+        if (await _abortIfOffline()) return;
+        cartController.refreshCustomers();
+      } else {
+        // Offline: Just refresh local data from storage (no spinner)
+        _hideLoadingOnce(); // in case something left a loader active
+        await _refreshOffline();
+      }
+    } catch (e) {
+      print("syncData unexpected error: $e");
+      _hideLoadingOnce();
+      await _refreshOffline();
+    } finally {
+      print("hiding loading (final)");
+      _hideLoadingOnce();
+    }
+  }
+
+  // Refresh from local storage only (used for offline mode or when online sync fails)
+  Future<void> _refreshOffline() async {
+    print("Offline mode: Refreshing local data..");
+    
+    // Refresh products from local storage
+    print("refreshing products..");
+    getOfflineProducts(box); // Avoid network when already offline
+    
+    // Refresh customers from local storage
+    print("refreshing customers..");
+    // Prefer shared CustomerController if available to keep screens in sync
+    try {
+      final CustomerController customerController = Get.find<CustomerController>();
+      await customerController.reloadCustomersFromStorage();
+      // Mirror and re-filter using cartController logic without reloading from storage again
+      cartController.refreshCustomersFromList(
+        List<CustomerModel>.from(customerController.allCustomers)
+      );
+    } catch (_) {
+      // Fallback: at least refresh cart customers
+      cartController.refreshCustomers();
+    }
+    
+    // Refresh currencies from local storage
+    print("refreshing currencies..");
+    cartController.getOfflineCurrencyList(box);
+    
+    // Refresh payment types from local storage
+    print("refreshing payment types..");
+    List<PaymentTypeModel> paymentTypes = cartController.getOfflinePaymentTypeList(box);
+    if (paymentTypes.isNotEmpty) {
+      cartController.paymentTypesList.value = paymentTypes;
+      cartController.paymentTypesList.refresh();
+      cartController.filteredPaymentTypesList.value = paymentTypes;
+      cartController.filteredPaymentTypesList.refresh();
+    }
+    
+    print("offline refresh done");
+    Get.snackbar("Offline Mode", "Data refreshed from local storage",
+        snackPosition: SnackPosition.BOTTOM);
+  }
+
+  // Helper: after any sync step, if connectivity is lost, fall back to offline refresh.
+  Future<bool> _abortIfOffline() async {
+    bool stillOnline = await _connectivityService.checkServerConnection();
+    if (!stillOnline) {
+      await _refreshOffline();
+      return true;
+    }
+    return false;
+  }
+
+  // Ensure loading is shown only once at a time
+  static bool _loadingActive = false;
+  void _showLoadingOnce(String message) {
+    if (_loadingActive) {
+      AppHelper.hideLoading();
+    }
+    AppHelper.showLoading(message);
+    _loadingActive = true;
+  }
+
+  void _hideLoadingOnce() {
     AppHelper.hideLoading();
-    cartController.refreshCustomers();
+    _loadingActive = false;
   }
   void clearFilters() {
     selectedCategory.value = BaseNameModel();
@@ -281,7 +379,7 @@ class SaleController extends GetxController {
 
 
 
-  Future<void> getBranchStock(GetStorage box) async{
+  Future<bool> getBranchStock(GetStorage box) async{
 
     var selectedBranch = box.read(AppConstants.SELECTED_BRANCH) ?? null;
     //print(selectedBranch);
@@ -304,7 +402,6 @@ class SaleController extends GetxController {
               "/inventory/branch-stock-by-branch-mini", branchData, user.companyId!, "POST")
               .catchError((onError) {
             print("INSIDE FETCH..");
-            AppHelper.hideLoading();
             print(onError);
             if (onError is BadRequestException) {
               var apiError = json.decode(onError.message!);
@@ -312,6 +409,7 @@ class SaleController extends GetxController {
             } else {
               AppHelper.handleError(onError);
             }
+            return null;
           });
           if (response != null) {
             //AppHelper.hideLoading();
@@ -326,21 +424,28 @@ class SaleController extends GetxController {
             List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
                 item.toMap()).toList();
             box.write(AppConstants.BRANCH_PRODUCTS, itemsListMap);
+            return true;
           } else {
            // AppHelper.hideLoading();
             print("Failed to retrieve products");
+            return false;
           }
+        } else {
+          return false;
         }
         // else {
         //   getOfflineProducts(box);
         // }
       } else{
         Get.offNamed(AppRoutes.CHOOSE_BRANCH);
+        return false;
       }
 
     } else{
       Get.offNamed(AppRoutes.CHOOSE_BRANCH);
+      return false;
     }
+    return false;
   }
   getOfflineProducts(GetStorage box){
     // AppHelper.showLoading();

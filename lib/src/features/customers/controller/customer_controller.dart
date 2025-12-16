@@ -164,9 +164,18 @@ class CustomerController extends GetxController {
       print("Filtering customers by branch: ${branch!.name}");
       print("Customers before filter: ${customers.length}");
       // Filter by branch but always include WalkIn
-      filteredCustomers.value =
-          customers.where((cus) => (cus.branch != null && cus.branch!.name == branch!.name) || cus.name == "WalkIn").toList();
-      print("Customers after filter: ${filteredCustomers.length}");
+      List<CustomerModel> filteredByBranch = customers.where((cus) => 
+        (cus.branch != null && cus.branch!.name == branch!.name) || cus.name == "WalkIn"
+      ).toList();
+      
+      // If filtering leaves too few customers compared to available, fall back to original list (offline-friendly)
+      if (filteredByBranch.length < 5 && customers.length > filteredByBranch.length) {
+        filteredCustomers.value = customers; // Fallback to full list
+        print("Customers after filter (fallback to full list): ${customers.length}");
+      } else {
+        filteredCustomers.value = filteredByBranch;
+        print("Customers after filter: ${filteredCustomers.length}");
+      }
     } else {
       filteredCustomers.value = customers;
     }
@@ -294,7 +303,9 @@ class CustomerController extends GetxController {
           snackPosition: SnackPosition.BOTTOM);
       Navigator.of(Get.overlayContext!).pop();
       Get.back();
-      cartController.refreshCustomers();
+      // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
+      await reloadCustomersFromStorage();
+      cartController.refreshCustomersFromList(List<CustomerModel>.from(allCustomers));
     }else{
       Get.snackbar("Error", "Customer Already Exists",
           snackPosition: SnackPosition.BOTTOM);
@@ -667,12 +678,16 @@ class CustomerController extends GetxController {
     List<Map<String, dynamic>> customersListMap =
         customers.map((item) => item.toMap()).toList();
     box.write(AppConstants.CUSTOMER_LIST, customersListMap);
-    cartController.refreshCustomers();
+    // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
+    await reloadCustomersFromStorage();
+    cartController.refreshCustomersFromList(List<CustomerModel>.from(allCustomers));
     List<PaymentReceivedModel> paymentTypes =[];
     paymentReceivedModel.payer = customer;
     paymentTypes.add(paymentReceivedModel);
+    // Get the active shift reference for this payment (not associated with a sale)
+    String? shiftRef = cartController.activeShift.shiftReference;
     cartController.updateShiftWithNewSale(ref, paymentReceivedModel.dateTime!, paymentReceivedModel.amount!, isInternetAccess.value,
-        customer.name!, paymentTypes,"CASH_IN",customer.name!, false);
+        customer.name!, paymentTypes,"CASH_IN",customer.name!, false, shiftRef);
     Navigator.of(Get.overlayContext!).pop();
     allCustomers.refresh();
     filteredCustomers.value = allCustomers.value;
@@ -688,7 +703,7 @@ class CustomerController extends GetxController {
     }
   }
 
-  setLoyalCustomer(CustomerModel customer) {
+  Future<void> setLoyalCustomer(CustomerModel customer) async {
     GetStorage bb = GetStorage();
     int? index = allCustomers.indexOf((customer));
     customer.isLoyalCustomer = true;
@@ -700,7 +715,9 @@ class CustomerController extends GetxController {
     List<Map<String, dynamic>> itemsListMap =
         customers.map((item) => item.toMap()).toList();
     bb.write(AppConstants.CUSTOMER_LIST, itemsListMap);
-    cartController.refreshCustomers();
+    // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
+    await reloadCustomersFromStorage();
+    cartController.refreshCustomersFromList(List<CustomerModel>.from(allCustomers));
     allCustomers.refresh();
     filteredCustomers.refresh();
     Get.snackbar("Edit Customer", "Customer updated Successfully",
@@ -708,7 +725,7 @@ class CustomerController extends GetxController {
     clearForm();
   }
 
-  updateCustomerInfo() {
+  Future<void> updateCustomerInfo() async {
     GetStorage bb = GetStorage();
     CustomerModel? customer = allCustomers
         .firstWhereOrNull((customer) => customer.name == name.value);
@@ -735,6 +752,9 @@ class CustomerController extends GetxController {
     List<Map<String, dynamic>> itemsListMap =
         customers.map((item) => item.toMap()).toList();
     bb.write(AppConstants.CUSTOMER_LIST, itemsListMap);
+    // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
+    await reloadCustomersFromStorage();
+    cartController.refreshCustomersFromList(List<CustomerModel>.from(allCustomers));
     Get.snackbar("Edit Customer", "Customer updated Successfully",
         snackPosition: SnackPosition.BOTTOM);
     Navigator.of(Get.overlayContext!).pop();
@@ -750,10 +770,10 @@ class CustomerController extends GetxController {
       onCancel: () {
         Get.back(); // Close the dialog
       },
-      onConfirm: () {
+      onConfirm: () async {
         print("CLICKED");
-        saveCustomerInfo();
-        cartController.refreshCustomers();
+        await saveCustomerInfo();
+        // saveCustomerInfo() already reloads and refreshes customers, so this is redundant but safe
         Navigator.of(Get.overlayContext!).pop();
        Get.back();
       },
@@ -766,9 +786,11 @@ class CustomerController extends GetxController {
     bool isOnline = await _connectivityService.checkServerConnection();
     isInternetAccess.value = isOnline;
     
-    List<CustomerModel> newCustomer = _localStorageService.getCustomers(box);
-    newCustomer = newCustomer.where((cust)=>cust.updated ?? false).toList();
     if(isOnline) {
+      // Online: Try to fetch from server
+      List<CustomerModel> newCustomer = _localStorageService.getCustomers(box);
+      newCustomer = newCustomer.where((cust)=>cust.updated ?? false).toList();
+      
       var response = await BaseHttpClient()
           .getAuthWithCompanyHeader("/customer/get-all", companyId)
           .catchError((onError) {
@@ -789,39 +811,65 @@ class CustomerController extends GetxController {
             itemsList.map((item) => item.toMap()).toList();
         // showSnackBar("Message", "Customers downloaded successfully");
         box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
+      } else {
+        // Response is null (server error but still online) - fall back to offline storage
+        print("CustomerController getCustomers: Server response is null, falling back to offline storage");
+        await reloadCustomersFromStorage();
+        return; // reloadCustomersFromStorage already handles filtering and refresh
       }
     } else {
-      // Offline: Load from local storage
-      List<CustomerModel> offlineCustomers = _localStorageService
-          .getOfflineList<CustomerModel>(AppConstants.CUSTOMER_LIST,
-              (map) => CustomerModel.fromMap(map), box);
-      
-      // Ensure WalkIn exists
-      if(offlineCustomers.isEmpty || !offlineCustomers.any((c) => c.name?.toLowerCase().contains('walkin') ?? false)) {
-        CustomerModel walkInCustomer = CustomerModel(
-          id: null, 
-          name: 'WalkIn', 
-          branch: branch != null 
-            ? BaseNameModel(id: branch!.id, name: branch!.name)
-            : null
-        );
-        offlineCustomers.add(walkInCustomer);
-      }
-      
-      allCustomers.value = offlineCustomers;
+      // Offline: Use reloadCustomersFromStorage which has proper offline handling
+      await reloadCustomersFromStorage();
+      return; // reloadCustomersFromStorage already handles filtering and refresh
     }
     
-    // Filter by branch but always include WalkIn
+    // Ensure WalkIn customer exists before filtering
+    if(allCustomers.isEmpty || !allCustomers.any((c) => c.name?.toLowerCase().contains('walkin') ?? false)) {
+      CustomerModel walkInCustomer = CustomerModel(
+        id: null, 
+        name: 'WalkIn', 
+        branch: branch != null 
+          ? BaseNameModel(id: branch!.id, name: branch!.name)
+          : null
+      );
+      allCustomers.add(walkInCustomer);
+      print("CustomerController getCustomers: Added WalkIn customer before filtering");
+    }
+    
+    // Filter by branch but always include WalkIn (only if online and got response)
     if(branch != null) {
-      filteredCustomers.value = allCustomers.value.where((cus) => 
+      print("Filtering customers by branch: ${branch!.name}");
+      print("Customers before filter: ${allCustomers.length}");
+      // Filter by branch but always include WalkIn
+      List<CustomerModel> filteredByBranch = allCustomers.value.where((cus) => 
         (cus.branch != null && cus.branch!.name == branch!.name) || cus.name == "WalkIn"
       ).toList();
+      
+      // If filtering leaves too few customers compared to available, fall back to original list (offline-friendly)
+      if (filteredByBranch.length < 5 && allCustomers.length > filteredByBranch.length) {
+        filteredCustomers.value = allCustomers.value; // Fallback to full list
+        print("Customers after filter (fallback to full list): ${allCustomers.length}");
+      } else {
+        filteredCustomers.value = filteredByBranch;
+        print("Customers after filter: ${filteredCustomers.length}");
+      }
     } else {
       filteredCustomers.value = allCustomers.value;
     }
     
     allCustomers.refresh();
     filteredCustomers.refresh();
+    
+    // Ensure customers are written to storage after refresh
+    if(allCustomers.isNotEmpty) {
+      try {
+        List<Map<String, dynamic>> customersListMap = allCustomers.map((item) => item.toMap()).toList();
+        box.write(AppConstants.CUSTOMER_LIST, customersListMap);
+        print("Written ${allCustomers.length} customer(s) to storage after refresh");
+      } catch (e) {
+        print("Error writing customers to storage after refresh: $e");
+      }
+    }
   }
 
   List<CurrencyModel> getOfflineCurrencyList(GetStorage box) {

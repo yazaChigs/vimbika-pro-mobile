@@ -21,6 +21,7 @@ import 'package:vimbika_pos_app/src/features/shift/screen/cash_management_screen
 import 'package:vimbika_pos_app/src/features/shift/screen/open_shift_screen.dart';
 import 'package:vimbika_pos_app/src/features/shift/screen/submit_cash_screen.dart';
 import 'package:vimbika_pos_app/src/features/shift/screen/view_shift_screen.dart';
+import 'package:vimbika_pos_app/src/features/shift/screen/shifts_history_screen.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/screen/new_stock_request_screen.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/screen/requisition_history_screen.dart';
 import 'package:vimbika_pos_app/src/features/stock_requests/screen/requisition_list_screen.dart';
@@ -74,6 +75,10 @@ class AppPages {
     GetPage(
         name: AppRoutes.VIEW_SHIFT,
         page: () => ViewShiftScreen(),
+        transition: Transition.zoom),
+    GetPage(
+        name: AppRoutes.SHIFTS_HISTORY,
+        page: () => ShiftsHistoryScreen(),
         transition: Transition.zoom),
     GetPage(
         name: AppRoutes.SALE,
