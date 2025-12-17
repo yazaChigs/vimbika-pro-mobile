@@ -4,8 +4,13 @@ import 'package:vimbika_pos_app/src/features/customers/controller/customer_contr
 import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart';
 
 class CustomerFormScreen extends StatelessWidget {
-  final CustomerController controller = Get.put(CustomerController());
-  final InactivityController inactivityController = Get.find();
+  // Reuse existing controllers so edit state (selectedCustomer, editCustomer) is preserved.
+  final CustomerController controller = Get.isRegistered<CustomerController>()
+      ? Get.find<CustomerController>()
+      : Get.put(CustomerController());
+  final InactivityController inactivityController = Get.isRegistered<InactivityController>()
+      ? Get.find<InactivityController>()
+      : Get.put(InactivityController());
 
   @override
   Widget build(BuildContext context) {
@@ -268,7 +273,11 @@ class CustomerFormScreen extends StatelessWidget {
                             }
                           },
                       child: Text(
-                        controller.isSaving.value ? 'SAVING...' : 'SAVE CUSTOMER'
+                        controller.isSaving.value
+                            ? 'SAVING...'
+                            : (controller.editCustomer.value
+                                ? 'UPDATE CUSTOMER'
+                                : 'SAVE CUSTOMER')
                       ),
                       style: ElevatedButton.styleFrom(
                           backgroundColor: controller.isSaving.value

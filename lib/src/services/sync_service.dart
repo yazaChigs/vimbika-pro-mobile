@@ -384,14 +384,33 @@ class SyncService {
 
   static Future<CustomerModel?> saveCustomer( UserModel user, GetStorage box) async{
     final LocalStorageService _localStorageService = LocalStorageService();
-    List<CustomerModel> customers = _localStorageService.getOfflineList<CustomerModel>(
+    // Load all customers
+    List<CustomerModel> allCustomers = _localStorageService.getOfflineList<CustomerModel>(
         AppConstants.CUSTOMER_LIST,
-            (map) => CustomerModel.fromMap(map),
+        (map) => CustomerModel.fromMap(map),
         box);
-    customers = customers.where((customer) => customer.id == null || (customer.updated ?? false)).toList();
-    for(CustomerModel customerModel in customers) {
+
+    // Work on pending (new or updated)
+    List<CustomerModel> pending = allCustomers.where((customer) => customer.id == null || (customer.updated ?? false)).toList();
+
+    // Helper to generate a stable key
+    String keyFor(CustomerModel c) {
+      if (c.id != null && c.id!.isNotEmpty) return "id:${c.id}";
+      if (c.customerId != null && c.customerId!.isNotEmpty) return "cid:${c.customerId}";
+      if (c.accountNumber != null && c.accountNumber!.isNotEmpty) return "acc:${c.accountNumber}";
+      final branchKey = c.branch?.id ?? c.branch?.name ?? '';
+      return "name:${c.name}|branch:$branchKey";
+    }
+
+    // Start merged map with all existing customers
+    Map<String, CustomerModel> merged = {
+      for (final c in allCustomers) keyFor(c): c
+    };
+
+    for(CustomerModel customerModel in pending) {
       var url = "";
       var method = "";
+      final String oldKey = keyFor(customerModel);
       if((customerModel.updated ?? false) && customerModel.id != null) {
         url = "/customer/update";
         method ="PUT";
@@ -435,16 +454,21 @@ class SyncService {
       if (response != null) {
         CustomerResponseModel responseModel =
         CustomerResponseModel.fromJson(response);
-        var index = customers.indexWhere((customer)=>customer.name==responseModel.item?.name);
-        if(index!= -1)
-        customers[index] = responseModel.item!;
-        // return responseModel.item;
+        if (responseModel.item != null) {
+          // Mark as synced
+          responseModel.item!.updated = false;
+          final String newKey = keyFor(responseModel.item!);
+          // Remove the old pending key to prevent duplicates, then upsert the new one
+          merged.remove(oldKey);
+          merged[newKey] = responseModel.item!;
+        }
       } else {
         //failed to save sale
         return null;
       }
     }
-    List<Map<String, dynamic>> itemsListMap = customers.map((item) =>
+    // Write merged customers back to storage (deduped)
+    List<Map<String, dynamic>> itemsListMap = merged.values.map((item) =>
         item.toMap()).toList();
     box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
     return null;

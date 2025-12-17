@@ -256,7 +256,11 @@ class CustomerController extends GetxController {
     isSaving.value = true;
     
     try {
-      await saveCustomerInfo();
+      if (editCustomer.value) {
+        await updateCustomerInfo();
+      } else {
+        await saveCustomerInfo();
+      }
     } catch (e) {
       Get.snackbar("Error", "Failed to save customer: ${e.toString()}",
           snackPosition: SnackPosition.BOTTOM);
@@ -270,7 +274,34 @@ class CustomerController extends GetxController {
     GetStorage bb = GetStorage();
     var branchModel = bb.read(AppConstants.SELECTED_BRANCH) ?? {};
     int count = allCustomers.length + 1;
-    if (!allCustomers.any((customer) => customer.name == name.value)) {
+    // Prevent duplicates by name (per branch) or account number (case-insensitive, non-empty)
+    final String newName = name.value.trim();
+    final String newAcc = accountNumber.value.trim();
+    final String branchKey = branchModel['id']?.toString() ?? branchModel['name']?.toString() ?? '';
+
+    final bool exists = allCustomers.any((customer) {
+      final String? existingName = customer.name?.trim();
+      final String existingBranch = customer.branch?.id?.toString() ??
+          customer.branch?.name?.toString() ??
+          '';
+      final String? existingAcc = customer.accountNumber?.trim();
+
+      // Match name only if same branch and both names non-empty
+      final bool sameName = newName.isNotEmpty &&
+          existingName != null &&
+          existingName.toLowerCase() == newName.toLowerCase() &&
+          branchKey.isNotEmpty &&
+          existingBranch == branchKey;
+
+      // Match account number when provided
+      final bool sameAcc = newAcc.isNotEmpty &&
+          existingAcc != null &&
+          existingAcc.toLowerCase() == newAcc.toLowerCase();
+
+      return sameName || sameAcc;
+    });
+
+    if (!exists) {
       String ref = AppConstants.getDateNowRef("CUS", count);
       BaseNameModel branch =
           BaseNameModel.fromMap(Map<String, dynamic>.from(branchModel));
@@ -727,22 +758,43 @@ class CustomerController extends GetxController {
 
   Future<void> updateCustomerInfo() async {
     GetStorage bb = GetStorage();
-    CustomerModel? customer = allCustomers
-        .firstWhereOrNull((customer) => customer.name == name.value);
-    var index = allCustomers.indexOf(customer);
-    print(customer!.name);
-    if (customer != null &&
-        allCustomers.any((customer) => customer.name == name.value)) {
-      customer.name = name.value;
-      customer.accountNumber = accountNumber.value;
-      customer.taxNumber = vat.value;
-      customer.tinNumber = tin.value;
-      customer.email = email.value;
-      customer.mobilePhone = mobilePhone.value;
-      customer.nfcCardId = nfcCardId.value;
-      customer.nfcCardType = nfcCardType.value;
-      customer.updated = true;
+    final CustomerModel? selected = selectedCustomer.value;
+
+    // Try to locate the customer using stable identifiers first
+    int index = -1;
+    if (selected != null) {
+      index = allCustomers.indexWhere((c) =>
+          (selected.id != null && c.id == selected.id) ||
+          (selected.customerId != null && c.customerId == selected.customerId) ||
+          (selected.accountNumber != null &&
+              c.accountNumber == selected.accountNumber));
     }
+
+    // Fallback to matching by current or previous name
+    if (index == -1) {
+      index = allCustomers
+          .indexWhere((c) => c.name == selected?.name || c.name == name.value);
+    }
+
+    if (index == -1) {
+      Get.snackbar("Error", "Could not find customer to update",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    CustomerModel customer = allCustomers[index];
+    customer.name = name.value;
+    customer.accountNumber = accountNumber.value;
+    customer.taxNumber = vat.value;
+    customer.tinNumber = tin.value;
+    customer.email = email.value;
+    customer.mobilePhone = mobilePhone.value;
+    customer.nfcCardId = nfcCardId.value;
+    customer.nfcCardType = nfcCardType.value;
+    customer.street = address.value;
+    customer.description = description.value;
+    customer.updated = true;
+
     allCustomers[index] = customer;
     List<CustomerModel> customers = allCustomers.value;
     allCustomers.value = customers;
@@ -758,6 +810,8 @@ class CustomerController extends GetxController {
     Get.snackbar("Edit Customer", "Customer updated Successfully",
         snackPosition: SnackPosition.BOTTOM);
     Navigator.of(Get.overlayContext!).pop();
+    editCustomer.value = false;
+    selectedCustomer.value = CustomerModel();
     clearForm();
   }
 
@@ -805,10 +859,31 @@ class CustomerController extends GetxController {
         List<dynamic> list = jsonDecode(response);
         List<CustomerModel> itemsList =
             List<CustomerModel>.from(list.map((i) => CustomerModel.fromMap(i)));
-        itemsList.addAll(newCustomer);
-        allCustomers.value = itemsList;
+        
+        // Merge server + locally updated customers without duplicating counts
+        Map<String, CustomerModel> merged = {};
+
+        String keyFor(CustomerModel c) {
+          if (c.id != null && c.id!.isNotEmpty) return "id:${c.id}";
+          if (c.customerId != null && c.customerId!.isNotEmpty) return "cid:${c.customerId}";
+          if (c.accountNumber != null && c.accountNumber!.isNotEmpty) return "acc:${c.accountNumber}";
+          final branchKey = c.branch?.id ?? c.branch?.name ?? '';
+          return "name:${c.name}|branch:$branchKey";
+        }
+
+        // Prefer server versions first
+        for (final c in itemsList) {
+          merged[keyFor(c)] = c;
+        }
+        // Override with locally updated records (authoritative)
+        for (final c in newCustomer) {
+          merged[keyFor(c)] = c;
+        }
+
+        List<CustomerModel> mergedList = merged.values.toList();
+        allCustomers.value = mergedList;
         List<Map<String, dynamic>> itemsListMap =
-            itemsList.map((item) => item.toMap()).toList();
+            mergedList.map((item) => item.toMap()).toList();
         // showSnackBar("Message", "Customers downloaded successfully");
         box.write(AppConstants.CUSTOMER_LIST, itemsListMap);
       } else {
@@ -935,6 +1010,10 @@ class CustomerController extends GetxController {
 
     // Reset the form's state
     formKeyForm.currentState?.reset();
+    editCustomer.value = false;
+    selectedCustomer.value = CustomerModel();
+    nfcCardId.value = "";
+    nfcCardType.value = "";
   }
 
   onChangePaymentType(PaymentTypeModel paymentType, bool multiple) {

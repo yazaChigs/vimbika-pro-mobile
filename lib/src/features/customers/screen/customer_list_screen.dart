@@ -70,6 +70,9 @@ class CustomerListScreen extends StatelessWidget {
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () {
+             customerController.editCustomer.value = false;
+             customerController.selectedCustomer.value = CustomerModel();
+             customerController.clearForm();
              Get.toNamed(AppRoutes.CUSTOMER_FORM);
             },
             child: Icon(Icons.add),
@@ -121,15 +124,18 @@ class CustomerListScreen extends StatelessWidget {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        customer.name ?? 'Unknown Name',
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.indigo,
+                                      Expanded(
+                                        child: Text(
+                                          customer.name ?? 'Unknown Name',
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.indigo,
+                                          ),
+                                          textAlign: TextAlign.right,
                                         ),
-                                        textAlign: TextAlign.right,
                                       ),
                                       (customer.isLoyalCustomer ?? false) ?
                                       IconButton(
