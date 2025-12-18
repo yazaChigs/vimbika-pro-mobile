@@ -2321,7 +2321,7 @@ class SaleScreen extends GetView {
                                                                       index);
                                                                 },
                                                                 child: Text(
-                                                                  "Add AMount",
+                                                                  "Add Amount",
                                                                   style: TextStyle(
                                                                       color: Colors.indigo,
                                                                       fontWeight: FontWeight.bold,

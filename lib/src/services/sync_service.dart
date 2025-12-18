@@ -697,6 +697,123 @@ class SyncService {
   //   }
   // }
   static  syncOfflineShifts(UserModel user,  GetStorage box) async {
+    List<ShiftModel> shiftInfo = loadShiftInfo(box);
+    RxList itemsToBeSynced = [].obs;
+    List<ShiftModel> upToDateItems = [];
+    List<ShiftModel> updateItems = [];
+    List<CurrencyAmount> updateCurrencyItems = [];
+
+    if(user.id.isNullOrBlank!){
+      var model = box.read(AppConstants.USER_INFO) ?? {};
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+    }
+
+    for (ShiftModel sh in shiftInfo) {
+      if (!sh.stopSync! && !sh.isShiftClosed!) {
+        if (sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty) {
+          if(sh.shiftCurrencyAmounts!.any((currencyAMount)=>currencyAMount.id==null)){
+            print("id is null");
+
+            updateCurrencyItems = await syncShiftsWithNullID(sh.shiftCurrencyAmounts!,user);
+          }
+          print(updateCurrencyItems.length);
+          updateCurrencyItems.forEach((element) {
+            var index = sh.shiftCurrencyAmounts!.indexWhere((test)=>test.ref==element.ref);
+            print("index: $index");
+            if(index!= -1){
+              sh.shiftCurrencyAmounts![index] = element;
+            }
+          });
+          /* for (CurrencyAmount ca in sh.shiftCurrencyAmounts!) {
+            if((ca.active == null || !ca.active! ) && ca.id == null) {
+              ca.active = true;
+              currencyItemsToBeSynced.add(ca);
+            }
+          }*/
+        }
+        itemsToBeSynced.add(sh);
+        itemsToBeSynced.refresh();
+      } else {
+        if(sh.isShiftClosed! && !sh.stopSync!) {
+          sh.stopSync = true;
+          itemsToBeSynced.add(sh);
+        }
+        upToDateItems.add(sh);
+      }
+    }
+/*    print("currencyItemsToBeSynced: ${currencyItemsToBeSynced.isNotEmpty} " );
+    if(currencyItemsToBeSynced.isNotEmpty) {
+      String jsonShiftCurrencyItems = json.encode(
+          currencyItemsToBeSynced.map((shift) => shift.toMap()).toList());
+      var shiftCurrencyResponse = await BaseHttpClient()
+          .postAuthWithCompanyHeader("/mobile/pos/shift/save-currency-amounts",
+              jsonShiftCurrencyItems, user.companyId!, "POST")
+          .catchError((onError) {
+        print(onError);
+        AppHelper.hideLoading();
+        if (onError is BadRequestException) {
+          var apiError = json.decode(onError.message!);
+          AppHelper.showErroDialog(description: apiError["reason"]);
+        } else {
+          AppHelper.handleError(onError);
+        }
+      });
+      if (shiftCurrencyResponse != null) {
+        debugPrint("Shift currency response " + shiftCurrencyResponse.toString());
+        ShiftCurrencyResponseModel saleResponseModel =
+            ShiftCurrencyResponseModel.fromJson(shiftCurrencyResponse);
+        debugPrint("Shift currency items " + saleResponseModel.items.toString());
+        updateCurrencyItems.addAll(saleResponseModel.items ?? []);
+      }
+    }*/
+
+    /*  for (ShiftModel sh in itemsToBeSynced) {
+      if (sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty) {
+        for (CurrencyAmount ca in updateCurrencyItems) {
+          if(ca.shiftReference == sh.shiftReference){
+            sh.shiftCurrencyAmounts?.remove(sh.shiftCurrencyAmounts?.firstWhere((element) => element.ref==ca.ref));
+            sh.shiftCurrencyAmounts?.add(ca);
+          }
+        }
+      }
+    }*/
+
+    if(itemsToBeSynced.isNotEmpty) {
+      String jsonShiftItems = json.encode(
+          itemsToBeSynced.map((shift) => shift.toMap()).toList());
+      print(jsonShiftItems);
+      var response = await BaseHttpClient()
+          .postAuthWithCompanyHeader(
+          "/mobile/pos/shift/save", jsonShiftItems, user.companyId!, "POST")
+          .catchError((onError) {
+        print(onError);
+        AppHelper.hideLoading();
+        // if (onError is BadRequestException) {
+        //   var apiError = json.decode(onError.message!);
+        //   AppHelper.showErroDialog(description: apiError["message"]);
+        // } else {
+        //   AppHelper.handleError(onError);
+        // }
+      });
+      if (response != null) {
+        ShiftResponseModel saleResponseModel = ShiftResponseModel.fromJson(
+            response);
+        updateItems.addAll(saleResponseModel.items ?? []);
+        updateItems.addAll(upToDateItems);
+
+        List<Map<String, dynamic>> itemsListMap = updateItems.map((item) =>
+            item.toMap()).toList();
+        box.write(AppConstants.SHIFT_LIST, itemsListMap);
+
+        // Get.snackbar("Success", "Shifts synced successfully");
+      } else {
+        //Get.snackbar("Error", "No response from server");
+
+      }
+    }
+  }
+
+/*  static  syncOfflineShifts(UserModel user,  GetStorage box) async {
     // Always reload user to ensure we have the current logged-in user
     // This is critical when a user logs in after another user has logged out
     var model = box.read(AppConstants.USER_INFO) ?? {};
@@ -707,7 +824,7 @@ class SyncService {
       print("Sync Offline Shifts: User is null and no USER_INFO found");
       return; // Cannot sync without user info
     }
-    
+
     List<ShiftModel> shiftInfo = loadShiftInfo(box);
     RxList itemsToBeSynced = [].obs;
     List<ShiftModel> upToDateItems = [];
@@ -719,14 +836,14 @@ class SyncService {
       if (sh.userId == null || user.id == null || sh.userId != user.id) {
         continue; // Skip shifts that don't belong to current user
       }
-      
+
       // Null-safe checks for stopSync and isShiftClosed
       bool stopSync = sh.stopSync ?? false;
       bool isShiftClosed = sh.isShiftClosed ?? false;
-      
+
       // Log shift details for debugging
       print("Sync Offline Shifts: Checking shift ${sh.shiftReference}: isShiftClosed=$isShiftClosed, stopSync=$stopSync, id=${sh.id}");
-      
+
       // Original flow from commit 3efe079
       if (!stopSync && !isShiftClosed) {
         // Open shift that needs syncing
@@ -763,7 +880,7 @@ class SyncService {
         }
       }
     }
-/*    print("currencyItemsToBeSynced: ${currencyItemsToBeSynced.isNotEmpty} " );
+*//*    print("currencyItemsToBeSynced: ${currencyItemsToBeSynced.isNotEmpty} " );
     if(currencyItemsToBeSynced.isNotEmpty) {
       String jsonShiftCurrencyItems = json.encode(
           currencyItemsToBeSynced.map((shift) => shift.toMap()).toList());
@@ -787,9 +904,9 @@ class SyncService {
         debugPrint("Shift currency items " + saleResponseModel.items.toString());
         updateCurrencyItems.addAll(saleResponseModel.items ?? []);
       }
-    }*/
+    }*//*
 
-  /*  for (ShiftModel sh in itemsToBeSynced) {
+  *//*  for (ShiftModel sh in itemsToBeSynced) {
       if (sh.shiftCurrencyAmounts != null && sh.shiftCurrencyAmounts!.isNotEmpty) {
         for (CurrencyAmount ca in updateCurrencyItems) {
           if(ca.shiftReference == sh.shiftReference){
@@ -798,18 +915,18 @@ class SyncService {
           }
         }
       }
-    }*/
+    }*//*
 
     if(itemsToBeSynced.isNotEmpty) {
       print("Sync Offline Shifts: Attempting to sync ${itemsToBeSynced.length} shift(s)");
       for (ShiftModel sh in itemsToBeSynced) {
         print("  - Shift ${sh.shiftReference}: isShiftClosed=${sh.isShiftClosed}, stopSync=${sh.stopSync}, id=${sh.id}");
       }
-      
+
       // CRITICAL: Preserve local opening times for newly created shifts before syncing
       // This prevents server from overwriting the correct opening time with an old one
       Map<String, String> localOpeningTimes = {};
-      
+
       // Validate shifts before sending - ensure required fields are present
       // Create copies to avoid modifying the original objects in itemsToBeSynced
       List<ShiftModel> validShiftsToSync = [];
@@ -827,7 +944,7 @@ class SyncService {
           print("Sync Offline Shifts: WARNING - Skipping shift ${localShift.shiftReference} with null/empty userId");
           continue;
         }
-        
+
         // Filter currency amounts to only include OPENING_AMOUNT
         // SALE amounts should be synced separately via the currency amounts endpoint
         // The server rejects shifts with SALE amounts that have id=null
@@ -841,30 +958,30 @@ class SyncService {
             print("Sync Offline Shifts: Filtered out $filteredOut SALE currency amount(s) from shift ${localShift.shiftReference} (keeping ${openingAmounts.length} OPENING_AMOUNT)");
           }
         }
-        
+
         // Set default values for required fields if they're null
         DateTime now = DateTime.now();
         String? dateCreated = localShift.dateCreated;
         if (dateCreated == null || dateCreated.isEmpty) {
           dateCreated = DateFormat('yyyy-MM-dd').format(now);
         }
-        
+
         String? createdByName = localShift.createdByName;
         if (createdByName == null || createdByName.isEmpty) {
           // Use userName or construct from firstName and lastName
-          createdByName = user.userName ?? 
-            (user.firstName != null && user.lastName != null 
-              ? "${user.firstName} ${user.lastName}" 
+          createdByName = user.userName ??
+            (user.firstName != null && user.lastName != null
+              ? "${user.firstName} ${user.lastName}"
               : "");
         }
-        
+
         // Create a copy of the shift to avoid modifying the original
         // CRITICAL: For closed shifts, ensure active=false
         bool shiftActive = localShift.active ?? true;
         if (localShift.isShiftClosed == true) {
           shiftActive = false; // Closed shifts must have active=false
         }
-        
+
         ShiftModel shiftCopy = ShiftModel(
           id: localShift.id,
           userId: localShift.userId,
@@ -882,42 +999,42 @@ class SyncService {
           dateCreated: dateCreated, // Set default if null
           active: shiftActive, // false for closed shifts, true for open shifts
         );
-        
+
         if (shiftCopy.shiftReference != null && shiftCopy.openingTime != null) {
           // Store opening time for shifts that are being synced (newly created or updated)
           // This ensures we preserve the correct opening time even if server returns an old one
           localOpeningTimes[shiftCopy.shiftReference!] = shiftCopy.openingTime!;
           print("Preserving local opening time for shift ${shiftCopy.shiftReference}: ${shiftCopy.openingTime}");
         }
-        
+
         validShiftsToSync.add(shiftCopy);
       }
-      
+
       if (validShiftsToSync.isEmpty) {
         print("Sync Offline Shifts: No valid shifts to sync after validation");
         return;
       }
-      
+
       // Log the shift data being sent for debugging
       for (ShiftModel shift in validShiftsToSync) {
         Map<String, dynamic> shiftMap = shift.toMap();
         print("Sync Offline Shifts: Shift ${shift.shiftReference} data: id=${shiftMap['id']}, isShiftClosed=${shiftMap['isShiftClosed']}, stopSync=${shiftMap['stopSync']}, company=${shiftMap['company'] != null ? 'present' : 'null'}, currencyAmounts=${shift.shiftCurrencyAmounts?.length ?? 0}");
       }
-      
+
       // Sync all shifts together (as originally designed)
       // The server expects an array of shifts
       String jsonShiftItems = json.encode(
           validShiftsToSync.map((shift) => shift.toMap()).toList());
       print("Sync Offline Shifts: Sending POST to /mobile/pos/shift/save with ${validShiftsToSync.length} shift(s) (${itemsToBeSynced.length - validShiftsToSync.length} filtered out due to validation)");
       print("Sync Offline Shifts: JSON payload length: ${jsonShiftItems.length} characters");
-      
+
       // Log first 1000 chars of JSON for debugging
       if (jsonShiftItems.length > 1000) {
         print("Sync Offline Shifts: JSON preview: ${jsonShiftItems.substring(0, 1000)}...");
       } else {
         print("Sync Offline Shifts: JSON payload: $jsonShiftItems");
       }
-      
+
       var response = await BaseHttpClient()
           .postAuthWithCompanyHeader(
           "/mobile/pos/shift/save", jsonShiftItems, user.companyId!, "POST")
@@ -942,12 +1059,12 @@ class SyncService {
         print("Sync Offline Shifts: Received response from server");
         ShiftResponseModel saleResponseModel = ShiftResponseModel.fromJson(
             response);
-        
+
         print("Sync Offline Shifts: Server returned ${saleResponseModel.items?.length ?? 0} shift(s)");
-        
+
         // Preserve local opening times for shifts that were just created/updated
         for (ShiftModel serverShift in saleResponseModel.items ?? []) {
-          if (serverShift.shiftReference != null && 
+          if (serverShift.shiftReference != null &&
               localOpeningTimes.containsKey(serverShift.shiftReference)) {
             // Use the local opening time instead of server's (which might be from an old shift)
             String preservedOpeningTime = localOpeningTimes[serverShift.shiftReference!]!;
@@ -956,7 +1073,7 @@ class SyncService {
           }
           // Log detailed information about synced shift for debugging
           print("  - Synced shift ${serverShift.shiftReference}: id=${serverShift.id}, isShiftClosed=${serverShift.isShiftClosed}, active=${serverShift.active}, openingTime=${serverShift.openingTime}, closingTime=${serverShift.closingTime}, userId=${serverShift.userId}, company=${serverShift.company?.name ?? 'null'}");
-          
+
           // For closed shifts, verify all required fields are present
           if (serverShift.isShiftClosed == true) {
             List<String> missingFields = [];
@@ -965,7 +1082,7 @@ class SyncService {
             if (serverShift.closingTime == null || serverShift.closingTime!.isEmpty) missingFields.add("closingTime");
             if (serverShift.userId == null || serverShift.userId!.isEmpty) missingFields.add("userId");
             if (serverShift.company == null) missingFields.add("company");
-            
+
             if (missingFields.isNotEmpty) {
               print("  WARNING: Closed shift ${serverShift.shiftReference} is missing required fields: ${missingFields.join(', ')}");
             } else {
@@ -973,7 +1090,7 @@ class SyncService {
             }
           }
         }
-        
+
         // After successful sync: Set stopSync=true for closed shifts
         // This marks them as successfully synced so they won't be retried
         // CRITICAL: The server response might not include stopSync, so we must set it explicitly
@@ -983,7 +1100,7 @@ class SyncService {
             // This ensures closed shifts are marked as synced and won't be retried
             syncedShift.stopSync = true;
             print("Sync Offline Shifts: Set stopSync=true for closed shift ${syncedShift.shiftReference} after successful sync (id=${syncedShift.id})");
-            
+
             // Also update in itemsToBeSynced for consistency (though we use syncedShift when saving)
             int index = itemsToBeSynced.indexWhere((s) => s.shiftReference == syncedShift.shiftReference);
             if (index != -1) {
@@ -998,7 +1115,7 @@ class SyncService {
             }
           }
         }
-        
+
         // CRITICAL: Start with ALL shifts from storage (including other users' shifts)
         // Then update only the ones we synced
         List<ShiftModel> allShifts = List.from(shiftInfo);
@@ -1006,7 +1123,7 @@ class SyncService {
             .map((s) => s.shiftReference ?? "")
             .where((ref) => ref.isNotEmpty)
             .toList();
-        
+
         // Update or add synced shifts
         // CRITICAL: Use the synced shift objects which have stopSync=true set for closed shifts
         for (ShiftModel syncedShift in saleResponseModel.items ?? []) {
@@ -1016,7 +1133,7 @@ class SyncService {
             // The syncedShift object already has stopSync=true for closed shifts (set above)
             allShifts[index] = syncedShift;
             print("Sync Offline Shifts: Updated existing shift ${syncedShift.shiftReference} with synced version (id=${syncedShift.id}, isShiftClosed=${syncedShift.isShiftClosed}, stopSync=${syncedShift.stopSync}, active=${syncedShift.active}, openingTime=${syncedShift.openingTime}, closingTime=${syncedShift.closingTime})");
-            
+
             // For closed shifts, log full details to help debug backend visibility issues
             if (syncedShift.isShiftClosed == true) {
               print("Sync Offline Shifts: CLOSED SHIFT DETAILS - ${syncedShift.shiftReference}: id=${syncedShift.id}, userId=${syncedShift.userId}, company=${syncedShift.company?.name ?? 'null'}, openingTime=${syncedShift.openingTime}, closingTime=${syncedShift.closingTime}, active=${syncedShift.active}, dateCreated=${syncedShift.dateCreated}, createdByName=${syncedShift.createdByName}");
@@ -1027,12 +1144,12 @@ class SyncService {
             print("Sync Offline Shifts: Added new synced shift ${syncedShift.shiftReference} (id=${syncedShift.id}, isShiftClosed=${syncedShift.isShiftClosed}, stopSync=${syncedShift.stopSync})");
           }
         }
-        
+
         // Add upToDateItems that weren't just synced (these are shifts that didn't need syncing)
         // CRITICAL: Don't overwrite shifts that were just synced - they already have the correct stopSync values
         for (ShiftModel upToDateShift in upToDateItems) {
           // Only add if this shift wasn't just synced and doesn't already exist
-          if (upToDateShift.shiftReference != null && 
+          if (upToDateShift.shiftReference != null &&
               !syncedShiftReferences.contains(upToDateShift.shiftReference!)) {
             int index = allShifts.indexWhere((s) => s.shiftReference == upToDateShift.shiftReference);
             if (index == -1) {
@@ -1052,7 +1169,7 @@ class SyncService {
                 print("Sync Offline Shifts: Keeping existing shift ${upToDateShift.shiftReference} (id=${existingShift.id}, isShiftClosed=${existingShift.isShiftClosed}, stopSync=${existingShift.stopSync}) - not synced in this run");
               }
             }
-          } else if (upToDateShift.shiftReference != null && 
+          } else if (upToDateShift.shiftReference != null &&
                      syncedShiftReferences.contains(upToDateShift.shiftReference!)) {
             print("Sync Offline Shifts: Skipping upToDateItem ${upToDateShift.shiftReference} (was just synced, using synced version instead)");
           }
@@ -1065,12 +1182,12 @@ class SyncService {
             print("Sync Offline Shifts: VERIFY - Shift $ref in final list: id=${savedShift.id}, isShiftClosed=${savedShift.isShiftClosed}, stopSync=${savedShift.stopSync}");
           }
         }
-        
+
         List<Map<String, dynamic>> itemsListMap = allShifts.map((item) =>
             item.toMap()).toList();
         box.write(AppConstants.SHIFT_LIST, itemsListMap);
         print("Sync Offline Shifts: Successfully synced and saved ${saleResponseModel.items?.length ?? 0} shift(s) to storage (total ${allShifts.length} shifts in storage, including other users)");
-        
+
         // Verify stopSync was persisted correctly by reloading from storage
         List<ShiftModel> verifyShifts = loadShiftInfo(box);
         for (String ref in syncedShiftReferences) {
@@ -1092,13 +1209,13 @@ class SyncService {
             box
           );
           List<SaleInfoModel> unsyncedSales = allSales.where((sale) => sale.syncStatus == false).toList();
-          
+
           // Check if any of the synced shifts were closed and have unsynced sales
           bool hasClosedShiftWithUnsyncedSales = false;
           for (ShiftModel syncedShift in saleResponseModel.items ?? []) {
             if (syncedShift.isShiftClosed == true) {
               // Check if this closed shift has unsynced sales
-              bool shiftHasUnsyncedSales = unsyncedSales.any((sale) => 
+              bool shiftHasUnsyncedSales = unsyncedSales.any((sale) =>
                 sale.sale?.shiftReference == syncedShift.shiftReference
               );
               if (shiftHasUnsyncedSales) {
@@ -1108,7 +1225,7 @@ class SyncService {
               }
             }
           }
-          
+
           // If there are unsynced sales (especially from closed shifts), trigger sales sync
           if (unsyncedSales.isNotEmpty && hasClosedShiftWithUnsyncedSales) {
             print("Sync Offline Shifts: Triggering sales sync for ${unsyncedSales.length} unsynced sale(s) after shift sync");
@@ -1126,11 +1243,11 @@ class SyncService {
         // We only set stopSync=true after successful sync
         // This ensures closed shifts with stopSync=false will retry on next sync
         print("Sync Offline Shifts: Sync failed - NOT setting stopSync=true for closed shifts (they will retry on next sync)");
-        
+
         // Persist the current state - shifts in itemsToBeSynced should have stopSync=false
         // so they will retry on next sync
         List<ShiftModel> allShifts = List.from(shiftInfo);
-        
+
         // Update shifts from itemsToBeSynced to ensure stopSync=false is preserved
         for (ShiftModel failedShift in itemsToBeSynced) {
           int index = allShifts.indexWhere((s) => s.shiftReference == failedShift.shiftReference);
@@ -1140,7 +1257,7 @@ class SyncService {
             print("Sync Offline Shifts: Preserved stopSync=false for failed shift ${failedShift.shiftReference} (will retry)");
           }
         }
-        
+
         // Also add upToDateItems back
         for (ShiftModel upToDateShift in upToDateItems) {
           int index = allShifts.indexWhere((s) => s.shiftReference == upToDateShift.shiftReference);
@@ -1150,7 +1267,7 @@ class SyncService {
             allShifts[index] = upToDateShift;
           }
         }
-        
+
         List<Map<String, dynamic>> itemsListMap = allShifts.map((item) =>
             item.toMap()).toList();
         box.write(AppConstants.SHIFT_LIST, itemsListMap);
@@ -1165,7 +1282,7 @@ class SyncService {
           item.toMap()).toList();
       box.write(AppConstants.SHIFT_LIST, itemsListMap);
     }
-  }
+  }*/
 
   static Future<List<CurrencyAmount>> syncShiftsWithNullID(List<CurrencyAmount> currencyAmountsWithNullId, UserModel user,) async {
     List<CurrencyAmount> updateCurrencyItems = [];

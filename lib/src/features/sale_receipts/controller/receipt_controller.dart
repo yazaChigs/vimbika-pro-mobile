@@ -73,17 +73,15 @@ class ReceiptController extends GetxController {
     // Get today's date range (start of day to end of day) to match divider logic
     // Dividers show "Today", "Yesterday", etc. based on full day comparison
     final now = DateTime.now();
-    final startOfToday = DateTime(now.year, now.month, now.day, 0, 0, 0, 0);
     final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
-    
-    // Format as UTC timestamps for API
-    todayDate.value = DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(startOfToday.toUtc());
+
+    String startDate = DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(DateTime(now.year, now.month, now.day));
     final endOfTodayFormatted = DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(endOfToday.toUtc());
     
     List<BaseNameModel> catList = loadItems(box, AppConstants.CATEGORY_LIST);
     categories.value = catList;
-    // Fetch sales for today's full date range (start of day to end of day)
-    await getSalesByDate(todayDate.value, endOfTodayFormatted, "", branch.value!.id!);
+    print("today date: ${startDate}");
+    await getSalesByDate(startDate, endOfTodayFormatted, "", branch.value!.id!);
     shiftInfo();
   }
 
@@ -314,16 +312,6 @@ class ReceiptController extends GetxController {
       AppHelper.hideLoading();
       Get.snackbar("Success", "Sale reversed");
     }
-
-    List<ShiftModel> currentShifts = loadShifts(box);
-    currentShifts.forEach((shift)=>{
-      if(shift.id==activeShift.value.id){
-        shift.shiftCurrencyAmounts!.forEach((currencyAmount)=>{
-          print(currencyAmount.toJson())
-        })
-      }
-    });
-
   }
 
   printSale(SaleInfoModel saleInfo) async{

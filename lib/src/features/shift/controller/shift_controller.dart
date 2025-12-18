@@ -299,12 +299,14 @@ class ShiftController extends GetxController {
     Map<String, double> totalCashSubmitted = {};
 
     for (CurrencyAmount currencyAmount in activeShift.value.shiftCurrencyAmounts??[]) {
+      print(currencyAmount.posReference);
       final currencyId = currencyAmount.currency.id;
       if(allReceipts!=null && allReceipts.isNotEmpty) {
         var sale = allReceipts.firstWhere((sale) => currencyAmount.paymentType!.startsWith("CASH-") &&
           (sale.sale?.posReference == currencyAmount.posReference || sale.sale?.referenceNumber == currencyAmount.posReference) &&
             sale.sale?.currency?.id == currencyId && currencyAmount.amountType == "SALE",orElse: () => SaleInfoModel(sale: null,syncStatus: false)).sale;
         if(sale!=null){
+          print("reference:  ${sale.referenceNumber}  amount: ${sale.amountAfterDiscount}");
           for(PaymentReceivedModel paymentReceived in sale.paymentTypes!){
             if(paymentReceived.paymentType!.name!.startsWith("CASH")){
               totals[currencyId!] = (totals[currencyId] ?? 0.0) + (paymentReceived.amount ?? 0.00);

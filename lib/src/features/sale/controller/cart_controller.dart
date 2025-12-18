@@ -1640,7 +1640,8 @@ class CartController extends GetxController {
     if (tempActiveShift != null) {
       activeShift = tempActiveShift;
       shiftAvailable.value = true;
-      
+      print("before shift currency");
+      print(activeShift.toJson());
       for (PaymentReceivedModel paymentTypeModel in paymentTypes) {
         var isCash = paymentTypeModel.paymentType!.name!.startsWith("CASH");
         int count = activeShift.shiftCurrencyAmounts!.length + 1;
@@ -1666,6 +1667,8 @@ class CartController extends GetxController {
       if(paymentTypes.any((pt)=> pt.paymentType!.name!.startsWith("CASH-"))) {
         openCashDrawer();
       }
+      print("after shift currency");
+      print(activeShift.toJson());
       List<ShiftModel> updatedShifts =
             _localStorageService.replaceShift(activeShift, shiftList);
         _localStorageService.writeItems(
