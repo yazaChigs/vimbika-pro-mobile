@@ -21,6 +21,7 @@ class CartItemModel {
 
   double get totalTaxAmount => breakage ? 0.00 :  product.item!.taxAmount * quantity;
 
+
   factory CartItemModel.fromMap(Map<String, dynamic> json) => CartItemModel(
     quantity: json["quantity"],
     notes: json["notes"],

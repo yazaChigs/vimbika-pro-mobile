@@ -683,6 +683,7 @@ class CartController extends GetxController {
   }
 
   Future<void> addToCart(ProductFullInfoModel product, double quantity) async {
+    print("Adding to cart: ${product.item!.taxAmount}");
     var index = cartItems.indexWhere((item) => item.product.id == product.id);
     if (index != -1 && cartItems[index].quantity + 1 > product.stock!.toDouble() && !sellNilItems) {
       Get.snackbar("Check your Quantity",
@@ -696,6 +697,7 @@ class CartController extends GetxController {
         CartItemModel item = cartItems[index];
         item.quantity = item.quantity + quantity;
         // cartItems[index].quantity++;
+        print("item quantity updated to ${item.totalTaxAmount}");
       } else {
         cartItems.add(CartItemModel(product: product, quantity: quantity));
       }
@@ -1167,6 +1169,7 @@ class CartController extends GetxController {
         productItem.quantity = cartItem.quantity;
         productItem.total = cartItem.totalPrice;
         var rate = selectedCurrency.value?.rate ?? 1.0;
+        print("taxamount: ${cartItem.totalTaxAmount}" );
 
         SaleItemModel saleItem = SaleItemModel(
         sellingPrice: productItem.sellingPrice * rate,
@@ -1327,7 +1330,7 @@ class CartController extends GetxController {
         customer: isWalkIn ? null : selectedCustomer.value,
         isWalkInCustomer: isWalkIn,
         taxInvoice: zimraFiscalizeReceipt.value,
-        fiscalized: false,
+        fiscalized: zimraFiscalizeReceipt.value,
         emailReceipt: emailReceipt.value,
         totalDiscount: 0,
         ticketName: ticketName,
@@ -1339,6 +1342,7 @@ class CartController extends GetxController {
         amtToAcc: double.parse(amtToAccTextEditingController.text??"0")??0.00,
         tipAmount: double.parse(tipAmtTextEditingController.text??"0")??0.00,
     );
+    print(sale.toJson());
     SaleInfoModel saleInfoModel;
     if (isOnHold) {
       saleId = "";

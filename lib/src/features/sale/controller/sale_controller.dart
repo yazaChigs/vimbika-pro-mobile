@@ -420,6 +420,9 @@ class SaleController extends GetxController {
 
 
             allProducts.value = itemsList;
+            print("Total Products Fetched: ${allProducts.length}");
+            itemsList.forEach((element) => print(element.item!.taxAmount));
+            print(itemsList[0].item!.taxAmount);
             filteredProducts.value = itemsList;
             List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
                 item.toMap()).toList();
