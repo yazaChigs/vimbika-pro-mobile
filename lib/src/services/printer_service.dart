@@ -245,7 +245,7 @@ class PrinterService extends GetxService {
       var fiscalDeviceModel = box.read(AppConstants.FISCAL_DEVICE);
       if (fiscalDeviceModel != null && fiscalDeviceModel is Map) {
         vatNumber = fiscalDeviceModel["vatNumber"]?.toString();
-        tinNumber = fiscalDeviceModel["taxPayerTIN"]?.toString();
+        tinNumber = fiscalDeviceModel["tinNumber"]?.toString();
         deviceSerialNo = fiscalDeviceModel["deviceSerialNo"]?.toString();
         deviceId = fiscalDeviceModel["deviceId"] != null ? int.tryParse(fiscalDeviceModel["deviceId"].toString()) : null;
       }
@@ -851,12 +851,14 @@ class PrinterService extends GetxService {
      
      // Get Fiscal Device information (from backend format)
      String? vatNumber;
+     String? tinNumber;
      String? deviceSerialNo;
      int? deviceId;
      try {
        var fiscalDeviceModel = box.read(AppConstants.FISCAL_DEVICE);
        if (fiscalDeviceModel != null && fiscalDeviceModel is Map) {
          vatNumber = fiscalDeviceModel["vatNumber"]?.toString();
+         tinNumber = fiscalDeviceModel["tinNumber"]?.toString();
          deviceSerialNo = fiscalDeviceModel["deviceSerialNo"]?.toString();
          deviceId = fiscalDeviceModel["deviceId"] != null ? int.tryParse(fiscalDeviceModel["deviceId"].toString()) : null;
        }
@@ -924,7 +926,7 @@ class PrinterService extends GetxService {
 
      // Company TIN (from companyID or settings)
      if (company?.companyID != null && company!.companyID!.isNotEmpty) {
-       receiptData += generator.text('TIN: ${company.companyID}',
+       receiptData += generator.text('TIN: ${tinNumber}',
            styles: PosStyles(align: PosAlign.center));
      }
 

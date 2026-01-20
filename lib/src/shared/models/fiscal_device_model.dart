@@ -10,12 +10,14 @@ class FiscalDeviceModel {
     this.deviceSerialNo,
     this.vatNumber,
     this.isDeviceRegistered,
+    this.tinNumber
   });
 
   String? id;
   int? deviceId;
   String? deviceSerialNo;
   String? vatNumber;
+  String? tinNumber;
   bool? isDeviceRegistered;
 
   factory FiscalDeviceModel.fromJson(String str) => FiscalDeviceModel.fromMap(json.decode(str));
@@ -27,6 +29,7 @@ class FiscalDeviceModel {
     deviceId: json["deviceId"],
     deviceSerialNo: json["deviceSerialNo"],
     vatNumber: json["vatNumber"],
+    tinNumber: json["tinNumber"],
     isDeviceRegistered: json["isDeviceRegistered"],
   );
 
@@ -36,5 +39,6 @@ class FiscalDeviceModel {
     "deviceId": deviceId,
     "vatNumber": vatNumber,
     "isDeviceRegistered": isDeviceRegistered,
+    "tinNumber": tinNumber,
   };
 }
