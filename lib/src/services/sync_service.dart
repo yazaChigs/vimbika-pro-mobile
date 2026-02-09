@@ -38,7 +38,9 @@ import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/jwt_request_model.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/jwt_response_model.dart';
 
+import '../constants/app_routes.dart';
 import '../features/sale/controller/cart_controller.dart';
+import '../features/sale/controller/sale_controller.dart';
 import '../services/background_service.dart';
 import '../features/sale/model/product_full_info_model.dart';
 import '../features/shift/model/currency_amount.dart';
@@ -49,6 +51,7 @@ import '../shared/models/customer_model.dart';
 class SyncService {
 
   final FocusNode _focusNode = FocusNode();
+  late  GetStorage box;
   
   // Helper function to handle unauthorized errors with token refresh and retry
   static Future<T?> handleUnauthorizedWithRetry<T>(
@@ -1283,6 +1286,86 @@ class SyncService {
       box.write(AppConstants.SHIFT_LIST, itemsListMap);
     }
   }*/
+
+
+  static bool hadValidSubscription(){
+
+    var box = GetStorage();
+    var renewalDateData = box.read(AppConstants.RENEWAL_DATE);
+
+    if(renewalDateData != null ) {
+      DateTime? renewalDate;
+      if (renewalDateData is DateTime) {
+        renewalDate = renewalDateData;
+      } else if (renewalDateData is String) {
+        try {
+          renewalDate = new DateFormat("dd/MM/yyyy").parse(renewalDateData);
+        } catch (e) {
+          print("Error parsing renewal date: $e");
+          try {
+            renewalDate = DateTime.parse(renewalDateData);
+          } catch (e2) {
+            print("Error parsing renewal date as ISO8601: $e2");
+          }
+        }
+      }
+
+      if (renewalDate != null) {
+        print("renewalDate: ${renewalDate}");
+        DateTime now = DateTime.now();
+        DateTime startOfDay = DateTime(now.year, now.month, now.day);
+        var daysRemaining = renewalDate.difference(startOfDay);
+        print("days remainig: ${daysRemaining.inDays}");
+        if(daysRemaining.inDays > 0){
+          if(daysRemaining.inDays < 5 && daysRemaining.inDays >0)
+            Get.snackbar("Subscription Expiring Soon",
+                "Your subscription will expire in ${daysRemaining.inDays} days",
+                snackPosition: SnackPosition.TOP,
+                backgroundColor: Colors.redAccent);
+            // AppHelper.showErroDialog(title: "Subscription Expiring Soon", description: "Your subscription will expire in ${daysRemaining.inDays} day(s). Please contact your admin to renew your subscription");
+          return true;
+        } else if(daysRemaining.inDays <= 0) {
+          AppHelper.showErroDialog(title: "Subscription Expired", description: "Your subscription has expired. Please contact your admin to renew your subscription");
+          logout(box);
+        }
+      }
+    }
+    return false;
+  }
+
+  static logout(box) async {
+    UserModel user = UserModel(id: null, firstName: "", lastName: "", userName: "");
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    user = UserModel.fromMap(Map<String, dynamic>.from(model));
+    final LocalStorageService _localStorageService = LocalStorageService();
+    box.remove(AppConstants.CACHED_ACCESS_TOKEN);
+    box.write(AppConstants.IS_AUTHENTICATED, false);
+    box.remove(AppConstants.USER_INFO);
+    List<ShiftModel> tempShiftList = loadShifts(box, _localStorageService);
+    ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(tempShiftList, box, UserModel(firstName: "", lastName: "", userName: ""), false);
+    if(tempActiveShift != null) {
+      // DateTime now = DateTime.now();
+      // String closingTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+      // tempActiveShift.isShiftClosed = true;
+      // tempActiveShift.closingTime = closingTime;
+      // List<ShiftModel> shi = _localStorageService.replaceShift(
+      //     tempActiveShift, tempShiftList);
+      // _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
+      SyncService.syncOfflineShifts(user, box);
+    }
+    Get.delete<SaleController>();
+    Get.delete<BackgroundService>();
+    Get.offNamed(AppRoutes.LOGIN);
+  }
+
+
+  static List<ShiftModel> loadShifts( GetStorage box, LocalStorageService localStorageService) {
+    List<ShiftModel> list = localStorageService.getOfflineList<ShiftModel>(
+        AppConstants.SHIFT_LIST,
+            (map) => ShiftModel.fromMap(map),
+        box);
+    return list;
+  }
 
   static Future<List<CurrencyAmount>> syncShiftsWithNullID(List<CurrencyAmount> currencyAmountsWithNullId, UserModel user,) async {
     List<CurrencyAmount> updateCurrencyItems = [];

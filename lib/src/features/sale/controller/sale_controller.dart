@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:intl/intl.dart';
 import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
@@ -95,7 +96,6 @@ class SaleController extends GetxController {
     settingsModel = SettingsModel.fromMap(Map<String, dynamic>.from(settings));
     sellNilItems= settingsModel.sellNilItems ?? false;
     useSerialNumbers = settingsModel.useSerialNumbers ?? false;
-
     isServerReachable.value =  await _connectivityService.checkServerConnection();
     List<BaseNameModel> brandList = loadItems(box, AppConstants.BRAND_LIST);
     brands.value = brandList;
@@ -123,6 +123,7 @@ class SaleController extends GetxController {
       }
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
+      SyncService.hadValidSubscription();
   }
   @override
   void onClose() {
@@ -413,16 +414,10 @@ class SaleController extends GetxController {
           });
           if (response != null) {
             //AppHelper.hideLoading();
-
             List<dynamic> list = jsonDecode(response);
             List<ProductFullInfoModel> itemsList = List<ProductFullInfoModel>.from(list.map((i) => ProductFullInfoModel.fromMap(i)));
             itemsList.sort((a, b) => b.stock!.compareTo(a.stock!));
-
-
             allProducts.value = itemsList;
-            print("Total Products Fetched: ${allProducts.length}");
-            itemsList.forEach((element) => print(element.item!.taxAmount));
-            print(itemsList[0].item!.taxAmount);
             filteredProducts.value = itemsList;
             List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
                 item.toMap()).toList();
@@ -436,9 +431,6 @@ class SaleController extends GetxController {
         } else {
           return false;
         }
-        // else {
-        //   getOfflineProducts(box);
-        // }
       } else{
         Get.offNamed(AppRoutes.CHOOSE_BRANCH);
         return false;

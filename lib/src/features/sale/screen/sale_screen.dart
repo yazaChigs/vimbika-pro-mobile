@@ -47,7 +47,6 @@ class SaleScreen extends GetView {
   final SunmiController sunmiController = Get.put(SunmiController());
   final InactivityController inactivityController =
       Get.put(InactivityController());
-  final BackgroundService bb = Get.put(BackgroundService());
   final ReceiptController receiptController = Get.put(ReceiptController());
 
   // const Responsive({required this.mobile, required this.tablet, required this.desktop, super.key});
@@ -2636,7 +2635,7 @@ class SaleScreen extends GetView {
                     //       snackPosition: SnackPosition.TOP);
                     //   return;
                     // }
-                    cartController.cartItems[index].product.item!.sellingPrice = amount;
+                    cartController.cartItems[index].discount = amount;
                     cartController.cartItems.refresh();
                     cartController.calculateTotalAmounts(cartController.cartItems);
                     saleController.discountTextEditingController.clear();

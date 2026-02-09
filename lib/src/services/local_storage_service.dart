@@ -228,6 +228,38 @@ class LocalStorageService {
   }
 
 
+  /// Safely adds or updates a list of sales in local storage to prevent race conditions.
+  ///
+  /// This method reads the current list of sales, merges the provided sales
+  /// by updating existing ones or adding new ones, and then writes the
+  /// entire updated list back to storage.
+  void addOrUpdateSales(List<SaleInfoModel> salesToUpdate, GetStorage box) {
+    // 1. Read the most current list of sales from storage.
+    final existingSales = getOfflineList<SaleInfoModel>(
+        AppConstants.SALE_LIST, (map) => SaleInfoModel.fromMap(map), box);
+
+    // 2. Create a map for efficient lookup using a unique reference.
+    final salesMap = {
+      for (var sale in existingSales) sale.sale!.referenceNumber: sale
+    };
+
+    // 3. Iterate through the sales to be updated and merge them into the map.
+    for (final saleInfo in salesToUpdate) {
+      if (saleInfo.sale?.referenceNumber != null) {
+        salesMap[saleInfo.sale!.referenceNumber!] = saleInfo;
+      }
+    }
+
+    // 4. Convert the map values back to a list.
+    final updatedSalesList = salesMap.values.toList();
+
+    // 5. Write the fully updated list back to storage.
+    final itemsListMap =
+    updatedSalesList.map((item) => item.toMap()).toList();
+    box.write(AppConstants.SALE_LIST, itemsListMap);
+  }
+
+
   List<SaleInfoModel>  replaceSale(SaleInfoModel newItem, List<SaleInfoModel> list) {
     // Find the index of the shift with the matching shiftReference
     int index = list.indexWhere((item) => item.sale!.posReference == newItem.sale!.posReference);

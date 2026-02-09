@@ -17,10 +17,12 @@ import 'package:vimbika_pos_app/src/features/authentication/model/jwt_request_mo
 import 'package:vimbika_pos_app/src/features/authentication/model/jwt_response_model.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
 import 'package:vimbika_pos_app/src/features/printers/model/available_printer_model.dart';
+import 'package:vimbika_pos_app/src/features/subscription/model/subscription_model.dart';
 import 'package:vimbika_pos_app/src/services/app_exceptions.dart';
 import 'package:vimbika_pos_app/src/services/base_http_client.dart';
 import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
+import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
 import '../../../rear/sunmi_binding.dart';
@@ -60,6 +62,7 @@ class AuthController extends GetxController {
 
   var userName = '';
   var password = '';
+  var renewalDate = '';
 
   final LocalStorageService _localStorageService = LocalStorageService();
 
@@ -218,7 +221,9 @@ class AuthController extends GetxController {
       if(response != null){
 
         final userResponseModel = JwtResponseModel.fromJson(response);
+        box.write(AppConstants.SUBSCRIPTIONS, userResponseModel.subscriptions);
 
+        if( await hasValidSubscription()){
         box.write(AppConstants.CACHED_ACCESS_TOKEN, userResponseModel.token);
         box.write(AppConstants.IS_AUTHENTICATED, true);
         box.write(AppConstants.IS_USER_INITIALLY_AUTHENTICATED, true);
@@ -237,6 +242,7 @@ class AuthController extends GetxController {
         box.write(AppConstants.SAVED_USER_CREDENTIALS, savedCredentials);
         
         Get.offNamed(AppRoutes.CHOOSE_BRANCH);
+        }
       } else{
         // If response is null due to network error, try offline login
         // Check if we have stored credentials for offline login
@@ -248,8 +254,9 @@ class AuthController extends GetxController {
           var userCreds = savedCredentials[normalizedEnteredUserName];
           var userInfo = userCreds['userInfo'] ?? {};
           var pass = userCreds['password'] ?? "";
+          var subValid  = await SyncService.hadValidSubscription();
           
-          if(password == pass){
+          if(password == pass && subValid){
             // Update current user info for backward compatibility
             box.write(AppConstants.USER_INFO, userInfo);
             box.write(AppConstants.USER_PASSWORD, password);
@@ -287,8 +294,9 @@ class AuthController extends GetxController {
         var userCreds = savedCredentials[normalizedEnteredUserName];
         var userInfo = userCreds['userInfo'] ?? {};
         var pass = userCreds['password'] ?? "";
+        var subValid = await SyncService.hadValidSubscription();
         
-        if(password == pass){
+        if(password == pass && subValid){
           // Update current user info for backward compatibility
           box.write(AppConstants.USER_INFO, userInfo);
           box.write(AppConstants.USER_PASSWORD, password);
@@ -382,6 +390,48 @@ class AuthController extends GetxController {
     }
   }
 
+  // Check if there is a valid subscription
+  Future<bool> hasValidSubscription() async {
+    var subscriptionsData = box.read(AppConstants.SUBSCRIPTIONS);
+    if (subscriptionsData != null && subscriptionsData is List) {
+      List<SubscriptionModel> subscriptions;
+      if (subscriptionsData.isNotEmpty && subscriptionsData.first is SubscriptionModel) {
+        subscriptions = List<SubscriptionModel>.from(subscriptionsData);
+        renewalDate = subscriptions.first.renewalDate.toString();
+      } else {
+        subscriptions = subscriptionsData
+            .map((e) => SubscriptionModel.fromMap(e as Map<String, dynamic>))
+            .toList();
+      }
+
+      for (var subscription in subscriptions) {
+        if (subscription.active == true &&
+            subscription.renewalDate != null &&
+            subscription.renewalDate!.isAfter(DateTime.now())) {
+          DateTime now = DateTime.now();
+          DateTime startOfDay = DateTime(now.year, now.month, now.day);
+          var daysRemaining = subscription.renewalDate!.difference(startOfDay);
+          renewalDate = subscription.renewalDate.toString();
+          print("daysRemaining login: ${daysRemaining.inDays}");
+          print("renewalDate login: ${subscription.renewalDate}");
+          if(daysRemaining.inDays <5 && daysRemaining.inDays > 0) {
+            Get.snackbar("Subscription Expiring Soon",
+                "Your subscription will expire in ${daysRemaining.inDays} days",
+                snackPosition: SnackPosition.TOP,
+                backgroundColor: Colors.redAccent);
+            AppHelper.showErroDialog(title: "Subscription Expiring Soon", description: "Your subscription will expire in ${daysRemaining.inDays} days");
+          }
+          if(daysRemaining.inDays>0) {
+            box.write(AppConstants.RENEWAL_DATE, renewalDate);
+            return true;
+          }
+        }
+      }
+    }
+    box.write(AppConstants.RENEWAL_DATE, renewalDate);
+    AppHelper.showErroDialog(title: "Subscription Expired", description: "Your subscription has Expired, contact your admin");
+    return false;
+  }
 
 }
 

@@ -30,11 +30,13 @@ import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/screen/pdf_preview_screen.dart';
 import 'package:vimbika_pos_app/src/features/ticket/controller/ticket_controller.dart';
 import 'package:vimbika_pos_app/src/services/app_exceptions.dart';
+import 'package:vimbika_pos_app/src/services/background_service.dart';
 import 'package:vimbika_pos_app/src/services/base_http_client.dart';
 import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
 import 'package:vimbika_pos_app/src/services/generate_flutter_pdf.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/printer_service.dart';
+import 'package:vimbika_pos_app/src/services/sync_lock_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/bank_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
@@ -169,6 +171,7 @@ class CartController extends GetxController {
   // Form key to validate the form
   var formKeyAddCustomer = GlobalKey<FormState>();
   final PrinterService _printerService = Get.put(PrinterService());
+  final SyncLockService _syncLockService = Get.put(SyncLockService());
   RxList<AvailablePrinterModel> availablePrinters =
       <AvailablePrinterModel>[].obs;
   var saleTicketId = "".obs;
@@ -1169,10 +1172,8 @@ class CartController extends GetxController {
         productItem.quantity = cartItem.quantity;
         productItem.total = cartItem.totalPrice;
         var rate = selectedCurrency.value?.rate ?? 1.0;
-        print("taxamount: ${cartItem.totalTaxAmount}" );
-
         SaleItemModel saleItem = SaleItemModel(
-        sellingPrice: productItem.sellingPrice * rate,
+        sellingPrice: (cartItem.totalPrice/cartItem.quantity) * rate,
         notes: cartItem.notes,
         baseCurrencySellingPrice: productItem.sellingPrice,
         quantity: cartItem.quantity,
@@ -1205,6 +1206,8 @@ class CartController extends GetxController {
       String ticketComment,
       List<CartItemModel> saleCartItems,
       String saleId) async {
+    await _syncLockService.acquireChargeLock();
+  try {
     bool stat = await _connectivityService.checkServerConnection();
     bool breakage =  cartItems.any((item) => item.breakage);
     calculateTotalAmounts(saleCartItems);
@@ -1352,13 +1355,13 @@ class CartController extends GetxController {
       String ref  = generateOrderNumber();
       printTicket(saleInfoModel, ref);
     }
-    var syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;;
-    while(syncing){
-      print("waiting for sync...");
-      syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;
-      if(syncing)
-        await Future.delayed(Duration(seconds: 1));
-    }
+    // var syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;;
+    // while(syncing){
+    //   print("waiting for sync...");
+    //   syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;
+    //   if(syncing)
+    //     await Future.delayed(Duration(seconds: 1));
+    // }
     if (stat && isFiscaliseReceiptEnabled.value && !isOnHold) {
       SaleModel? responseFromServerSale =
           await SyncService.saveSale(sale, user.value!, box, company.value!);
@@ -1385,6 +1388,7 @@ class CartController extends GetxController {
       saleInfoModel = SaleInfoModel(sale: sale, syncStatus: false);
     }
     if (!isOnHold) {
+      infos = getExistingOfflineSales(box);
       infos.add(saleInfoModel);
       writeSaleInfor(box, infos);
       deductStock();
@@ -1409,9 +1413,6 @@ class CartController extends GetxController {
         selectedTicketRef.value = '';
         writeSaleInfor(box, infos);
       }
-
-      printCurrentSale(saleInfoModel, box);
-
       if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && (double.parse(amtToAccTextEditingController.text)>0)) {
         CustomerModel customer = allCustomers.firstWhere((cust) =>
         cust.name == sale.customer!.name);
@@ -1430,6 +1431,7 @@ class CartController extends GetxController {
             cd.currency.id == selectedCurrency.value!.id).balance =
             (prev! + double.parse(amtToAccTextEditingController.text));
           }
+          saleInfoModel.sale!.customer = customer;
           allCustomers[index] = customer;
           List<CustomerModel> customers = allCustomers.value;
           List<Map<String, dynamic>> customersListMap =
@@ -1467,6 +1469,7 @@ class CartController extends GetxController {
             customer.currencyBalance!.add(currencyAmount);
           }
           customer.accountBalance = customer.accountBalance! - (amountPaid.value/selectedCurrency.value!.rate!);
+          saleInfoModel.sale!.customer = customer;
           customer.updated = true;
           allCustomers[index] = customer;
           List<CustomerModel> customers = allCustomers.value;
@@ -1487,6 +1490,7 @@ class CartController extends GetxController {
           }
         }
       }
+      printCurrentSale(saleInfoModel, box);
       cancelSale();
       AppHelper.hideLoading();
       Get.snackbar(
@@ -1498,6 +1502,9 @@ class CartController extends GetxController {
       cancelSale();
       AppHelper.hideLoading();
     }
+  } finally {
+    _syncLockService.releaseChargeLock();
+  }
   }
 
   List<SaleInfoModel> getExistingOfflineSales2(GetStorage box) {
@@ -1671,20 +1678,24 @@ class CartController extends GetxController {
       if(paymentTypes.any((pt)=> pt.paymentType!.name!.startsWith("CASH-"))) {
         openCashDrawer();
       }
-      print("after shift currency");
-      print(activeShift.toJson());
-      List<ShiftModel> updatedShifts =
-            _localStorageService.replaceShift(activeShift, shiftList);
+      
+      // Update the shift in the list and persist
+      int shiftIndex = allShifts.indexWhere((s) => s.shiftReference == activeShift.shiftReference);
+      if (shiftIndex != -1) {
+        allShifts[shiftIndex] = activeShift;
+        List<ShiftModel> updatedShifts =
+            _localStorageService.replaceShift(activeShift, allShifts);
         _localStorageService.writeItems(
             AppConstants.SHIFT_LIST, updatedShifts, box);
-        if(type == "CASH_IN") {
-          printCashIn(paymentTypes[0], activeShift.userFullName!); 
-        }
-        if (stat) {
-          SyncService.syncOfflineShifts(user.value!, box);
-        }
+      }
+      
+      if(type == "CASH_IN") {
+        printCashIn(paymentTypes[0], activeShift.userFullName!); 
+      }
+      if (stat) {
+        SyncService.syncOfflineShifts(user.value!, box);
+      }
     } else {
-      print("Update Shift: No active shift found for user ${user.value!.userName} (ID: ${user.value!.id})");
       shiftAvailable.value = false;
     }
   }
@@ -1712,10 +1723,8 @@ class CartController extends GetxController {
     }
   }
 
-  writeSaleInfor(GetStorage box, List<SaleInfoModel> itemsList) {
-    List<Map<String, dynamic>> itemsListMap =
-        itemsList.map((item) => item.toMap()).toList();
-    box.write(AppConstants.SALE_LIST, itemsListMap);
+  void writeSaleInfor(GetStorage box, List<SaleInfoModel> itemsList) {
+    _localStorageService.addOrUpdateSales(itemsList, box);
   }
 
   cancelSale() {

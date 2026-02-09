@@ -1,5 +1,4 @@
 
-
 import 'package:vimbika_pos_app/src/features/sale/model/product_full_info_model.dart';
 
 class CartItemModel {
@@ -9,6 +8,7 @@ class CartItemModel {
     this.breakage = false,
     this.usedCodes = const {},
     this.notes = '',
+    this.discount = 0.0,
   });
 
   final ProductFullInfoModel product;
@@ -16,8 +16,9 @@ class CartItemModel {
   Set<String> usedCodes = {};
   bool breakage = false;
   String notes;
+  double discount;
 
-  double get totalPrice => breakage ? 0.00 : product.item!.sellingPrice * quantity;
+  double get totalPrice => breakage ? 0.00 : (product.item!.sellingPrice  - discount )* quantity;
 
   double get totalTaxAmount => breakage ? 0.00 :  product.item!.taxAmount * quantity;
 
@@ -30,6 +31,7 @@ class CartItemModel {
     usedCodes: json["usedCodes"] != null
         ? Set<String>.from(json["usedCodes"].map((x) => x.toString()))
         : {},
+    discount: json["discount"] ?? 0.0,
   );
   Map<String, dynamic> toMap() => {
     "quantity": quantity,
@@ -39,5 +41,6 @@ class CartItemModel {
     "usedCodes": usedCodes.isNotEmpty
         ? List<String>.from(usedCodes.map((x) => x.toString()))
         : [],
+    "discount": discount,
   };
 }

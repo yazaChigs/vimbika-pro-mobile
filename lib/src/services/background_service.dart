@@ -12,6 +12,7 @@ import 'package:vimbika_pos_app/src/services/app_exceptions.dart';
 import 'package:vimbika_pos_app/src/services/base_http_client.dart';
 import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
+import 'package:vimbika_pos_app/src/services/sync_lock_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/utils/app_helper.dart';
@@ -23,12 +24,16 @@ import '../shared/models/company_model.dart';
 
 class BackgroundService extends GetxService {
   final ConnectivityService _connectivityService = ConnectivityService();
+  final SyncLockService _syncLockService = Get.put(SyncLockService());
+  final LocalStorageService _localStorageService = LocalStorageService();
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
   late ShiftSettingModel shiftSetting = ShiftSettingModel();
   List<SaleInfoModel> offlineSales = <SaleInfoModel>[];
+  List<SaleInfoModel> salesNumber = <SaleInfoModel>[];
   List<SaleInfoModel> reversedSales = <SaleInfoModel>[];
   Rx<CompanyModel?> company = CompanyModel().obs;
   late  GetStorage box;
+
   @override
   void onInit() {
     super.onInit();
@@ -37,12 +42,13 @@ class BackgroundService extends GetxService {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     var shiftModel = box.read(AppConstants.SHIFT_SETTING) ?? {};
     shiftSetting = ShiftSettingModel.fromMap(Map<String, dynamic>.from(shiftModel));
-    Timer.periodic(Duration(minutes: 20), (timer) async {
-      print("Background task running every 10 minutes");
+    Timer.periodic(Duration(minutes: 1), (timer) async {
+      print("Background task running every 30 seconds");
         await syncOfflineSales(true);
       });
     var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
+    salesNumber = getExistingOfflineSales(box);
   }
 
   checkShiftStatus(GetStorage box, LocalStorageService _localStorageService) async {
@@ -94,6 +100,10 @@ class BackgroundService extends GetxService {
       user = UserModel.fromMap(Map<String, dynamic>.from(model));
       print("Sync Offline Sales: Loaded user ${user.userName} with ID ${user.id}");
     }
+    var syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;
+    print("syncing: $syncing");
+    if(syncing)
+      return;
     
     box.write(AppConstants.SYNCING_IN_PROGRESS, true);
     bool stat = await _connectivityService.checkServerConnection();
@@ -122,13 +132,45 @@ class BackgroundService extends GetxService {
         }
       }
 
+      // Remove duplicates based on posReference, prioritizing synced sales
+      Set<String> syncedPosRefs = actualSales
+          .where((s) => s.syncStatus == true && s.sale?.posReference != null)
+          .map((s) => s.sale!.posReference!)
+          .toSet();
+
+      Set<String> seenPosRefs = {};
+      List<SaleInfoModel> dedupedSales = [];
+
+      for (var sale in actualSales) {
+        String? posRef = sale.sale?.posReference;
+
+        if (posRef == null) {
+          dedupedSales.add(sale);
+          continue;
+        }
+
+        if (seenPosRefs.contains(posRef)) {
+          continue;
+        }
+
+        if (sale.syncStatus != true && syncedPosRefs.contains(posRef)) {
+          continue;
+        }
+
+        seenPosRefs.add(posRef);
+        dedupedSales.add(sale);
+      }
+      actualSales = dedupedSales;
+
       // actualSales = actualSales.where((sale)=> sale.syncStatus == false).toList();
       actualSales = actualSales.where((sale)=> sale.syncStatus == false).toList();
       offlineSales = actualSales;
       reversedSales = reversed;
 
       List<SaleInfoModel> syncedSales = [];
+      offlineSales.forEach((action)=> print(action));
       for (SaleInfoModel saleInfo in offlineSales) {
+        await _syncLockService.awaitChargeLock();
         CurrencyAmount saleCurrencyAmount =  currencyAmounts.firstWhere((test)=> test.posReference==saleInfo.sale!.posReference!, orElse: () => CurrencyAmount(currency: CurrencyModel(), amountType: "", ref: "", timeCreated: "", notes: "", amount: 0.0, shiftReference: null));
         if (!saleInfo.syncStatus!) {
           SaleModel? saleModel = await SyncService.saveSale(
@@ -147,9 +189,12 @@ class BackgroundService extends GetxService {
             // CRITICAL: Use the shiftReference from the synced sale to ensure correct association
             // This works even if the shift is closed - we match by shiftReference regardless of isShiftClosed
             if (saleInfoModel.sale?.shiftReference != null) {
+              // Reload shifts to ensure we have the latest state (including changes from concurrent chargeSale)
+              List<ShiftModel> currentShiftList = loadShiftInfo(box);
+              
               // Find the shift by the exact shiftReference from the sale
               // NOTE: We intentionally don't check isShiftClosed here - closed shifts can still have sales synced to them
-              ShiftModel? shift = shiftList.firstWhereOrNull(
+              ShiftModel? shift = currentShiftList.firstWhereOrNull(
                 (shift) => shift.shiftReference == saleInfoModel.sale!.shiftReference &&
                            shift.userId != null &&
                            user.id != null &&
@@ -179,11 +224,12 @@ class BackgroundService extends GetxService {
                   print("Sync: Warning - Currency amount shiftReference (${saleCurrencyAmount.shiftReference}) doesn't match sale shiftReference (${saleInfoModel.sale!.shiftReference})");
                 }
                 
-                // Persist the updated shift
-                int shiftIndex = shiftList.indexWhere((s) => s.shiftReference == shift.shiftReference);
+                // Persist the updated shift using the fresh list
+                int shiftIndex = currentShiftList.indexWhere((s) => s.shiftReference == shift.shiftReference);
                 if (shiftIndex != -1) {
-                  shiftList[shiftIndex] = shift;
-                  LocalStorageService().writeItems(AppConstants.SHIFT_LIST, shiftList, box);
+                  currentShiftList[shiftIndex] = shift;
+                  List<ShiftModel> updatedShifts = LocalStorageService().replaceShift(shift, currentShiftList);
+                  LocalStorageService().writeItems(AppConstants.SHIFT_LIST, updatedShifts, box);
                 }
               } else {
                 print("Sync: Warning - Shift ${saleInfoModel.sale!.shiftReference} not found or doesn't belong to user ${user.id}");
@@ -192,8 +238,11 @@ class BackgroundService extends GetxService {
               print("Sync: Warning - Sale ${saleInfoModel.sale?.posReference} has no shiftReference");
             }
             
-            if(sales.any((saleInfo)=> saleInfo.sale?.posReference == saleInfo.sale?.posReference)){
-              sales.remove(saleInfo);
+            sales = getExistingOfflineSales(box);
+            int index = sales.indexWhere((s) => s.sale?.posReference == saleInfo.sale?.posReference);
+            if (index != -1) {
+              sales[index] = saleInfoModel;
+            } else {
               sales.add(saleInfoModel);
             }
             writeSaleInfor(box, sales);
@@ -221,14 +270,17 @@ class BackgroundService extends GetxService {
             } else{
               saleInfoModel = SaleInfoModel(sale: saleModel, syncStatus: true);
             }
-            
+
             // Update shift currency amount with new posReference from server (for reversed sales)
             // CRITICAL: Use the shiftReference from the synced sale to ensure correct association
             // This works even if the shift is closed - we match by shiftReference regardless of isShiftClosed
             if (saleInfoModel.sale?.shiftReference != null) {
+              // Reload shifts to ensure we have the latest state (including changes from concurrent chargeSale)
+              List<ShiftModel> currentShiftList = loadShiftInfo(box);
+              
               // Find the shift by the exact shiftReference from the sale
               // NOTE: We intentionally don't check isShiftClosed here - closed shifts can still have sales synced to them
-              ShiftModel? shift = shiftList.firstWhereOrNull(
+              ShiftModel? shift = currentShiftList.firstWhereOrNull(
                 (shift) => shift.shiftReference == saleInfoModel.sale!.shiftReference &&
                            shift.userId != null &&
                            user.id != null &&
@@ -258,11 +310,12 @@ class BackgroundService extends GetxService {
                   print("Sync (Reversed): Warning - Currency amount shiftReference (${saleCurrencyAmount.shiftReference}) doesn't match sale shiftReference (${saleInfoModel.sale!.shiftReference})");
                 }
                 
-                // Persist the updated shift
-                int shiftIndex = shiftList.indexWhere((s) => s.shiftReference == shift.shiftReference);
+                // Persist the updated shift using the fresh list
+                int shiftIndex = currentShiftList.indexWhere((s) => s.shiftReference == shift.shiftReference);
                 if (shiftIndex != -1) {
-                  shiftList[shiftIndex] = shift;
-                  LocalStorageService().writeItems(AppConstants.SHIFT_LIST, shiftList, box);
+                  currentShiftList[shiftIndex] = shift;
+                  List<ShiftModel> updatedShifts = LocalStorageService().replaceShift(shift, currentShiftList);
+                  LocalStorageService().writeItems(AppConstants.SHIFT_LIST, updatedShifts, box);
                 }
               } else {
                 print("Sync (Reversed): Warning - Shift ${saleInfoModel.sale!.shiftReference} not found or doesn't belong to user ${user.id}");
@@ -272,11 +325,14 @@ class BackgroundService extends GetxService {
             }
             
             // Update the sale in the local storage
-            if(sales.any((saleInfo)=> saleInfo.sale?.posReference == saleInfo.sale?.posReference)){
-              sales.remove(saleInfo);
+            sales = getExistingOfflineSales(box);
+            int index = sales.indexWhere((s) => s.sale?.posReference == saleInfo.sale?.posReference);
+            if (index != -1) {
+              sales[index] = saleInfoModel;
+            } else {
               sales.add(saleInfoModel);
             }
-              writeSaleInfor(box, sales);
+            writeSaleInfor(box, sales);
 
           }
         }
@@ -286,11 +342,9 @@ class BackgroundService extends GetxService {
         // Remove the synced sales from the offline list
         print(offlineSales.remove(saleInfo));
       }
-      
-      // Save updated shifts to storage after syncing sales
-      // This ensures shift currency amounts are updated when sales are synced later
-      LocalStorageService _localStorageService = LocalStorageService();
-      _localStorageService.writeItems(AppConstants.SHIFT_LIST, shiftList, box);
+
+      salesNumber = offlineSales;
+      // Shift updates are now handled inside the loop with fresh data
       
       box.write(AppConstants.SYNCING_IN_PROGRESS, false);
       // if(synced) {

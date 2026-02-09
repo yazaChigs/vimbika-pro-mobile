@@ -13,10 +13,13 @@ class AppConstants {
   // static const VIMBIKA_BACKEND_URL = "https://mashwede.vimbika.africa/mashwede/api";
       static const VIMBIKA_BACKEND_URL = "http://192.168.1.146:8080/vimbika-pro/api";
       // static const VIMBIKA_BACKEND_URL = "http://192.168.12.178:8080/vimbika-pro/api";
-  // static const VIMBIKA_BACKEND_URL = "http://172.20.10.7:8080/vimbika-pro/api";
+  // static const VIMBIKA_BACKEND_URL = "http://172.20.10.12:8080/vimbika-pro/api";
   static const USER_INFO = "USER_INFO";
   static const ACTIVE_COMPANY = "ACTIVE_COMPANY";
   static const IS_AUTHENTICATED = "IS_AUTHENTICATED";
+  static const IS_SUBSCRIBED = "IS_SUBSCRIBED";
+  static const RENEWAL_DATE = "RENEWAL_DATE";
+  static const SUBSCRIPTIONS = "SUBSCRIPTIONS";
   static const SELECTED_BRANCH = "SELECTED_BRANCH";
   static const BRANCH_PRODUCTS = "BRANCH_PRODUCTS";
 

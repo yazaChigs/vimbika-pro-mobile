@@ -106,15 +106,15 @@ class ReceiptController extends GetxController {
       print("Refresh Filter: Loaded user ${user.userName} with ID ${user.id}");
     }
     
-    var syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;;
-    while(syncing){
-      print("waiting for sync...");
-      syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;
-      if(syncing)
-        await Future.delayed(Duration(seconds: 1));
-    }
+    var syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;
+    print("syncing: $syncing");
+    if(syncing)
+      return;
+
+    box.write(AppConstants.SYNCING_IN_PROGRESS, true);
     List<SaleInfoModel> allSales = getExistingOfflineSales(box);
     offlineSales.value = allSales.where((sale)=> sale.syncStatus == false).toList();
+    offlineSales.refresh();
     bool stat = await _connectivityService.checkServerConnection();
     // User should already be reloaded at the start of this method
     if(stat || (!stat && offlineSales.isEmpty) ) {
@@ -130,7 +130,8 @@ class ReceiptController extends GetxController {
     else {
       Get.snackbar("Error", "You have unsynced sales. Please sync them before closing the shift", snackPosition: SnackPosition.BOTTOM,backgroundColor: Colors.red, colorText: Colors.white);
     }
-    // Use full day range for today (start to end of day) to match divider logic
+    box.write(AppConstants.SYNCING_IN_PROGRESS, false);
+    // Use full day range for today (start of day to end of day) to match divider logic
     final now = DateTime.now();
     final startOfToday = DateTime(now.year, now.month, now.day, 0, 0, 0, 0);
     final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
@@ -287,7 +288,7 @@ class ReceiptController extends GetxController {
       saveSales();
       allReceipts.refresh();
       filteredReceipts.refresh();
-      
+
       // Get the active shift for the current user
       ShiftModel? tempActiveShift = await _localStorageService.getActiveShift(
           loadShifts(box), box, user, true);
@@ -339,12 +340,20 @@ class ReceiptController extends GetxController {
 
   void filterReceipts(String query) {
     searchQuery.value = query;
-    filteredReceipts.value = allReceipts.value.where((saleInfo) {
-      final saleRef = saleInfo.sale!.referenceNumber!.toLowerCase() ?? '';
-      final amt = saleInfo.sale!.saleCost.toString().toLowerCase() ?? '';
-      final lowerQuery = query.toLowerCase();
-      return saleRef.contains(lowerQuery) || amt.contains(lowerQuery);
-    }).toList();
+  }
+
+  void _applyFilter() {
+    String query = searchQuery.value;
+    if (query.isEmpty) {
+      filteredReceipts.value = allReceipts.toList();
+    } else {
+      filteredReceipts.value = allReceipts.where((saleInfo) {
+        final saleRef = saleInfo.sale?.referenceNumber?.toLowerCase() ?? '';
+        final amt = saleInfo.sale?.saleCost.toString().toLowerCase() ?? '';
+        final lowerQuery = query.toLowerCase();
+        return saleRef.contains(lowerQuery) || amt.contains(lowerQuery);
+      }).toList();
+    }
   }
 
   List<SaleInfoModel> getExistingOfflineSales(GetStorage box) {
