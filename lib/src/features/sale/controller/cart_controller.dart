@@ -1209,7 +1209,7 @@ class CartController extends GetxController {
     await _syncLockService.acquireChargeLock();
   try {
     bool stat = await _connectivityService.checkServerConnection();
-    print("Server connection:  $stat");
+    CustomerModel? customer;
     bool breakage =  cartItems.any((item) => item.breakage);
     calculateTotalAmounts(saleCartItems);
     double totalSaleQuantity = 0;
@@ -1443,7 +1443,7 @@ class CartController extends GetxController {
       }
       if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && (double.parse(amtToAccTextEditingController.text)==0.00 &&
               paymentTypes.any((pt) => pt.paymentType!.name!.startsWith("ACC-") || pt.paymentType!.name!.startsWith("CREDIT-")))){
-        CustomerModel customer = allCustomers.firstWhere((cust)=>cust.name == sale.customer!.name);
+         customer = allCustomers.firstWhere((cust)=>cust.name == sale.customer!.name);
         if(customer!=null){
           var index = allCustomers.indexOf(customer);
           if(customer.currencyBalance!=null && !customer.currencyBalance!.isEmpty) {
@@ -1462,16 +1462,15 @@ class CartController extends GetxController {
             customer.currencyBalance!.add(currencyAmount);
           }
           customer.accountBalance = customer.accountBalance! - (amountPaid.value/selectedCurrency.value!.rate!);
-          saleInfoModel.sale!.customer = customer;
-          // customer.updated = true;
+          customer.updated = true;
           allCustomers[index] = customer;
           List<CustomerModel> customers = allCustomers.value;
           List<Map<String, dynamic>> customersListMap =
           customers.map((item) => item.toMap()).toList();
           box.write(AppConstants.CUSTOMER_LIST, customersListMap);
-          // if(stat) {
-          //   await SyncService.saveCustomer(user.value!, box);
-          // }
+          if(stat) {
+            await SyncService.saveCustomer(user.value!, box);
+          }
           // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
           try {
             final CustomerController customerController = Get.find<CustomerController>();
@@ -1483,6 +1482,7 @@ class CartController extends GetxController {
           }
         }
       }
+      saleInfoModel.sale!.customer = customer;
       printCurrentSale(saleInfoModel, box);
       cancelSale();
       AppHelper.hideLoading();
