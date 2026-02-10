@@ -7,11 +7,11 @@ class ConnectivityService {
 
   Future<bool> checkInternetConnection() async {
     var connectivityResult = await _connectivity.checkConnectivity();
-    return connectivityResult != ConnectivityResult.none;
+    return !connectivityResult.contains(ConnectivityResult.none);
   }
   Future<bool> checkServerConnection() async {
     var connectivityResult = await _connectivity.checkConnectivity();
-    return connectivityResult != ConnectivityResult.none;
+    return !connectivityResult.contains(ConnectivityResult.none);
 
     // try {
     //   // Set a timeout for the server reachability check

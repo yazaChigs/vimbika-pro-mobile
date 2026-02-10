@@ -1209,6 +1209,7 @@ class CartController extends GetxController {
     await _syncLockService.acquireChargeLock();
   try {
     bool stat = await _connectivityService.checkServerConnection();
+    print("Server connection:  $stat");
     bool breakage =  cartItems.any((item) => item.breakage);
     calculateTotalAmounts(saleCartItems);
     double totalSaleQuantity = 0;
@@ -1345,7 +1346,6 @@ class CartController extends GetxController {
         amtToAcc: double.parse(amtToAccTextEditingController.text??"0")??0.00,
         tipAmount: double.parse(tipAmtTextEditingController.text??"0")??0.00,
     );
-    print(sale.toJson());
     SaleInfoModel saleInfoModel;
     if (isOnHold) {
       saleId = "";
@@ -1355,13 +1355,6 @@ class CartController extends GetxController {
       String ref  = generateOrderNumber();
       printTicket(saleInfoModel, ref);
     }
-    // var syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;;
-    // while(syncing){
-    //   print("waiting for sync...");
-    //   syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;
-    //   if(syncing)
-    //     await Future.delayed(Duration(seconds: 1));
-    // }
     if (stat && isFiscaliseReceiptEnabled.value && !isOnHold) {
       SaleModel? responseFromServerSale =
           await SyncService.saveSale(sale, user.value!, box, company.value!);
@@ -1413,7 +1406,7 @@ class CartController extends GetxController {
         selectedTicketRef.value = '';
         writeSaleInfor(box, infos);
       }
-      if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && (double.parse(amtToAccTextEditingController.text)>0)) {
+      if((sale.customer !=null) && (double.parse(amtToAccTextEditingController.text)>0)) {
         CustomerModel customer = allCustomers.firstWhere((cust) =>
         cust.name == sale.customer!.name);
         if (customer != null) {
@@ -1470,15 +1463,15 @@ class CartController extends GetxController {
           }
           customer.accountBalance = customer.accountBalance! - (amountPaid.value/selectedCurrency.value!.rate!);
           saleInfoModel.sale!.customer = customer;
-          customer.updated = true;
+          // customer.updated = true;
           allCustomers[index] = customer;
           List<CustomerModel> customers = allCustomers.value;
           List<Map<String, dynamic>> customersListMap =
           customers.map((item) => item.toMap()).toList();
           box.write(AppConstants.CUSTOMER_LIST, customersListMap);
-          if(stat) {
-            await SyncService.saveCustomer(user.value!, box);
-          }
+          // if(stat) {
+          //   await SyncService.saveCustomer(user.value!, box);
+          // }
           // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
           try {
             final CustomerController customerController = Get.find<CustomerController>();
@@ -1692,9 +1685,10 @@ class CartController extends GetxController {
       if(type == "CASH_IN") {
         printCashIn(paymentTypes[0], activeShift.userFullName!); 
       }
-      if (stat) {
-        SyncService.syncOfflineShifts(user.value!, box);
-      }
+      // was causing some shifts to be missing
+      // if (stat) {
+        // SyncService.syncOfflineShifts(user.value!, box);
+      // }
     } else {
       shiftAvailable.value = false;
     }

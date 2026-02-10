@@ -101,7 +101,6 @@ class BackgroundService extends GetxService {
       print("Sync Offline Sales: Loaded user ${user.userName} with ID ${user.id}");
     }
     var syncing = box.read(AppConstants.SYNCING_IN_PROGRESS)??false;
-    print("syncing: $syncing");
     if(syncing)
       return;
     
@@ -168,7 +167,6 @@ class BackgroundService extends GetxService {
       reversedSales = reversed;
 
       List<SaleInfoModel> syncedSales = [];
-      offlineSales.forEach((action)=> print(action));
       for (SaleInfoModel saleInfo in offlineSales) {
         await _syncLockService.awaitChargeLock();
         CurrencyAmount saleCurrencyAmount =  currencyAmounts.firstWhere((test)=> test.posReference==saleInfo.sale!.posReference!, orElse: () => CurrencyAmount(currency: CurrencyModel(), amountType: "", ref: "", timeCreated: "", notes: "", amount: 0.0, shiftReference: null));
@@ -185,7 +183,7 @@ class BackgroundService extends GetxService {
               saleInfoModel = SaleInfoModel(sale: saleModel, syncStatus: true);
             }
             
-            // Update shift currency amount with new posReference from server
+          /*  // Update shift currency amount with new posReference from server
             // CRITICAL: Use the shiftReference from the synced sale to ensure correct association
             // This works even if the shift is closed - we match by shiftReference regardless of isShiftClosed
             if (saleInfoModel.sale?.shiftReference != null) {
@@ -236,7 +234,7 @@ class BackgroundService extends GetxService {
               }
             } else {
               print("Sync: Warning - Sale ${saleInfoModel.sale?.posReference} has no shiftReference");
-            }
+            }*/
             
             sales = getExistingOfflineSales(box);
             int index = sales.indexWhere((s) => s.sale?.posReference == saleInfo.sale?.posReference);
@@ -345,13 +343,10 @@ class BackgroundService extends GetxService {
 
       salesNumber = offlineSales;
       // Shift updates are now handled inside the loop with fresh data
-      
-      box.write(AppConstants.SYNCING_IN_PROGRESS, false);
-      // if(synced) {
+
         await SyncService.syncOfflineShifts(user, box);
-      //   synced = false;
-      // }
     }
+    box.write(AppConstants.SYNCING_IN_PROGRESS, false);
   }
 
 

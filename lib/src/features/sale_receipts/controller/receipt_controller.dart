@@ -90,6 +90,7 @@ class ReceiptController extends GetxController {
     allReceipts.value = sales.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
     tickets.value = sales.where((sale)=> sale.sale!.saleStatus=="ON_HOLD").toList();
     filteredReceipts.value = sales.where((sale)=> sale.sale!.saleStatus!="ON_HOLD").toList();
+    print("All receipts: rec ${allReceipts.length}");
     sortSalesByDate();
     allReceipts.refresh();
     filteredReceipts.refresh();
@@ -111,7 +112,7 @@ class ReceiptController extends GetxController {
     if(syncing)
       return;
 
-    box.write(AppConstants.SYNCING_IN_PROGRESS, true);
+    // box.write(AppConstants.SYNCING_IN_PROGRESS, true);
     List<SaleInfoModel> allSales = getExistingOfflineSales(box);
     offlineSales.value = allSales.where((sale)=> sale.syncStatus == false).toList();
     offlineSales.refresh();
@@ -200,6 +201,7 @@ class ReceiptController extends GetxController {
 
   Future<void> getSalesByDate(String startDate, String endDate, String categoryId, String branchId) async{
     bool stat = await _connectivityService.checkServerConnection();
+    print("Server connection:  $stat");
     if(stat) {
       List<SaleInfoModel> rawItems = getExistingOfflineSales(box);
       List<SaleInfoModel> items = [];
@@ -261,6 +263,7 @@ class ReceiptController extends GetxController {
             snackPosition: SnackPosition.BOTTOM);
       }
     } else{
+      print("No internet connection on receipts");
       getSales();
     }
   }
