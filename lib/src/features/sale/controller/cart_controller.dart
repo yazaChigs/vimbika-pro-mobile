@@ -1718,7 +1718,7 @@ class CartController extends GetxController {
   }
 
   void writeSaleInfor(GetStorage box, List<SaleInfoModel> itemsList) {
-    _localStorageService.addOrUpdateSales(itemsList, box);
+    _localStorageService.writeItems(AppConstants.SALE_LIST, itemsList, box);
   }
 
   cancelSale() {
