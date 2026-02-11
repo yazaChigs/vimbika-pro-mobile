@@ -351,7 +351,7 @@ class SyncService {
       if (onError is BadRequestException) {
         var apiError = json.decode(onError.message!);
         print(apiError);
-        AppHelper.showErroDialog(description: apiError["reason"]);
+        // AppHelper.showErroDialog(description: apiError["reason"]);
       } else if (onError is UnAuthorizedException) {
         // Try to refresh token and retry
         print("Unauthorized error, attempting to refresh token...");
@@ -430,7 +430,7 @@ class SyncService {
         if (onError is BadRequestException) {
           var apiError = json.decode(onError.message!);
           print(apiError);
-          AppHelper.showErroDialog(description: apiError["reason"]);
+          // AppHelper.showErroDialog(description: apiError["reason"]);
         } else if (onError is UnAuthorizedException) {
           // Try to refresh token and retry
           print("Unauthorized error, attempting to refresh token...");
@@ -449,7 +449,7 @@ class SyncService {
           }
         } else {
           print(onError);
-          AppHelper.handleError(onError);
+          // AppHelper.handleError(onError);
         }
         return null;
       });
@@ -720,7 +720,7 @@ class SyncService {
         AppHelper.hideLoading();
         if (onError is BadRequestException) {
           var apiError = json.decode(onError.message!);
-          AppHelper.showErroDialog(description: apiError["message"]);
+          // AppHelper.showErroDialog(description: apiError["message"]);
         } else {
           AppHelper.handleError(onError);
         }
