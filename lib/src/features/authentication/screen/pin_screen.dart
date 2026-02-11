@@ -6,16 +6,14 @@ import 'package:get/get.dart';
 import 'package:vimbika_pos_app/src/features/authentication/controller/pin_controller.dart'; // For exit(0) on Android/iOS.
 
 class PinScreen extends GetView {
-
   final PinController pinController = Get.put(PinController());
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        // Handle the back button press.
-        exit(0); // This will close the app.
-        return false; // Prevent default back button behavior.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        exit(0);
       },
       child: Scaffold(
         backgroundColor: Colors.white,
@@ -36,57 +34,84 @@ class PinScreen extends GetView {
               ),
               const SizedBox(height: 50),
               /// pin code area
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  double maxWidth = constraints.maxWidth;
-                  double boxWidth = (maxWidth - 5 * 12) / 6;
-                  boxWidth = boxWidth > 40 ? 40 : boxWidth;
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      double maxWidth = constraints.maxWidth;
+                      double boxWidth = (maxWidth - 5 * 12) / 6;
+                      boxWidth = boxWidth > 40 ? 40 : boxWidth;
 
-                  return Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 6.0,
-                    runSpacing: 6.0,
-                    children: List.generate(
-                      6,
+                      return Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 6.0,
+                        runSpacing: 6.0,
+                        children: List.generate(
+                          6,
                           (index) {
-                        return Obx(() {
-                          return Container(
-                            width: pinController.isPinVisible.value ? boxWidth : 16,
-                            height: pinController.isPinVisible.value ? boxWidth : 16,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(6.0),
-                              color: index < pinController.enteredPin.value.length
-                                  ? pinController.isPinVisible.value
-                                  ? Colors.black
-                                  : CupertinoColors.activeBlue
-                                  : CupertinoColors.activeBlue.withOpacity(0.1),
-                            ),
-                            child: pinController.isPinVisible.value &&
-                                index < pinController.enteredPin.value.length
-                                ? Center(
-                              child: Text(
-                                pinController.enteredPin.value[index],
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
+                            return Obx(() {
+                              return Container(
+                                width: pinController.isPinVisible.value
+                                    ? boxWidth
+                                    : 16,
+                                height: pinController.isPinVisible.value
+                                    ? boxWidth
+                                    : 16,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6.0),
+                                  color: index <
+                                          pinController.enteredPin.value.length
+                                      ? pinController.isPinVisible.value
+                                          ? Colors.black
+                                          : CupertinoColors.activeBlue
+                                      : CupertinoColors.activeBlue
+                                          .withOpacity(0.1),
                                 ),
-                              ),
-                            )
-                                : null,
-                          );
-                        });
+                                child: pinController.isPinVisible.value &&
+                                        index <
+                                            pinController
+                                                .enteredPin.value.length
+                                    ? Center(
+                                        child: Text(
+                                          pinController.enteredPin.value[index],
+                                          style: const TextStyle(
+                                            fontSize: 17,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      )
+                                    : null,
+                              );
+                            });
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                  Opacity(
+                    opacity: 0.0,
+                    child: TextField(
+                      autofocus: true,
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        pinController.enteredPin.value = value;
+                        if (value.length >= 4) {
+                          pinController.validatePin();
+                        }
                       },
                     ),
-                  );
-                },
+                  ),
+                ],
               ),
+
               /// visibility toggle button
               Obx(() {
                 return IconButton(
                   onPressed: () {
                     pinController.isPinVisible.value =
-                    !pinController.isPinVisible.value;
+                        !pinController.isPinVisible.value;
                   },
                   icon: Icon(
                     pinController.isPinVisible.value
@@ -104,7 +129,7 @@ class PinScreen extends GetView {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: List.generate(
                       3,
-                          (index) => numButton(1 + 3 * i + index),
+                      (index) => numButton(1 + 3 * i + index),
                     ).toList(),
                   ),
                 ),
@@ -119,8 +144,12 @@ class PinScreen extends GetView {
                     TextButton(
                       onPressed: () {
                         if (pinController.enteredPin.value.isNotEmpty) {
-                          pinController.enteredPin.value = pinController.enteredPin.value.substring(
-                              0, pinController.enteredPin.value.length - 1);
+                          pinController.enteredPin.value = pinController
+                              .enteredPin.value
+                              .substring(
+                                  0,
+                                  pinController.enteredPin.value.length -
+                                      1);
                         }
                       },
                       child: const Icon(

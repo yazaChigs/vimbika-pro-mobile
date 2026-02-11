@@ -48,6 +48,7 @@ class SaleScreen extends GetView {
   final InactivityController inactivityController =
       Get.put(InactivityController());
   final ReceiptController receiptController = Get.put(ReceiptController());
+  final ScrollController _scrollController = ScrollController();
 
   // const Responsive({required this.mobile, required this.tablet, required this.desktop, super.key});
 
@@ -1258,60 +1259,95 @@ class SaleScreen extends GetView {
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 2.0, vertical: 2.0),
-                  child: Container(
-                      width: screenSize,
-                      child: Obx(() {
-                        return GridView.builder(
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount:
-                                (saleController.categories.length / 2).round(),
-                            mainAxisSpacing: 10.0,
-                            crossAxisSpacing: 2.0,
-                            // childAspectRatio: 2.0, // Adjust aspect ratio as needed
-                            mainAxisExtent: 40.0, // Adjust height of each item
-                          ),
-                          shrinkWrap: true,
-                          itemCount: saleController.categories.length,
-                          itemBuilder: (context, index) {
-                            final category = saleController.categories[index];
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: saleController.isCatSelected.value &&
-                                        saleController
-                                                .selectedCategory.value?.id ==
-                                            category.id
-                                    ? Colors.purple
-                                    : Colors.deepOrange[300],
-                                border: Border.all(
-                                  color: Colors.indigo,
-                                  width: 2.0,
+                  child: SizedBox(
+                    height: 50,
+                    width: screenSize,
+                    child: Obx(() {
+                      return Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          ListView.builder(
+                            controller: _scrollController,
+                            scrollDirection: Axis.horizontal,
+                            shrinkWrap: true,
+                            itemCount: saleController.categories.length,
+                            itemBuilder: (context, index) {
+                              final category = saleController.categories[index];
+                              return Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                                decoration: BoxDecoration(
+                                  color: saleController.isCatSelected.value &&
+                                          saleController
+                                                  .selectedCategory.value?.id ==
+                                              category.id
+                                      ? Colors.purple
+                                      : Colors.deepOrange[300],
+                                  border: Border.all(
+                                    color: Colors.indigo,
+                                    width: 2.0,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8.0),
                                 ),
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                              child: InkWell(
-                                onTap: () {
-                                  saleController.isCatSelected.value = true;
-                                  saleController.selectedCategory.value =
-                                      category;
-                                  saleController.filterProducts(
-                                      category: category.id!);
-                                  saleController.categories.refresh();
-                                },
-                                child: Center(
-                                  child: Text(
-                                    category.name!,
-                                    style: TextStyle(
-                                        fontSize: 12.0,
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.bold),
-                                    textAlign: TextAlign.center,
+                                child: InkWell(
+                                  onTap: () {
+                                    saleController.isCatSelected.value = true;
+                                    saleController.selectedCategory.value =
+                                        category;
+                                    saleController.filterProducts(
+                                        category: category.id!);
+                                    saleController.categories.refresh();
+                                  },
+                                  child: Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                      child: Text(
+                                        category.name!,
+                                        style: TextStyle(
+                                            fontSize: 12.0,
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.bold),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            );
-                          },
-                        );
-                      })),
+                              );
+                            },
+                          ),
+                          Positioned(
+                            left: 0,
+                            top: -15,
+                            bottom: 0,
+                            child: IconButton(
+                              icon: Icon(Icons.arrow_back_ios, color: Colors.indigo, size: 60,),
+                              onPressed: () {
+                                _scrollController.animateTo(
+                                  _scrollController.offset - 500,
+                                  duration: Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                );
+                              },
+                            ),
+                          ),
+                          Positioned(
+                            right: 0,
+                            top: -15,
+                            bottom: 0,
+                            child: IconButton(
+                              icon: Icon(Icons.arrow_forward_ios, color: Colors.indigo, size: 60,),
+                              onPressed: () {
+                                _scrollController.animateTo(
+                                  _scrollController.offset + 500,
+                                  duration: Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      );
+                    }),
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Expanded(
