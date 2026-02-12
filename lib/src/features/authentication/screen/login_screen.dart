@@ -42,7 +42,7 @@ class LoginScreen extends StatelessWidget {
                                     authController.greeting.value,
                                     style: TextStyle(
                                       fontSize: 24,
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.bold,color:  context.theme.colorScheme.primary,
                                     ),
                                   )),
                               SizedBox(height: 20),
@@ -50,9 +50,18 @@ class LoginScreen extends StatelessWidget {
                               TextFormField(
                                   controller: authController
                                       .usernameTextEditingController,
-                                  decoration: const InputDecoration(
+                                  decoration:  InputDecoration(
+                                      enabledBorder: OutlineInputBorder(
+                                        borderSide: BorderSide(color: context.theme.colorScheme.primary),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderSide: BorderSide(color: context.theme.colorScheme.primary, width: 2.0),
+                                      ),
+                                      border: OutlineInputBorder(
+                                          borderSide: BorderSide(color: context.theme.colorScheme.primary)
+                                      ),
                                       prefixIcon: Icon(
-                                          Icons.person_outline_outlined),
+                                          Icons.person_outline_outlined, color:  context.theme.colorScheme.primary,),
                                       labelText: "Username",
                                       hintText: "Username"),
 
@@ -61,20 +70,6 @@ class LoginScreen extends StatelessWidget {
                                   }
                               ),
                               const SizedBox(height: tFormHeight - 20),
-                              // TextFormField(
-                              //   obscureText:  authController.isPasswordVisible.isTrue ? true : false,
-                              //   controller: authController.passwordTextEditingController,
-                              //   decoration: const InputDecoration(
-                              //       prefixIcon: Icon(Icons.fingerprint),
-                              //       labelText: "Password",
-                              //       hintText: "Password",
-                              //        suffixIcon:  authController.isPasswordVisible.isTrue ?  Icon(Icons.visibility_off) :  Icon(Icons.visibility),
-                              //        // suffixIcon: Icon(Icons.hide_source)
-                              //   ),
-                              //   onSaved: (value) {
-                              //     authController.password = value!;
-                              //   },
-                              // ),
                               Obx(() {
                                 return TextFormField(
                                   obscureText: authController.isPasswordVisible
@@ -83,7 +78,16 @@ class LoginScreen extends StatelessWidget {
                                   controller: authController
                                       .passwordTextEditingController,
                                   decoration: InputDecoration(
-                                    prefixIcon: Icon(Icons.fingerprint),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(color: context.theme.colorScheme.primary),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(color: context.theme.colorScheme.primary, width: 2.0),
+                                    ),
+                                    border: OutlineInputBorder(
+                                        borderSide: BorderSide(color: context.theme.colorScheme.primary)
+                                    ),
+                                    prefixIcon: Icon(Icons.fingerprint, color:  context.theme.colorScheme.primary,),
                                     labelText: "Password",
                                     hintText: "Password",
                                     suffixIcon:
@@ -94,6 +98,7 @@ class LoginScreen extends StatelessWidget {
                                                 .isTrue
                                                 ? Icons.visibility_off
                                                 : Icons.visibility,
+                                            color:  context.theme.colorScheme.primary,
                                           ),
                                           onPressed: () {
                                             authController
@@ -114,6 +119,13 @@ class LoginScreen extends StatelessWidget {
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                backgroundColor: context.theme.colorScheme.primary,
+                                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
                                   onPressed: () {
                                     if (authController.checkValidation()) {
                                       print("Validation okay..");

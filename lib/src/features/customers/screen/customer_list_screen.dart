@@ -113,7 +113,7 @@ class CustomerListScreen extends StatelessWidget {
                     itemBuilder: (context, index) {
                       var customer = customerController.filteredCustomers[index];
                       return Card(
-                        color: Colors.pinkAccent[100],
+                        color:  context.theme.colorScheme.primaryContainer,
                         // margin: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                         child: GridTile(
         
@@ -132,7 +132,7 @@ class CustomerListScreen extends StatelessWidget {
                                           style: TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
-                                            color: Colors.indigo,
+                                            color:  context.theme.colorScheme.onPrimaryContainer,
                                           ),
                                           textAlign: TextAlign.right,
                                         ),

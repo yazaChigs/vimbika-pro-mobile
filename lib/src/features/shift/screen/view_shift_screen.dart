@@ -41,7 +41,6 @@ class ViewShiftScreen extends StatelessWidget {
         child: Scaffold(
           key: scaffoldKeyz,
           appBar: AppBar(
-            backgroundColor: Colors.white, // Same as your app theme
             elevation: 1,
             title: Text('ACTIVE SHIFT'),
             leading: IconButton(
@@ -84,8 +83,8 @@ class ViewShiftScreen extends StatelessWidget {
                               Get.toNamed(AppRoutes.CASH_MANAGEMENT);
                             },
                             style: TextButton.styleFrom(
-                            backgroundColor: Colors.indigo, // Set button color to red
-                            foregroundColor: Colors.white, // Set text color to red
+                            backgroundColor:  context.theme.colorScheme.primary,
+                            foregroundColor:  context.theme.colorScheme.inversePrimary,
                             textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
                           ),
                             child: Text('CASH MANAGEMENT'),
@@ -104,8 +103,8 @@ class ViewShiftScreen extends StatelessWidget {
                               Get.toNamed(AppRoutes.SUBMIT_CASH);
                             },
                             style: TextButton.styleFrom(
-                              backgroundColor: Colors.indigo, // Set button color to red
-                              foregroundColor: Colors.white, // Set text color to red
+                              backgroundColor:  context.theme.colorScheme.primary,
+                              foregroundColor:  context.theme.colorScheme.inversePrimary,
                               textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
                             ),
                             child: Text('SUBMIT CASH'),
@@ -127,8 +126,8 @@ class ViewShiftScreen extends StatelessWidget {
                             style: TextButton.styleFrom(
                               backgroundColor: shiftController.isClosingShift.value
                                   ? Colors.grey
-                                  : Colors.red, // Set button color to red
-                              foregroundColor: Colors.white, // Set text color to red
+                                  :  context.theme.colorScheme.primary,
+                              foregroundColor:  context.theme.colorScheme.inversePrimary,
                               textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
                             ),
                             child: Text(
@@ -164,7 +163,7 @@ class ViewShiftScreen extends StatelessWidget {
                 // Display the list of currency amounts centered
                 Text(
                   'TRANSACTIONS',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color:  context.theme.colorScheme.primary),
                   textAlign: TextAlign.center,
                 ),
                 SizedBox(height: 8),
@@ -177,7 +176,7 @@ class ViewShiftScreen extends StatelessWidget {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4.0),
                       child: ListTile(
-                        tileColor:currencyAmount.amountType!="BREAKAGE"? Colors.grey[200]:Colors.red[100],
+                        tileColor:currencyAmount.amountType!="BREAKAGE"?  context.theme.colorScheme.secondaryContainer:Colors.red[100],
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -233,7 +232,7 @@ class ViewShiftScreen extends StatelessWidget {
                 shiftController.totalAmountsByPaymentType.isNotEmpty?
                 Text(
                   'TOTAL SALES BY PAYMENT METHOD',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color:  context.theme.colorScheme.primary),
                   textAlign: TextAlign.center,
                 ):SizedBox(),
                 ListView.builder(
@@ -243,14 +242,14 @@ class ViewShiftScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final total = shiftController.totalAmountsByPaymentType[index];
                     return ListTile(
-                      tileColor: Colors.blue[100],
+                      tileColor: context.theme.colorScheme.primaryContainer,
                       title: Text(
                         total['paymentTypeName'],
                         style: TextStyle(fontSize: 12),
                       ),
                       trailing: Text(
                         '${total['currencySymbol']}' '${total['totalAmount'].toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       shape: RoundedRectangleBorder(
                         side: BorderSide(color: Colors.grey, width: 0.5),
@@ -259,17 +258,10 @@ class ViewShiftScreen extends StatelessWidget {
                     );
                   },
                 ),
-                Divider(
-                  height: 10,
-                  color: Colors.green,
-                  thickness: 1,
-                  indent : 10,
-                  endIndent : 10,
-                ),
                 shiftController.totalSales.isNotEmpty?
                 Text(
                   'TOTAL SALES',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color:  context.theme.colorScheme.primary),
                   textAlign: TextAlign.center,
                 ):SizedBox(),
                 ListView.builder(
@@ -279,13 +271,13 @@ class ViewShiftScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final total = shiftController.totalSales[index];
                     return ListTile(
-                      tileColor: Colors.purpleAccent[100],
+                      tileColor: context.theme.colorScheme.primaryContainer,
                       title: Text(
                         total['currencyName'],
                         style: TextStyle(fontSize: 12),
                       ),
                       trailing: Text( '${total['totalAmount'].toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       shape: RoundedRectangleBorder(
                         side: BorderSide(color: Colors.grey, width: 0.5),
@@ -294,17 +286,10 @@ class ViewShiftScreen extends StatelessWidget {
                     );
                   },
                 ),
-                Divider(
-                  height: 10,
-                  color: Colors.green,
-                  thickness: 1,
-                  indent : 10,
-                  endIndent : 10,
-                ),
                 shiftController.totalCashIn.isNotEmpty?
                 Text(
                   'TOTAL CASH IN',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color:  context.theme.colorScheme.primary),
                   textAlign: TextAlign.center,
                 ):SizedBox(),
                 ListView.builder(
@@ -314,7 +299,7 @@ class ViewShiftScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final total = shiftController.totalCashIn[index];
                     return ListTile(
-                      tileColor: Colors.yellow[100],
+                      tileColor: context.theme.colorScheme.primaryContainer,
                       title: Text(
                         total['currencyName'],
                         style: TextStyle(fontSize: 12),
@@ -329,17 +314,10 @@ class ViewShiftScreen extends StatelessWidget {
                     );
                   },
                 ),
-                Divider(
-                  height: 10,
-                  color: Colors.green,
-                  thickness: 1,
-                  indent : 10,
-                  endIndent : 10,
-                ),
                 shiftController.totalCashOut.isNotEmpty?
                 Text(
                   'TOTAL CASH OUT',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color:  context.theme.colorScheme.primary),
                   textAlign: TextAlign.center,
                 ):SizedBox(),
                 ListView.builder(
@@ -349,13 +327,13 @@ class ViewShiftScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final total = shiftController.totalCashOut[index];
                     return ListTile(
-                      tileColor: Colors.pinkAccent[100],
+                      tileColor: context.theme.colorScheme.primaryContainer,
                       title: Text(
                         total['currencyName'],
                         style: TextStyle(fontSize: 12),
                       ),
                       trailing: Text( '${total['totalAmount'].toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       shape: RoundedRectangleBorder(
                         side: BorderSide(color: Colors.grey, width: 0.5),
@@ -364,17 +342,10 @@ class ViewShiftScreen extends StatelessWidget {
                     );
                   },
                 ),
-                Divider(
-                  height: 10,
-                  color: Colors.green,
-                  thickness: 1,
-                  indent : 10,
-                  endIndent : 10,
-                ),
                 shiftController.totalCashSubmittedList.isNotEmpty?
                 Text(
                   'TOTAL CASH SUBMITTED',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color:  context.theme.colorScheme.primary),
                   textAlign: TextAlign.center,
                 ):SizedBox(),
                 ListView.builder(
@@ -384,14 +355,14 @@ class ViewShiftScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final submitted = shiftController.totalCashSubmittedList[index];
                     return ListTile(
-                      tileColor: Colors.lightGreenAccent[100],
+                      tileColor: context.theme.colorScheme.primaryContainer,
                       title: Text(
                         submitted['currencyName'],
                         style: TextStyle(fontSize: 12),
                       ),
                       trailing: Text(
                         '${submitted['totalAmount'].toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       shape: RoundedRectangleBorder(
                         side: BorderSide(color: Colors.grey, width: 0.5),
@@ -403,7 +374,7 @@ class ViewShiftScreen extends StatelessWidget {
                 shiftController.totalAmountsByCurrency.isNotEmpty?
                 Text(
                   'TOTAL CASH BY CURRENCY',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color:  context.theme.colorScheme.primary),
                   textAlign: TextAlign.center,
                 ):SizedBox(),
                 ListView.builder(
@@ -413,14 +384,14 @@ class ViewShiftScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final total = shiftController.totalAmountsByCurrency[index];
                     return ListTile(
-                      tileColor: Colors.orangeAccent[100],
+                      tileColor: context.theme.colorScheme.primaryContainer,
                       title: Text(
                         total['currencyName'],
                         style: TextStyle(fontSize: 12),
                       ),
                       trailing: Text(
                         '${total['totalAmount'].toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       shape: RoundedRectangleBorder(
                         side: BorderSide(color: Colors.grey, width: 0.5),
@@ -429,17 +400,10 @@ class ViewShiftScreen extends StatelessWidget {
                     );
                   },
                 ),
-                Divider(
-                  height: 10,
-                  color: Colors.green,
-                  thickness: 1,
-                  indent : 10,
-                  endIndent : 10,
-                ),
                 shiftController.totalAmountsByCurrency.isNotEmpty?
                 Text(
                   'TOTAL TIPS BY CURRENCY',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color:  context.theme.colorScheme.primary),
                   textAlign: TextAlign.center,
                 ):SizedBox(),
                 ListView.builder(
@@ -449,14 +413,14 @@ class ViewShiftScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final total = shiftController.totalTips[index];
                     return ListTile(
-                      tileColor: Colors.orange[900],
+                      tileColor: context.theme.colorScheme.primaryContainer,
                       title: Text(
                         total['currencyName'],
                         style: TextStyle(fontSize: 12),
                       ),
                       trailing: Text(
                         '${total['totalAmount'].toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       shape: RoundedRectangleBorder(
                         side: BorderSide(color: Colors.grey, width: 0.5),
@@ -465,17 +429,10 @@ class ViewShiftScreen extends StatelessWidget {
                     );
                   },
                 ),
-                Divider(
-                  height: 10,
-                  color: Colors.green,
-                  thickness: 1,
-                  indent : 10,
-                  endIndent : 10,
-                ),
                 shiftController.refundsList.isNotEmpty?
                 Text(
                   'REFUNDS',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color:  context.theme.colorScheme.primary),
                   textAlign: TextAlign.center,
                 ):SizedBox(),
                 ListView.builder(
@@ -485,14 +442,14 @@ class ViewShiftScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final total = shiftController.refundsList[index];
                     return ListTile(
-                      tileColor: Colors.redAccent,
+                      tileColor: context.theme.colorScheme.primaryContainer,
                       title: Text(
                         total['currencyName'],
                         style: TextStyle(fontSize: 12),
                       ),
                       trailing: Text(
                         '${total['totalAmount'].toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       shape: RoundedRectangleBorder(
                         side: BorderSide(color: Colors.grey, width: 0.5),
@@ -501,17 +458,10 @@ class ViewShiftScreen extends StatelessWidget {
                     );
                   },
                 ),
-                Divider(
-                  height: 10,
-                  color: Colors.green,
-                  thickness: 1,
-                  indent : 10,
-                  endIndent : 10,
-                ),
                 shiftController.breakages.isNotEmpty?
                 Text(
                   'BREAKAGES',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color:  context.theme.colorScheme.primary),
                   textAlign: TextAlign.center,
                 ):SizedBox(),
                 ListView.builder(
@@ -521,14 +471,14 @@ class ViewShiftScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final total = shiftController.breakages[index];
                     return ListTile(
-                      tileColor: Colors.greenAccent,
+                      tileColor:context.theme.colorScheme.primaryContainer,
                       title: Text(
                         total['name'],
                         style: TextStyle(fontSize: 12),
                       ),
                       trailing: Text(
                         '${total['qty'].toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       shape: RoundedRectangleBorder(
                         side: BorderSide(color: Colors.grey, width: 0.5),
@@ -537,20 +487,12 @@ class ViewShiftScreen extends StatelessWidget {
                     );
                   },
                 ),
-                Divider(
-                  height: 10,
-                  color: Colors.green,
-                  thickness: 1,
-                  indent : 10,
-                  endIndent : 10,
-                ),
               ],
             ),
           ),
           bottomNavigationBar: Container(
             padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
               border: Border(top: BorderSide(color: Colors.grey, width: 0.5)),
             ),
             child: Column(
@@ -566,8 +508,8 @@ class ViewShiftScreen extends StatelessWidget {
                             shiftController.printShift(shiftController.activeShift.value);
                           },
                           style: TextButton.styleFrom(
-                            backgroundColor: Colors.lightBlue, // Set button color to red
-                            foregroundColor: Colors.black, // Set text color to red
+                            backgroundColor: context.theme.colorScheme.inversePrimary,
+                            foregroundColor:  context.theme.colorScheme.primary,
                             textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
                           ),
                           child: Text('PRINT FULL SHIFT REPORT'),
@@ -583,8 +525,8 @@ class ViewShiftScreen extends StatelessWidget {
                             shiftController.printShiftSummary(shiftController.activeShift.value);
                           },
                           style: TextButton.styleFrom(
-                            backgroundColor: Colors.cyanAccent, // Set button color to red
-                            foregroundColor: Colors.black, // Set text color to red
+                            backgroundColor: context.theme.colorScheme.inversePrimary,
+                            foregroundColor:  context.theme.colorScheme.primary,
                             textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
                           ),
                           child: Text('PRINT SHIFT SUMMARY'),
@@ -601,8 +543,8 @@ class ViewShiftScreen extends StatelessWidget {
                       Get.offNamed(AppRoutes.SALE);
                     },
                     style: TextButton.styleFrom(
-                      backgroundColor: Colors.indigo, // Set button color to red
-                      foregroundColor: Colors.white, // Set text color to red
+                      backgroundColor:  context.theme.colorScheme.primary,
+                      foregroundColor:  context.theme.colorScheme.inversePrimary,
                       textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
                     ),
                     child: Text('POS'),

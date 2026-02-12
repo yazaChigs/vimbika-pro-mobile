@@ -34,50 +34,48 @@ class NavDrawer extends StatelessWidget {
       child: Container(
         child: ListView(
           children: [
-            buildDrawerHeader(),
-            const Divider(
-              color: Colors.grey,
-            ),
+            buildDrawerHeader(context),
+            const Divider(),
             buildDrawerItem(
                 text: "Sales",
                 icon: Icons.card_travel,
                 tileColor: Get.currentRoute == "" ? Colors.blue : null,
-                textIconColor: Get.currentRoute == "" ? Colors.white : Colors.black,
+                textIconColor: Get.currentRoute == "" ? Colors.white : null,
                 onTap: () => navigate(0)
             ),
             buildDrawerItem(
                 text: "Receipts",
                 icon: Icons.money,
                 tileColor: Get.currentRoute == "" ? Colors.blue : null,
-                textIconColor: Get.currentRoute == "" ? Colors.white : Colors.black,
+                textIconColor: Get.currentRoute == "" ? Colors.white : null,
                 onTap: () => navigate(1)
             ),
             buildDrawerItem(
                 text: "Shift",
                 icon: Icons.punch_clock,
                 tileColor: Get.currentRoute == "" ? Colors.blue : null,
-                textIconColor: Get.currentRoute == "" ? Colors.white : Colors.black,
+                textIconColor: Get.currentRoute == "" ? Colors.white : null,
                 onTap: () => navigate(2)
             ),
             buildDrawerItem(
                 text: "Customers",
                 icon: Icons.person_search,
                 tileColor: Get.currentRoute == "" ? Colors.blue : null,
-                textIconColor: Get.currentRoute == "" ? Colors.white : Colors.black,
+                textIconColor: Get.currentRoute == "" ? Colors.white : null,
                 onTap: () => navigate(3)
             ),
             buildDrawerItem(
                 text: "Requisition",
                 icon: Icons.fire_truck,
                 tileColor: Get.currentRoute == "" ? Colors.blue : null,
-                textIconColor: Get.currentRoute == "" ? Colors.white : Colors.black,
+                textIconColor: Get.currentRoute == "" ? Colors.white : null,
                 onTap: () => navigate(4)
             ),
             buildDrawerItem(
                 text: "Settings",
                 icon: Icons.settings,
                 tileColor: Get.currentRoute == "" ? Colors.blue : null,
-                textIconColor: Get.currentRoute == "" ? Colors.white : Colors.black,
+                textIconColor: Get.currentRoute == "" ? Colors.white : null,
                 onTap: () => navigate(5)
             ),
 
@@ -85,7 +83,7 @@ class NavDrawer extends StatelessWidget {
                 text: "Open Drawer",
                 icon: Icons.lock_open_outlined,
                 tileColor: Get.currentRoute == "" ? Colors.blue : null,
-                textIconColor: Get.currentRoute == "" ? Colors.white : Colors.black,
+                textIconColor: Get.currentRoute == "" ? Colors.white : null,
                 onTap: () => openCashDrawer()
             ),
 
@@ -93,7 +91,7 @@ class NavDrawer extends StatelessWidget {
                 text: "Logout",
                 icon: Icons.logout,
                 tileColor: Get.currentRoute == "" ? Colors.blue : null,
-                textIconColor: Get.currentRoute == "" ? Colors.white : Colors.black,
+                textIconColor: Get.currentRoute == "" ? Colors.white : null,
                 onTap: () => navigate(6)
             ),
 
@@ -111,7 +109,7 @@ class NavDrawer extends StatelessWidget {
       debugPrint("Error opening cash drawer: $e");
     }
   }
-  buildDrawerHeader(){
+  buildDrawerHeader(BuildContext context){
     GetStorage box = GetStorage();
     var selectedCompany = box.read(AppConstants.ACTIVE_COMPANY) ?? null;
     String? imageUrl = null;
@@ -123,7 +121,7 @@ class NavDrawer extends StatelessWidget {
 
 
     return UserAccountsDrawerHeader(
-      accountName: Text(fullName),
+      accountName: Text(fullName, style: TextStyle(color: Theme.of(context).colorScheme.onSecondary)),
       accountEmail: Text(mobileNumber),
       currentAccountPicture: SizedBox(
         width: 72,
@@ -140,37 +138,18 @@ class NavDrawer extends StatelessWidget {
       currentAccountPictureSize: const Size.square(72),
       otherAccountsPictures: [
         CircleAvatar(
-          backgroundColor: Colors.white,
-          child: Text(nameInitials),
+          backgroundColor: Theme.of(context).colorScheme.secondary,
+          child: Text(nameInitials, style: TextStyle(color: Theme.of(context).colorScheme.onSecondary)),
         ),
       ],
       otherAccountsPicturesSize: const Size.square(50),
     );
   }
 
-  // buildDrawerHeader(){
-  //   String imageUrl =  "${AppConstants.VIMBIKA_BACKEND_URL}/company/logo/${companyId}";
-  //   return UserAccountsDrawerHeader(
-  //     accountName: Text(fullName),
-  //     accountEmail: Text(mobileNumber),
-  //     currentAccountPicture: const CircleAvatar(
-  //       backgroundImage: AssetImage("assets/images/logo/logo.png"),
-  //     ),
-  //     currentAccountPictureSize: Size.square(72),
-  //     otherAccountsPictures: [
-  //       CircleAvatar(backgroundColor: Colors.white,
-  //           child: Text(nameInitials)
-  //       ),
-  //
-  //     ],
-  //     otherAccountsPicturesSize: Size.square(50),
-  //   );
-  // }
-
   Widget buildDrawerItem({
     required String text,
     required IconData icon,
-    required Color textIconColor,
+    required Color? textIconColor,
     required Color? tileColor,
     required VoidCallback onTap
   }){

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
@@ -33,6 +34,7 @@ class SettingsController extends GetxController {
   var defaultPaymentMethodId = "".obs;
   RxBool isFiscalisationEnabled = false.obs;
   RxBool useNfc = false.obs;
+  RxBool isDarkModeEnabled = false.obs;
 
   // Debouncer for save fiscal setting operation
   Timer? _saveFiscalDebouncer;
@@ -45,6 +47,7 @@ class SettingsController extends GetxController {
     box = GetStorage();
     isFiscalisationEnabled.value  = box.read(AppConstants.DEFAULT_FISCAL_SETTING) ?? false;
     useNfc.value  = box.read(AppConstants.USE_NFC) ?? false;
+    isDarkModeEnabled.value = box.read(AppConstants.THEME_MODE) ?? false;
     defaultPaymentMethodId.value  = box.read(AppConstants.DEFAULT_PAYMENT_METHOD_ID) ?? "";
     List<PaymentTypeModel> tempList = getOfflinePaymentTypeList(box);
     paymentTypesList.value = tempList;
@@ -65,6 +68,17 @@ class SettingsController extends GetxController {
       snackPosition: SnackPosition.BOTTOM,
     );
 
+  }
+
+  void toggleDarkMode() {
+    isDarkModeEnabled.value = !isDarkModeEnabled.value;
+    box.write(AppConstants.THEME_MODE, isDarkModeEnabled.value);
+    Get.changeThemeMode(isDarkModeEnabled.value ? ThemeMode.dark : ThemeMode.light);
+    Get.snackbar(
+      'Settings Saved',
+      'Dark mode has been ${isDarkModeEnabled.value ? "enabled" : "disabled"}.',
+      snackPosition: SnackPosition.BOTTOM,
+    );
   }
 
    loadCurrencies(GetStorage box) {

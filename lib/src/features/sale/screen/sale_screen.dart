@@ -20,6 +20,7 @@ import 'package:vimbika_pos_app/src/features/sale/screen/product_description_scr
 import 'package:vimbika_pos_app/src/features/sale/screen/barcode_scanner_screen.dart';
 import 'package:vimbika_pos_app/src/features/sale/widget/custom_dropdown_widget.dart';
 import 'package:vimbika_pos_app/src/features/sale/widget/product_list_widget.dart';
+import 'package:vimbika_pos_app/src/features/sale/widget/product_tile_widget.dart';
 import 'package:vimbika_pos_app/src/features/sale_receipts/controller/receipt_controller.dart';
 import 'package:vimbika_pos_app/src/features/shift/controller/shift_controller.dart';
 import 'package:vimbika_pos_app/src/features/ticket/controller/ticket_controller.dart';
@@ -100,7 +101,6 @@ class SaleScreen extends GetView {
           child: Scaffold(
             key: scaffoldKey,
             appBar: AppBar(
-              backgroundColor: Colors.white,
               // Same as your app theme
               elevation: 0,
               title: Row(
@@ -112,7 +112,6 @@ class SaleScreen extends GetView {
                     },
                     child: Text(
                       'Ticket',
-                      style: TextStyle(color: Colors.black),
                     ),
                   ),
                   SizedBox(width: 4),
@@ -673,7 +672,6 @@ class SaleScreen extends GetView {
             resizeToAvoidBottomInset: true,
             key: scaffoldKey,
             appBar: AppBar(
-              backgroundColor: Colors.white,
               // Same as your app theme
               elevation: 0,
               title: Row(
@@ -683,10 +681,10 @@ class SaleScreen extends GetView {
                     height: 40,
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: Colors.indigo,
+                        color: context.theme.colorScheme.onSecondaryFixedVariant,
                         width: 2.0,
                       ),
-                      color: Colors.deepOrange,
+                      color: context.theme.colorScheme.inversePrimary,
                       // Set the background color for the count
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -749,8 +747,8 @@ class SaleScreen extends GetView {
                             color: cartController.isCurrencySelected.value &&
                                     cartController.selectedCurrency.value?.id ==
                                         currency.id
-                                ? Colors.purple[200]
-                                : Colors.white,
+                                ? context.theme.colorScheme.primary
+                                : context.theme.colorScheme.surface,
                             border: Border.all(
                               color: Colors.indigo,
                               width: 2.0,
@@ -769,7 +767,7 @@ class SaleScreen extends GetView {
                                 currency.name!,
                                 style: TextStyle(
                                     fontSize: 12.0,
-                                    color: Colors.black,
+                                    color: context.theme.colorScheme.onSurface,
                                     fontWeight: FontWeight.bold),
                                 textAlign: TextAlign.center,
                               ),
@@ -805,8 +803,8 @@ class SaleScreen extends GetView {
                                         focusedBorder: OutlineInputBorder(
                                           borderRadius:
                                               BorderRadius.circular(8.0),
-                                          borderSide: const BorderSide(
-                                            color: Colors.pinkAccent,
+                                          borderSide:  BorderSide(
+                                            color: context.theme.colorScheme.secondary,
                                             width: 2.0,
                                           ),
                                         ),
@@ -867,8 +865,8 @@ class SaleScreen extends GetView {
                                         focusedBorder: OutlineInputBorder(
                                           borderRadius:
                                               BorderRadius.circular(8.0),
-                                          borderSide: const BorderSide(
-                                            color: Colors.pinkAccent,
+                                          borderSide: BorderSide(
+                                            color: context.theme.colorScheme.primary,
                                             width: 2.0,
                                           ),
                                         ),
@@ -972,49 +970,37 @@ class SaleScreen extends GetView {
                                                 ? exp.substring(7, 12)
                                                 : '0';
 
-                                            double kgs =
-                                                double.parse(weight) / 1000;
-                                            double roundedValue = double.parse(
-                                                kgs.toStringAsFixed(3));
-                                            if (kgs > 0) {
-                                              // print(weight);
-                                              // print(kgs);
-                                              // print(roundedValue);
-                                              var index = saleController
-                                                  .allProducts
-                                                  .indexWhere((item) =>
-                                                      item.item?.itemCode ==
-                                                      productCode);
+
+                                              var index = saleController.allProducts.indexWhere((item) => item.item?.itemCode ==  productCode);
+                                              print(index);
                                               if (index != -1) {
-                                                ProductFullInfoModel foundItem =
-                                                    saleController
-                                                        .allProducts[index];
-                                                var indexC = cartController
-                                                    .cartItems
-                                                    .indexWhere((item) =>
-                                                        item.product.item?.id ==
-                                                        foundItem.item?.id);
-                                                if (indexC != -1) {
-                                                  // Get.snackbar("Info",
-                                                  //     "Product already added !!!",
-                                                  //     snackPosition: SnackPosition.BOTTOM);
-                                                  cartController.addToCart(
-                                                      foundItem, roundedValue);
-                                                  saleController
-                                                      .barCodeTextEditingController
-                                                      .clear();
-                                                } else {
-                                                  Get.snackbar("Info",
-                                                      "Product added to cart !!!",
-                                                      snackPosition:
-                                                          SnackPosition.BOTTOM);
-                                                  cartController.addToCart(
-                                                      foundItem, roundedValue);
-                                                  saleController
-                                                      .barCodeTextEditingController
-                                                      .clear();
-                                                }
+                                                  double kgs = double.parse(weight) / 1000;
+                                                  double roundedValue = double.parse(kgs.toStringAsFixed(3));
+                                                  if (kgs > 0) {
+                                                    ProductFullInfoModel foundItem = saleController.allProducts[index];
+                                                    var indexC = cartController .cartItems.indexWhere((item) =>item.product.item?.id ==foundItem.item?.id);
+                                                    if (indexC != -1) {
+                                                      cartController.addToCart(foundItem, roundedValue);
+                                                      saleController.barCodeTextEditingController.clear();
+                                                    } else {
+                                                      Get.snackbar("Info","Product added to cart !!!",
+                                                      snackPosition:SnackPosition.BOTTOM);
+                                                      cartController.addToCart(foundItem, roundedValue);
+                                                      saleController.barCodeTextEditingController.clear();
+                                                    }
+                                                  }
                                               } else {
+                                                var index = saleController.allProducts.indexWhere((item) => item.item?.itemCode ==  exp);
+                                                if (index != -1) {
+                                                  ProductFullInfoModel foundItem = saleController
+                                                      .allProducts[index];
+                                                  var indexC = cartController
+                                                      .cartItems.indexWhere((item) =>item.product.item?.id ==foundItem.item?.id);
+                                                  if (indexC != -1) {
+                                                    cartController.addToCart(foundItem, 1);
+                                                    saleController.barCodeTextEditingController.clear();
+                                                  }
+                                                }else
                                                 // Item not found, handle this case
                                                 Get.snackbar(
                                                     "Not Found",
@@ -1024,7 +1010,6 @@ class SaleScreen extends GetView {
                                                     snackPosition:
                                                         SnackPosition.BOTTOM);
                                               }
-                                            }
                                           }
                                         }
                                       },
@@ -1095,8 +1080,8 @@ class SaleScreen extends GetView {
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.pink[50],
-                        border: Border.all(color: Colors.pinkAccent, width: 5.0),
+                        color: context.theme.colorScheme.surfaceBright,
+                        border: Border.all(color: context.theme.colorScheme.primary, width: 5.0),
                         borderRadius: BorderRadius.circular(8.0),
                       ),
                       child: Obx(() {
@@ -1109,7 +1094,7 @@ class SaleScreen extends GetView {
                               .map((CustomerModel customer) {
                             return DropdownMenuItem<CustomerModel>(
                               value: customer,
-                              child: Text(customer.name ?? ''),
+                              child: Text(customer.name ?? '', style: TextStyle(fontSize: 15, color:context.theme.colorScheme.onSurface), ),
                             );
                           }).toList(),
                           value: cartController.selectedCustomer.value,
@@ -1118,7 +1103,7 @@ class SaleScreen extends GetView {
                           hint: "🔍 Search or Select Customer",
                           searchHint:
                               "Type customer name, phone, ID, customer ID, or account number...",
-                          menuBackgroundColor: Colors.pink[50],
+                          menuBackgroundColor: context.theme.colorScheme.surface,
                           searchFn:
                               (String searchTerm, List<DropdownMenuItem> items) {
                             // Enhanced search: search by name, phone, ID, customer ID, or account number
@@ -1206,7 +1191,8 @@ class SaleScreen extends GetView {
                   IconButton(
                     icon: Icon(
                       Icons.refresh,
-                      color: Colors.blue,
+                      color: context.theme.colorScheme.primary,
+                      size: 30,
                     ),
                     onPressed: () {
                       saleController.syncData();
@@ -1225,6 +1211,7 @@ class SaleScreen extends GetView {
                     icon: Icon(
                       Icons.camera_alt,
                       color: Colors.orange,
+                      size: 30,
                     ),
                     onPressed: () {
                       // Open customer scanner
@@ -1243,7 +1230,7 @@ class SaleScreen extends GetView {
               ),
               actions: [
                 IconButton(
-                  icon: Icon(Icons.person_add),
+                  icon: Icon(Icons.person_add, color: context.theme.colorScheme.primary,size: 30,),
                   onPressed: () {
                     Get.toNamed(AppRoutes.CUSTOMER_FORM);
                   },
@@ -1273,17 +1260,17 @@ class SaleScreen extends GetView {
                             itemCount: saleController.categories.length,
                             itemBuilder: (context, index) {
                               final category = saleController.categories[index];
+                              final isSelected = saleController.isCatSelected.value &&
+                                  saleController.selectedCategory.value?.id == category.id;
                               return Container(
                                 margin: const EdgeInsets.symmetric(horizontal: 4.0),
                                 decoration: BoxDecoration(
-                                  color: saleController.isCatSelected.value &&
-                                          saleController
-                                                  .selectedCategory.value?.id ==
-                                              category.id
-                                      ? Colors.purple
-                                      : Colors.deepOrange[300],
+                                  color: isSelected
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.inversePrimary
+                                  ,
                                   border: Border.all(
-                                    color: Colors.indigo,
+                                    color: Theme.of(context).colorScheme.primary,
                                     width: 2.0,
                                   ),
                                   borderRadius: BorderRadius.circular(8.0),
@@ -1304,7 +1291,9 @@ class SaleScreen extends GetView {
                                         category.name!,
                                         style: TextStyle(
                                             fontSize: 12.0,
-                                            color: Colors.black,
+                                            color: isSelected
+                                                ? Theme.of(context).colorScheme.onPrimary
+                                                : Theme.of(context).colorScheme.onSurface,
                                             fontWeight: FontWeight.bold),
                                         textAlign: TextAlign.center,
                                       ),
@@ -1319,7 +1308,7 @@ class SaleScreen extends GetView {
                             top: -15,
                             bottom: 0,
                             child: IconButton(
-                              icon: Icon(Icons.arrow_back_ios, color: Colors.indigo, size: 60,),
+                              icon: Icon(Icons.arrow_back_ios, color: Theme.of(context).colorScheme.inverseSurface, size: 60,),
                               onPressed: () {
                                 _scrollController.animateTo(
                                   _scrollController.offset - 500,
@@ -1334,7 +1323,7 @@ class SaleScreen extends GetView {
                             top: -15,
                             bottom: 0,
                             child: IconButton(
-                              icon: Icon(Icons.arrow_forward_ios, color: Colors.indigo, size: 60,),
+                              icon: Icon(Icons.arrow_forward_ios, color: Theme.of(context).colorScheme.inverseSurface, size: 60,),
                               onPressed: () {
                                 _scrollController.animateTo(
                                   _scrollController.offset + 500,
@@ -1354,123 +1343,62 @@ class SaleScreen extends GetView {
                   child: Obx(() {
                     return Row(
                       children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.indigo, width: 1.0),
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          width: 0.5 * screenSize,
-                          alignment: Alignment.topLeft,
-                          child:
-                              saleController.filteredProducts.isEmpty ?
-                            Center(
-                              child: LoadingAnimationWidget.discreteCircle(
-                                secondRingColor: const Color(0xFF98EF17),
-                                color: const Color(0xFFEA3799),
-                                thirdRingColor: const Color(0xFFF14405),
-                                size: 200,
-                              ),
-                            ):
-                          GridView.builder(
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 4,
-                              crossAxisSpacing: 1.0,
-                              mainAxisSpacing: 1.0,
-                              childAspectRatio:
-                                  2.0, // Adjust aspect ratio as needed
+                        Expanded(
+                          flex: 50,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: context.theme.colorScheme.primary, width: 1.0),
+                              borderRadius: BorderRadius.circular(8.0),
                             ),
-                            itemCount: saleController.filteredProducts.length,
-                            itemBuilder: (context, index) => Card(
-                              color: Colors.blue[100],
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8.0),
+                            alignment: Alignment.topLeft,
+                            child:
+                                saleController.filteredProducts.isEmpty ?
+                              Center(
+                                child: LoadingAnimationWidget.discreteCircle(
+                                  secondRingColor: const Color(0xFF98EF17),
+                                  color: const Color(0xFFEA3799),
+                                  thirdRingColor: const Color(0xFFF14405),
+                                  size: 200,
+                                ),
+                              ):
+                            GridView.builder(
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 4,
+                                crossAxisSpacing: 1.0,
+                                mainAxisSpacing: 1.0,
+                                childAspectRatio:
+                                    1.7, // Adjust aspect ratio as needed
                               ),
-                              child: InkWell(
-                                onTap: () {
-                                  if (saleController.filteredProducts[index].item
-                                          ?.itemType ==
-                                      'SERVICE') {
-                                    cartController.addToCart(
-                                        saleController.filteredProducts[index],
-                                        1);
-                                    cartController.amountPaidTextEditingController
-                                            .text =
-                                        cartController
-                                            .totalCostInSelectedCurrency.value
-                                            .toStringAsFixed(2);
-                                    cartController.hasAmountText.value = true;
-                                    cartController.amountPaid.value =
-                                        cartController
-                                            .totalCostInSelectedCurrency.value;
-                                    cartController.customerAmountPaid.value =
-                                        cartController
-                                            .totalCostInSelectedCurrency.value;
-                                  } else if (saleController
-                                              .filteredProducts[index].stock! >
-                                          0 ||
-                                      saleController.sellNilItems) {
-                                    cartController.addToCart(
-                                        saleController.filteredProducts[index],
-                                        1);
-                                    cartController.amountPaidTextEditingController
-                                            .text =
-                                        cartController
-                                            .totalCostInSelectedCurrency.value
-                                            .toStringAsFixed(2);
-                                    cartController.hasAmountText.value = true;
-                                    cartController.amountPaid.value =
-                                        cartController
-                                            .totalCostInSelectedCurrency.value;
-                                    cartController.customerAmountPaid.value =
-                                        cartController
-                                            .totalCostInSelectedCurrency.value;
-                                  } else {
-                                    Get.snackbar("Check your stock",
-                                        "Stock not available!!!",
-                                        snackPosition: SnackPosition.BOTTOM);
-                                  }
-                                },
-                                child: GridTile(
-                                    footer: Container(
-                                      padding: EdgeInsets.all(0.0),
-                                      // color: Colors.white,
-                                      child: Text(
-                                        "\$" +
-                                                saleController
-                                                    .filteredProducts[index]
-                                                    .item!
-                                                    .sellingPrice
-                                                    .toStringAsFixed(2) ??
-                                            'No Name',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.redAccent,
-                                        ),
-                                        textAlign: TextAlign.right,
-                                      ),
-                                    ),
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(8.0),
-                                      splashColor: Colors.blue.withAlpha(30),
-                                      child: Center(
-                                        child: Text(
-                                          saleController.filteredProducts[index]
-                                                  .item!.name ??
-                                              'No Name',
-                                          style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.black),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ),
-                                    )),
-                              ),
+                              itemCount: saleController.filteredProducts.length,
+                              itemBuilder: (context, index) => ProductTileWidget(
+                                    productName: saleController.filteredProducts[index].item!.name!,
+                                    price: saleController.filteredProducts[index].item!.sellingPrice,
+                                    quantity: saleController.filteredProducts[index].stock!,
+                                    onTap: () {
+                                      if (saleController.filteredProducts[index].item?.itemType == 'SERVICE') {
+                                        cartController.addToCart(saleController.filteredProducts[index], 1);
+                                        cartController.amountPaidTextEditingController.text = cartController.totalCostInSelectedCurrency.value.toStringAsFixed(2);
+                                        cartController.hasAmountText.value = true;
+                                        cartController.amountPaid.value = cartController.totalCostInSelectedCurrency.value;
+                                        cartController.customerAmountPaid.value = cartController.totalCostInSelectedCurrency.value;
+                                      } else if (saleController.filteredProducts[index].stock! > 0 || saleController.sellNilItems) {
+                                        print(saleController.filteredProducts[index].item!.name);
+                                        cartController.addToCart(saleController.filteredProducts[index], 1);
+                                        cartController.amountPaidTextEditingController.text = cartController.totalCostInSelectedCurrency.value.toStringAsFixed(2);
+                                        cartController.hasAmountText.value = true;
+                                        cartController.amountPaid.value = cartController.totalCostInSelectedCurrency.value;
+                                        cartController.customerAmountPaid.value = cartController.totalCostInSelectedCurrency.value;
+                                      } else {
+                                        Get.snackbar("Check your stock", "Stock not available!!!", snackPosition: SnackPosition.BOTTOM);
+                                      }
+                                    },
+                                  ),
                             ),
                           ),
                         ),
                         Expanded(
+                          flex: 50,
                           child: Container(
                             // height: 500,
                             child: Row(
@@ -1485,14 +1413,13 @@ class SaleScreen extends GetView {
 
                                       height: double.infinity,
                                       child: Obx(() {
-                                        if (cartController
-                                            .cartItems.isEmpty) {
+                                        if (cartController.cartItems.isEmpty) {
                                           return Center(
                                               child: Container(
                                                 width: double.infinity,
                                                   decoration: BoxDecoration(
                                                     border: Border.all(
-                                                        color: Colors.indigo, width: 3.0),
+                                                        color:  context.theme.colorScheme.primary,width: 3.0),
                                                     borderRadius:
                                                     BorderRadius.circular(8.0),
                                                   ),
@@ -1519,7 +1446,7 @@ class SaleScreen extends GetView {
                                             Container(
                                               decoration: BoxDecoration(
                                                 border: Border.all(
-                                                    color: Colors.indigo, width: 3.0),
+                                                    color:  context.theme.colorScheme.primary, width: 3.0),
                                                 borderRadius:
                                                 BorderRadius.circular(8.0),
                                               ),
@@ -1532,7 +1459,9 @@ class SaleScreen extends GetView {
                                                       .cartItems[index];
                                                   return Card(
                                                     child: ListTile(
-                                                      minTileHeight: 30,
+                                                      contentPadding: EdgeInsets.zero,
+                                                      minTileHeight: 25,
+                                                      tileColor: context.theme.colorScheme.surfaceBright,
                                                       title: Text(
                                                         cartItem.product.item!
                                                                 .name ??
@@ -1541,7 +1470,7 @@ class SaleScreen extends GetView {
                                                             fontSize: 13,
                                                             fontWeight:
                                                                 FontWeight.bold,
-                                                            color: Colors.indigo,
+                                                            color:  context.theme.colorScheme.primary,
                                                             fontStyle:
                                                                 FontStyle.italic),
                                                       ),
@@ -1557,7 +1486,7 @@ class SaleScreen extends GetView {
                                                             style: TextStyle(
                                                                 fontSize: 18,
                                                                 color:
-                                                                    Colors.indigo,
+                                                                context.theme.colorScheme.primary,
                                                                 fontWeight:
                                                                     FontWeight
                                                                         .bold),
@@ -1687,7 +1616,7 @@ class SaleScreen extends GetView {
                                                   ),
                                                   SizedBox(width: 5),
                                                   Expanded(
-                                                    child: ElevatedButton(
+                                                    child:ElevatedButton.icon(
                                                       onPressed: ticketController.isPerformingTicketAction.value
                                                         ? null
                                                         : () {
@@ -1707,19 +1636,20 @@ class SaleScreen extends GetView {
                                                       style: ElevatedButton.styleFrom(
                                                         backgroundColor: ticketController.isPerformingTicketAction.value
                                                             ? Colors.grey
-                                                            : Colors.deepOrange,
+                                                            : context.theme.colorScheme.primary,
                                                         padding: EdgeInsets.symmetric(
                                                             vertical: 14.0),
                                                         textStyle: TextStyle(
                                                             fontSize: 18,
-                                                            color: Colors.white,
+                                                            color: context.theme.colorScheme.primary,
                                                             fontWeight:
                                                             FontWeight.bold),
                                                       ),
-                                                      child: Obx(() => Text(
+                                                        icon: Icon(Icons.save_as, color: context.theme.colorScheme.surface,size: 30,),
+                                                        label:  Obx(() => Text(
                                                         ticketController.isPerformingTicketAction.value ? 'SAVING...' : 'SAVE',
                                                         style: TextStyle(
-                                                            color: Colors.white,
+                                                            color:  context.theme.colorScheme.surface,
                                                             fontSize: 18),
                                                       )),
                                                     ),
@@ -1830,9 +1760,8 @@ class SaleScreen extends GetView {
                                                                       .circular(
                                                                           8.0),
                                                               borderSide:
-                                                                  const BorderSide(
-                                                                color: Colors
-                                                                    .indigo,
+                                                                   BorderSide(
+                                                                color:  context.theme.colorScheme.primary,
                                                                 width: 3.0,
                                                               ),
                                                             ),
@@ -1852,7 +1781,7 @@ class SaleScreen extends GetView {
                                                             prefixIcon:
                                                                 const Icon(Icons
                                                                     .money),
-                                                            suffixIcon: Obx(() => 
+                                                            suffixIcon: Obx(() =>
                                                               cartController.hasAmountText.value
                                                                 ? IconButton(
                                                                     icon: const Icon(Icons.clear, color: Colors.grey),
@@ -1917,14 +1846,14 @@ class SaleScreen extends GetView {
                                                   ),
                                                   Obx(() {
                                                     // Hide total and change displays when "Add to Account" button is enabled
-                                                    bool isAddToAccountMode = cartController.amountPaid.value > 0 && 
-                                                                              cartController.cartItems.isEmpty && 
+                                                    bool isAddToAccountMode = cartController.amountPaid.value > 0 &&
+                                                                              cartController.cartItems.isEmpty &&
                                                                               (cartController.selectedCustomer.value?.isLoyalCustomer ?? false);
-                                                    
+
                                                     if (isAddToAccountMode) {
                                                       return SizedBox.shrink();
                                                     }
-                                                    
+
                                                     return SingleChildScrollView(
                                                       scrollDirection: Axis.horizontal,
                                                       child: Row(
@@ -1970,10 +1899,10 @@ class SaleScreen extends GetView {
                                                   }),
                                                   Obx(() {
                                                     // Hide change to account and tip inputs when "Add to Account" button is enabled
-                                                    bool isAddToAccountMode = cartController.amountPaid.value > 0 && 
-                                                                              cartController.cartItems.isEmpty && 
+                                                    bool isAddToAccountMode = cartController.amountPaid.value > 0 &&
+                                                                              cartController.cartItems.isEmpty &&
                                                                               (cartController.selectedCustomer.value?.isLoyalCustomer ?? false);
-                                                    
+
                                                     return Row(
                                                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                                                       children: [
@@ -2107,14 +2036,14 @@ class SaleScreen extends GetView {
                                                     children: [
                                                       Obx(() {
                                                         // Hide print receipt checkbox when "Add to Account" button is enabled
-                                                        bool isAddToAccountMode = cartController.amountPaid.value > 0 && 
-                                                                                  cartController.cartItems.isEmpty && 
+                                                        bool isAddToAccountMode = cartController.amountPaid.value > 0 &&
+                                                                                  cartController.cartItems.isEmpty &&
                                                                                   (cartController.selectedCustomer.value?.isLoyalCustomer ?? false);
-                                                        
+
                                                         if (isAddToAccountMode) {
                                                           return SizedBox.shrink();
                                                         }
-                                                        
+
                                                         return Container(
                                                           height: 30,
                                                           child: CheckboxListTile(
@@ -2137,19 +2066,19 @@ class SaleScreen extends GetView {
                                                       }),
                                                       Obx(() {
                                                         // Hide fiscalize receipt checkbox when "Add to Account" button is enabled
-                                                        bool isAddToAccountMode = cartController.amountPaid.value > 0 && 
-                                                                                  cartController.cartItems.isEmpty && 
+                                                        bool isAddToAccountMode = cartController.amountPaid.value > 0 &&
+                                                                                  cartController.cartItems.isEmpty &&
                                                                                   (cartController.selectedCustomer.value?.isLoyalCustomer ?? false);
-                                                        
+
                                                         if (isAddToAccountMode) {
                                                           return SizedBox.shrink();
                                                         }
-                                                        
+
                                                         // Check fiscal device status (similar to web version's isFiscalDeviceRegistered)
                                                         // This will rebuild whenever cart items change, ensuring we check storage regularly
                                                         final _ = cartController.cartItems.length;
                                                         cartController.checkFiscalDeviceStatus();
-                                                        
+
                                                         // Show checkbox if fiscal device is registered (like web version's *ngIf="isFiscalDeviceRegistered")
                                                         if (cartController.fiscalizeReceipt.value) {
                                                           return Container(
@@ -2271,10 +2200,8 @@ class SaleScreen extends GetView {
                                                                     backgroundColor: saleController.selectedPaymentTypes.contains(cartController.filteredPaymentTypesList[
                                                                             index]) ||
                                                                         cartController.selectedPaymentType.value?.id == cartController.filteredPaymentTypesList[index].id
-                                                                        ? Colors
-                                                                            .pinkAccent
-                                                                        : Colors
-                                                                            .indigo,
+                                                                        ? context.theme.colorScheme.inversePrimary
+                                                                        : context.theme.colorScheme.primary,
                                                                     // backgroundColor: Colors.indigo,
                                                                     padding:
                                                                         EdgeInsets.all(
@@ -2294,7 +2221,7 @@ class SaleScreen extends GetView {
                                                                         fontSize:
                                                                             14,
                                                                         color:
-                                                                            Colors.lightGreen[200]),
+                                                                        context.theme.colorScheme.onPrimary),
                                                                   ),
                                                                 )));
                                                   }),
@@ -2470,7 +2397,7 @@ class SaleScreen extends GetView {
                                           return Column(
                                             crossAxisAlignment: CrossAxisAlignment.stretch,
                                             children: [
-                                              ElevatedButton(
+                                              ElevatedButton.icon(
                                                 onPressed: canCharge
                                                     ? () {
                                                         cartController.showConfirmDialogChargeSale();
@@ -2479,16 +2406,18 @@ class SaleScreen extends GetView {
                                                     : null,
                                                 style: TextButton.styleFrom(
                                                   backgroundColor: canCharge
-                                                      ? Colors.lightGreenAccent[400]
-                                                      : Colors.grey,
+                                                      ? context.theme.colorScheme.inversePrimary
+                                                      : context.theme.colorScheme.secondary,
                                                   foregroundColor: Colors.black,
                                                   textStyle: TextStyle(
                                                       fontSize: 18,
-                                                      color: Colors.white,
+                                                      color: context.theme.colorScheme.onSurface,
                                                       fontWeight: FontWeight.bold),
                                                 ),
-                                                child: Text(
-                                                  cartController.isCharging.value ? 'CHARGING...' : 'Charge'
+                                                icon: Icon(Icons.check_circle, color: canCharge ? Colors.green : Colors.red, size:30),
+                                                label: Text(
+                                                  cartController.isCharging.value ? 'CHARGING...' : 'Charge',
+
                                                 ),
                                               ),
                                               if (!canCharge)
@@ -2819,8 +2748,8 @@ class SaleScreen extends GetView {
         FocusScope.of(context).unfocus();
       },
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.grey[400],
-        foregroundColor: Colors.black,
+        backgroundColor: context.theme.colorScheme.onPrimary,
+        foregroundColor: context.theme.colorScheme.onSurface,
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),

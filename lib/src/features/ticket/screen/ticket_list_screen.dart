@@ -57,7 +57,7 @@ class TicketListScreen extends StatelessWidget {
                     var item = ticketController.filteredTickets[index];
                     var itemsText = item.sale!.items?.map((element)=>"-"+element.inventoryItem!.name! +" X "+ element.quantity.toString() + "\n");
                     return Card(
-                      color: Colors.grey[300],
+                      color:  context.theme.colorScheme.secondaryContainer,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8), // Sharp corners for square card
                       ),
@@ -84,7 +84,7 @@ class TicketListScreen extends StatelessWidget {
                                   ),
                                   Text(
                                     'Opened: ${item.sale!.timeIniated ?? 'N/A'}',
-                                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                    style: TextStyle(fontSize: 14, color:  context.theme.colorScheme.onSurface,),
                                   ),
                                       Text(
                                         '${item.sale!.currency?.symbol} ${item!.sale!.amountPaid!.toStringAsFixed(2) ?? 0} ',  // Assuming amount is added to the TicketModel
@@ -108,7 +108,7 @@ class TicketListScreen extends StatelessWidget {
                                   children: [
                                     Text(
                                       "${item.sale!.items![index].inventoryItem!.name} X ${item.sale!.items![index].quantity}",
-                                      style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold,fontStyle: FontStyle.italic,color: Colors.indigo),
+                                      style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold,fontStyle: FontStyle.italic,color:  context.theme.colorScheme.onSurface,),
                                     ),
                                     if(item.sale!.items![index].notes!=null && item.sale!.items![index].notes!.isNotEmpty)
                                     Text(
@@ -167,12 +167,21 @@ class TicketListScreen extends StatelessWidget {
                                 Visibility(
                                   visible:  item.sale!.saleStatus == "ON_HOLD",
                                   child: ElevatedButton(
+                                    style:TextButton.styleFrom(
+                                        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                                      backgroundColor:  context.theme.colorScheme.secondary,
+                                      foregroundColor: Colors.black,
+                                      textStyle: TextStyle(
+                                          fontSize: 18,
+                                          color: context.theme.colorScheme.onSurface,
+                                          fontWeight: FontWeight.bold),
+                                    ),
                                     onPressed: () {
                                       ticketController.selectTicketAction(item);
                                     },
-                                    style: ElevatedButton.styleFrom(
-                                      padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-                                    ),
+                                    // style: ElevatedButton.styleFrom(
+                                    //   padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                                    // ),
                                     child: Text('Select'),
                                   ),
                                 ),

@@ -210,14 +210,14 @@ class ReceiptScreen extends StatelessWidget {
             ),
             actions: [
               IconButton(
-                icon: Icon(Icons.clear),
+                icon: Icon(Icons.clear,size: 30,),
                 color: Colors.red,
                 onPressed: () {
                   receiptController.cancelFilter();
                 },
               ),
               IconButton(
-                icon: Icon(Icons.refresh),
+                icon: Icon(Icons.refresh, color:  context.theme.colorScheme.primary,size: 30,),
                 onPressed: () {
                   receiptController.refreshFilter();
                 },
@@ -291,12 +291,6 @@ class ReceiptScreen extends StatelessWidget {
                     ),
                    )
                   ),
-                ],
-              ),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(8.0),
@@ -328,7 +322,7 @@ class ReceiptScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(8.0),
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.indigo
+                        backgroundColor:  context.theme.colorScheme.primary,
                       ),
                       onPressed: () {
                         receiptController.searchSales();
@@ -339,7 +333,7 @@ class ReceiptScreen extends StatelessWidget {
                     )
                 ],
               ),
-
+/*
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: TextField(
@@ -352,7 +346,7 @@ class ReceiptScreen extends StatelessWidget {
                     prefixIcon: Icon(Icons.search),
                   ),
                 ),
-              ),
+              ),*/
 
 
               // Add total amount card here
@@ -369,7 +363,7 @@ class ReceiptScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(0), // Square corners
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(8.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center, // Center the text
                       children: [
@@ -378,14 +372,15 @@ class ReceiptScreen extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
+                            color:  context.theme.colorScheme.primary,
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        SizedBox(height: 10), // Space between heading and totals
+                        SizedBox(height: 5), // Space between heading and totals
                         ...totalsByCurrency.entries.map((entry) {
                           return Text(
                             '${entry.key}  ${entry.value.toStringAsFixed(2)}',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color:  context.theme.colorScheme.onSurface),
                           );
                         }).toList(),
                       ],
@@ -493,7 +488,7 @@ class ReceiptScreen extends StatelessWidget {
                           if (showDayDivider) _buildDayDivider(dayDividerText),
                           if (showShiftDivider) _buildShiftDivider(shiftDividerText),
                           Card(
-                            color: sale!.saleStatus=="REVERSED"?Colors.redAccent[100]:Colors.grey[300],
+                            color: sale!.saleStatus=="REVERSED"?Colors.redAccent[100]:context.theme.colorScheme.primaryContainer,
                             child: ListTile(
                               leading:
                                   Text(
@@ -502,7 +497,7 @@ class ReceiptScreen extends StatelessWidget {
                                   ),
                               title: Text(sale.referenceNumber!,
                                 style: TextStyle(
-                                fontSize: 20,color: Colors.indigo,fontWeight: FontWeight.bold
+                                fontSize: 20,color:  context.theme.colorScheme.primary,fontWeight: FontWeight.bold
                               ),),
                               subtitle: Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
@@ -527,7 +522,7 @@ class ReceiptScreen extends StatelessWidget {
                                 children: [
                                   Text(
                                     '${sale.saleStatus ?? 'N/A'}',
-                                    style: sale.saleStatus!='REVERSED'? TextStyle(fontSize: 12, color: Colors.grey[700]):TextStyle(fontSize: 12, color: Colors.red[700]),
+                                    style: sale.saleStatus!='REVERSED'? TextStyle(fontSize: 12, color: context.theme.colorScheme.primaryContainer):TextStyle(fontSize: 12, color: Colors.red[700]),
                                   ),
                                   Expanded(
                                     child: Container(
@@ -537,7 +532,7 @@ class ReceiptScreen extends StatelessWidget {
                                         mainAxisAlignment: MainAxisAlignment.start,
                                         children: [
                                           IconButton(
-                                              icon: Icon(Icons.print_outlined,color: Colors.indigoAccent,size: 30),
+                                              icon: Icon(Icons.print_outlined,color:  context.theme.colorScheme.primary,size: 30),
                                               onPressed: () async {
                                                 if(receiptController.isPrintClicked.isFalse) {
                                                   receiptController.isPrintClicked.value = true;

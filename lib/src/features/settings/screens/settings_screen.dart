@@ -53,9 +53,22 @@ class SettingsScreen extends StatelessWidget {
                 'Use NFC',
                 style: TextStyle(fontSize: 16),
               ),
-              value: controller.isFiscalisationEnabled.value,
+              value: controller.useNfc.value,
               onChanged: (value) {
                 controller.toggleUseNfcSetting();
+              },
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+            )),
+            const SizedBox(height: 10),
+            Obx(() => CheckboxListTile(
+              title: Text(
+                'Dark Mode',
+                style: TextStyle(fontSize: 16),
+              ),
+              value: controller.isDarkModeEnabled.value,
+              onChanged: (value) {
+                controller.toggleDarkMode();
               },
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,

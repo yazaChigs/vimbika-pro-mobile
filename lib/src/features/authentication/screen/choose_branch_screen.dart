@@ -29,17 +29,17 @@ class ChooseBranchScreen extends StatelessWidget {
             children: [
               Text(
                 "Select Branch",
-                style: Theme
-                    .of(context)
-                    .textTheme
-                    .headlineMedium,
+                style:  TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,color:  context.theme.colorScheme.primary,
+                ),
               ),
               const SizedBox(height: 20),
           Container(
             width: double.infinity, // Make the container take full width
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey),
+              border: Border.all(color: context.theme.colorScheme.inversePrimary),
               borderRadius: BorderRadius.circular(5),
             ),
             child: DropdownButtonHideUnderline(
@@ -49,7 +49,7 @@ class ChooseBranchScreen extends StatelessWidget {
                   value: offlineDataController.isCompanySelected.isTrue
                       ? offlineDataController.selectedCompany.value
                       : null,
-                  icon: const Icon(Icons.food_bank_outlined),
+                  icon: Icon(Icons.food_bank_outlined, color: context.theme.colorScheme.primary,),
                   elevation: 16,
                   style: const TextStyle(color: Colors.deepPurple),
                   onChanged: (CompanyModel? newValue) async {
@@ -97,7 +97,7 @@ class ChooseBranchScreen extends StatelessWidget {
                 width: double.infinity, // Make the container take full width
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
+                  border: Border.all(color: context.theme.colorScheme.inversePrimary),
                   borderRadius: BorderRadius.circular(5),
                 ),
                 child: DropdownButtonHideUnderline(
@@ -107,7 +107,7 @@ class ChooseBranchScreen extends StatelessWidget {
                       value: offlineDataController.isBranchSelected.isTrue
                           ? offlineDataController.selectedBranch.value
                           : null,
-                      icon: const Icon(Icons.location_on),
+                      icon: Icon(Icons.location_on, color: context.theme.colorScheme.primary,),
                       elevation: 16,
                       style: const TextStyle(color: Colors.deepPurple),
                       onChanged: (BranchModel? newValue) {
@@ -132,6 +132,13 @@ class ChooseBranchScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: context.theme.colorScheme.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   onPressed: () {
                     offlineDataController.navigateToPin();
 
