@@ -25,7 +25,6 @@ import '../shared/models/company_model.dart';
 class BackgroundService extends GetxService {
   final ConnectivityService _connectivityService = ConnectivityService();
   final SyncLockService _syncLockService = Get.put(SyncLockService());
-  final LocalStorageService _localStorageService = LocalStorageService();
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
   late ShiftSettingModel shiftSetting = ShiftSettingModel();
   List<SaleInfoModel> offlineSales = <SaleInfoModel>[];
@@ -42,7 +41,7 @@ class BackgroundService extends GetxService {
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     var shiftModel = box.read(AppConstants.SHIFT_SETTING) ?? {};
     shiftSetting = ShiftSettingModel.fromMap(Map<String, dynamic>.from(shiftModel));
-    Timer.periodic(Duration(minutes: 20), (timer) async {
+    Timer.periodic(Duration(minutes: 1), (timer) async {
       print("Background task running every 30 seconds");
         await syncOfflineSales(true);
       });

@@ -130,7 +130,7 @@ class PinController extends GetxController {
                     // Mark selected shift
                     _persistSelectedShift(shift, allShifts, box);
                     shiftAvailable.value = true;
-                    Get.back(closeOverlays: true);
+                    Get.back();
                     print("Selected existing shift ${shift.shiftReference} - waiting for PIN validation");
                     // Note: Navigation will happen after PIN validation in onNumberEntered -> startSelling()
                   },
@@ -144,7 +144,7 @@ class PinController extends GetxController {
                   // Clear selected ref so new shift flow can run
                   box.remove(AppConstants.SELECTED_SHIFT_REF);
                   shiftAvailable.value = false;
-                  Get.back(closeOverlays: true);
+                  Get.back();
                   Get.offNamed(AppRoutes.OPEN_SHIFT);
                 },
               ),
