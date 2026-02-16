@@ -160,7 +160,7 @@ class CustomerController extends GetxController {
     }
     
     allCustomers.value = customers;
-    if(branch != null) {
+    /*if(branch != null) {
       print("Filtering customers by branch: ${branch!.name}");
       print("Customers before filter: ${customers.length}");
       // Filter by branch but always include WalkIn
@@ -178,7 +178,8 @@ class CustomerController extends GetxController {
       }
     } else {
       filteredCustomers.value = customers;
-    }
+    }*/
+    filteredCustomers.value = customers;
     
     allCustomers.refresh();
     filteredCustomers.refresh();
@@ -912,7 +913,7 @@ class CustomerController extends GetxController {
     }
     
     // Filter by branch but always include WalkIn (only if online and got response)
-    if(branch != null) {
+    /*if(branch != null) {
       print("Filtering customers by branch: ${branch!.name}");
       print("Customers before filter: ${allCustomers.length}");
       // Filter by branch but always include WalkIn
@@ -930,7 +931,8 @@ class CustomerController extends GetxController {
       }
     } else {
       filteredCustomers.value = allCustomers.value;
-    }
+    }*/
+    filteredCustomers.value = allCustomers.value;
     
     allCustomers.refresh();
     filteredCustomers.refresh();

@@ -12,9 +12,10 @@ class PrinterSettingsScreen extends StatefulWidget {
 }
 
 class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
-  final PrinterSettingsController _controller = Get.put(PrinterSettingsController());
-  final InactivityController inactivityController = Get.put(
-      InactivityController());
+  final PrinterSettingsController _controller =
+      Get.put(PrinterSettingsController());
+  final InactivityController inactivityController =
+      Get.put(InactivityController());
   var scaffoldKeyz = GlobalKey<ScaffoldState>();
 
   @override
@@ -25,7 +26,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
       _controller.refreshAvailablePrinters();
     });
   }
-  
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -37,8 +38,10 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String fullName = "${_controller.user.firstName} ${_controller.user.lastName}";
-    String initials = _controller.user.firstName[0] + _controller.user.lastName[0];
+    String fullName =
+        "${_controller.user.firstName} ${_controller.user.lastName}";
+    String initials =
+        _controller.user.firstName[0] + _controller.user.lastName[0];
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -55,7 +58,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
           //   },
           // ),
         ),
-       // drawer: NavDrawer(fullName: fullName, mobileNumber: _controller.user.mobilePhone ?? "", nameInitials: initials),
+        // drawer: NavDrawer(fullName: fullName, mobileNumber: _controller.user.mobilePhone ?? "", nameInitials: initials),
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -63,32 +66,31 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
             children: [
               // Checkbox
               Obx(() => CheckboxListTile(
-                title: Text(
-                  'Always Print',
-                  style: TextStyle(fontSize: 16),
-                ),
-                value: _controller.isAlwaysPrintEnabled.value,
-                onChanged: (value) {
-                  _controller.toggleDefaultPrintingSettings();
-                },
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-              )),
+                    title: Text(
+                      'Always Print',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    value: _controller.isAlwaysPrintEnabled.value,
+                    onChanged: (value) {
+                      _controller.toggleDefaultPrintingSettings();
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                  )),
 
               Obx(() => CheckboxListTile(
-                title: Text(
-                  'Use KOT Print',
-                  style: TextStyle(fontSize: 16),
-                ),
-                value: _controller.useKOT.value,
-                onChanged: (value) {
-                  _controller.toggleKOTSettings();
-                },
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-              )),
-
-              Spacer(),
+                    title: Text(
+                      'Use KOT Print',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    value: _controller.useKOT.value,
+                    onChanged: (value) {
+                      _controller.toggleKOTSettings();
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                  )),
+              SizedBox(height: 50),
               Expanded(
                 child: Obx(() {
                   return ListView.builder(
@@ -97,17 +99,29 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                       final printer = _controller.availablePrinters[index];
                       return Column(
                         children: [
-                          ListTileWidget(
-                            printer: printer,
-                            onDefaultChanged: (bool? value) {
-                              _controller.selectPrinter(printer, value);
-                            },
-                            onTestPrinter: () {
-                              _controller.testPrinter(printer);
-                            },
+                          Container(
+                            decoration: BoxDecoration(
+                              color: context.theme.colorScheme.primaryContainer,
+                              border: Border.all(
+                                  color: context.theme.colorScheme.primary),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ListTileWidget(
+                              printer: printer,
+                              onDefaultChanged: (bool? value) {
+                                _controller.selectPrinter(printer, value);
+                              },
+                              onTestPrinter: () {
+                                _controller.testPrinter(printer);
+                              },
+                            ),
                           ),
-                          if (index < _controller.availablePrinters.length - 1) // Add space only between items, not after the last item
-                            SizedBox(height: 10),
+                          if (index <
+                              _controller.availablePrinters.length -
+                                  1) // Add space only between items, not after the last item
+                            SizedBox(
+                              height: 10,
+                            ),
                         ],
                       );
                     },
@@ -128,9 +142,20 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: (){
+                  onPressed: () {
                     _controller.navigateToNetworkPrinter(PrinterType.bluetooth);
                   },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        context.theme.colorScheme.primary, // Background color
+                    foregroundColor:
+                        context.theme.colorScheme.onPrimary, 
+                        
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 20, horizontal: 16),
+                    // Text color
+              
+                  ),
                   child: Text('Search Bluetooth Printers'),
                 ),
               ),
@@ -145,12 +170,28 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
               //   ),
               // ),
               SizedBox(height: 20),
-              SizedBox(
+              Container(
                 width: double.infinity,
+                margin: EdgeInsets.only(bottom: 20),
                 child: ElevatedButton(
-                  onPressed: (){
+                  // style: ButtonStyle(
+                  //   backgroundColor: MaterialStateProperty.all(context.theme.colorScheme.primary),
+                  //   padding: MaterialStateProperty.all(const EdgeInsets.symmetric(vertical: 20, horizontal: 16)),
+                  //   shape: MaterialStateProperty.all(RoundedRectangleBorder(
+                  //     borderRadius: BorderRadius.circular(12),
+                  //   )),
+                  // ),
+                  onPressed: () {
                     _controller.navigateToNetworkPrinter(PrinterType.usb);
                   },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        context.theme.colorScheme.primary, // Background color
+                    foregroundColor:
+                        context.theme.colorScheme.onPrimary, // Text color
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 20, horizontal: 16),
+                  ),
                   child: Text('Search USB Printers'),
                 ),
               ),

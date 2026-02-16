@@ -19,21 +19,27 @@ class FiscalSettingsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Checkbox
-            Obx(() => CheckboxListTile(
-              title: Text(
-                'Always ask for fiscalisation',
-                style: TextStyle(fontSize: 16),
+            Container(
+              decoration: BoxDecoration(
+                color: context.theme.colorScheme.primaryContainer,
+                border: Border.all(color: context.theme.colorScheme.primary),
               ),
-              value: controller.isFiscalisationEnabled.value,
-              onChanged: (value) {
-                controller.toggleDefaultFiscalSetting();
-              },
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
-            )),
-
+              child: Obx(() => CheckboxListTile(
+                title: Text(
+                  'Always ask for fiscalisation',
+                  style: TextStyle(fontSize: 16),
+                ),
+                value: controller.isFiscalisationEnabled.value,
+                onChanged: (value) {
+                  controller.toggleDefaultFiscalSetting();
+                },
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              )),
+            ),
+        
             Spacer(),
-
+        
             // Save Button
             SizedBox(
               width: double.infinity,

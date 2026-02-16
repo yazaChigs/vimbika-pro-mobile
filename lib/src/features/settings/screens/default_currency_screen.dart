@@ -22,20 +22,29 @@ class DefaultCurrencyScreen extends StatelessWidget {
           itemCount: controller.currencyList.length,
           itemBuilder: (context, index) {
             CurrencyModel currency = controller.currencyList[index];
-            return ListTile(
-              title: Text('${currency.name}'),
-              subtitle: Text('Rate: ${currency.rate}'),
-              trailing: Checkbox(
-                value: controller.defaultCurrency.value?.id == currency.id,
-                onChanged: (isSelected) {
-                  if (isSelected == true) {
+            return Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: context.theme.colorScheme.primaryContainer,
+                  border: Border.all(color: context.theme.colorScheme.primary),
+                ),
+                child: ListTile(
+                  title: Text('${currency.name}'),
+                  subtitle: Text('Rate: ${currency.rate}'),
+                  trailing: Checkbox(
+                    value: controller.defaultCurrency.value?.id == currency.id,
+                    onChanged: (isSelected) {
+                      if (isSelected == true) {
+                        controller.setDefaultCurrency(currency);
+                      }
+                    },
+                  ),
+                  onTap: () {
                     controller.setDefaultCurrency(currency);
-                  }
-                },
+                  },
+                ),
               ),
-              onTap: () {
-                controller.setDefaultCurrency(currency);
-              },
             );
           },
         );

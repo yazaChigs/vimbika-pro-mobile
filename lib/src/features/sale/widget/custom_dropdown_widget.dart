@@ -36,11 +36,11 @@ class CustomDropdownWidget<T> extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                border: Border.all(color: state.hasError ? Colors.red : Colors.grey),
+                border: Border.all(color: state.hasError ? Colors.red : context.theme.colorScheme.primary),
                 borderRadius: BorderRadius.circular(5),
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<T>(
+                child: DropdownButton<T>(                  
                   hint: Text(hint),
                   value: isSelected.isTrue ? selectedValue.value : null,
                   icon: Icon(icon),
@@ -54,6 +54,7 @@ class CustomDropdownWidget<T> extends StatelessWidget {
                   },
                   items: items.map<DropdownMenuItem<T>>((T value) {
                     return DropdownMenuItem<T>(
+                      
                       value: value,
                       child: itemBuilder(value),
                     );

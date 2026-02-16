@@ -10,6 +10,9 @@ class TicketListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    double screenWidth=MediaQuery.of(context).size.width;
+    Orientation orientation=MediaQuery.of(context).orientation;
+
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: inactivityController.resetInactivityTimer,
@@ -39,15 +42,27 @@ class TicketListScreen extends StatelessWidget {
                 },
                 decoration: InputDecoration(
                   labelText: 'Search',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  enabledBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(color: context.theme.colorScheme.primary),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(color: context.theme.colorScheme.primary, width: 2.0),
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                        borderSide: BorderSide(color: context.theme.colorScheme.primary)
+                                    ),
+                  
                   prefixIcon: Icon(Icons.search),
                 ),
               ),
             ),
             Expanded(
               child: Obx(() {
+                
                 return GridView.builder(gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
+                
+                crossAxisCount: orientation==Orientation.landscape? 3 : 2,
                 crossAxisSpacing: 3.0,
                     mainAxisSpacing: 3.0,
                     childAspectRatio: 1.5,
@@ -104,18 +119,20 @@ class TicketListScreen extends StatelessWidget {
                               child: Column(
                                 spacing:0,
                               children: List.generate(item.sale!.items!.length,(index){
-                                return   Column(
-                                  children: [
-                                    Text(
-                                      "${item.sale!.items![index].inventoryItem!.name} X ${item.sale!.items![index].quantity}",
-                                      style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold,fontStyle: FontStyle.italic,color:  context.theme.colorScheme.onSurface,),
-                                    ),
-                                    if(item.sale!.items![index].notes!=null && item.sale!.items![index].notes!.isNotEmpty)
-                                    Text(
-                                      "${item.sale!.items![index].notes??""}",
-                                      style: TextStyle(fontSize: 12,fontStyle: FontStyle.italic,color: Colors.redAccent),
-                                    ),
-                                  ],
+                                return   Container(
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        "${item.sale!.items![index].inventoryItem!.name} X ${item.sale!.items![index].quantity}",
+                                        style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold,fontStyle: FontStyle.italic,color:  context.theme.colorScheme.onSurface,),
+                                      ),
+                                      if(item.sale!.items![index].notes!=null && item.sale!.items![index].notes!.isNotEmpty)
+                                      Text(
+                                        "${item.sale!.items![index].notes??""}",
+                                        style: TextStyle(fontSize: 12,fontStyle: FontStyle.italic,color: Colors.redAccent),
+                                      ),
+                                    ],
+                                  ),
                                 );
                               }),
                                                           ),

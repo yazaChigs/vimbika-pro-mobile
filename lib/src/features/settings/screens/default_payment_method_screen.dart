@@ -23,20 +23,29 @@ class DefaultPaymentMethodScreen extends StatelessWidget {
           itemCount: controller.paymentTypesList.length,
           itemBuilder: (context, index) {
             PaymentTypeModel paymentMethod = controller.paymentTypesList[index];
-            return ListTile(
-              title: Text('${paymentMethod.name}'),
-              subtitle: Text('${paymentMethod.currency!.name}'),
-              trailing: Checkbox(
-                value: controller.defaultPaymentMethod.value?.id == paymentMethod.id,
-                onChanged: (isSelected) {
-                  if (isSelected == true) {
+            return Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Container(
+                decoration: BoxDecoration(
+                color: context.theme.colorScheme.primaryContainer,
+                  border: Border.all(color: context.theme.colorScheme.primary),
+                ),
+                child: ListTile(
+                  title: Text('${paymentMethod.name}'),
+                  subtitle: Text('${paymentMethod.currency!.name}'),
+                  trailing: Checkbox(
+                    value: controller.defaultPaymentMethod.value?.id == paymentMethod.id,
+                    onChanged: (isSelected) {
+                      if (isSelected == true) {
+                        controller.setDefaultPaymentMethod(paymentMethod);
+                      }
+                    },
+                  ),
+                  onTap: () {
                     controller.setDefaultPaymentMethod(paymentMethod);
-                  }
-                },
+                  },
+                ),
               ),
-              onTap: () {
-                controller.setDefaultPaymentMethod(paymentMethod);
-              },
             );
           },
         );
