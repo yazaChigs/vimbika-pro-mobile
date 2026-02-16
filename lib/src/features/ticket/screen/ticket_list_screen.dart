@@ -62,7 +62,6 @@ class TicketListScreen extends StatelessWidget {
                 
                 return GridView.builder(gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 
-                
                 crossAxisCount: orientation==Orientation.landscape? 3 : 2,
                 crossAxisSpacing: 3.0,
                     mainAxisSpacing: 3.0,
