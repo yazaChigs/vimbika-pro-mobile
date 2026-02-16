@@ -72,7 +72,7 @@ class SaleScreen extends GetView {
         "${saleController.user.firstName} ${saleController.user.lastName}";
     String initials =
         saleController.user.firstName[0] + saleController.user.lastName[0];
-    
+
     // Refresh shift information when sale screen is accessed
     // This ensures the correct shift is loaded for the current user
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -80,17 +80,20 @@ class SaleScreen extends GetView {
       // Also refresh customers to ensure latest data is loaded
       cartController.refreshCustomers();
     });
-    
+
     // Sync default payment type to saleController for highlighting
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (cartController.selectedPaymentType.value != null &&
           cartController.selectedPaymentType.value!.id != null &&
-          !saleController.selectedPaymentTypes.any((pt) => pt.id == cartController.selectedPaymentType.value!.id)) {
-        saleController.selectedPaymentTypes.add(cartController.selectedPaymentType.value!);
-        saleController.selectedPaymentType = cartController.selectedPaymentType.value!;
+          !saleController.selectedPaymentTypes.any(
+              (pt) => pt.id == cartController.selectedPaymentType.value!.id)) {
+        saleController.selectedPaymentTypes
+            .add(cartController.selectedPaymentType.value!);
+        saleController.selectedPaymentType =
+            cartController.selectedPaymentType.value!;
       }
     });
-    
+
     if (isMobile(context)) {
       return GestureDetector(
         behavior: HitTestBehavior.translucent,
@@ -123,7 +126,8 @@ class SaleScreen extends GetView {
                     child: Obx(() {
                       final count = ticketController.openedTicketsCount;
                       return Container(
-                        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.red,
                           // Set the background color for the count
@@ -212,8 +216,8 @@ class SaleScreen extends GetView {
             body: Column(
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -226,7 +230,7 @@ class SaleScreen extends GetView {
                               ticketController.ticketActionButton(
                                   cartController.selectedCurrency.value!,
                                   cartController.cartItems,
-                                  ""); 
+                                  "");
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.cyan,
@@ -240,7 +244,8 @@ class SaleScreen extends GetView {
                               cartController.cartItems.length > 0
                                   ? 'SAVE'
                                   : 'OPEN TICKETS',
-                              style: TextStyle(color: Colors.white, fontSize: 16),
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 16),
                             ),
                           );
                         }),
@@ -272,7 +277,8 @@ class SaleScreen extends GetView {
 
                             return Text(
                               'CHARGE : ${cartController.selectedCurrency.value?.symbol ?? ''} $formattedCost',
-                              style: TextStyle(color: Colors.white, fontSize: 16),
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 16),
                             );
                           }),
                         ),
@@ -281,8 +287,8 @@ class SaleScreen extends GetView {
                   ),
                 ),
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
                   child: Obx(() {
                     return Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -291,21 +297,23 @@ class SaleScreen extends GetView {
                         saleController.isSearching.value
                             ? Expanded(
                                 child: TextField(
-                                  controller:
-                                      saleController.searchTextEditingController,
+                                  controller: saleController
+                                      .searchTextEditingController,
                                   decoration: InputDecoration(
                                     hintText: 'Search Items...',
                                     border: OutlineInputBorder(),
                                     prefixIcon: IconButton(
                                       icon: Icon(Icons.close),
                                       onPressed: () {
-                                        saleController.searchTextEditingController
+                                        saleController
+                                            .searchTextEditingController
                                             .clear();
                                         saleController.isSearching.value =
                                             false; // Hide search field
 
-                                        final allItemsCategory =
-                                            saleController.categories.firstWhere(
+                                        final allItemsCategory = saleController
+                                            .categories
+                                            .firstWhere(
                                           (category) =>
                                               category.id == "All Items",
                                           orElse: () =>
@@ -369,8 +377,8 @@ class SaleScreen extends GetView {
                                       id: "All Items", name: "All Items");
                               saleController.filterProducts(
                                   query: '',
-                                  category:
-                                      saleController.selectedCategory.value?.id);
+                                  category: saleController
+                                      .selectedCategory.value?.id);
                             },
                           ),
                       ],
@@ -384,9 +392,22 @@ class SaleScreen extends GetView {
                     children: [
                       Expanded(
                         child: TextFormField(
-                          controller: saleController.barCodeTextEditingController,
+                          controller:
+                              saleController.barCodeTextEditingController,
                           autofocus: true,
                           decoration: InputDecoration(
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                  color: context.theme.colorScheme.primary),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                  color: context.theme.colorScheme.primary,
+                                  width: 2.0),
+                            ),
+                            border: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                    color: context.theme.colorScheme.primary)),
                             prefixIcon: IconButton(
                               icon: const Icon(Icons.camera_alt),
                               onPressed: () {
@@ -401,8 +422,8 @@ class SaleScreen extends GetView {
                               String exp = val;
 
                               if (saleController.useSerialNumbers) {
-                                var index = saleController.allProducts.indexWhere(
-                                    (item) =>
+                                var index = saleController.allProducts
+                                    .indexWhere((item) =>
                                         item.barCodes?.contains(exp) == true);
                                 if (index != -1) {
                                   ProductFullInfoModel foundItem =
@@ -438,14 +459,16 @@ class SaleScreen extends GetView {
                                             foundItem.item?.id);
                                     if (indexC != -1) {
                                       cartController.addToCart(foundItem, 1);
-                                      saleController.barCodeTextEditingController
+                                      saleController
+                                          .barCodeTextEditingController
                                           .clear();
                                     } else {
                                       Get.snackbar(
                                           "Info", "Product added to cart !!!",
                                           snackPosition: SnackPosition.BOTTOM);
                                       cartController.addToCart(foundItem, 1);
-                                      saleController.barCodeTextEditingController
+                                      saleController
+                                          .barCodeTextEditingController
                                           .clear();
                                     }
                                   } else {
@@ -464,8 +487,9 @@ class SaleScreen extends GetView {
                                     exp.length > 6 ? exp.substring(2, 6) : '';
                                 String categoryCode =
                                     exp.length > 7 ? exp.substring(6, 7) : '';
-                                String weight =
-                                    exp.length > 12 ? exp.substring(7, 12) : '0';
+                                String weight = exp.length > 12
+                                    ? exp.substring(7, 12)
+                                    : '0';
 
                                 double kgs = double.parse(weight) / 1000;
                                 double roundedValue =
@@ -484,7 +508,8 @@ class SaleScreen extends GetView {
                                     if (indexC != -1) {
                                       cartController.addToCart(
                                           foundItem, roundedValue);
-                                      saleController.barCodeTextEditingController
+                                      saleController
+                                          .barCodeTextEditingController
                                           .clear();
                                     } else {
                                       Get.snackbar(
@@ -492,7 +517,8 @@ class SaleScreen extends GetView {
                                           snackPosition: SnackPosition.BOTTOM);
                                       cartController.addToCart(
                                           foundItem, roundedValue);
-                                      saleController.barCodeTextEditingController
+                                      saleController
+                                          .barCodeTextEditingController
                                           .clear();
                                     }
                                   } else {
@@ -505,8 +531,9 @@ class SaleScreen extends GetView {
                                   }
                                 }
                               } else {
-                                var index = saleController.allProducts.indexWhere(
-                                    (item) => item.item?.itemCode == exp);
+                                var index = saleController.allProducts
+                                    .indexWhere(
+                                        (item) => item.item?.itemCode == exp);
                                 if (index != -1) {
                                   ProductFullInfoModel foundItem =
                                       saleController.allProducts[index];
@@ -565,94 +592,99 @@ class SaleScreen extends GetView {
                 Expanded(
                   child: Obx(() {
                     return Container(
-                      child:
-                      saleController.filteredProducts.isEmpty ?
-                      Center(
-                        child: LoadingAnimationWidget.discreteCircle(
-                          secondRingColor: const Color(0xFF98EF17),
-                          color: const Color(0xFFEA3799),
-                          thirdRingColor: const Color(0xFFF14405),
-                          size: 200,
-                        ),
-                      ):
-                      ListView.builder(
-                        itemCount: saleController.filteredProducts.length,
-                        itemBuilder: (context, index) {
-                          final product = saleController.filteredProducts[index];
-                          String name = product.item!.name ?? 'no name';
-                          String brand = product.item!.brand?.name ?? '';
-                          String fullName = "${name}  ${brand}";
-                          String category = product.item!.category?.name ?? '';
-                          String itemName = fullName + ' ' + category;
-                          return Card(
-                              child: ListTile(
-                            tileColor: Colors.blue[100],
-                            /*  leading: CachedNetworkImage(
-                                  imageUrl: imageUrl,
-                                  placeholder: (context, url) =>
-                                      CircularProgressIndicator(),
-
-
-                                  errorWidget: (context, url, error) {
-                                    debugPrint('Image load failed: $error');
-                                    return Image.asset(
-                                      'assets/images/dummy/dummy.png',
-                                      // Path to your error image
-                                      fit: BoxFit.cover,
-                                    );
-                                  },
-                                ),*/
-                            title: Text(itemName),
-                            subtitle: Text('Available units ' +
-                                '(' +
-                                product.stock!.toInt().toString() +
-                                ')'),
-                            trailing: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                    "\$${product.item!.sellingPrice.toStringAsFixed(2)}"),
-                                SizedBox(
-                                  height: 4, // Space between price and button
-                                ),
-                                /*SizedBox(
-                                      width: 100,
-                                      // Adjust the width to fit the text
-                                      height: 30,
-                                      // Adjust the height to make the button smaller
-                                      child: ElevatedButton(
-                                        onPressed: () {
-                                          Get.to(() =>
-                                              ProductDescriptionScreen(
-                                                  productFullInfo: product));
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.indigo,
-                                          padding: EdgeInsets.all(5.0),
-                                          textStyle: TextStyle(
-                                              fontSize: 14, color: Colors.white),
+                      child: saleController.filteredProducts.isEmpty
+                          ? Center(
+                              child: LoadingAnimationWidget.discreteCircle(
+                                secondRingColor: const Color(0xFF98EF17),
+                                color: const Color(0xFFEA3799),
+                                thirdRingColor: const Color(0xFFF14405),
+                                size: 200,
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: saleController.filteredProducts.length,
+                              itemBuilder: (context, index) {
+                                final product =
+                                    saleController.filteredProducts[index];
+                                String name = product.item!.name ?? 'no name';
+                                String brand = product.item!.brand?.name ?? '';
+                                String fullName = "${name}  ${brand}";
+                                String category =
+                                    product.item!.category?.name ?? '';
+                                String itemName = fullName + ' ' + category;
+                                return Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Card(
+                                      child: ListTile(
+                                    tileColor: context.theme.colorScheme.primaryContainer,
+                                    /*  leading: CachedNetworkImage(
+                                    imageUrl: imageUrl,
+                                    placeholder: (context, url) =>
+                                        CircularProgressIndicator(),
+                                  
+                                  
+                                    errorWidget: (context, url, error) {
+                                      debugPrint('Image load failed: $error');
+                                      return Image.asset(
+                                        'assets/images/dummy/dummy.png',
+                                        // Path to your error image
+                                        fit: BoxFit.cover,
+                                      );
+                                    },
+                                  ),*/
+                                    title: Text(itemName),
+                                    subtitle: Text('Available units ' +
+                                        '(' +
+                                        product.stock!.toInt().toString() +
+                                        ')'),
+                                    trailing: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                            "\$${product.item!.sellingPrice.toStringAsFixed(2)}"),
+                                        SizedBox(
+                                          height:
+                                              4, // Space between price and button
                                         ),
-                                        child: Text('View'),
-                                      ),
-                                    ),*/
-                              ],
+                                        /*SizedBox(
+                                        width: 100,
+                                        // Adjust the width to fit the text
+                                        height: 30,
+                                        // Adjust the height to make the button smaller
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            Get.to(() =>
+                                                ProductDescriptionScreen(
+                                                    productFullInfo: product));
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.indigo,
+                                            padding: EdgeInsets.all(5.0),
+                                            textStyle: TextStyle(
+                                                fontSize: 14, color: Colors.white),
+                                          ),
+                                          child: Text('View'),
+                                        ),
+                                      ),*/
+                                      ],
+                                    ),
+                                    isThreeLine: true,
+                                    onTap: () {
+                                      if (product.item?.itemType == 'SERVICE') {
+                                        cartController.addToCart(product, 1);
+                                      } else if (product.stock! > 0 ||
+                                          saleController.sellNilItems) {
+                                        cartController.addToCart(product, 1);
+                                      } else {
+                                        Get.snackbar("Check your stock",
+                                            "Stock not available!!!",
+                                            snackPosition: SnackPosition.BOTTOM);
+                                      }
+                                    },
+                                  )),
+                                );
+                              },
                             ),
-                            isThreeLine: true,
-                            onTap: () {
-                              if (product.item?.itemType == 'SERVICE') {
-                                cartController.addToCart(product, 1);
-                              } else if (product.stock! > 0 ||
-                                  saleController.sellNilItems) {
-                                cartController.addToCart(product, 1);
-                              } else {
-                                Get.snackbar(
-                                    "Check your stock", "Stock not available!!!",
-                                    snackPosition: SnackPosition.BOTTOM);
-                              }
-                            },
-                          ));
-                        },
-                      ),
                     );
                   }),
                 ),
@@ -681,7 +713,8 @@ class SaleScreen extends GetView {
                     height: 40,
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: context.theme.colorScheme.onSecondaryFixedVariant,
+                        color:
+                            context.theme.colorScheme.onSecondaryFixedVariant,
                         width: 2.0,
                       ),
                       color: context.theme.colorScheme.inversePrimary,
@@ -708,8 +741,8 @@ class SaleScreen extends GetView {
                         child: Obx(() {
                           final count = ticketController.openedTicketsCount;
                           return Container(
-                            padding:
-                                EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 4, vertical: 2),
                             decoration: BoxDecoration(
                               color: Colors.red,
                               // Set the background color for the count
@@ -730,7 +763,7 @@ class SaleScreen extends GetView {
                   Expanded(child: Container(child: Obx(() {
                     return GridView.builder(
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: cartController.currencyList.length,
+                        crossAxisCount: cartController.currencyList.length>0 ? cartController.currencyList.length : 1,
                         mainAxisSpacing: 10.0,
                         crossAxisSpacing: 2.0,
                         // childAspectRatio: 2.0, // Adjust aspect ratio as needed
@@ -803,8 +836,9 @@ class SaleScreen extends GetView {
                                         focusedBorder: OutlineInputBorder(
                                           borderRadius:
                                               BorderRadius.circular(8.0),
-                                          borderSide:  BorderSide(
-                                            color: context.theme.colorScheme.secondary,
+                                          borderSide: BorderSide(
+                                            color: context
+                                                .theme.colorScheme.secondary,
                                             width: 2.0,
                                           ),
                                         ),
@@ -822,8 +856,8 @@ class SaleScreen extends GetView {
                                                     .firstWhere(
                                               (category) =>
                                                   category.id == "All Items",
-                                              orElse: () =>
-                                                  saleController.categories.first,
+                                              orElse: () => saleController
+                                                  .categories.first,
                                             );
                                             saleController.selectedCategory
                                                 .value = allItemsCategory;
@@ -831,7 +865,9 @@ class SaleScreen extends GetView {
                                             saleController.filterProducts(
                                                 query: '',
                                                 category: saleController
-                                                    .selectedCategory.value?.id);
+                                                    .selectedCategory
+                                                    .value
+                                                    ?.id);
                                           },
                                         ),
                                       ),
@@ -851,7 +887,8 @@ class SaleScreen extends GetView {
                                   child: Container(
                                     width: screenSize * 0.4 * 0.7,
                                     child: TextFormField(
-                                      controller: saleController.barCodeTextEditingController,
+                                      controller: saleController
+                                          .barCodeTextEditingController,
                                       decoration: InputDecoration(
                                         iconColor: Colors.indigo,
                                         enabledBorder: OutlineInputBorder(
@@ -866,7 +903,8 @@ class SaleScreen extends GetView {
                                           borderRadius:
                                               BorderRadius.circular(8.0),
                                           borderSide: BorderSide(
-                                            color: context.theme.colorScheme.primary,
+                                            color: context
+                                                .theme.colorScheme.primary,
                                             width: 2.0,
                                           ),
                                         ),
@@ -885,10 +923,21 @@ class SaleScreen extends GetView {
                                           String exp = val;
 
                                           if (saleController.useSerialNumbers) {
-                                            var index = saleController.allProducts.indexWhere((item) =>item.barCodes?.contains(exp) == true);
+                                            var index = saleController
+                                                .allProducts
+                                                .indexWhere((item) =>
+                                                    item.barCodes
+                                                        ?.contains(exp) ==
+                                                    true);
                                             if (index != -1) {
-                                              ProductFullInfoModel foundItem =saleController.allProducts[index];
-                                              var indexC = cartController.cartItems.indexWhere((item) =>item.product.item?.id == foundItem.item?.id);
+                                              ProductFullInfoModel foundItem =
+                                                  saleController
+                                                      .allProducts[index];
+                                              var indexC = cartController
+                                                  .cartItems
+                                                  .indexWhere((item) =>
+                                                      item.product.item?.id ==
+                                                      foundItem.item?.id);
                                               if (indexC != -1) {
                                                 // Get.snackbar("Info",
                                                 //     "Product already added !!!",
@@ -915,7 +964,8 @@ class SaleScreen extends GetView {
                                               var index = saleController
                                                   .allProducts
                                                   .indexWhere((item) =>
-                                                      item.item?.itemCode == exp);
+                                                      item.item?.itemCode ==
+                                                      exp);
                                               if (index != -1) {
                                                 ProductFullInfoModel foundItem =
                                                     saleController
@@ -970,37 +1020,68 @@ class SaleScreen extends GetView {
                                                 ? exp.substring(7, 12)
                                                 : '0';
 
-
-                                              var index = saleController.allProducts.indexWhere((item) => item.item?.itemCode ==  productCode);
-                                              print(index);
+                                            var index = saleController
+                                                .allProducts
+                                                .indexWhere((item) =>
+                                                    item.item?.itemCode ==
+                                                    productCode);
+                                            print(index);
+                                            if (index != -1) {
+                                              double kgs =
+                                                  double.parse(weight) / 1000;
+                                              double roundedValue =
+                                                  double.parse(
+                                                      kgs.toStringAsFixed(3));
+                                              if (kgs > 0) {
+                                                ProductFullInfoModel foundItem =
+                                                    saleController
+                                                        .allProducts[index];
+                                                var indexC = cartController
+                                                    .cartItems
+                                                    .indexWhere((item) =>
+                                                        item.product.item?.id ==
+                                                        foundItem.item?.id);
+                                                if (indexC != -1) {
+                                                  cartController.addToCart(
+                                                      foundItem, roundedValue);
+                                                  saleController
+                                                      .barCodeTextEditingController
+                                                      .clear();
+                                                } else {
+                                                  Get.snackbar("Info",
+                                                      "Product added to cart !!!",
+                                                      snackPosition:
+                                                          SnackPosition.BOTTOM);
+                                                  cartController.addToCart(
+                                                      foundItem, roundedValue);
+                                                  saleController
+                                                      .barCodeTextEditingController
+                                                      .clear();
+                                                }
+                                              }
+                                            } else {
+                                              var index = saleController
+                                                  .allProducts
+                                                  .indexWhere((item) =>
+                                                      item.item?.itemCode ==
+                                                      exp);
                                               if (index != -1) {
-                                                  double kgs = double.parse(weight) / 1000;
-                                                  double roundedValue = double.parse(kgs.toStringAsFixed(3));
-                                                  if (kgs > 0) {
-                                                    ProductFullInfoModel foundItem = saleController.allProducts[index];
-                                                    var indexC = cartController .cartItems.indexWhere((item) =>item.product.item?.id ==foundItem.item?.id);
-                                                    if (indexC != -1) {
-                                                      cartController.addToCart(foundItem, roundedValue);
-                                                      saleController.barCodeTextEditingController.clear();
-                                                    } else {
-                                                      Get.snackbar("Info","Product added to cart !!!",
-                                                      snackPosition:SnackPosition.BOTTOM);
-                                                      cartController.addToCart(foundItem, roundedValue);
-                                                      saleController.barCodeTextEditingController.clear();
-                                                    }
-                                                  }
-                                              } else {
-                                                var index = saleController.allProducts.indexWhere((item) => item.item?.itemCode ==  exp);
-                                                if (index != -1) {
-                                                  ProductFullInfoModel foundItem = saleController
-                                                      .allProducts[index];
-                                                  var indexC = cartController
-                                                      .cartItems.indexWhere((item) =>item.product.item?.id ==foundItem.item?.id);
-                                                  if (indexC != -1) {
-                                                    cartController.addToCart(foundItem, 1);
-                                                    saleController.barCodeTextEditingController.clear();
-                                                  }
-                                                }else
+                                                ProductFullInfoModel foundItem =
+                                                    saleController
+                                                        .allProducts[index];
+                                                var indexC = cartController
+                                                    .cartItems
+                                                    .indexWhere((item) =>
+                                                        item.product.item?.id ==
+                                                        foundItem.item?.id);
+                                                if (indexC != -1) {
+                                                  cartController.addToCart(
+                                                      foundItem, 1);
+                                                  saleController
+                                                      .barCodeTextEditingController
+                                                      .clear();
+                                                }
+                                              } else
                                                 // Item not found, handle this case
                                                 Get.snackbar(
                                                     "Not Found",
@@ -1009,7 +1090,7 @@ class SaleScreen extends GetView {
                                                         " is not found!!!",
                                                     snackPosition:
                                                         SnackPosition.BOTTOM);
-                                              }
+                                            }
                                           }
                                         }
                                       },
@@ -1031,14 +1112,16 @@ class SaleScreen extends GetView {
                               // use this to make default color to transparent
                               child: Container(
                                 // wrap the text/widget using container
-                                padding: const EdgeInsets.all(10), // add padding
+                                padding:
+                                    const EdgeInsets.all(10), // add padding
                                 decoration: BoxDecoration(
                                   border: Border.all(
                                     color: Colors.indigo,
                                     width: 2,
                                   ),
                                   borderRadius: const BorderRadius.all(
-                                      Radius.circular(10)), // radius as you wish
+                                      Radius.circular(
+                                          10)), // radius as you wish
                                 ),
                                 child: Wrap(
                                   crossAxisAlignment: WrapCrossAlignment.center,
@@ -1081,20 +1164,28 @@ class SaleScreen extends GetView {
                     child: Container(
                       decoration: BoxDecoration(
                         color: context.theme.colorScheme.surfaceBright,
-                        border: Border.all(color: context.theme.colorScheme.primary, width: 5.0),
+                        border: Border.all(
+                            color: context.theme.colorScheme.primary,
+                            width: 5.0),
                         borderRadius: BorderRadius.circular(8.0),
                       ),
                       child: Obx(() {
                         // Create a stable snapshot of customers to prevent race conditions
-                        final List<CustomerModel> customersSnapshot = List.from(cartController.allCustomers);
-                        
+                        final List<CustomerModel> customersSnapshot =
+                            List.from(cartController.allCustomers);
+
                         return SearchChoices.single(
                           padding: 0,
-                          items: customersSnapshot
-                              .map((CustomerModel customer) {
+                          items:
+                              customersSnapshot.map((CustomerModel customer) {
                             return DropdownMenuItem<CustomerModel>(
                               value: customer,
-                              child: Text(customer.name ?? '', style: TextStyle(fontSize: 15, color:context.theme.colorScheme.onSurface), ),
+                              child: Text(
+                                customer.name ?? '',
+                                style: TextStyle(
+                                    fontSize: 15,
+                                    color: context.theme.colorScheme.onSurface),
+                              ),
                             );
                           }).toList(),
                           value: cartController.selectedCustomer.value,
@@ -1103,9 +1194,10 @@ class SaleScreen extends GetView {
                           hint: "🔍 Search or Select Customer",
                           searchHint:
                               "Type customer name, phone, ID, customer ID, or account number...",
-                          menuBackgroundColor: context.theme.colorScheme.surface,
-                          searchFn:
-                              (String searchTerm, List<DropdownMenuItem> items) {
+                          menuBackgroundColor:
+                              context.theme.colorScheme.surface,
+                          searchFn: (String searchTerm,
+                              List<DropdownMenuItem> items) {
                             // Enhanced search: search by name, phone, ID, customer ID, or account number
                             // Add bounds checking to prevent RangeError
                             List<int> matches = [];
@@ -1118,25 +1210,27 @@ class SaleScreen extends GetView {
                               }
                               return matches;
                             }
-                            
+
                             for (int i = 0; i < items.length; i++) {
                               // Safety check: ensure index is valid
                               if (i >= items.length) break;
-                              
+
                               try {
                                 final item = items[i];
                                 if (item.value == null) continue;
-                                
-                                CustomerModel customer = item.value as CustomerModel;
+
+                                CustomerModel customer =
+                                    item.value as CustomerModel;
 
                                 bool nameMatch = customer.name != null &&
                                     customer.name!
                                         .toLowerCase()
                                         .contains(searchTerm.toLowerCase());
-                                bool phoneMatch = customer.mobilePhone != null &&
-                                    customer.mobilePhone!
-                                        .toLowerCase()
-                                        .contains(searchTerm.toLowerCase());
+                                bool phoneMatch =
+                                    customer.mobilePhone != null &&
+                                        customer.mobilePhone!
+                                            .toLowerCase()
+                                            .contains(searchTerm.toLowerCase());
                                 bool idMatch = customer.id != null &&
                                     customer.id!
                                         .toLowerCase()
@@ -1161,7 +1255,8 @@ class SaleScreen extends GetView {
                                 }
                               } catch (e) {
                                 // Skip invalid items to prevent crashes
-                                print("Error processing customer at index $i: $e");
+                                print(
+                                    "Error processing customer at index $i: $e");
                                 continue;
                               }
                             }
@@ -1230,7 +1325,11 @@ class SaleScreen extends GetView {
               ),
               actions: [
                 IconButton(
-                  icon: Icon(Icons.person_add, color: context.theme.colorScheme.primary,size: 30,),
+                  icon: Icon(
+                    Icons.person_add,
+                    color: context.theme.colorScheme.primary,
+                    size: 30,
+                  ),
                   onPressed: () {
                     Get.toNamed(AppRoutes.CUSTOMER_FORM);
                   },
@@ -1244,8 +1343,8 @@ class SaleScreen extends GetView {
             body: Column(
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 2.0, vertical: 2.0),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 2.0, vertical: 2.0),
                   child: SizedBox(
                     height: 50,
                     width: screenSize,
@@ -1260,17 +1359,22 @@ class SaleScreen extends GetView {
                             itemCount: saleController.categories.length,
                             itemBuilder: (context, index) {
                               final category = saleController.categories[index];
-                              final isSelected = saleController.isCatSelected.value &&
-                                  saleController.selectedCategory.value?.id == category.id;
+                              final isSelected = saleController
+                                      .isCatSelected.value &&
+                                  saleController.selectedCategory.value?.id ==
+                                      category.id;
                               return Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                                margin:
+                                    const EdgeInsets.symmetric(horizontal: 4.0),
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context).colorScheme.inversePrimary
-                                  ,
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .inversePrimary,
                                   border: Border.all(
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                     width: 2.0,
                                   ),
                                   borderRadius: BorderRadius.circular(8.0),
@@ -1286,14 +1390,19 @@ class SaleScreen extends GetView {
                                   },
                                   child: Center(
                                     child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16.0),
                                       child: Text(
                                         category.name!,
                                         style: TextStyle(
                                             fontSize: 12.0,
                                             color: isSelected
-                                                ? Theme.of(context).colorScheme.onPrimary
-                                                : Theme.of(context).colorScheme.onSurface,
+                                                ? Theme.of(context)
+                                                    .colorScheme
+                                                    .onPrimary
+                                                : Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface,
                                             fontWeight: FontWeight.bold),
                                         textAlign: TextAlign.center,
                                       ),
@@ -1308,7 +1417,13 @@ class SaleScreen extends GetView {
                             top: -15,
                             bottom: 0,
                             child: IconButton(
-                              icon: Icon(Icons.arrow_back_ios, color: Theme.of(context).colorScheme.inverseSurface, size: 60,),
+                              icon: Icon(
+                                Icons.arrow_back_ios,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .inverseSurface,
+                                size: 60,
+                              ),
                               onPressed: () {
                                 _scrollController.animateTo(
                                   _scrollController.offset - 500,
@@ -1323,7 +1438,13 @@ class SaleScreen extends GetView {
                             top: -15,
                             bottom: 0,
                             child: IconButton(
-                              icon: Icon(Icons.arrow_forward_ios, color: Theme.of(context).colorScheme.inverseSurface, size: 60,),
+                              icon: Icon(
+                                Icons.arrow_forward_ios,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .inverseSurface,
+                                size: 60,
+                              ),
                               onPressed: () {
                                 _scrollController.animateTo(
                                   _scrollController.offset + 500,
@@ -1347,54 +1468,111 @@ class SaleScreen extends GetView {
                           flex: 50,
                           child: Container(
                             decoration: BoxDecoration(
-                              border: Border.all(color: context.theme.colorScheme.primary, width: 1.0),
+                              border: Border.all(
+                                  color: context.theme.colorScheme.primary,
+                                  width: 1.0),
                               borderRadius: BorderRadius.circular(8.0),
                             ),
                             alignment: Alignment.topLeft,
-                            child:
-                                saleController.filteredProducts.isEmpty ?
-                              Center(
-                                child: LoadingAnimationWidget.discreteCircle(
-                                  secondRingColor: const Color(0xFF98EF17),
-                                  color: const Color(0xFFEA3799),
-                                  thirdRingColor: const Color(0xFFF14405),
-                                  size: 200,
-                                ),
-                              ):
-                            GridView.builder(
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 4,
-                                crossAxisSpacing: 1.0,
-                                mainAxisSpacing: 1.0,
-                                childAspectRatio:
-                                    1.7, // Adjust aspect ratio as needed
-                              ),
-                              itemCount: saleController.filteredProducts.length,
-                              itemBuilder: (context, index) => ProductTileWidget(
-                                    productName: saleController.filteredProducts[index].item!.name!,
-                                    price: saleController.filteredProducts[index].item!.sellingPrice,
-                                    quantity: saleController.filteredProducts[index].stock!,
-                                    onTap: () {
-                                      if (saleController.filteredProducts[index].item?.itemType == 'SERVICE') {
-                                        cartController.addToCart(saleController.filteredProducts[index], 1);
-                                        cartController.amountPaidTextEditingController.text = cartController.totalCostInSelectedCurrency.value.toStringAsFixed(2);
-                                        cartController.hasAmountText.value = true;
-                                        cartController.amountPaid.value = cartController.totalCostInSelectedCurrency.value;
-                                        cartController.customerAmountPaid.value = cartController.totalCostInSelectedCurrency.value;
-                                      } else if (saleController.filteredProducts[index].stock! > 0 || saleController.sellNilItems) {
-                                        print(saleController.filteredProducts[index].item!.name);
-                                        cartController.addToCart(saleController.filteredProducts[index], 1);
-                                        cartController.amountPaidTextEditingController.text = cartController.totalCostInSelectedCurrency.value.toStringAsFixed(2);
-                                        cartController.hasAmountText.value = true;
-                                        cartController.amountPaid.value = cartController.totalCostInSelectedCurrency.value;
-                                        cartController.customerAmountPaid.value = cartController.totalCostInSelectedCurrency.value;
-                                      } else {
-                                        Get.snackbar("Check your stock", "Stock not available!!!", snackPosition: SnackPosition.BOTTOM);
-                                      }
-                                    },
+                            child: saleController.filteredProducts.isEmpty
+                                ? Center(
+                                    child:
+                                        LoadingAnimationWidget.discreteCircle(
+                                      secondRingColor: const Color(0xFF98EF17),
+                                      color: const Color(0xFFEA3799),
+                                      thirdRingColor: const Color(0xFFF14405),
+                                      size: 200,
+                                    ),
+                                  )
+                                : GridView.builder(
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 4,
+                                      crossAxisSpacing: 1.0,
+                                      mainAxisSpacing: 1.0,
+                                      childAspectRatio:
+                                          1.7, // Adjust aspect ratio as needed
+                                    ),
+                                    itemCount:
+                                        saleController.filteredProducts.length,
+                                    itemBuilder: (context, index) =>
+                                        ProductTileWidget(
+                                      productName: saleController
+                                          .filteredProducts[index].item!.name!,
+                                      price: saleController
+                                          .filteredProducts[index]
+                                          .item!
+                                          .sellingPrice,
+                                      quantity: saleController
+                                          .filteredProducts[index].stock!,
+                                      onTap: () {
+                                        if (saleController
+                                                .filteredProducts[index]
+                                                .item
+                                                ?.itemType ==
+                                            'SERVICE') {
+                                          cartController.addToCart(
+                                              saleController
+                                                  .filteredProducts[index],
+                                              1);
+                                          cartController
+                                                  .amountPaidTextEditingController
+                                                  .text =
+                                              cartController
+                                                  .totalCostInSelectedCurrency
+                                                  .value
+                                                  .toStringAsFixed(2);
+                                          cartController.hasAmountText.value =
+                                              true;
+                                          cartController.amountPaid.value =
+                                              cartController
+                                                  .totalCostInSelectedCurrency
+                                                  .value;
+                                          cartController
+                                                  .customerAmountPaid.value =
+                                              cartController
+                                                  .totalCostInSelectedCurrency
+                                                  .value;
+                                        } else if (saleController
+                                                    .filteredProducts[index]
+                                                    .stock! >
+                                                0 ||
+                                            saleController.sellNilItems) {
+                                          print(saleController
+                                              .filteredProducts[index]
+                                              .item!
+                                              .name);
+                                          cartController.addToCart(
+                                              saleController
+                                                  .filteredProducts[index],
+                                              1);
+                                          cartController
+                                                  .amountPaidTextEditingController
+                                                  .text =
+                                              cartController
+                                                  .totalCostInSelectedCurrency
+                                                  .value
+                                                  .toStringAsFixed(2);
+                                          cartController.hasAmountText.value =
+                                              true;
+                                          cartController.amountPaid.value =
+                                              cartController
+                                                  .totalCostInSelectedCurrency
+                                                  .value;
+                                          cartController
+                                                  .customerAmountPaid.value =
+                                              cartController
+                                                  .totalCostInSelectedCurrency
+                                                  .value;
+                                        } else {
+                                          Get.snackbar("Check your stock",
+                                              "Stock not available!!!",
+                                              snackPosition:
+                                                  SnackPosition.BOTTOM);
+                                        }
+                                      },
+                                    ),
                                   ),
-                            ),
                           ),
                         ),
                         Expanded(
@@ -1409,22 +1587,23 @@ class SaleScreen extends GetView {
                                   children: [
                                     Container(
                                       alignment: Alignment.topCenter,
-                                      width:0.28*screenSize,
-
+                                      width: 0.28 * screenSize,
                                       height: double.infinity,
                                       child: Obx(() {
                                         if (cartController.cartItems.isEmpty) {
                                           return Center(
                                               child: Container(
-                                                width: double.infinity,
-                                                  decoration: BoxDecoration(
-                                                    border: Border.all(
-                                                        color:  context.theme.colorScheme.primary,width: 3.0),
-                                                    borderRadius:
-                                                    BorderRadius.circular(8.0),
-                                                  ),
-                                                child: Column(
-                                                  children: [
+                                            width: double.infinity,
+                                            decoration: BoxDecoration(
+                                              border: Border.all(
+                                                  color: context.theme
+                                                      .colorScheme.primary,
+                                                  width: 3.0),
+                                              borderRadius:
+                                                  BorderRadius.circular(8.0),
+                                            ),
+                                            child: Column(
+                                              children: [
                                                 SizedBox(height: 30),
                                                 Text('Your cart is empty'),
                                                 SizedBox(height: 10),
@@ -1436,32 +1615,40 @@ class SaleScreen extends GetView {
                                                   color: Colors.grey,
                                                   onPressed: () {},
                                                 ),
-                                                                                          ],
-                                                                                        ),
-                                              ));
+                                              ],
+                                            ),
+                                          ));
                                         }
                                         return Column(
-                                          mainAxisAlignment: MainAxisAlignment.start,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.start,
                                           children: [
                                             Container(
                                               decoration: BoxDecoration(
                                                 border: Border.all(
-                                                    color:  context.theme.colorScheme.primary, width: 3.0),
+                                                    color: context.theme
+                                                        .colorScheme.primary,
+                                                    width: 3.0),
                                                 borderRadius:
-                                                BorderRadius.circular(8.0),
+                                                    BorderRadius.circular(8.0),
                                               ),
                                               height: 490,
                                               child: ListView.builder(
-                                                itemCount:
-                                                    cartController.cartItems.length,
+                                                itemCount: cartController
+                                                    .cartItems.length,
                                                 itemBuilder: (context, index) {
-                                                  final cartItem = cartController
-                                                      .cartItems[index];
+                                                  final cartItem =
+                                                      cartController
+                                                          .cartItems[index];
                                                   return Card(
                                                     child: ListTile(
-                                                      contentPadding: EdgeInsets.zero,
+                                                      contentPadding:
+                                                          EdgeInsets.zero,
                                                       minTileHeight: 25,
-                                                      tileColor: context.theme.colorScheme.surfaceBright,
+                                                      tileColor: context
+                                                          .theme
+                                                          .colorScheme
+                                                          .surfaceBright,
                                                       title: Text(
                                                         cartItem.product.item!
                                                                 .name ??
@@ -1470,13 +1657,17 @@ class SaleScreen extends GetView {
                                                             fontSize: 13,
                                                             fontWeight:
                                                                 FontWeight.bold,
-                                                            color:  context.theme.colorScheme.primary,
-                                                            fontStyle:
-                                                                FontStyle.italic),
+                                                            color: context
+                                                                .theme
+                                                                .colorScheme
+                                                                .primary,
+                                                            fontStyle: FontStyle
+                                                                .italic),
                                                       ),
                                                       subtitle: Text(
+                                                        style: TextStyle(fontWeight:cartItem.quantity>1 ? FontWeight.bold : FontWeight.normal),
                                                           'Qty: ${cartItem.quantity} Price: \$${cartItem.product.item!.sellingPrice.toStringAsFixed(2)} \n '
-                                                              '${cartItem.notes}'),
+                                                          '${cartItem.notes}'),
                                                       trailing: Row(
                                                         mainAxisSize:
                                                             MainAxisSize.min,
@@ -1485,94 +1676,94 @@ class SaleScreen extends GetView {
                                                             "\$${cartItem.totalPrice.toStringAsFixed(2)}",
                                                             style: TextStyle(
                                                                 fontSize: 18,
-                                                                color:
-                                                                context.theme.colorScheme.primary,
+                                                                color: context
+                                                                    .theme
+                                                                    .colorScheme
+                                                                    .primary,
                                                                 fontWeight:
                                                                     FontWeight
                                                                         .bold),
                                                           ),
-                                                    PopupMenuButton(
-                                                      onSelected: (result){
-                                                      },
-                                                      itemBuilder: (context) => [
-                                                        PopupMenuItem(
-                                                          child: ListTile(
-                                                              leading: Icon(Icons.remove,
-                                                                color: Colors.deepOrange,),
-                                                              title: Text("Reduce Qty")
-                                                          ),
-                                                          value: 0,
-                                                          onTap: () {
-                                                            cartController
-                                                                .decrementQuantity(
-                                                                cartItem);
-                                                          },
-                                                        ),
-                                                        PopupMenuItem(
-                                                          child: ListTile(
-                                                              leading: Icon(Icons.add,
-                                                                  color: Colors.lightBlue),
-                                                              title: Text("Increase Qty")
-                                                          ),
-                                                          value: 0,
-                                                          onTap: () {
-                                                            cartController
-                                                                .incrementQuantity(
-                                                                cartItem);
-                                                          },
-                                                        ),
-                                                        PopupMenuItem(
-                                                          child: ListTile(
-                                                              leading: Icon(Icons.delete,
-                                                                  color: Colors.redAccent),
-                                                              title: Text("Delete item")
-                                                          ),
-                                                          value: 0,
-                                                          onTap: () {
-                                                            cartController
-                                                                .removeFromCart(
-                                                                cartItem);
-                                                          },
-                                                        ),
-                                                        PopupMenuItem(
-                                                          child: ListTile(
-                                                              leading: Icon(Icons.arrow_downward,
-                                                                  color: Colors.redAccent),
-                                                              title: Text("Add Discount")
-                                                          ),
-                                                          value: 0,
-                                                          onTap: () async {
-                                                            // bool authenticated = await SyncService().showAuthenticationDialog(context);
-                                                            // if(authenticated)
-                                                              addDiscount(index);
-                                                          },
-                                                        ),
-                                                        PopupMenuItem(
-                                                          child: ListTile(
-                                                              leading: Icon(Icons.note_alt,
-                                                                  color: Colors.green),
-                                                              title: Text("Add notes")
-                                                          ),
-                                                          value: 0,
-                                                          onTap: () {
-                                                            addNotes(index);
-                                                          },
-                                                        ),
-                                                        PopupMenuItem(
-                                                          child: ListTile(
-                                                              leading: Icon(Icons.scatter_plot,
-                                                                  color: Colors.lightBlue),
-                                                              title: Text("Add breakage")
-                                                          ),
-                                                          value: 0,
-                                                          onTap: () {
-                                                            cartItem.breakage = true;
-                                                            cartController.cartItems.refresh();
-                                                            cartController.calculateTotalAmounts(cartController.cartItems);
-                                                          },
-                                                        ),
-                                                        ]
-                                                    )
+                                                          PopupMenuButton(
+                                                              onSelected:
+                                                                  (result) {},
+                                                              itemBuilder:
+                                                                  (context) => [
+                                                                        PopupMenuItem(
+                                                                          child: ListTile(
+                                                                              leading: Icon(
+                                                                                Icons.remove,
+                                                                                color: Colors.deepOrange,
+                                                                              ),
+                                                                              title: Text("Reduce Qty")),
+                                                                          value:
+                                                                              0,
+                                                                          onTap:
+                                                                              () {
+                                                                            cartController.decrementQuantity(cartItem);
+                                                                          },
+                                                                        ),
+                                                                        PopupMenuItem(
+                                                                          child: ListTile(
+                                                                              leading: Icon(Icons.add, color: Colors.lightBlue),
+                                                                              title: Text("Increase Qty")),
+                                                                          value:
+                                                                              0,
+                                                                          onTap:
+                                                                              () {
+                                                                            cartController.incrementQuantity(cartItem);
+                                                                          },
+                                                                        ),
+                                                                        PopupMenuItem(
+                                                                          child: ListTile(
+                                                                              leading: Icon(Icons.delete, color: Colors.redAccent),
+                                                                              title: Text("Delete item")),
+                                                                          value:
+                                                                              0,
+                                                                          onTap:
+                                                                              () {
+                                                                            cartController.removeFromCart(cartItem);
+                                                                          },
+                                                                        ),
+                                                                        PopupMenuItem(
+                                                                          child: ListTile(
+                                                                              leading: Icon(Icons.arrow_downward, color: Colors.redAccent),
+                                                                              title: Text("Add Discount")),
+                                                                          value:
+                                                                              0,
+                                                                          onTap:
+                                                                              () async {
+                                                                            // bool authenticated = await SyncService().showAuthenticationDialog(context);
+                                                                            // if(authenticated)
+                                                                            addDiscount(index);
+                                                                          },
+                                                                        ),
+                                                                        PopupMenuItem(
+                                                                          child: ListTile(
+                                                                              leading: Icon(Icons.note_alt, color: Colors.green),
+                                                                              title: Text("Add notes")),
+                                                                          value:
+                                                                              0,
+                                                                          onTap:
+                                                                              () {
+                                                                            addNotes(index);
+                                                                          },
+                                                                        ),
+                                                                        PopupMenuItem(
+                                                                          child: ListTile(
+                                                                              leading: Icon(Icons.scatter_plot, color: Colors.lightBlue),
+                                                                              title: Text("Add breakage")),
+                                                                          value:
+                                                                              0,
+                                                                          onTap:
+                                                                              () {
+                                                                            cartItem.breakage =
+                                                                                true;
+                                                                            cartController.cartItems.refresh();
+                                                                            cartController.calculateTotalAmounts(cartController.cartItems);
+                                                                          },
+                                                                        ),
+                                                                      ])
                                                         ],
                                                       ),
                                                       onTap: () {
@@ -1584,74 +1775,129 @@ class SaleScreen extends GetView {
                                               ),
                                             ),
                                             Container(
-                                              width:double.infinity,
+                                              width: double.infinity,
                                               child: Row(
                                                 children: [
-                                                  if(cartController.isKOTEnaabled.isTrue)
-                                                  Expanded(
-                                                    child: ElevatedButton(
-                                                      onPressed: () {
-                                                        if(cartController.cartItems.isNotEmpty){
-                                                          cartController.printQuickTicket();
-                                                        }
-                                                      },
-                                                      style: ElevatedButton.styleFrom(
-                                                        backgroundColor:
-                                                        Colors.orangeAccent,
-                                                        padding: EdgeInsets.symmetric(
-                                                            vertical: 14.0),
-                                                        textStyle: TextStyle(
-                                                            fontSize: 18,
-                                                            color: Colors.white,
-                                                            fontWeight:
-                                                            FontWeight.bold),
-                                                      ),
-                                                      child: Text(
-                                                        'PRINT KOT',
-                                                        style: TextStyle(
-                                                            color: Colors.white,
-                                                            fontSize: 18),
+                                                  if (cartController
+                                                      .isKOTEnaabled.isTrue)
+                                                    Expanded(
+                                                      child: ElevatedButton(
+                                                        onPressed: () {
+                                                          if (cartController
+                                                              .cartItems
+                                                              .isNotEmpty) {
+                                                            cartController
+                                                                .printQuickTicket();
+                                                          }
+                                                        },
+                                                        style: ElevatedButton
+                                                            .styleFrom(
+                                                          backgroundColor:
+                                                              Colors
+                                                                  .orangeAccent,
+                                                          padding: EdgeInsets
+                                                              .symmetric(
+                                                                  vertical:
+                                                                      14.0),
+                                                          textStyle: TextStyle(
+                                                              fontSize: 18,
+                                                              color:
+                                                                  Colors.white,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold),
+                                                        ),
+                                                        child: Text(
+                                                          'PRINT KOT',
+                                                          style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 18),
+                                                        ),
                                                       ),
                                                     ),
-                                                  ),
                                                   SizedBox(width: 5),
                                                   Expanded(
-                                                    child:ElevatedButton.icon(
-                                                      onPressed: ticketController.isPerformingTicketAction.value
-                                                        ? null
-                                                        : () {
-                                                            // ticketController.getTickets();
-                                                            if(!saleController.saveTicketClicked.value) {
-                                                              saleController.saveTicketClicked.value = true;
-                                                              ticketController.debouncedTicketActionButton(
-                                                                  cartController.selectedCurrency.value!,
-                                                                  cartController.cartItems,
-                                                                  cartController.selectedCustomer.value!.name !="WalkIn"
-                                                                      ? cartController.selectedCustomer.value!.name.toString()
-                                                                      : "Table ${ticketController.openedTicketsCount + 1}");
-                                                              ticketController.openedTicketsCount - 1;
-                                                              saleController.saveTicketClicked.value = false;
-                                                            }
-                                                          },
-                                                      style: ElevatedButton.styleFrom(
-                                                        backgroundColor: ticketController.isPerformingTicketAction.value
-                                                            ? Colors.grey
-                                                            : context.theme.colorScheme.primary,
-                                                        padding: EdgeInsets.symmetric(
-                                                            vertical: 14.0),
+                                                    child: ElevatedButton.icon(
+                                                      onPressed: ticketController
+                                                              .isPerformingTicketAction
+                                                              .value
+                                                          ? null
+                                                          : () {
+                                                              // ticketController.getTickets();
+                                                              if (!saleController
+                                                                  .saveTicketClicked
+                                                                  .value) {
+                                                                saleController
+                                                                    .saveTicketClicked
+                                                                    .value = true;
+                                                                ticketController.debouncedTicketActionButton(
+                                                                    cartController
+                                                                        .selectedCurrency
+                                                                        .value!,
+                                                                    cartController
+                                                                        .cartItems,
+                                                                    cartController.selectedCustomer.value!.name !=
+                                                                            "WalkIn"
+                                                                        ? cartController
+                                                                            .selectedCustomer
+                                                                            .value!
+                                                                            .name
+                                                                            .toString()
+                                                                        : "Table ${ticketController.openedTicketsCount + 1}");
+                                                                ticketController
+                                                                        .openedTicketsCount -
+                                                                    1;
+                                                                saleController
+                                                                    .saveTicketClicked
+                                                                    .value = false;
+                                                              }
+                                                            },
+                                                      style: ElevatedButton
+                                                          .styleFrom(
+                                                        backgroundColor:
+                                                            ticketController
+                                                                    .isPerformingTicketAction
+                                                                    .value
+                                                                ? Colors.grey
+                                                                : context
+                                                                    .theme
+                                                                    .colorScheme
+                                                                    .primary,
+                                                        padding: EdgeInsets
+                                                            .symmetric(
+                                                                vertical: 14.0),
                                                         textStyle: TextStyle(
                                                             fontSize: 18,
-                                                            color: context.theme.colorScheme.primary,
+                                                            color: context
+                                                                .theme
+                                                                .colorScheme
+                                                                .primary,
                                                             fontWeight:
-                                                            FontWeight.bold),
+                                                                FontWeight
+                                                                    .bold),
                                                       ),
-                                                        icon: Icon(Icons.save_as, color: context.theme.colorScheme.surface,size: 30,),
-                                                        label:  Obx(() => Text(
-                                                        ticketController.isPerformingTicketAction.value ? 'SAVING...' : 'SAVE',
-                                                        style: TextStyle(
-                                                            color:  context.theme.colorScheme.surface,
-                                                            fontSize: 18),
-                                                      )),
+                                                      icon: Icon(
+                                                        Icons.save_as,
+                                                        color: context
+                                                            .theme
+                                                            .colorScheme
+                                                            .surface,
+                                                        size: 30,
+                                                      ),
+                                                      label: Obx(() => Text(
+                                                            ticketController
+                                                                    .isPerformingTicketAction
+                                                                    .value
+                                                                ? 'SAVING...'
+                                                                : 'SAVE',
+                                                            style: TextStyle(
+                                                                color: context
+                                                                    .theme
+                                                                    .colorScheme
+                                                                    .surface,
+                                                                fontSize: 18),
+                                                          )),
                                                     ),
                                                   ),
                                                 ],
@@ -1665,13 +1911,13 @@ class SaleScreen extends GetView {
                                 ),
                                 Container(
                                   alignment: Alignment.topRight,
-                                  width:0.22*screenSize,
+                                  width: 0.22 * screenSize,
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.start,
                                     children: [
                                       Container(
-                                        width:double.infinity,
-                                        height:490,
+                                        width: double.infinity,
+                                        height: 490,
                                         child: ListView(
                                           shrinkWrap: true,
                                           children: [
@@ -1683,61 +1929,67 @@ class SaleScreen extends GetView {
                                                   // Quick amount buttons for tablet view
                                                   Row(
                                                     children: [
-                                                        Expanded(
-                                                          child: _buildQuickAmountButton(
-                                                            context,
-                                                            '0.5',
-                                                            0.5,
-                                                            cartController,
-                                                          ),
+                                                      Expanded(
+                                                        child:
+                                                            _buildQuickAmountButton(
+                                                          context,
+                                                          '0.5',
+                                                          0.5,
+                                                          cartController,
                                                         ),
-                                                        const SizedBox(width: 4),
-                                                        Expanded(
-                                                          child: _buildQuickAmountButton(
-                                                            context,
-                                                            '1',
-                                                            1.0,
-                                                            cartController,
-                                                          ),
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Expanded(
+                                                        child:
+                                                            _buildQuickAmountButton(
+                                                          context,
+                                                          '1',
+                                                          1.0,
+                                                          cartController,
                                                         ),
-                                                        const SizedBox(width: 4),
-                                                        Expanded(
-                                                          child: _buildQuickAmountButton(
-                                                            context,
-                                                            '2',
-                                                            2.0,
-                                                            cartController,
-                                                          ),
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Expanded(
+                                                        child:
+                                                            _buildQuickAmountButton(
+                                                          context,
+                                                          '2',
+                                                          2.0,
+                                                          cartController,
                                                         ),
-                                                        const SizedBox(width: 4),
-                                                        Expanded(
-                                                          child: _buildQuickAmountButton(
-                                                            context,
-                                                            '5',
-                                                            5.0,
-                                                            cartController,
-                                                          ),
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Expanded(
+                                                        child:
+                                                            _buildQuickAmountButton(
+                                                          context,
+                                                          '5',
+                                                          5.0,
+                                                          cartController,
                                                         ),
-                                                        const SizedBox(width: 4),
-                                                        Expanded(
-                                                          child: _buildQuickAmountButton(
-                                                            context,
-                                                            '10',
-                                                            10.0,
-                                                            cartController,
-                                                          ),
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Expanded(
+                                                        child:
+                                                            _buildQuickAmountButton(
+                                                          context,
+                                                          '10',
+                                                          10.0,
+                                                          cartController,
                                                         ),
-                                                        const SizedBox(width: 4),
-                                                        Expanded(
-                                                          child: _buildQuickAmountButton(
-                                                            context,
-                                                            '20',
-                                                            20.0,
-                                                            cartController,
-                                                          ),
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Expanded(
+                                                        child:
+                                                            _buildQuickAmountButton(
+                                                          context,
+                                                          '20',
+                                                          20.0,
+                                                          cartController,
                                                         ),
-                                                      ],
-                                                    ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                   const SizedBox(height: 8),
                                                   TextFormField(
                                                     controller: cartController
@@ -1751,60 +2003,84 @@ class SaleScreen extends GetView {
                                                           .allow(RegExp(
                                                               r'^\d+\.?\d{0,2}')),
                                                     ],
-                                                    decoration:
-                                                        InputDecoration(
-                                                            enabledBorder:
-                                                                OutlineInputBorder(
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          8.0),
-                                                              borderSide:
-                                                                   BorderSide(
-                                                                color:  context.theme.colorScheme.primary,
-                                                                width: 3.0,
-                                                              ),
-                                                            ),
-                                                            focusedBorder:
-                                                                OutlineInputBorder(
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          8.0),
-                                                              borderSide:
-                                                                  const BorderSide(
-                                                                color: Colors
-                                                                    .pinkAccent,
-                                                                width: 3.0,
-                                                              ),
-                                                            ),
-                                                            prefixIcon:
-                                                                const Icon(Icons
-                                                                    .money),
-                                                            suffixIcon: Obx(() =>
-                                                              cartController.hasAmountText.value
-                                                                ? IconButton(
-                                                                    icon: const Icon(Icons.clear, color: Colors.grey),
-                                                                    onPressed: () {
-                                                                      cartController.clearAmountPaid();
-                                                                      FocusScope.of(context).unfocus();
-                                                                    },
-                                                                  )
-                                                                : const SizedBox.shrink(),
-                                                            ),
-                                                            labelText:
-                                                                "Amount Paid",
-                                                            hintText:
-                                                                "Amount Paid"),
+                                                    decoration: InputDecoration(
+                                                        enabledBorder:
+                                                            OutlineInputBorder(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(
+                                                                      8.0),
+                                                          borderSide:
+                                                              BorderSide(
+                                                            color: context
+                                                                .theme
+                                                                .colorScheme
+                                                                .primary,
+                                                            width: 3.0,
+                                                          ),
+                                                        ),
+                                                        focusedBorder:
+                                                            OutlineInputBorder(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(
+                                                                      8.0),
+                                                          borderSide:
+                                                              const BorderSide(
+                                                            color: Colors
+                                                                .pinkAccent,
+                                                            width: 3.0,
+                                                          ),
+                                                        ),
+                                                        prefixIcon: const Icon(
+                                                            Icons.money),
+                                                        suffixIcon: Obx(
+                                                          () => cartController
+                                                                  .hasAmountText
+                                                                  .value
+                                                              ? IconButton(
+                                                                  icon: const Icon(
+                                                                      Icons
+                                                                          .clear,
+                                                                      color: Colors
+                                                                          .grey),
+                                                                  onPressed:
+                                                                      () {
+                                                                    cartController
+                                                                        .clearAmountPaid();
+                                                                    FocusScope.of(
+                                                                            context)
+                                                                        .unfocus();
+                                                                  },
+                                                                )
+                                                              : const SizedBox
+                                                                  .shrink(),
+                                                        ),
+                                                        labelText:
+                                                            "Amount Paid",
+                                                        hintText:
+                                                            "Amount Paid"),
                                                     onTap: () {
-                                                      cartController.activeInput.value = 'amountPaid';
+                                                      cartController.activeInput
+                                                          .value = 'amountPaid';
                                                     },
                                                     onChanged: (String val) {
-                                                      cartController.hasAmountText.value = val.isNotEmpty;
+                                                      cartController
+                                                              .hasAmountText
+                                                              .value =
+                                                          val.isNotEmpty;
                                                       if (val.isNotEmpty) {
-                                                        cartController.amountPaidChange(val);
-                                                        cartController.amountPaid.value = double.parse(val);
-                                                        cartController.customerAmountPaid.value = double.parse(val);
+                                                        cartController
+                                                            .amountPaidChange(
+                                                                val);
+                                                        cartController
+                                                                .amountPaid
+                                                                .value =
+                                                            double.parse(val);
+                                                        cartController
+                                                                .customerAmountPaid
+                                                                .value =
+                                                            double.parse(val);
                                                       }
                                                     },
                                                     validator: (value) {
@@ -1815,8 +2091,7 @@ class SaleScreen extends GetView {
                                                       double enteredAmount;
                                                       try {
                                                         enteredAmount =
-                                                            double.parse(
-                                                                value);
+                                                            double.parse(value);
                                                       } catch (e) {
                                                         return 'Please enter a valid amount';
                                                       }
@@ -1832,38 +2107,48 @@ class SaleScreen extends GetView {
                                                       return null;
                                                     },
                                                     onSaved: (value) {
-                                                      cartController
-                                                              .amountPaid
+                                                      cartController.amountPaid
                                                               .value =
-                                                          double.parse(
-                                                              value!);
+                                                          double.parse(value!);
                                                       cartController
                                                               .customerAmountPaid
                                                               .value =
-                                                          double.parse(
-                                                              value!);
+                                                          double.parse(value!);
                                                     },
                                                   ),
                                                   Obx(() {
                                                     // Hide total and change displays when "Add to Account" button is enabled
-                                                    bool isAddToAccountMode = cartController.amountPaid.value > 0 &&
-                                                                              cartController.cartItems.isEmpty &&
-                                                                              (cartController.selectedCustomer.value?.isLoyalCustomer ?? false);
+                                                    bool isAddToAccountMode =
+                                                        cartController
+                                                                    .amountPaid
+                                                                    .value >
+                                                                0 &&
+                                                            cartController
+                                                                .cartItems
+                                                                .isEmpty &&
+                                                            (cartController
+                                                                    .selectedCustomer
+                                                                    .value
+                                                                    ?.isLoyalCustomer ??
+                                                                false);
 
                                                     if (isAddToAccountMode) {
                                                       return SizedBox.shrink();
                                                     }
 
                                                     return SingleChildScrollView(
-                                                      scrollDirection: Axis.horizontal,
+                                                      scrollDirection:
+                                                          Axis.horizontal,
                                                       child: Row(
-                                                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .spaceEvenly,
                                                         children: [
                                                           Text(
                                                             'Total: ',
                                                             style: TextStyle(
-                                                                fontSize: 15,
-                                                                  ),
+                                                              fontSize: 15,
+                                                            ),
                                                           ),
                                                           Text(
                                                             '${cartController.selectedCurrency.value!.symbol} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
@@ -1875,156 +2160,232 @@ class SaleScreen extends GetView {
                                                                 color: Colors
                                                                     .indigo),
                                                           ),
-                                                          cartController.change>0?
-                                                          Text(
-                                                            'Change: ',
-                                                            style: TextStyle(
-                                                                fontSize: 15,
-                                                            ),
-                                                          ):SizedBox.shrink(),
-                                                          cartController.change>0?
-                                                          Text(
-                                                            '${cartController.selectedCurrency.value!.symbol} ${cartController.change.toStringAsFixed(2)}',
-                                                            style: TextStyle(
-                                                                fontSize: 20,
-                                                                fontWeight:
-                                                                FontWeight
-                                                                    .bold,
-                                                                color: Colors
-                                                                    .orange),
-                                                          ):SizedBox.shrink(),
+                                                          cartController
+                                                                      .change >
+                                                                  0
+                                                              ? Text(
+                                                                  'Change: ',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize:
+                                                                        15,
+                                                                  ),
+                                                                )
+                                                              : SizedBox
+                                                                  .shrink(),
+                                                          cartController
+                                                                      .change >
+                                                                  0
+                                                              ? Text(
+                                                                  '${cartController.selectedCurrency.value!.symbol} ${cartController.change.toStringAsFixed(2)}',
+                                                                  style: TextStyle(
+                                                                      fontSize:
+                                                                          20,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold,
+                                                                      color: Colors
+                                                                          .orange),
+                                                                )
+                                                              : SizedBox
+                                                                  .shrink(),
                                                         ],
                                                       ),
                                                     );
                                                   }),
                                                   Obx(() {
                                                     // Hide change to account and tip inputs when "Add to Account" button is enabled
-                                                    bool isAddToAccountMode = cartController.amountPaid.value > 0 &&
-                                                                              cartController.cartItems.isEmpty &&
-                                                                              (cartController.selectedCustomer.value?.isLoyalCustomer ?? false);
+                                                    bool isAddToAccountMode =
+                                                        cartController
+                                                                    .amountPaid
+                                                                    .value >
+                                                                0 &&
+                                                            cartController
+                                                                .cartItems
+                                                                .isEmpty &&
+                                                            (cartController
+                                                                    .selectedCustomer
+                                                                    .value
+                                                                    ?.isLoyalCustomer ??
+                                                                false);
 
                                                     return Row(
-                                                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .spaceAround,
                                                       children: [
                                                         // Change to Account input - hide when Add to Account button is enabled
-                                                        !isAddToAccountMode && cartController.selectedCustomer.value!.isLoyalCustomer == true ?
-                                                        Expanded(
-                                                          flex:3,
-                                                          child:
-                                                              TextField(
-                                                                onTap: () {
-                                                                  cartController.activeInput.value = 'amtToAcc';
-                                                                },
-                                                                onChanged: (String val) {
-                                                                  cartController.amtToAccChange(val);
-                                                                },
-                                                            controller:
-                                                                cartController.amtToAccTextEditingController,
-                                                            keyboardType: const TextInputType
-                                                                .numberWithOptions(
-                                                                decimal:
-                                                                    true),
-                                                            decoration: InputDecoration(
-                                                                enabledBorder: OutlineInputBorder(
-                                                                  borderRadius:
-                                                                      BorderRadius.circular(8.0),
-                                                                  borderSide:
-                                                                      const BorderSide(
-                                                                    color: Colors.redAccent,
-                                                                    width: 2.0,
-                                                                  ),
+                                                        !isAddToAccountMode &&
+                                                                cartController
+                                                                        .selectedCustomer
+                                                                        .value!
+                                                                        .isLoyalCustomer ==
+                                                                    true
+                                                            ? Expanded(
+                                                                flex: 3,
+                                                                child:
+                                                                    TextField(
+                                                                  onTap: () {
+                                                                    cartController
+                                                                            .activeInput
+                                                                            .value =
+                                                                        'amtToAcc';
+                                                                  },
+                                                                  onChanged:
+                                                                      (String
+                                                                          val) {
+                                                                    cartController
+                                                                        .amtToAccChange(
+                                                                            val);
+                                                                  },
+                                                                  controller:
+                                                                      cartController
+                                                                          .amtToAccTextEditingController,
+                                                                  keyboardType: const TextInputType
+                                                                      .numberWithOptions(
+                                                                      decimal:
+                                                                          true),
+                                                                  decoration: InputDecoration(
+                                                                      enabledBorder: OutlineInputBorder(
+                                                                        borderRadius:
+                                                                            BorderRadius.circular(8.0),
+                                                                        borderSide:
+                                                                            const BorderSide(
+                                                                          color:
+                                                                              Colors.redAccent,
+                                                                          width:
+                                                                              2.0,
+                                                                        ),
+                                                                      ),
+                                                                      focusedBorder: OutlineInputBorder(
+                                                                        borderRadius:
+                                                                            BorderRadius.circular(8.0),
+                                                                        borderSide:
+                                                                            const BorderSide(
+                                                                          color:
+                                                                              Colors.redAccent,
+                                                                          width:
+                                                                              2.0,
+                                                                        ),
+                                                                      ),
+                                                                      prefixIcon: const Icon(Icons.monetization_on_outlined),
+                                                                      labelText: "Change TO Acc",
+                                                                      hintText: "Change TO Acc",
+                                                                      suffixIcon: cartController.amtToAccTextEditingController.text.isNotEmpty
+                                                                          ? IconButton(
+                                                                              icon: const Icon(Icons.clear),
+                                                                              onPressed: () {
+                                                                                cartController.amtToAccTextEditingController.clear();
+                                                                                cartController.amtToAccChange("0");
+                                                                                cartController.activeInput.value = 'none';
+                                                                              },
+                                                                            )
+                                                                          : null),
                                                                 ),
-                                                                focusedBorder: OutlineInputBorder(
-                                                                  borderRadius:
-                                                                      BorderRadius.circular(8.0),
-                                                                  borderSide:
-                                                                      const BorderSide(
-                                                                    color: Colors.redAccent,
-                                                                    width: 2.0,
-                                                                  ),
-                                                                ),
-                                                                prefixIcon: const Icon(Icons.monetization_on_outlined),
-                                                                labelText: "Change TO Acc",
-                                                                hintText: "Change TO Acc",
-                                                                suffixIcon: cartController.amtToAccTextEditingController.text.isNotEmpty
-                                                                    ? IconButton(
-                                                                        icon: const Icon(Icons.clear),
-                                                                        onPressed: () {
-                                                                          cartController.amtToAccTextEditingController.clear();
-                                                                          cartController.amtToAccChange("0");
-                                                                          cartController.activeInput.value = 'none';
-                                                                        },
-                                                                      )
-                                                                    : null),
-                                                          ),
-                                                        ):SizedBox(),
+                                                              )
+                                                            : SizedBox(),
                                                         // Tip input - hide when Add to Account button is enabled
-                                                        !isAddToAccountMode && (cartController.amountPaid>cartController.totalCostInSelectedCurrency.value) ?
-                                                        Expanded(
-                                                          flex:3,
-                                                          child:
-                                                              TextField(
-                                                                onTap: () {
-                                                                  cartController.activeInput.value = 'tip';
-                                                                },
-                                                                onChanged: (String val) {
-                                                                  cartController.tipAmountChange(val);
-                                                                },
-                                                            controller:
-                                                                cartController.tipAmtTextEditingController,
-                                                            keyboardType: const TextInputType.numberWithOptions(
-                                                                decimal:true),
-                                                            decoration: InputDecoration(
-                                                                enabledBorder: OutlineInputBorder(
-                                                                  borderRadius:BorderRadius.circular(8.0),
-                                                                  borderSide:
-                                                                      const BorderSide(
-                                                                    color: Colors.green,
-                                                                    width: 2.0,
-                                                                  ),
+                                                        !isAddToAccountMode &&
+                                                                (cartController
+                                                                        .amountPaid >
+                                                                    cartController
+                                                                        .totalCostInSelectedCurrency
+                                                                        .value)
+                                                            ? Expanded(
+                                                                flex: 3,
+                                                                child:
+                                                                    TextField(
+                                                                  onTap: () {
+                                                                    cartController
+                                                                        .activeInput
+                                                                        .value = 'tip';
+                                                                  },
+                                                                  onChanged:
+                                                                      (String
+                                                                          val) {
+                                                                    cartController
+                                                                        .tipAmountChange(
+                                                                            val);
+                                                                  },
+                                                                  controller:
+                                                                      cartController
+                                                                          .tipAmtTextEditingController,
+                                                                  keyboardType: const TextInputType
+                                                                      .numberWithOptions(
+                                                                      decimal:
+                                                                          true),
+                                                                  decoration: InputDecoration(
+                                                                      enabledBorder: OutlineInputBorder(
+                                                                        borderRadius:
+                                                                            BorderRadius.circular(8.0),
+                                                                        borderSide:
+                                                                            const BorderSide(
+                                                                          color:
+                                                                              Colors.green,
+                                                                          width:
+                                                                              2.0,
+                                                                        ),
+                                                                      ),
+                                                                      focusedBorder: OutlineInputBorder(
+                                                                        borderRadius:
+                                                                            BorderRadius.circular(8.0),
+                                                                        borderSide:
+                                                                            const BorderSide(
+                                                                          color:
+                                                                              Colors.green,
+                                                                          width:
+                                                                              2.0,
+                                                                        ),
+                                                                      ),
+                                                                      prefixIcon: const Icon(Icons.monetization_on_sharp),
+                                                                      labelText: "Tip Amt",
+                                                                      hintText: "Tip amt",
+                                                                      suffixIcon: cartController.tipAmtTextEditingController.text.isNotEmpty
+                                                                          ? IconButton(
+                                                                              icon: const Icon(Icons.clear),
+                                                                              onPressed: () {
+                                                                                cartController.tipAmtTextEditingController.clear();
+                                                                                cartController.tipAmountChange("0");
+                                                                                cartController.activeInput.value = 'none';
+                                                                              },
+                                                                            )
+                                                                          : null),
                                                                 ),
-                                                                focusedBorder: OutlineInputBorder(
-                                                                  borderRadius: BorderRadius.circular(8.0),
-                                                                  borderSide:
-                                                                      const BorderSide(
-                                                                    color: Colors.green,
-                                                                    width: 2.0,
-                                                                  ),
-                                                                ),
-                                                                prefixIcon: const Icon(Icons.monetization_on_sharp),
-                                                                labelText: "Tip Amt",
-                                                                hintText: "Tip amt",
-                                                                suffixIcon: cartController.tipAmtTextEditingController.text.isNotEmpty
-                                                                    ? IconButton(
-                                                                        icon: const Icon(Icons.clear),
-                                                                        onPressed: () {
-                                                                          cartController.tipAmtTextEditingController.clear();
-                                                                          cartController.tipAmountChange("0");
-                                                                          cartController.activeInput.value = 'none';
-                                                                        },
-                                                                      )
-                                                                    : null),
-                                                          ),
-                                                        ):SizedBox(),
+                                                              )
+                                                            : SizedBox(),
                                                       ],
                                                     );
                                                   }),
-                                                      // : SizedBox(),
-                                                  cartController.selectedCustomer.value!.isLoyalCustomer == true
+                                                  // : SizedBox(),
+                                                  cartController
+                                                              .selectedCustomer
+                                                              .value!
+                                                              .isLoyalCustomer ==
+                                                          true
                                                       ? Row(
                                                           children: [
                                                             Text(
                                                               "ACC Bal:",
                                                               style: TextStyle(
-                                                                  fontSize:20,
-                                                                  fontWeight: FontWeight.bold,
-                                                                  color: Colors.red),
+                                                                  fontSize: 20,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  color: Colors
+                                                                      .red),
                                                             ),
                                                             Text(
-                                                              cartController.selectedCustomer.value!.currencyBalance!.map((bal) =>
-                                                                      "${bal.currency.symbol} ${bal.balance!.toStringAsFixed(2)} ,").join(""),
+                                                              cartController
+                                                                  .selectedCustomer
+                                                                  .value!
+                                                                  .currencyBalance!
+                                                                  .map((bal) =>
+                                                                      "${bal.currency.symbol} ${bal.balance!.toStringAsFixed(2)} ,")
+                                                                  .join(""),
                                                               style: TextStyle(
-                                                                  fontWeight:FontWeight.bold),
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold),
                                                             ),
                                                           ],
                                                         )
@@ -2036,25 +2397,36 @@ class SaleScreen extends GetView {
                                                     children: [
                                                       Obx(() {
                                                         // Hide print receipt checkbox when "Add to Account" button is enabled
-                                                        bool isAddToAccountMode = cartController.amountPaid.value > 0 &&
-                                                                                  cartController.cartItems.isEmpty &&
-                                                                                  (cartController.selectedCustomer.value?.isLoyalCustomer ?? false);
+                                                        bool
+                                                            isAddToAccountMode =
+                                                            cartController.amountPaid
+                                                                        .value >
+                                                                    0 &&
+                                                                cartController
+                                                                    .cartItems
+                                                                    .isEmpty &&
+                                                                (cartController
+                                                                        .selectedCustomer
+                                                                        .value
+                                                                        ?.isLoyalCustomer ??
+                                                                    false);
 
                                                         if (isAddToAccountMode) {
-                                                          return SizedBox.shrink();
+                                                          return SizedBox
+                                                              .shrink();
                                                         }
 
                                                         return Container(
                                                           height: 30,
-                                                          child: CheckboxListTile(
+                                                          child:
+                                                              CheckboxListTile(
                                                             title: Text(
                                                                 'Print Receipt'),
                                                             value: cartController
                                                                 .isPrintEnabled
                                                                 .value,
                                                             onChanged:
-                                                                (bool?
-                                                                    value) {
+                                                                (bool? value) {
                                                               cartController
                                                                       .isPrintEnabled
                                                                       .value =
@@ -2066,29 +2438,58 @@ class SaleScreen extends GetView {
                                                       }),
                                                       Obx(() {
                                                         // Hide fiscalize receipt checkbox when "Add to Account" button is enabled
-                                                        bool isAddToAccountMode = cartController.amountPaid.value > 0 &&
-                                                                                  cartController.cartItems.isEmpty &&
-                                                                                  (cartController.selectedCustomer.value?.isLoyalCustomer ?? false);
+                                                        bool
+                                                            isAddToAccountMode =
+                                                            cartController.amountPaid
+                                                                        .value >
+                                                                    0 &&
+                                                                cartController
+                                                                    .cartItems
+                                                                    .isEmpty &&
+                                                                (cartController
+                                                                        .selectedCustomer
+                                                                        .value
+                                                                        ?.isLoyalCustomer ??
+                                                                    false);
 
                                                         if (isAddToAccountMode) {
-                                                          return SizedBox.shrink();
+                                                          return SizedBox
+                                                              .shrink();
                                                         }
 
                                                         // Check fiscal device status (similar to web version's isFiscalDeviceRegistered)
                                                         // This will rebuild whenever cart items change, ensuring we check storage regularly
-                                                        final _ = cartController.cartItems.length;
-                                                        cartController.checkFiscalDeviceStatus();
+                                                        final _ = cartController
+                                                            .cartItems.length;
+                                                        cartController
+                                                            .checkFiscalDeviceStatus();
 
                                                         // Show checkbox if fiscal device is registered (like web version's *ngIf="isFiscalDeviceRegistered")
-                                                        if (cartController.fiscalizeReceipt.value) {
+                                                        if (cartController
+                                                            .fiscalizeReceipt
+                                                            .value) {
                                                           return Container(
-                                                            height: 48, // Match height of other checkboxes
-                                                            child: CheckboxListTile(
-                                                              title: Text('Fiscalize Receipt'),
-                                                              value: cartController.isFiscaliseReceiptEnabled.value,
-                                                              onChanged: (bool? value) {
-                                                                cartController.isFiscaliseReceiptEnabled.value = value ?? false;
-                                                                cartController.zimraFiscalizeReceipt.value = value ?? false;
+                                                            height:
+                                                                48, // Match height of other checkboxes
+                                                            child:
+                                                                CheckboxListTile(
+                                                              title: Text(
+                                                                  'Fiscalize Receipt'),
+                                                              value: cartController
+                                                                  .isFiscaliseReceiptEnabled
+                                                                  .value,
+                                                              onChanged: (bool?
+                                                                  value) {
+                                                                cartController
+                                                                        .isFiscaliseReceiptEnabled
+                                                                        .value =
+                                                                    value ??
+                                                                        false;
+                                                                cartController
+                                                                        .zimraFiscalizeReceipt
+                                                                        .value =
+                                                                    value ??
+                                                                        false;
                                                               },
                                                             ),
                                                           );
@@ -2108,9 +2509,8 @@ class SaleScreen extends GetView {
                                                               value: cartController
                                                                   .emailReceipt
                                                                   .value,
-                                                              onChanged:
-                                                                  (bool?
-                                                                      value) {
+                                                              onChanged: (bool?
+                                                                  value) {
                                                                 cartController
                                                                         .emailReceipt
                                                                         .value =
@@ -2132,8 +2532,7 @@ class SaleScreen extends GetView {
                                               children: [
                                                 Container(
                                                   padding:
-                                                      const EdgeInsets.all(
-                                                          0.0),
+                                                      const EdgeInsets.all(0.0),
                                                   height: 40,
                                                   child: Obx(() =>
                                                       CheckboxListTile(
@@ -2143,15 +2542,39 @@ class SaleScreen extends GetView {
                                                             .multiple.value,
                                                         onChanged:
                                                             (bool? value) {
-                                                          saleController.multiple.value =value ?? false;
-                                                          cartController.multiple.value =value ?? false;
-                                                          saleController.showMultiple.value =value ?? false;
-                                                          if (saleController.multiple.value == true) {
-                                                            cartController.amountPaidTextEditingController.clear();
-                                                            cartController.amountPaidTextEditingController.text =0.00.toStringAsFixed(2);
-                                                            cartController.hasAmountText.value = true;
-                                                            cartController.amountPaid.value = 0.00;
-                                                            cartController.customerAmountPaid.value = 0.00;
+                                                          saleController
+                                                                  .multiple
+                                                                  .value =
+                                                              value ?? false;
+                                                          cartController
+                                                                  .multiple
+                                                                  .value =
+                                                              value ?? false;
+                                                          saleController
+                                                                  .showMultiple
+                                                                  .value =
+                                                              value ?? false;
+                                                          if (saleController
+                                                                  .multiple
+                                                                  .value ==
+                                                              true) {
+                                                            cartController
+                                                                .amountPaidTextEditingController
+                                                                .clear();
+                                                            cartController
+                                                                    .amountPaidTextEditingController
+                                                                    .text =
+                                                                0.00.toStringAsFixed(
+                                                                    2);
+                                                            cartController
+                                                                .hasAmountText
+                                                                .value = true;
+                                                            cartController
+                                                                .amountPaid
+                                                                .value = 0.00;
+                                                            cartController
+                                                                .customerAmountPaid
+                                                                .value = 0.00;
                                                           }
                                                         },
                                                       )),
@@ -2164,7 +2587,8 @@ class SaleScreen extends GetView {
                                                                 crossAxisCount:
                                                                     4),
                                                         shrinkWrap: true,
-                                                        physics: NeverScrollableScrollPhysics(),
+                                                        physics:
+                                                            NeverScrollableScrollPhysics(),
                                                         itemCount: cartController
                                                             .filteredPaymentTypesList
                                                             .length,
@@ -2179,29 +2603,66 @@ class SaleScreen extends GetView {
                                                                     ElevatedButton(
                                                                   onPressed:
                                                                       () {
-                                                                    var paymentType = cartController.filteredPaymentTypesList[index];
-                                                                    saleController.selectedPaymentType = paymentType;
-                                                                    if (saleController.multiple.value == false) {
-                                                                      saleController.selectedPaymentTypes.clear();
+                                                                    var paymentType =
+                                                                        cartController
+                                                                            .filteredPaymentTypesList[index];
+                                                                    saleController
+                                                                            .selectedPaymentType =
+                                                                        paymentType;
+                                                                    if (saleController
+                                                                            .multiple
+                                                                            .value ==
+                                                                        false) {
+                                                                      saleController
+                                                                          .selectedPaymentTypes
+                                                                          .clear();
                                                                     }
-                                                                    if (saleController.selectedPaymentTypes.any((element) => element.id == paymentType.id)) {
-                                                                      saleController.selectedPaymentTypes.removeWhere((element) => element.id == paymentType.id);
+                                                                    if (saleController
+                                                                        .selectedPaymentTypes
+                                                                        .any((element) =>
+                                                                            element.id ==
+                                                                            paymentType.id)) {
+                                                                      saleController
+                                                                          .selectedPaymentTypes
+                                                                          .removeWhere((element) =>
+                                                                              element.id ==
+                                                                              paymentType.id);
                                                                     } else {
-                                                                      if (saleController.multiple.value == false)
-                                                                        paymentType.amount = cartController.totalCostInSelectedCurrency.value;
-                                                                      saleController.selectedPaymentTypes.add(paymentType);
-                                                                      cartController.onChangePaymentType(paymentType,saleController.multiple.value);
+                                                                      if (saleController
+                                                                              .multiple
+                                                                              .value ==
+                                                                          false)
+                                                                        paymentType.amount = cartController
+                                                                            .totalCostInSelectedCurrency
+                                                                            .value;
+                                                                      saleController
+                                                                          .selectedPaymentTypes
+                                                                          .add(
+                                                                              paymentType);
+                                                                      cartController.onChangePaymentType(
+                                                                          paymentType,
+                                                                          saleController
+                                                                              .multiple
+                                                                              .value);
                                                                     }
-                                                                    cartController.filteredPaymentTypesList.refresh();
-                                                                    cartController.selectedPaymentTypes.refresh();
+                                                                    cartController
+                                                                        .filteredPaymentTypesList
+                                                                        .refresh();
+                                                                    cartController
+                                                                        .selectedPaymentTypes
+                                                                        .refresh();
                                                                   },
                                                                   style: ElevatedButton
                                                                       .styleFrom(
-                                                                    backgroundColor: saleController.selectedPaymentTypes.contains(cartController.filteredPaymentTypesList[
-                                                                            index]) ||
-                                                                        cartController.selectedPaymentType.value?.id == cartController.filteredPaymentTypesList[index].id
-                                                                        ? context.theme.colorScheme.inversePrimary
-                                                                        : context.theme.colorScheme.primary,
+                                                                    backgroundColor: saleController.selectedPaymentTypes.contains(cartController.filteredPaymentTypesList[index]) || cartController.selectedPaymentType.value?.id == cartController.filteredPaymentTypesList[index].id
+                                                                        ? context
+                                                                            .theme
+                                                                            .colorScheme
+                                                                            .inversePrimary
+                                                                        : context
+                                                                            .theme
+                                                                            .colorScheme
+                                                                            .primary,
                                                                     // backgroundColor: Colors.indigo,
                                                                     padding:
                                                                         EdgeInsets.all(
@@ -2209,8 +2670,8 @@ class SaleScreen extends GetView {
                                                                     textStyle: TextStyle(
                                                                         fontSize:
                                                                             14,
-                                                                        color:
-                                                                            Colors.black),
+                                                                        color: Colors
+                                                                            .black),
                                                                   ),
                                                                   child: Text(
                                                                     cartController
@@ -2220,8 +2681,10 @@ class SaleScreen extends GetView {
                                                                     style: TextStyle(
                                                                         fontSize:
                                                                             14,
-                                                                        color:
-                                                                        context.theme.colorScheme.onPrimary),
+                                                                        color: context
+                                                                            .theme
+                                                                            .colorScheme
+                                                                            .onPrimary),
                                                                   ),
                                                                 )));
                                                   }),
@@ -2230,102 +2693,131 @@ class SaleScreen extends GetView {
                                             ),
                                             Container(
                                               color: Colors.pinkAccent[50],
-                                              height:
-                                              saleController.showMultiple.value ? 200 : 10,
-                                              decoration: saleController.showMultiple.value
+                                              height: saleController
+                                                      .showMultiple.value
+                                                  ? 200
+                                                  : 10,
+                                              decoration: saleController
+                                                      .showMultiple.value
                                                   ? BoxDecoration(
-                                                border: Border.all(
-                                                    color: Colors.lightGreenAccent, width: 2.0),
-                                                borderRadius:
-                                                BorderRadius.circular(8.0),
-                                              )
+                                                      border: Border.all(
+                                                          color: Colors
+                                                              .lightGreenAccent,
+                                                          width: 2.0),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8.0),
+                                                    )
                                                   : BoxDecoration(),
                                               child: Obx(() {
-                                                if (saleController.showMultiple.value ==false) {
+                                                if (saleController
+                                                        .showMultiple.value ==
+                                                    false) {
                                                   return Container();
                                                 } else {
                                                   return ListView.builder(
                                                     itemCount: cartController
-                                                        .selectedPaymentTypes.length,
-                                                    itemBuilder: (context, index) {
-                                                      final paymentType = cartController
-                                                          .selectedPaymentTypes[
-                                                      index];
+                                                        .selectedPaymentTypes
+                                                        .length,
+                                                    itemBuilder:
+                                                        (context, index) {
+                                                      final paymentType =
+                                                          cartController
+                                                                  .selectedPaymentTypes[
+                                                              index];
                                                       return Card(
                                                         child: ListTile(
                                                           title: Text(
-                                                              paymentType.name ??
+                                                              paymentType
+                                                                      .name ??
                                                                   'No Name',
                                                               style: TextStyle(
                                                                   fontSize: 12,
                                                                   fontWeight:
-                                                                  FontWeight.bold,
-                                                                  color:
-                                                                  Colors.indigo,
-                                                                  fontStyle: FontStyle
-                                                                      .italic)),
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  color: Colors
+                                                                      .indigo,
+                                                                  fontStyle:
+                                                                      FontStyle
+                                                                          .italic)),
                                                           subtitle: Text(
                                                               'Amount: \$${paymentType.amount!.toStringAsFixed(2)}',
                                                               style: TextStyle(
                                                                   fontSize: 10,
                                                                   fontWeight:
-                                                                  FontWeight.bold,
+                                                                      FontWeight
+                                                                          .bold,
                                                                   color: Colors
                                                                       .black54)),
                                                           trailing: Row(
                                                             mainAxisSize:
-                                                            MainAxisSize.min,
+                                                                MainAxisSize
+                                                                    .min,
                                                             children: [
                                                               ElevatedButton(
-                                                                onPressed: () async {
+                                                                onPressed:
+                                                                    () async {
                                                                   final amount =
-                                                                  await addAmount(
-                                                                      index);
+                                                                      await addAmount(
+                                                                          index);
                                                                 },
                                                                 child: Text(
                                                                   "Add Amount",
                                                                   style: TextStyle(
-                                                                      color: Colors.indigo,
-                                                                      fontWeight: FontWeight.bold,
-                                                                      fontSize: 12),
+                                                                      color: Colors
+                                                                          .indigo,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold,
+                                                                      fontSize:
+                                                                          12),
                                                                 ),
                                                                 style: TextButton
                                                                     .styleFrom(
                                                                   padding:
-                                                                  EdgeInsets.all(
-                                                                      8.0),
+                                                                      EdgeInsets
+                                                                          .all(
+                                                                              8.0),
                                                                   shape:
-                                                                  RoundedRectangleBorder(
+                                                                      RoundedRectangleBorder(
                                                                     borderRadius:
-                                                                    BorderRadius
-                                                                        .circular(
-                                                                        8.0),
+                                                                        BorderRadius.circular(
+                                                                            8.0),
                                                                   ),
                                                                   backgroundColor:
-                                                                  Colors.transparent,
+                                                                      Colors
+                                                                          .transparent,
                                                                   // Set button color to red
-                                                                  foregroundColor: Colors.black, // Set text color to red
+                                                                  foregroundColor:
+                                                                      Colors
+                                                                          .black, // Set text color to red
                                                                 ),
                                                               ),
                                                               IconButton(
                                                                 icon: Icon(
                                                                   Icons.delete,
-                                                                  color: Colors.red,
+                                                                  color: Colors
+                                                                      .red,
                                                                 ),
                                                                 onPressed: () {
                                                                   cartController
                                                                       .removePaymentMethod(
-                                                                      index);
+                                                                          index);
                                                                   cartController
                                                                       .selectedPaymentTypes
                                                                       .removeAt(
-                                                                      index);
+                                                                          index);
                                                                   saleController
                                                                       .selectedPaymentTypes
                                                                       .removeAt(
-                                                                      index);
-                                                                  saleController.selectedPaymentTypes.clear();
-                                                                  cartController.selectedPaymentTypes.refresh();
+                                                                          index);
+                                                                  saleController
+                                                                      .selectedPaymentTypes
+                                                                      .clear();
+                                                                  cartController
+                                                                      .selectedPaymentTypes
+                                                                      .refresh();
                                                                 },
                                                               ),
                                                             ],
@@ -2340,141 +2832,239 @@ class SaleScreen extends GetView {
                                           ],
                                         ),
                                       ),
-                                      cartController.amountPaid.value > 0 && cartController.cartItems.isEmpty && cartController.selectedCustomer.value!.isLoyalCustomer!?
-                                      Container(
-                                        width:double.infinity,
-                                        child: ElevatedButton(
-                                          onPressed: () {
-                                            if (!saleController
-                                                .addAccClicked.value) {
-                                              if(cartController.selectedPaymentType.value == null||
+                                      cartController.amountPaid.value > 0 &&
                                               cartController
-                                                  .selectedPaymentType
-                                                  .value!
-                                                  .id ==
-                                                  null){
-                                                Get.snackbar("Error",
-                                                    "Please select a payment type.",
-                                                    snackPosition: SnackPosition
-                                                        .BOTTOM);
-                                              } else {
+                                                  .cartItems.isEmpty &&
+                                              cartController.selectedCustomer
+                                                  .value!.isLoyalCustomer!
+                                          ? Container(
+                                              width: double.infinity,
+                                              child: ElevatedButton(
+                                                onPressed: () {
+                                                  if (!saleController
+                                                      .addAccClicked.value) {
+                                                    if (cartController
+                                                                .selectedPaymentType
+                                                                .value ==
+                                                            null ||
+                                                        cartController
+                                                                .selectedPaymentType
+                                                                .value!
+                                                                .id ==
+                                                            null) {
+                                                      Get.snackbar("Error",
+                                                          "Please select a payment type.",
+                                                          snackPosition:
+                                                              SnackPosition
+                                                                  .BOTTOM);
+                                                    } else {
                                                       cartController
                                                           .savePayment();
-                                                      saleController.addAccClicked
+                                                      saleController
+                                                          .addAccClicked
                                                           .value = true;
                                                     }
                                                   }
-                                          },
-                                          style: TextButton.styleFrom(
-                                            backgroundColor: Colors
-                                                .pink,
-                                            // Set button color to red
-                                            foregroundColor: Colors.black,
-                                            // Set text color to red
-                                            textStyle: TextStyle(
-                                                fontSize: 18,
-                                                color: Colors.white,
-                                                fontWeight: FontWeight
-                                                    .bold), // Set text size
-                                          ),
-                                          child: Text('Add to Account'),
-                                        ),
-                                      ):
-                                          cartController.cartItems.any((cartItem)=>!cartItem.breakage) || cartController.cartItems.isEmpty?
-                                      Container(
-                                        width:double.infinity,
-                                        child: Obx(() {
-                                          final tip = cartController.tipValue.value;
-                                          final amtToAcc = cartController.amtToAccValue.value;
-                                          final requiredAmount = cartController.totalCostInSelectedCurrency.value + tip + amtToAcc;
-                                          final paymentSelected = cartController.selectedPaymentType.value != null &&
-                                              cartController.selectedPaymentType.value!.id != null;
-                                          final canCharge = !cartController.isCharging.value &&
-                                              !saleController.chargeClicked.value &&
-                                              paymentSelected &&
-                                              cartController.amountPaid.value >= requiredAmount &&
-                                              cartController.cartItems.isNotEmpty;
-                                          return Column(
-                                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                                            children: [
-                                              ElevatedButton.icon(
-                                                onPressed: canCharge
-                                                    ? () {
-                                                        cartController.showConfirmDialogChargeSale();
-                                                        saleController.chargeClicked.value = true;
-                                                      }
-                                                    : null,
+                                                },
                                                 style: TextButton.styleFrom(
-                                                  backgroundColor: canCharge
-                                                      ? context.theme.colorScheme.inversePrimary
-                                                      : context.theme.colorScheme.secondary,
+                                                  backgroundColor: Colors.pink,
+                                                  // Set button color to red
                                                   foregroundColor: Colors.black,
+                                                  // Set text color to red
                                                   textStyle: TextStyle(
                                                       fontSize: 18,
-                                                      color: context.theme.colorScheme.onSurface,
-                                                      fontWeight: FontWeight.bold),
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight
+                                                          .bold), // Set text size
                                                 ),
-                                                icon: Icon(Icons.check_circle, color: canCharge ? Colors.green : Colors.red, size:30),
-                                                label: Text(
-                                                  cartController.isCharging.value ? 'CHARGING...' : 'Charge',
-
-                                                ),
+                                                child: Text('Add to Account'),
                                               ),
-                                              if (!canCharge)
-                                                Padding(
-                                                  padding: const EdgeInsets.only(top: 4.0),
-                                                  child: Text(
-                                                    'Need at least ${requiredAmount.toStringAsFixed(2)} (have ${cartController.amountPaid.value.toStringAsFixed(2)})',
-                                                    textAlign: TextAlign.center,
-                                                    style: TextStyle(fontSize: 12, color: Colors.red),
+                                            )
+                                          : cartController.cartItems.any(
+                                                      (cartItem) =>
+                                                          !cartItem.breakage) ||
+                                                  cartController
+                                                      .cartItems.isEmpty
+                                              ? Container(
+                                                  width: double.infinity,
+                                                  child: Obx(() {
+                                                    final tip = cartController
+                                                        .tipValue.value;
+                                                    final amtToAcc =
+                                                        cartController
+                                                            .amtToAccValue
+                                                            .value;
+                                                    final requiredAmount =
+                                                        cartController
+                                                                .totalCostInSelectedCurrency
+                                                                .value +
+                                                            tip +
+                                                            amtToAcc;
+                                                    final paymentSelected =
+                                                        cartController
+                                                                    .selectedPaymentType
+                                                                    .value !=
+                                                                null &&
+                                                            cartController
+                                                                    .selectedPaymentType
+                                                                    .value!
+                                                                    .id !=
+                                                                null;
+                                                    final canCharge = !cartController
+                                                            .isCharging.value &&
+                                                        !saleController
+                                                            .chargeClicked
+                                                            .value &&
+                                                        paymentSelected &&
+                                                        cartController
+                                                                .amountPaid
+                                                                .value >=
+                                                            requiredAmount &&
+                                                        cartController.cartItems
+                                                            .isNotEmpty;
+                                                    return Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .stretch,
+                                                      children: [
+                                                        ElevatedButton.icon(
+                                                          onPressed: canCharge
+                                                              ? () {
+                                                                  cartController
+                                                                      .showConfirmDialogChargeSale();
+                                                                  saleController
+                                                                      .chargeClicked
+                                                                      .value = true;
+                                                                }
+                                                              : null,
+                                                          style: TextButton
+                                                              .styleFrom(
+                                                            backgroundColor: canCharge
+                                                                ? context
+                                                                    .theme
+                                                                    .colorScheme
+                                                                    .inversePrimary
+                                                                : context
+                                                                    .theme
+                                                                    .colorScheme
+                                                                    .secondary,
+                                                            foregroundColor:
+                                                                Colors.black,
+                                                            textStyle: TextStyle(
+                                                                fontSize: 18,
+                                                                color: context
+                                                                    .theme
+                                                                    .colorScheme
+                                                                    .onSurface,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold),
+                                                          ),
+                                                          icon: Icon(
+                                                              Icons
+                                                                  .check_circle,
+                                                              color: canCharge
+                                                                  ? Colors.green
+                                                                  : Colors.red,
+                                                              size: 30),
+                                                          label: Text(
+                                                            cartController
+                                                                    .isCharging
+                                                                    .value
+                                                                ? 'CHARGING...'
+                                                                : 'Charge',
+                                                          ),
+                                                        ),
+                                                        if (!canCharge)
+                                                          Padding(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .only(
+                                                                    top: 4.0),
+                                                            child: Text(
+                                                              'Need at least ${requiredAmount.toStringAsFixed(2)} (have ${cartController.amountPaid.value.toStringAsFixed(2)})',
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                              style: TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: Colors
+                                                                      .red),
+                                                            ),
+                                                          ),
+                                                      ],
+                                                    );
+                                                  }),
+                                                )
+                                              : Container(
+                                                  width: double.infinity,
+                                                  child: ElevatedButton(
+                                                    onPressed: () {
+                                                      if (cartController
+                                                          .cartItems.isEmpty) {
+                                                        Get.snackbar("Error",
+                                                            "Your cart is empty.",
+                                                            snackPosition:
+                                                                SnackPosition
+                                                                    .TOP);
+                                                        return;
+                                                      }
+                                                      if (cartController
+                                                              .amountPaid
+                                                              .value <
+                                                          cartController
+                                                              .totalCostInSelectedCurrency
+                                                              .value) {
+                                                        Get.snackbar("Error",
+                                                            "Please enter a valid amount paid.",
+                                                            snackPosition:
+                                                                SnackPosition
+                                                                    .TOP);
+                                                        return;
+                                                      }
+                                                      if (!saleController
+                                                              .chargeClicked
+                                                              .value &&
+                                                          !cartController
+                                                              .isCharging
+                                                              .value) {
+                                                        // cartController.selectedPaymentTypes.add(cartController.selectedPaymentType.value!);
+                                                        cartController.onChangePaymentType(
+                                                            cartController
+                                                                .filteredPaymentTypesList
+                                                                .firstWhereOrNull(
+                                                                    (pt) => pt
+                                                                        .name!
+                                                                        .startsWith(
+                                                                            "CASH-"))!,
+                                                            false);
+                                                        cartController
+                                                            .fiscalizeReceipt
+                                                            .value = false;
+                                                        cartController
+                                                            .showConfirmDialogChargeSale();
+                                                        saleController
+                                                            .chargeClicked
+                                                            .value = true;
+                                                      }
+                                                    },
+                                                    style: TextButton.styleFrom(
+                                                      backgroundColor: Colors
+                                                          .blueAccent[400],
+                                                      // Set button color to red
+                                                      foregroundColor:
+                                                          Colors.black,
+                                                      // Set text color to red
+                                                      textStyle: TextStyle(
+                                                          fontSize: 18,
+                                                          color: Colors.white,
+                                                          fontWeight: FontWeight
+                                                              .bold), // Set text size
+                                                    ),
+                                                    child: Text(
+                                                        'Charge Breakages'),
                                                   ),
                                                 ),
-                                            ],
-                                          );
-                                        }),
-                                      )
-                                              :Container(
-                                        width:double.infinity,
-                                        child: ElevatedButton(
-                                          onPressed: () {
-                                            if (cartController
-                                                .cartItems.isEmpty) {
-                                              Get.snackbar("Error",
-                                                  "Your cart is empty.",
-                                                  snackPosition:
-                                                  SnackPosition.TOP);
-                                              return;
-                                            }
-                                            if (cartController.amountPaid.value < cartController.totalCostInSelectedCurrency.value) {
-                                              Get.snackbar("Error","Please enter a valid amount paid.",snackPosition:SnackPosition.TOP);
-                                              return;
-                                            }
-                                            if (!saleController
-                                                .chargeClicked.value && !cartController.isCharging.value) {
-                                              // cartController.selectedPaymentTypes.add(cartController.selectedPaymentType.value!);
-                                              cartController.onChangePaymentType(cartController.filteredPaymentTypesList.firstWhereOrNull((pt)=>pt.name!.startsWith("CASH-"))!, false);
-                                              cartController.fiscalizeReceipt.value = false;
-                                              cartController
-                                                  .showConfirmDialogChargeSale();
-                                              saleController.chargeClicked
-                                                  .value = true;
-                                            }
-                                          },
-                                          style: TextButton.styleFrom(
-                                            backgroundColor: Colors
-                                                .blueAccent[400],
-                                            // Set button color to red
-                                            foregroundColor: Colors.black,
-                                            // Set text color to red
-                                            textStyle: TextStyle(
-                                                fontSize: 18,
-                                                color: Colors.white,
-                                                fontWeight: FontWeight
-                                                    .bold), // Set text size
-                                          ),
-                                          child: Text('Charge Breakages'),
-                                        ),
-                                      ),
                                     ],
                                   ),
                                 ),
@@ -2602,7 +3192,8 @@ class SaleScreen extends GetView {
                     // }
                     cartController.cartItems[index].discount = amount;
                     cartController.cartItems.refresh();
-                    cartController.calculateTotalAmounts(cartController.cartItems);
+                    cartController
+                        .calculateTotalAmounts(cartController.cartItems);
                     saleController.discountTextEditingController.clear();
                     Get.back(); // Close the dialog after adding
                   }
@@ -2644,8 +3235,8 @@ class SaleScreen extends GetView {
               ),
               TextButton(
                 onPressed: () {
-                    Get.back(); // Close the dialog after adding
-                    saleController.itemNotesTextEditingController.clear();
+                  Get.back(); // Close the dialog after adding
+                  saleController.itemNotesTextEditingController.clear();
                 },
                 child: Text("Add Notes"),
               ),
@@ -2765,5 +3356,4 @@ class SaleScreen extends GetView {
       ),
     );
   }
-
 }

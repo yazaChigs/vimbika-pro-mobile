@@ -13,11 +13,10 @@ import 'package:vimbika_pos_app/src/widgets/nav_drawer_widget.dart';
 
 import '../../../constants/app_routes.dart';
 
-
-
 class ReceiptScreen extends StatelessWidget {
   var scaffoldKey = GlobalKey<ScaffoldState>();
-  final InactivityController inactivityController = Get.put(InactivityController());
+  final InactivityController inactivityController =
+      Get.put(InactivityController());
   final ReceiptController receiptController = Get.put(ReceiptController());
 
   // Format date header (Today, Yesterday, or full date)
@@ -26,7 +25,7 @@ class ReceiptScreen extends StatelessWidget {
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(Duration(days: 1));
     final dateOnly = DateTime(date.year, date.month, date.day);
-    
+
     if (dateOnly == today) {
       return 'Today';
     } else if (dateOnly == yesterday) {
@@ -68,7 +67,9 @@ class ReceiptScreen extends StatelessWidget {
 
   // Get shift by reference
   ShiftModel? _getShiftByReference(String? shiftReference) {
-    if (shiftReference == null || shiftReference.isEmpty || receiptController.shifts.isEmpty) {
+    if (shiftReference == null ||
+        shiftReference.isEmpty ||
+        receiptController.shifts.isEmpty) {
       return null;
     }
     try {
@@ -88,10 +89,10 @@ class ReceiptScreen extends StatelessWidget {
     if (shift == null) {
       return 'Shift: ${shiftReference ?? 'Unknown'}';
     }
-    
+
     String shiftRef = shift.shiftReference ?? 'Unknown';
     List<String> parts = ['Shift: $shiftRef'];
-    
+
     // Format opening time
     String openingTime = '';
     if (shift.openingTime != null && shift.openingTime!.isNotEmpty) {
@@ -102,7 +103,7 @@ class ReceiptScreen extends StatelessWidget {
         } else {
           openTime = DateTime.tryParse(shift.openingTime!);
         }
-        
+
         if (openTime != null) {
           openingTime = DateFormat('h:mm a').format(openTime);
         } else {
@@ -112,11 +113,11 @@ class ReceiptScreen extends StatelessWidget {
         openingTime = shift.openingTime!;
       }
     }
-    
+
     if (openingTime.isNotEmpty) {
       parts.add('Opened: $openingTime');
     }
-    
+
     // Format closing time (Option 1)
     String closingTime = '';
     if (shift.closingTime != null && shift.closingTime!.isNotEmpty) {
@@ -127,7 +128,7 @@ class ReceiptScreen extends StatelessWidget {
         } else {
           closeTime = DateTime.tryParse(shift.closingTime!);
         }
-        
+
         if (closeTime != null) {
           closingTime = DateFormat('h:mm a').format(closeTime);
         } else {
@@ -137,20 +138,20 @@ class ReceiptScreen extends StatelessWidget {
         closingTime = shift.closingTime!;
       }
     }
-    
+
     if (closingTime.isNotEmpty) {
       parts.add('Closed: $closingTime');
     }
-    
+
     // Add shift status (Option 2)
     String status = shift.isShiftClosed == true ? 'Closed' : 'Active';
     parts.add('Status: $status');
-    
+
     // Add cashier name if available
     if (shift.userFullName != null && shift.userFullName!.isNotEmpty) {
       parts.add('Cashier: ${shift.userFullName}');
     }
-    
+
     return parts.join(' | ');
   }
 
@@ -185,8 +186,10 @@ class ReceiptScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String fullName = "${receiptController.user.firstName} ${receiptController.user.lastName}";
-    String initials = receiptController.user.firstName[0] + receiptController.user.lastName[0];
+    String fullName =
+        "${receiptController.user.firstName} ${receiptController.user.lastName}";
+    String initials = receiptController.user.firstName[0] +
+        receiptController.user.lastName[0];
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -194,10 +197,10 @@ class ReceiptScreen extends StatelessWidget {
       onPanDown: (_) => inactivityController.resetInactivityTimer(),
       child: WillPopScope(
         onWillPop: () async {
-        // Navigate to a specific screen when back button is pressed
-        Get.offNamed(AppRoutes.SALE); // Replace with your desired route
-        return false; // Prevent default back button behavior
-      },
+          // Navigate to a specific screen when back button is pressed
+          Get.offNamed(AppRoutes.SALE); // Replace with your desired route
+          return false; // Prevent default back button behavior
+        },
         child: Scaffold(
           key: scaffoldKey,
           appBar: AppBar(
@@ -210,14 +213,21 @@ class ReceiptScreen extends StatelessWidget {
             ),
             actions: [
               IconButton(
-                icon: Icon(Icons.clear,size: 30,),
+                icon: Icon(
+                  Icons.clear,
+                  size: 30,
+                ),
                 color: Colors.red,
                 onPressed: () {
                   receiptController.cancelFilter();
                 },
               ),
               IconButton(
-                icon: Icon(Icons.refresh, color:  context.theme.colorScheme.primary,size: 30,),
+                icon: Icon(
+                  Icons.refresh,
+                  color: context.theme.colorScheme.primary,
+                  size: 30,
+                ),
                 onPressed: () {
                   receiptController.refreshFilter();
                 },
@@ -244,7 +254,18 @@ class ReceiptScreen extends StatelessWidget {
                         controller: receiptController.startDateController,
                         decoration: InputDecoration(
                           labelText: 'Select Start Date',
-                          border: OutlineInputBorder(),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: context.theme.colorScheme.primary),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: context.theme.colorScheme.primary,
+                                width: 2.0),
+                          ),
+                          border: OutlineInputBorder(
+                              borderSide: BorderSide(
+                                  color: context.theme.colorScheme.primary)),
                           prefixIcon: Icon(Icons.calendar_today),
                         ),
                         onTap: () async {
@@ -255,8 +276,11 @@ class ReceiptScreen extends StatelessWidget {
                             lastDate: DateTime.now(),
                           );
                           if (selectedDate != null) {
-                            String formattedDate = DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(selectedDate);
-                            receiptController.startDateController.text = DateFormat('yyyy-MM-dd').format(selectedDate);
+                            String formattedDate =
+                                DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+                                    .format(selectedDate);
+                            receiptController.startDateController.text =
+                                DateFormat('yyyy-MM-dd').format(selectedDate);
                             receiptController.startDate.value = formattedDate;
                             //receiptController.getSalesByDate(formattedDate);
                           }
@@ -265,14 +289,25 @@ class ReceiptScreen extends StatelessWidget {
                     ),
                   ),
                   Expanded(
-                      child:Padding(
+                      child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: TextField(
                       readOnly: true,
                       controller: receiptController.endDateController,
                       decoration: InputDecoration(
                         labelText: 'Select End Date',
-                        border: OutlineInputBorder(),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: context.theme.colorScheme.primary),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: context.theme.colorScheme.primary,
+                              width: 2.0),
+                        ),
+                        border: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: context.theme.colorScheme.primary)),
                         prefixIcon: Icon(Icons.calendar_today),
                       ),
                       onTap: () async {
@@ -283,21 +318,25 @@ class ReceiptScreen extends StatelessWidget {
                           lastDate: DateTime.now(),
                         );
                         if (selectedDate != null) {
-                          String formattedDate = DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(selectedDate);
-                          receiptController.endDateController.text = DateFormat('yyyy-MM-dd').format(selectedDate);
+                          String formattedDate =
+                              DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+                                  .format(selectedDate);
+                          receiptController.endDateController.text =
+                              DateFormat('yyyy-MM-dd').format(selectedDate);
                           receiptController.endDate.value = formattedDate;
                         }
                       },
                     ),
-                   )
-                  ),
+                  )),
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: Obx(() {
                         return CustomDropdownWidget<BaseNameModel>(
+                          //add boader color
                           items: receiptController.categories.value,
-                          selectedItem: receiptController.selectedCategory.value,
+                          selectedItem:
+                              receiptController.selectedCategory.value,
                           hint: "Select Category",
                           isSelected: receiptController.isCatSelected,
                           selectedValue: receiptController.selectedCategory,
@@ -305,7 +344,8 @@ class ReceiptScreen extends StatelessWidget {
                           onChanged: (BaseNameModel? newValue) {
                             print("Selected category: ${newValue?.name}");
                             receiptController.isCatSelected.value = true;
-                            receiptController.selectedCategory.value = newValue!;
+                            receiptController.selectedCategory.value =
+                                newValue!;
                           },
                           validator: (value) {
                             return null;
@@ -317,20 +357,18 @@ class ReceiptScreen extends StatelessWidget {
                     ),
                   ),
                   Expanded(
-                      child:
-                  Padding(
+                      child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor:  context.theme.colorScheme.primary,
+                        backgroundColor: context.theme.colorScheme.primary,
                       ),
                       onPressed: () {
                         receiptController.searchSales();
                       },
                       child: Text('SEARCH'),
                     ),
-                  )
-                    )
+                  ))
                 ],
               ),
 /*
@@ -348,13 +386,14 @@ class ReceiptScreen extends StatelessWidget {
                 ),
               ),*/
 
-
               // Add total amount card here
               Obx(() {
-                Map<String, double> totalsByCurrency = receiptController.calculateTotalByCurrency();
+                Map<String, double> totalsByCurrency =
+                    receiptController.calculateTotalByCurrency();
 
                 if (totalsByCurrency.isEmpty) {
-                  return SizedBox.shrink();  // No totals to show, return an empty space
+                  return SizedBox
+                      .shrink(); // No totals to show, return an empty space
                 }
 
                 return Card(
@@ -365,14 +404,15 @@ class ReceiptScreen extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center, // Center the text
+                      crossAxisAlignment:
+                          CrossAxisAlignment.center, // Center the text
                       children: [
                         Text(
                           'Totals by Currency',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color:  context.theme.colorScheme.primary,
+                            color: context.theme.colorScheme.primary,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -380,7 +420,10 @@ class ReceiptScreen extends StatelessWidget {
                         ...totalsByCurrency.entries.map((entry) {
                           return Text(
                             '${entry.key}  ${entry.value.toStringAsFixed(2)}',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color:  context.theme.colorScheme.onSurface),
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: context.theme.colorScheme.onSurface),
                           );
                         }).toList(),
                       ],
@@ -388,7 +431,6 @@ class ReceiptScreen extends StatelessWidget {
                   ),
                 );
               }),
-
 
               Expanded(
                 child: Obx(() {
@@ -400,47 +442,53 @@ class ReceiptScreen extends StatelessWidget {
                       ),
                     );
                   }
-                  
+
                   return ListView.builder(
                     itemCount: receiptController.filteredReceipts.length,
                     itemBuilder: (context, index) {
-                      final saleInfo = receiptController.filteredReceipts[index];
+                      final saleInfo =
+                          receiptController.filteredReceipts[index];
                       final sale = saleInfo.sale;
-                      
+
                       // Get current receipt date (convert to local to bucket correctly)
                       String? currentDateStr = sale?.timeIniated;
                       DateTime? currentDate;
                       if (currentDateStr != null && currentDateStr.isNotEmpty) {
                         try {
-                          currentDate = DateTime.parse(currentDateStr).toLocal();
+                          currentDate =
+                              DateTime.parse(currentDateStr).toLocal();
                         } catch (e) {
                           currentDate = null;
                         }
                       }
-                      
+
                       // Get previous receipt date to check if we need a divider (convert to local)
                       String? previousDateStr;
                       DateTime? previousDate;
                       if (index > 0) {
-                        previousDateStr = receiptController.filteredReceipts[index - 1].sale?.timeIniated;
-                        if (previousDateStr != null && previousDateStr.isNotEmpty) {
+                        previousDateStr = receiptController
+                            .filteredReceipts[index - 1].sale?.timeIniated;
+                        if (previousDateStr != null &&
+                            previousDateStr.isNotEmpty) {
                           try {
-                            previousDate = DateTime.parse(previousDateStr).toLocal();
+                            previousDate =
+                                DateTime.parse(previousDateStr).toLocal();
                           } catch (e) {
                             previousDate = null;
                           }
                         }
                       }
-                      
+
                       // Get current receipt shift reference
                       String? currentShiftRef = sale?.shiftReference;
-                      
+
                       // Get previous receipt shift reference
                       String? previousShiftRef;
                       if (index > 0) {
-                        previousShiftRef = receiptController.filteredReceipts[index - 1].sale?.shiftReference;
+                        previousShiftRef = receiptController
+                            .filteredReceipts[index - 1].sale?.shiftReference;
                       }
-                      
+
                       // Check if we need to show a day divider
                       bool showDayDivider = false;
                       String dayDividerText = "";
@@ -456,16 +504,17 @@ class ReceiptScreen extends StatelessWidget {
                             showDayDivider = true;
                           }
                         }
-                        
+
                         if (showDayDivider) {
                           dayDividerText = _formatDateHeader(currentDate);
                         }
                       }
-                      
+
                       // Check if we need to show a shift divider
                       bool showShiftDivider = false;
                       String shiftDividerText = "";
-                      if (currentShiftRef != null && currentShiftRef.isNotEmpty) {
+                      if (currentShiftRef != null &&
+                          currentShiftRef.isNotEmpty) {
                         if (index == 0) {
                           // Always show shift divider for first item if it has a shift
                           showShiftDivider = true;
@@ -475,82 +524,121 @@ class ReceiptScreen extends StatelessWidget {
                             showShiftDivider = true;
                           }
                         }
-                        
+
                         if (showShiftDivider) {
-                          ShiftModel? shift = _getShiftByReference(currentShiftRef);
-                          shiftDividerText = _formatShiftHeader(shift, currentShiftRef);
+                          ShiftModel? shift =
+                              _getShiftByReference(currentShiftRef);
+                          shiftDividerText =
+                              _formatShiftHeader(shift, currentShiftRef);
                         }
                       }
-                      
+
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (showDayDivider) _buildDayDivider(dayDividerText),
-                          if (showShiftDivider) _buildShiftDivider(shiftDividerText),
+                          if (showShiftDivider)
+                            _buildShiftDivider(shiftDividerText),
                           Card(
-                            color: sale!.saleStatus=="REVERSED"?Colors.redAccent[100]:context.theme.colorScheme.primaryContainer,
+                            color: sale!.saleStatus == "REVERSED"
+                                ? Colors.redAccent[100]
+                                : context.theme.colorScheme.primaryContainer,
                             child: ListTile(
-                              leading:
-                                  Text(
-                                    '${sale!.currency?.symbol ?? ''} ${sale.amountAfterDiscount!.toStringAsFixed(2).toString()}',
-                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold,color: Colors.lightGreen),
-                                  ),
-                              title: Text(sale.referenceNumber!,
+                              leading: Text(
+                                '${sale!.currency?.symbol ?? ''} ${sale.amountAfterDiscount!.toStringAsFixed(2).toString()}',
+                                style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.lightGreen),
+                              ),
+                              title: Text(
+                                sale.referenceNumber!,
                                 style: TextStyle(
-                                fontSize: 20,color:  context.theme.colorScheme.primary,fontWeight: FontWeight.bold
-                              ),),
+                                    fontSize: 20,
+                                    color: context.theme.colorScheme.primary,
+                                    fontWeight: FontWeight.bold),
+                              ),
                               subtitle: Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
                                   Column(
                                     children: [
-                                      Text(sale.paymentTypes!.map((paymentType)=>paymentType.paymentType!.name).join()),
-                                      Text(sale.timeIniated!.replaceFirst('T', ' ')),
+                                      Text(sale.paymentTypes!
+                                          .map((paymentType) =>
+                                              paymentType.paymentType!.name)
+                                          .join()),
+                                      Text(sale.timeIniated!
+                                          .replaceFirst('T', ' ')),
                                     ],
-                                      ),
-                                    Expanded(child:
-                                  IconButton(onPressed: (){},
-                                      icon: saleInfo.syncStatus == true
-                                          ?Icon(Icons.check,color: Colors.green,size: 40)
-                                          :Icon(Icons.sync_problem_outlined,color: Colors.red,size: 40)
-                                  )
                                   ),
+                                  Expanded(
+                                      child: IconButton(
+                                          onPressed: () {},
+                                          icon: saleInfo.syncStatus == true
+                                              ? Icon(Icons.check,
+                                                  color: Colors.green, size: 40)
+                                              : Icon(
+                                                  Icons.sync_problem_outlined,
+                                                  color: Colors.red,
+                                                  size: 40))),
                                 ],
                               ),
                               trailing: Column(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     '${sale.saleStatus ?? 'N/A'}',
-                                    style: sale.saleStatus!='REVERSED'? TextStyle(fontSize: 12, color: context.theme.colorScheme.primaryContainer):TextStyle(fontSize: 12, color: Colors.red[700]),
+                                    style: sale.saleStatus != 'REVERSED'
+                                        ? TextStyle(
+                                            fontSize: 12,
+                                            color: context.theme.colorScheme
+                                                .primaryContainer)
+                                        : TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.red[700]),
                                   ),
                                   Expanded(
                                     child: Container(
                                       width: 110,
                                       height: double.infinity,
                                       child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.start,
                                         children: [
                                           IconButton(
-                                              icon: Icon(Icons.print_outlined,color:  context.theme.colorScheme.primary,size: 30),
-                                              onPressed: () async {
-                                                if(receiptController.isPrintClicked.isFalse) {
-                                                  receiptController.isPrintClicked.value = true;
-                                                  sale.saleStatus != 'REVERSED'
-                                                      ? receiptController
-                                                          .printSale(saleInfo)
-                                                      : null;
-                                                }
-                                              },
-                                            ),
+                                            icon: Icon(Icons.print_outlined,
+                                                color: context
+                                                    .theme.colorScheme.primary,
+                                                size: 30),
+                                            onPressed: () async {
+                                              if (receiptController
+                                                  .isPrintClicked.isFalse) {
+                                                receiptController.isPrintClicked
+                                                    .value = true;
+                                                sale.saleStatus != 'REVERSED'
+                                                    ? receiptController
+                                                        .printSale(saleInfo)
+                                                    : null;
+                                              }
+                                            },
+                                          ),
                                           Container(
-                                            child: sale.saleStatus != 'REVERSED'?IconButton(
-                                              enableFeedback: true,
-                                              icon: Icon(Icons.delete_forever_outlined,color: Colors.redAccent,size: 30),
-                                              onPressed: () {
-                                                receiptController.showConfirmDialogToDeleteItem(saleInfo,index);
-                                              },
-                                            ):SizedBox(),
+                                            child: sale.saleStatus != 'REVERSED'
+                                                ? IconButton(
+                                                    enableFeedback: true,
+                                                    icon: Icon(
+                                                        Icons
+                                                            .delete_forever_outlined,
+                                                        color: Colors.redAccent,
+                                                        size: 30),
+                                                    onPressed: () {
+                                                      receiptController
+                                                          .showConfirmDialogToDeleteItem(
+                                                              saleInfo, index);
+                                                    },
+                                                  )
+                                                : SizedBox(),
                                           ),
                                         ],
                                       ),

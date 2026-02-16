@@ -10,7 +10,6 @@ class CartScreen extends StatelessWidget {
   final CartController cartController = Get.find();
   final InactivityController inactivityController = Get.find();
 
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -34,15 +33,16 @@ class CartScreen extends StatelessWidget {
                   itemCount: cartController.cartItems.length,
                   itemBuilder: (context, index) {
                     final cartItem = cartController.cartItems[index];
-                    String imageUrl = cartItem.product.item!.image!=null
-                        ? "${AppConstants
-                        .VIMBIKA_BACKEND_URL}/inventory/image?name=${cartItem
-                        .product.item!.image}"
+                    String imageUrl = cartItem.product.item!.image != null
+                        ? "${AppConstants.VIMBIKA_BACKEND_URL}/inventory/image?name=${cartItem.product.item!.image}"
                         : "https://via.placeholder.com/150";
 
-                    return ListTile(
-                      tileColor: Colors.blue[100],
-                      leading: CachedNetworkImage(
+                    return Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: ListTile(
+                        
+                        tileColor: context.theme.colorScheme.primary,
+                        leading: CachedNetworkImage(
                           imageUrl: imageUrl,
                           placeholder: (context, url) =>
                               CircularProgressIndicator(),
@@ -50,42 +50,57 @@ class CartScreen extends StatelessWidget {
                             'assets/images/dummy/dummy.png', // Path to your error image
                             fit: BoxFit.cover,
                           ),
-                      ),
-                      title: Text(cartItem.product.item!.name ?? ''),
-                      subtitle: Text('${cartItem.product.item!
-                          .sellingPrice} x ${cartItem.quantity}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.remove),
-                            onPressed: () =>
-                                cartController.decrementQuantity(cartItem),
-                          ),
-                          Text('${(cartItem.quantity*cartItem.product.item!.sellingPrice).toStringAsFixed(2)}',
+                        ),
+                        title: Text(
+                          cartItem.product.item!.name ?? '',
+                          style: TextStyle(
+                              color: context.theme.colorScheme.onPrimary),
+                        ),
+                        subtitle: Text(
+                            '${cartItem.product.item!.sellingPrice} x ${cartItem.quantity}',
                             style: TextStyle(
-                              color: Colors.indigo,
-                              fontWeight: FontWeight.bold,
+                                color: context.theme.colorScheme.onPrimary)),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.remove,
+                                color: context.theme.colorScheme.onPrimary,
+                              ),
+                              onPressed: () =>
+                                  cartController.decrementQuantity(cartItem),
                             ),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.add,color: Colors.indigoAccent,),
-                            onPressed: () =>
-                                cartController.incrementQuantity(cartItem),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.delete,color: Colors.red,),
-                            onPressed: () =>
-                                cartController.removeFromCart(cartItem),
-                          ),
-                        ],
+                            Text(
+                              '${(cartItem.quantity * cartItem.product.item!.sellingPrice).toStringAsFixed(2)}',
+                              style: TextStyle(
+                                  color: context.theme.colorScheme.onPrimary,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.add,
+                                color: context.theme.colorScheme.onPrimary,
+                              ),
+                              onPressed: () =>
+                                  cartController.incrementQuantity(cartItem),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.delete,
+                                color: Colors.red,
+                              ),
+                              onPressed: () =>
+                                  cartController.removeFromCart(cartItem),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
                 ),
               ),
               const SizedBox(height: 20),
-
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -93,21 +108,28 @@ class CartScreen extends StatelessWidget {
                   children: [
                     Text(
                       'Total : ${cartController.selectedCurrency.value?.symbol ?? ''} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold,color: Colors.indigoAccent),
+                      style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.indigoAccent),
                     ),
-
                     SizedBox(height: 10),
                     ElevatedButton(
                       onPressed: () {
-                        for(var item in cartController.cartItems) {
-                          print("Item: ${item.product.item!.name}, Quantity: ${item.quantity}, Price: ${item.product.item!.sellingPrice}");
+                        for (var item in cartController.cartItems) {
+                          print(
+                              "Item: ${item.product.item!.name}, Quantity: ${item.quantity}, Price: ${item.product.item!.sellingPrice}");
                         }
-                          cartController.checkout();
+                        cartController.checkout();
                       },
                       style: TextButton.styleFrom(
-                        backgroundColor: Colors.lightGreenAccent, // Set button color to red
-                        foregroundColor: Colors.black, // Set text color to red
-                        textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
+                        backgroundColor:
+                            context.theme.colorScheme.primary, // Set button color to primary theme color
+                        foregroundColor: context.theme.colorScheme.onPrimary, // Set text color to onPrimary theme color
+                        textStyle: TextStyle(
+                            fontSize: 16,
+                            color: context.theme.colorScheme.onPrimary,
+                            fontWeight: FontWeight.bold), // Set text size
                       ),
                       child: Text('Checkout'),
                     ),

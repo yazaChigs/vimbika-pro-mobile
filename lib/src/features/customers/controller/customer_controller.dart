@@ -160,25 +160,25 @@ class CustomerController extends GetxController {
     }
     
     allCustomers.value = customers;
-    if(branch != null) {
-      print("Filtering customers by branch: ${branch!.name}");
-      print("Customers before filter: ${customers.length}");
-      // Filter by branch but always include WalkIn
-      List<CustomerModel> filteredByBranch = customers.where((cus) => 
-        (cus.branch != null && cus.branch!.name == branch!.name) || cus.name == "WalkIn"
-      ).toList();
+    // if(branch != null) {
+    //   print("Filtering customers by branch: ${branch!.name}");
+    //   print("Customers before filter: ${customers.length}");
+    //   // Filter by branch but always include WalkIn
+    //   List<CustomerModel> filteredByBranch = customers.where((cus) => 
+    //     (cus.branch != null && cus.branch!.name == branch!.name) || cus.name == "WalkIn"
+    //   ).toList();
       
-      // If filtering leaves too few customers compared to available, fall back to original list (offline-friendly)
-      if (filteredByBranch.length < 5 && customers.length > filteredByBranch.length) {
-        filteredCustomers.value = customers; // Fallback to full list
-        print("Customers after filter (fallback to full list): ${customers.length}");
-      } else {
-        filteredCustomers.value = filteredByBranch;
-        print("Customers after filter: ${filteredCustomers.length}");
-      }
-    } else {
+    //   // If filtering leaves too few customers compared to available, fall back to original list (offline-friendly)
+    //   if (filteredByBranch.length < 5 && customers.length > filteredByBranch.length) {
+    //     filteredCustomers.value = customers; // Fallback to full list
+    //     print("Customers after filter (fallback to full list): ${customers.length}");
+    //   } else {
+    //     filteredCustomers.value = filteredByBranch;
+    //     print("Customers after filter: ${filteredCustomers.length}");
+    //   }
+    // } else {
       filteredCustomers.value = customers;
-    }
+    // }
     
     allCustomers.refresh();
     filteredCustomers.refresh();
@@ -912,25 +912,25 @@ class CustomerController extends GetxController {
     }
     
     // Filter by branch but always include WalkIn (only if online and got response)
-    if(branch != null) {
-      print("Filtering customers by branch: ${branch!.name}");
-      print("Customers before filter: ${allCustomers.length}");
-      // Filter by branch but always include WalkIn
-      List<CustomerModel> filteredByBranch = allCustomers.value.where((cus) => 
-        (cus.branch != null && cus.branch!.name == branch!.name) || cus.name == "WalkIn"
-      ).toList();
+    // if(branch != null) {
+    //   print("Filtering customers by branch: ${branch!.name}");
+    //   print("Customers before filter: ${allCustomers.length}");
+    //   // Filter by branch but always include WalkIn
+    //   List<CustomerModel> filteredByBranch = allCustomers.value.where((cus) => 
+    //     (cus.branch != null && cus.branch!.name == branch!.name) || cus.name == "WalkIn"
+    //   ).toList();
       
-      // If filtering leaves too few customers compared to available, fall back to original list (offline-friendly)
-      if (filteredByBranch.length < 5 && allCustomers.length > filteredByBranch.length) {
-        filteredCustomers.value = allCustomers.value; // Fallback to full list
-        print("Customers after filter (fallback to full list): ${allCustomers.length}");
-      } else {
-        filteredCustomers.value = filteredByBranch;
-        print("Customers after filter: ${filteredCustomers.length}");
-      }
-    } else {
+    //   // If filtering leaves too few customers compared to available, fall back to original list (offline-friendly)
+    //   if (filteredByBranch.length < 5 && allCustomers.length > filteredByBranch.length) {
+    //     filteredCustomers.value = allCustomers.value; // Fallback to full list
+    //     print("Customers after filter (fallback to full list): ${allCustomers.length}");
+    //   } else {
+    //     filteredCustomers.value = filteredByBranch;
+    //     print("Customers after filter: ${filteredCustomers.length}");
+    //   }
+    // } else {
       filteredCustomers.value = allCustomers.value;
-    }
+    // }
     
     allCustomers.refresh();
     filteredCustomers.refresh();

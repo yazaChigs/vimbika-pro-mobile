@@ -25,6 +25,13 @@ class ListTileWidget extends StatelessWidget {
       title: Text(printer.name ?? 'Unknown Printer'),
       subtitle: Text(printer.type ?? 'Unknown Type'),
       trailing: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        context.theme.colorScheme.primary, // Background color
+                    foregroundColor:
+                        context.theme.colorScheme.onPrimary, // Text color
+                    
+                  ),
         onPressed: onTestPrinter,
         child: const Text('Test'),
       ),
