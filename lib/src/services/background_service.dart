@@ -24,7 +24,6 @@ import '../shared/models/company_model.dart';
 
 class BackgroundService extends GetxService {
   final ConnectivityService _connectivityService = ConnectivityService();
-  final SyncLockService _syncLockService = Get.put(SyncLockService());
   late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
   late ShiftSettingModel shiftSetting = ShiftSettingModel();
   List<SaleInfoModel> offlineSales = <SaleInfoModel>[];
@@ -174,7 +173,9 @@ class BackgroundService extends GetxService {
           if (saleModel != null) {
             // synced = true;
             syncedSales.add(saleInfo);
-            SaleInfoModel? infoModel = await getSale(saleModel.id!);
+            SaleInfoModel? infoModel = null;
+            if(saleModel.branch!.alwaysFiscalize!)
+             infoModel = await getSale(saleModel.id!);
             if(infoModel != null){
               saleInfoModel = infoModel;
             } else{

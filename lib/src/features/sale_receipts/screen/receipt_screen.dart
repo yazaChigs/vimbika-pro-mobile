@@ -573,9 +573,15 @@ class ReceiptScreen extends StatelessWidget {
                                   ),
                                   Expanded(
                                       child: IconButton(
-                                          onPressed: () {
-                                            if(saleInfo.syncStatus == false){
-                                              receiptController.syncSale(saleInfo);
+                                          onPressed: () async {
+                                            if(saleInfo.syncStatus == false && !receiptController.isSingleClickCLicked.value && await receiptController.internetAccess()){
+                                              receiptController.isSingleClickCLicked.value = true;
+                                              var synced =  receiptController.syncSale(saleInfo, index);
+                                              if(await synced){
+                                                receiptController.filteredReceipts[index].syncStatus = true;
+                                                receiptController.filteredReceipts.refresh();
+                                                receiptController.isSingleClickCLicked.value = false;
+                                              }
                                             }
                                           },
                                           icon: saleInfo.syncStatus == true

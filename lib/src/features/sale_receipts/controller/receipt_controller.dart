@@ -60,6 +60,7 @@ class ReceiptController extends GetxController {
   List<ShiftModel>  shifts = [];
   var isCatSelected = false.obs;
   var isPrintClicked = false.obs;
+  var isSingleClickCLicked = false.obs;
   Rx<BranchModel?> branch = BranchModel().obs;
 
   @override
@@ -96,6 +97,9 @@ class ReceiptController extends GetxController {
     sortSalesByDate();
     allReceipts.refresh();
     filteredReceipts.refresh();
+  }
+  Future<bool> internetAccess() async {
+   return await _connectivityService.checkServerConnection();
   }
 
   refreshFilter() async {
@@ -152,7 +156,7 @@ class ReceiptController extends GetxController {
     endDateController.text = "";
   }
 
-  syncSale(SaleInfoModel saleInfo) async {
+  Future<bool> syncSale(SaleInfoModel saleInfo, int index) async {
     var model = box.read(AppConstants.USER_INFO) ?? {};
     if(model.isNotEmpty){
       user = UserModel.fromMap(Map<String, dynamic>.from(model));
@@ -162,12 +166,31 @@ class ReceiptController extends GetxController {
     company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
     SaleModel? synced =  await SyncService.saveSale(
         saleInfo.sale!, user, box, company.value!);
-    filteredReceipts.firstWhere((saleInfo)=> saleInfo.sale!.posReference == synced!.posReference).syncStatus = true;
-    filteredReceipts.refresh();
-    allReceipts.firstWhere((saleInfo)=> saleInfo.sale!.posReference == synced!.posReference).syncStatus = true;
-    allReceipts.refresh();
+    if(synced != null) {
+      print("changing sale");
+      filteredReceipts[index].syncStatus = true;
+      filteredReceipts.firstWhere((saleInfo) =>
+      saleInfo.sale!.posReference == synced.posReference).syncStatus = true;
+      filteredReceipts.refresh();
+      print(allReceipts.any((saleInfo) =>saleInfo.sale!.posReference == synced.posReference));
+      allReceipts.firstWhere((saleInfo) =>saleInfo.sale!.posReference == synced.posReference).syncStatus = true;
+      allReceipts.refresh();
+      List<SaleInfoModel> sales = getExistingOfflineSales(box);
+      sales.firstWhere((saleInfo) =>
+      saleInfo.sale!.posReference == synced.posReference).syncStatus = true;
+      writeSaleInfor(box, sales);
+      return true;
+    }
+      return false;
+
   }
 
+
+  writeSaleInfor(GetStorage box, List<SaleInfoModel> itemsList){
+    List<Map<String, dynamic>> itemsListMap = itemsList.map((item) =>
+        item.toMap()).toList();
+    box.write(AppConstants.SALE_LIST, itemsListMap);
+  }
 
   refreshPages() {
     Get.delete<SaleController>();
