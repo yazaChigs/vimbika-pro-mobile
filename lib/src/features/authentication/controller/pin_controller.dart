@@ -29,6 +29,7 @@ class PinController extends GetxController {
       Get.offNamed(AppRoutes.LOGIN);
       return;
     }
+
     user = UserModel.fromMap(Map<String, dynamic>.from(model));
     print("PIN Screen: Loaded user ${user.userName} with ID ${user.id}");
     
@@ -74,6 +75,9 @@ class PinController extends GetxController {
     } else if (selectedBranch == null && selectedRef != null && selectedRef.isNotEmpty) {
       print("PIN Screen: Shift ${selectedRef} selected but no branch - this shouldn't happen, but continuing anyway");
     }
+
+    box = GetStorage();
+    box.write(AppConstants.SYNCING_IN_PROGRESS, false);
 
   }
 

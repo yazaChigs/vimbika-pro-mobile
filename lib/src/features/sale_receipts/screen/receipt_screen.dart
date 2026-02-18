@@ -573,7 +573,11 @@ class ReceiptScreen extends StatelessWidget {
                                   ),
                                   Expanded(
                                       child: IconButton(
-                                          onPressed: () {},
+                                          onPressed: () {
+                                            if(saleInfo.syncStatus == false){
+                                              receiptController.syncSale(saleInfo);
+                                            }
+                                          },
                                           icon: saleInfo.syncStatus == true
                                               ? Icon(Icons.check,
                                                   color: Colors.green, size: 40)
@@ -600,7 +604,7 @@ class ReceiptScreen extends StatelessWidget {
                                   ),
                                   Expanded(
                                     child: Container(
-                                      width: 110,
+                                      width: 150,
                                       height: double.infinity,
                                       child: Row(
                                         mainAxisAlignment:
@@ -621,6 +625,15 @@ class ReceiptScreen extends StatelessWidget {
                                                         .printSale(saleInfo)
                                                     : null;
                                               }
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: Icon(Icons.receipt_long_outlined,
+                                                color: context
+                                                    .theme.colorScheme.secondary,
+                                                size: 30),
+                                            onPressed: () {
+                                              receiptController.showReceiptDialog(saleInfo);
                                             },
                                           ),
                                           Container(

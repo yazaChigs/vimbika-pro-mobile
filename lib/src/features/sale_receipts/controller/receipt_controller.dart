@@ -23,6 +23,7 @@ import 'package:vimbika_pos_app/src/utils/app_helper.dart';
 
 import '../../../services/background_service.dart';
 import '../../../services/sync_service.dart';
+import '../../../shared/models/company_model.dart';
 import '../../customers/controller/customer_controller.dart';
 import '../../sale/controller/cart_controller.dart';
 import '../../sale/controller/sale_controller.dart';
@@ -45,6 +46,7 @@ class ReceiptController extends GetxController {
   PrinterService printerService = Get.put(PrinterService());
   final LocalStorageService _localStorageService = LocalStorageService();
   final TextEditingController startDateController = TextEditingController();
+  Rx<CompanyModel?> company = CompanyModel().obs;
 
   final TextEditingController endDateController = TextEditingController();
   var todayDate = "".obs;
@@ -148,6 +150,22 @@ class ReceiptController extends GetxController {
     selectedCategory.value = BaseNameModel();
     startDateController.text = "";
     endDateController.text = "";
+  }
+
+  syncSale(SaleInfoModel saleInfo) async {
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    if(model.isNotEmpty){
+      user = UserModel.fromMap(Map<String, dynamic>.from(model));
+    }
+
+    var companyModel = box.read(AppConstants.ACTIVE_COMPANY) ?? {};
+    company.value = CompanyModel.fromMap(Map<String, dynamic>.from(companyModel));
+    SaleModel? synced =  await SyncService.saveSale(
+        saleInfo.sale!, user, box, company.value!);
+    filteredReceipts.firstWhere((saleInfo)=> saleInfo.sale!.posReference == synced!.posReference).syncStatus = true;
+    filteredReceipts.refresh();
+    allReceipts.firstWhere((saleInfo)=> saleInfo.sale!.posReference == synced!.posReference).syncStatus = true;
+    allReceipts.refresh();
   }
 
 
@@ -411,5 +429,172 @@ class ReceiptController extends GetxController {
             (map) => BaseNameModel.fromMap(map),
         box);
     return list;
+  }
+
+  void showReceiptDialog(SaleInfoModel saleInfo) {
+    final sale = saleInfo.sale;
+    final currencySymbol = sale?.currency?.symbol ?? '';
+    
+    Get.defaultDialog(
+      title: "Receipt Preview",
+      titleStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      content: SizedBox(
+        width: 350,
+        child: Container(
+          constraints: BoxConstraints(maxHeight: Get.height * 0.7),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Info
+                Center(
+                  child: Column(
+                    children: [
+                      Text(sale?.branch?.name ?? 'Branch Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      SizedBox(height: 4),
+                      Text("Ref: ${sale?.referenceNumber ?? 'N/A'}", style: TextStyle(fontSize: 14, color: Colors.grey[700])),
+                      Text("Date: ${sale?.timeIniated?.replaceFirst('T', ' ') ?? 'N/A'}", style: TextStyle(fontSize: 14, color: Colors.grey[700])),
+                      if (sale?.customer != null) ...[
+                        SizedBox(height: 4),
+                        Text("Customer: ${sale?.customer?.name ?? ''}", style: TextStyle(fontSize: 14)),
+                      ],
+                    ],
+                  ),
+                ),
+                Divider(thickness: 1.5),
+                
+                // Items Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    children: [
+                      Expanded(flex: 4, child: Text("Item", style: TextStyle(fontWeight: FontWeight.bold))),
+                      Expanded(flex: 1, child: Text("Qty", style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                      Expanded(flex: 2, child: Text("Price", style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
+                      Expanded(flex: 2, child: Text("Total", style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
+                    ],
+                  ),
+                ),
+                Divider(),
+                
+                // Items List
+                ...(sale?.items?.map((item) {
+                  double itemTotal = (item.sellingPrice ?? 0) * (item.quantity ?? 0);
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 4, child: Text(item.inventoryItem?.name ?? 'N/A')),
+                        Expanded(flex: 1, child: Text("${item.quantity}", textAlign: TextAlign.center)),
+                        Expanded(flex: 2, child: Text("${item.sellingPrice?.toStringAsFixed(2)}", textAlign: TextAlign.right)),
+                        Expanded(flex: 2, child: Text("${itemTotal.toStringAsFixed(2)}", textAlign: TextAlign.right)),
+                      ],
+                    ),
+                  );
+                }) ?? []),
+                
+                Divider(thickness: 1.5),
+                
+                // Totals
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Subtotal:"),
+                      Text("$currencySymbol ${(sale?.baseSaleAmount ?? 0).toStringAsFixed(2)}"),
+                    ],
+                  ),
+                ),
+                if ((sale?.totalTaxAmount ?? 0) > 0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("Tax:"),
+                        Text("$currencySymbol ${(sale?.totalTaxAmount ?? 0).toStringAsFixed(2)}"),
+                      ],
+                    ),
+                  ),
+                if ((sale?.totalDiscount ?? 0) > 0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("Discount:"),
+                        Text("-$currencySymbol ${(sale?.totalDiscount ?? 0).toStringAsFixed(2)}"),
+                      ],
+                    ),
+                  ),
+                Divider(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("TOTAL:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text("$currencySymbol ${(sale?.amountAfterDiscount ?? 0).toStringAsFixed(2)}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ],
+                  ),
+                ),
+                
+                // Payment Info
+                SizedBox(height: 8),
+                if (sale?.paymentTypes != null && sale!.paymentTypes!.isNotEmpty) ...[
+                  Text("Payment Methods:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  ...sale.paymentTypes!.map((pt) => Padding(
+                    padding: const EdgeInsets.only(left: 8.0, top: 2.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(pt.paymentType?.name ?? 'Unknown', style: TextStyle(fontSize: 12)),
+                        Text("$currencySymbol ${(pt.amount ?? 0).toStringAsFixed(2)}", style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  )),
+                ],
+                
+                if ((sale?.change ?? 0) > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("Change:", style: TextStyle(fontSize: 12)),
+                        Text("$currencySymbol ${(sale?.change ?? 0).toStringAsFixed(2)}", style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Get.back();
+          },
+          child: Text("Close"),
+        ),
+        ElevatedButton.icon(
+          onPressed: () {
+            // Print functionality
+            Get.back();
+            printSale(saleInfo);
+          },
+          icon: Icon(Icons.print, size: 20, color: Get.theme.colorScheme.secondaryContainer,),
+          label: Text("Print"),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Get.theme.colorScheme.primary,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
+    );
   }
 }

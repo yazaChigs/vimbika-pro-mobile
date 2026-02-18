@@ -72,13 +72,14 @@ class CustomerListScreen extends StatelessWidget {
             ],
           ),
           floatingActionButton: FloatingActionButton(
+            backgroundColor: context.theme.colorScheme.primary,
             onPressed: () {
               customerController.editCustomer.value = false;
               customerController.selectedCustomer.value = CustomerModel();
               customerController.clearForm();
               Get.toNamed(AppRoutes.CUSTOMER_FORM);
             },
-            child: Icon(Icons.add),
+            child: Icon(Icons.add, color: context.theme.colorScheme.onSurface,),
             tooltip: 'Add Customer',
           ),
           drawer: NavDrawer(
