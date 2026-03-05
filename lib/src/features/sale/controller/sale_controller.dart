@@ -57,7 +57,7 @@ class SaleController extends GetxController {
   bool sellNilItems = false;
   List<SaleInfoModel> offlineSales = <SaleInfoModel>[];
   PaymentTypeModel selectedPaymentType = PaymentTypeModel();
-  List<PaymentTypeModel> selectedPaymentTypes = <PaymentTypeModel>[].obs;
+  RxList<PaymentTypeModel> selectedPaymentTypes = <PaymentTypeModel>[].obs;
   RxList<SaleInfoModel> allReceipts = <SaleInfoModel>[].obs;
   RxList<SaleInfoModel> filteredReceipts = <SaleInfoModel>[].obs;
   final CartController cartController = Get.put(CartController());

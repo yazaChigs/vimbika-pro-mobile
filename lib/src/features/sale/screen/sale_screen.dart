@@ -2805,17 +2805,13 @@ class SaleScreen extends GetView {
                                                                   cartController
                                                                       .removePaymentMethod(
                                                                           index);
-                                                                  cartController
-                                                                      .selectedPaymentTypes
-                                                                      .removeAt(
-                                                                          index);
                                                                   saleController
                                                                       .selectedPaymentTypes
                                                                       .removeAt(
                                                                           index);
                                                                   saleController
                                                                       .selectedPaymentTypes
-                                                                      .clear();
+                                                                      .refresh();
                                                                   cartController
                                                                       .selectedPaymentTypes
                                                                       .refresh();

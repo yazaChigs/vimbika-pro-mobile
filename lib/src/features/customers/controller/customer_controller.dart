@@ -323,6 +323,8 @@ class CustomerController extends GetxController {
           updated: true,
           nfcCardId: nfcCardId.value,
           nfcCardType: nfcCardType.value);
+
+      isInternetAccess.value = await _connectivityService.checkServerConnection();
       List<CustomerModel> customers = _localStorageService.getCustomers(box);
       customers.add(customerModel);
       allCustomers.value = customers;
@@ -331,6 +333,9 @@ class CustomerController extends GetxController {
       filteredCustomers.refresh();
       _localStorageService.writeItems(AppConstants.CUSTOMER_LIST, customers, box);
       clearForm();
+      if(isInternetAccess.value){
+        await SyncService.saveCustomer(user, box);
+      }
       Get.snackbar("New Customer", "Customer Saved Successfully",
           snackPosition: SnackPosition.BOTTOM);
       Navigator.of(Get.overlayContext!).pop();

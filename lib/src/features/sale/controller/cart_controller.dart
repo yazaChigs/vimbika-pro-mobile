@@ -253,17 +253,17 @@ class CartController extends GetxController {
     var fiscalStatus = box.read(AppConstants.IS_FISCALISATION_ENABLED) ?? false;
     var deviceFiscalSetting =
         box.read(AppConstants.DEFAULT_FISCAL_SETTING) ?? false;
-    if(fiscalStatus) {
-      zimraFiscalizeReceipt.value = branch.value!.alwaysFiscalize ?? false;
-      isFiscaliseReceiptEnabled.value = deviceFiscalSetting;
-      if (zimraFiscalizeReceipt.isFalse) {
-        zimraFiscalizeReceipt.value = deviceFiscalSetting;
-      }
-    }else{
-      zimraFiscalizeReceipt.value = false;
-      isFiscaliseReceiptEnabled.value = false;
-      fiscalizeReceipt.value = false;
-    }
+    // if(fiscalStatus) {
+    //   zimraFiscalizeReceipt.value = branch.value!.alwaysFiscalize ?? false;
+    //   isFiscaliseReceiptEnabled.value = deviceFiscalSetting;
+    //   if (zimraFiscalizeReceipt.isFalse) {
+    //     zimraFiscalizeReceipt.value = deviceFiscalSetting;
+    //   }
+    // }else{
+    //   zimraFiscalizeReceipt.value = false;
+    //   isFiscaliseReceiptEnabled.value = false;
+    //   fiscalizeReceipt.value = false;
+    // }
     tipAmtTextEditingController.text = "0.00";
     amtToAccTextEditingController.text = "0.00";
     List<PaymentReceivedModel> paymentReceiveds = loadPaymentReceived(box);
@@ -686,7 +686,6 @@ class CartController extends GetxController {
   }
 
   Future<void> addToCart(ProductFullInfoModel product, double quantity) async {
-    print("Adding to cart: ${product.item!.taxAmount}");
     var index = cartItems.indexWhere((item) => item.product.id == product.id);
     if (index != -1 && cartItems[index].quantity + 1 > product.stock!.toDouble() && !sellNilItems) {
       Get.snackbar("Check your Quantity",
@@ -699,8 +698,6 @@ class CartController extends GetxController {
       if (index != -1) {
         CartItemModel item = cartItems[index];
         item.quantity = item.quantity + quantity;
-        // cartItems[index].quantity++;
-        print("item quantity updated to ${item.totalTaxAmount}");
       } else {
         cartItems.add(CartItemModel(product: product, quantity: quantity));
       }
@@ -1441,7 +1438,7 @@ class CartController extends GetxController {
           }
         }
       }
-      if((sale.customer !=null) && ( sale.customer!.isLoyalCustomer ?? false) && (double.parse(amtToAccTextEditingController.text)==0.00 &&
+      if((sale.customer !=null) && (double.parse(amtToAccTextEditingController.text)==0.00 &&
               paymentTypes.any((pt) => pt.paymentType!.name!.startsWith("ACC-") || pt.paymentType!.name!.startsWith("CREDIT-")))){
          customer = allCustomers.firstWhere((cust)=>cust.name == sale.customer!.name);
         if(customer!=null){
@@ -1461,7 +1458,7 @@ class CartController extends GetxController {
             );
             customer.currencyBalance!.add(currencyAmount);
           }
-          customer.accountBalance = customer.accountBalance! - (amountPaid.value/selectedCurrency.value!.rate!);
+          customer.accountBalance = customer.accountBalance??0.00 - (amountPaid.value/selectedCurrency.value!.rate!);
           customer.updated = true;
           allCustomers[index] = customer;
           List<CustomerModel> customers = allCustomers.value;
@@ -1510,9 +1507,9 @@ class CartController extends GetxController {
 
 
   removePaymentMethod(index) {
-    totalAmountPaid.value = totalAmountPaid.value - paymentTypes[index].amount!;
-    paymentTypes.removeAt(index);
-    paymentTypes.refresh();
+    totalAmountPaid.value = totalAmountPaid.value - selectedPaymentTypes[index].amount!;
+    selectedPaymentTypes.removeAt(index);
+    selectedPaymentTypes.refresh();
   }
 
   void deductStock() {

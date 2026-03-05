@@ -91,11 +91,11 @@ class OfflineDataController extends GetxController {
       print("getting getOfflineData");
       await SyncService.getBranchStock(box, user);
 
-      Timer.periodic(Duration(minutes: 25), (timer) async {
+      Timer.periodic(Duration(minutes: 45), (timer) async {
         print("init syncing branchStock...");
         await SyncService.getBranchStock(box, user);
-        await SyncService.savePaymentReceived(user, box);
         await SyncService.saveCustomer(user, box);
+        await SyncService.savePaymentReceived(user, box);
         await SyncService.getCustomers(user, box, user.companyId!);
         // syncOfflineSales();
       });

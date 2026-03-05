@@ -32,6 +32,7 @@ class SettingsController extends GetxController {
   Rxn<PaymentTypeModel> defaultPaymentMethod = Rxn<PaymentTypeModel>();
   late  GetStorage box;
   var defaultCurrencyId = "".obs;
+  final ConnectivityService _connectivityService = ConnectivityService();
   var defaultPaymentMethodId = "".obs;
   RxBool isFiscalisationEnabled = false.obs;
   RxBool useNfc = false.obs;
@@ -65,12 +66,18 @@ class SettingsController extends GetxController {
     loadCurrencies(box);
   }
 
-  void toggleDefaultFiscalSetting() {
-    selectedBranch!.alwaysFiscalize = !selectedBranch!.alwaysFiscalize!;
-    isFiscalisationEnabled.value = selectedBranch!.alwaysFiscalize!;
-    box.write(AppConstants.SELECTED_BRANCH, selectedBranch!.toMap());
+  Future<void> toggleDefaultFiscalSetting() async {
+    bool stat = await _connectivityService.checkServerConnection();
+    if(stat) {
+      selectedBranch!.alwaysFiscalize = !selectedBranch!.alwaysFiscalize!;
+      isFiscalisationEnabled.value = selectedBranch!.alwaysFiscalize!;
+      box.write(AppConstants.SELECTED_BRANCH, selectedBranch!.toMap());
 
-    SyncService.saveBranch(selectedBranch!, user, box);
+      SyncService.saveBranch(selectedBranch!, user, box);
+    }else{
+      Get.snackbar(
+        "No internet Connection","Please connect to internet!!",snackPosition: SnackPosition.TOP);
+    }
   }
   void toggleUseNfcSetting() {
     useNfc.value = !useNfc.value;
