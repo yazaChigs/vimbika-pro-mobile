@@ -922,6 +922,7 @@ class SaleScreen extends GetView {
                                         if (val.isNotEmpty) {
                                           String exp = val;
 
+                                          print(exp);
                                           if (saleController.useSerialNumbers) {
                                             var index = saleController
                                                 .allProducts

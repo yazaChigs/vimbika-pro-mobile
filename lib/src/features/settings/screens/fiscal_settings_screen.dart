@@ -26,7 +26,7 @@ class FiscalSettingsScreen extends StatelessWidget {
               ),
               child: Obx(() => CheckboxListTile(
                 title: Text(
-                  'Always ask for fiscalisation',
+                  'Enable tax',
                   style: TextStyle(fontSize: 16),
                 ),
                 value: controller.isFiscalisationEnabled.value,

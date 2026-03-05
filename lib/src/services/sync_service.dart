@@ -477,6 +477,36 @@ class SyncService {
     return null;
   }
 
+  static Future<PaymentReceivedModel?> saveBranch(BranchModel branch, UserModel user, GetStorage box) async{
+    print("Syncing Branch");
+    print(branch.alwaysFiscalize);
+    print(user.companyId);
+      var response = await BaseHttpClient()
+          .get("/branch/update-fiscalisation-mobile/${branch.id}")
+          .catchError((onError) async {
+        //AppHelper.hideLoading();
+        if (onError is BadRequestException) {
+          var apiError = json.decode(onError.message!);
+          print(apiError);
+          AppHelper.showErroDialog(description: apiError["reason"]);
+        } else if (onError is UnAuthorizedException) {
+          // Try to refresh token and retry
+          print("Unauthorized error, attempting to refresh token...");
+        } else {
+          print(onError);
+          AppHelper.handleError(onError);
+        }
+        return null;
+      });
+      // AppHelper.hideLoading();
+      if (response != null) {
+        // return responseModel.item;
+      } else {
+        //failed to save sale
+        return null;
+      }
+    return null;
+  }
   static Future<PaymentReceivedModel?> savePaymentReceived( UserModel user, GetStorage box) async{
     print("Syncing payments received...");
     final LocalStorageService _localStorageService = LocalStorageService();

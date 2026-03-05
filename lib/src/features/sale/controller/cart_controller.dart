@@ -141,16 +141,16 @@ class CartController extends GetxController {
     final fiscalStatus = box.read(AppConstants.IS_FISCALISATION_ENABLED) ?? false;
     final deviceFiscalSetting = box.read(AppConstants.DEFAULT_FISCAL_SETTING) ?? false;
 
-    if (fiscalStatus != fiscalizeReceipt.value) {
-      fiscalizeReceipt.value = fiscalStatus;
-      if (fiscalStatus && deviceFiscalSetting) {
-        isFiscaliseReceiptEnabled.value = true;
-        zimraFiscalizeReceipt.value = true;
-      } else if (!fiscalStatus) {
-        isFiscaliseReceiptEnabled.value = false;
-        zimraFiscalizeReceipt.value = false;
-      }
-    }
+    // if (fiscalStatus != fiscalizeReceipt.value) {
+    //   fiscalizeReceipt.value = fiscalStatus;
+    //   if (fiscalStatus && deviceFiscalSetting) {
+    //     isFiscaliseReceiptEnabled.value = true;
+    //     zimraFiscalizeReceipt.value = true;
+    //   } else if (!fiscalStatus) {
+    //     isFiscaliseReceiptEnabled.value = false;
+    //     zimraFiscalizeReceipt.value = false;
+    //   }
+    // }
   }
   Rx<CompanyModel?> company = CompanyModel().obs;
 

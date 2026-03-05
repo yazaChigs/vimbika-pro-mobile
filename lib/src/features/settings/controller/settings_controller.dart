@@ -6,6 +6,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/sale/controller/cart_controller.dart';
+import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/payment_type_model.dart';
 
@@ -40,24 +41,36 @@ class SettingsController extends GetxController {
   Timer? _saveFiscalDebouncer;
   var isSaving = false.obs;
   bool _isSaving = false;
+  BranchModel selectedBranch = BranchModel();
+  late UserModel user = UserModel(firstName: "", lastName: "", userName: "");
 
   @override
   void onInit() {
     super.onInit();
     box = GetStorage();
-    isFiscalisationEnabled.value  = box.read(AppConstants.DEFAULT_FISCAL_SETTING) ?? false;
     useNfc.value  = box.read(AppConstants.USE_NFC) ?? false;
     isDarkModeEnabled.value = box.read(AppConstants.THEME_MODE) ?? false;
     defaultPaymentMethodId.value  = box.read(AppConstants.DEFAULT_PAYMENT_METHOD_ID) ?? "";
     List<PaymentTypeModel> tempList = getOfflinePaymentTypeList(box);
     paymentTypesList.value = tempList;
     defaultCurrencyId.value  = box.read(AppConstants.DEFAULT_CURRENCY_ID) ?? "";
+    var model = box.read(AppConstants.USER_INFO) ?? {};
+    user = UserModel.fromMap(Map<String, dynamic>.from(model));
+
+    var branch = box.read(AppConstants.SELECTED_BRANCH);
+
+    selectedBranch = BranchModel.fromMap(Map<String, dynamic>.from(branch));
+    isFiscalisationEnabled.value  = selectedBranch!.alwaysFiscalize!;
 
     loadCurrencies(box);
   }
 
   void toggleDefaultFiscalSetting() {
-    isFiscalisationEnabled.value = !isFiscalisationEnabled.value;
+    selectedBranch!.alwaysFiscalize = !selectedBranch!.alwaysFiscalize!;
+    isFiscalisationEnabled.value = selectedBranch!.alwaysFiscalize!;
+    box.write(AppConstants.SELECTED_BRANCH, selectedBranch!.toMap());
+
+    SyncService.saveBranch(selectedBranch!, user, box);
   }
   void toggleUseNfcSetting() {
     useNfc.value = !useNfc.value;

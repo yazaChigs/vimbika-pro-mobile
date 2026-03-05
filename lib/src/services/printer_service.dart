@@ -1647,7 +1647,7 @@ class PrinterService extends GetxService {
      await SunmiPrinter.printText("---------------------------");
      
      // Items Header - with proper spacing
-     String headerLine = 'Description'.padRight(25) + 'Amount';
+     String headerLine = 'Description'.padRight(30) + 'Amount';
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
      await SunmiPrinter.printText(headerLine);
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
@@ -1657,12 +1657,13 @@ class PrinterService extends GetxService {
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
      for (var item in sale.items!) {
        String itemName = item.inventoryItem?.name ?? "Item";
+       itemName + "\t ${item.sellingPrice?.toStringAsFixed(2)??0} x ${item.quantity??0}";
        double total = item.total ?? 0;
        total = total * cur!.rate!;
        String amountStr = total.toStringAsFixed(2);
        
        // Format: Description left-padded to 40 chars, then amount
-       String itemLine = itemName.padRight(25) + amountStr;
+       String itemLine = itemName.padRight(30) + amountStr;
        await SunmiPrinter.printText(itemLine);
      }
 
