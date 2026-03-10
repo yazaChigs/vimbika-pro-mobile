@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ffi';
+// import 'dart:ffi'; // Removed as Double is not used
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -10,11 +10,11 @@ import 'package:meta/meta.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
 import 'package:vimbika_pos_app/src/features/customers/model/customer_currency_amount.dart';
+import 'package:vimbika_pos_app/src/features/sale/model/sale_item_model.dart';
 import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/customer_model.dart';
-
 import '../../../services/app_exceptions.dart';
 import '../../../services/base_http_client.dart';
 import '../../../services/printer_service.dart';
@@ -38,6 +38,58 @@ class CustomerProjectionModel {
   factory CustomerProjectionModel.fromMap(Map<String, dynamic> json) => CustomerProjectionModel(
     paymentReceived: json['paymentReceived'] != null ? PaymentReceivedModel.fromMap(json['paymentReceived']) : null,
     reference: json['reference']
+  );
+}
+
+class DebtorStatementProjection {
+  DebtorStatementProjection(
+  {this.paymentType,
+    this.referenceNumber,
+    this.items,
+    this.dateTime,
+    this.currency,
+    this.baseCurrency,
+    this.balance,
+    this.amount,
+    this.credit,
+    this.debit,
+    this.paymentDescription,
+    this.saleStatus,
+    this.reversed,
+    this.cashPayment,
+    this.isFromPoints,
+  });
+  PaymentTypeModel? paymentType;
+  String? referenceNumber;
+  List<SaleItemModel>? items;
+  String? dateTime;
+  CurrencyModel? currency;
+  CurrencyModel? baseCurrency;
+  double? balance; // Changed from Double? to double?
+  double? amount; // Changed from Double? to double?
+  double? credit;
+  double? debit;
+  String? paymentDescription;
+  String? saleStatus;
+  bool? reversed;
+  bool? cashPayment;
+  bool? isFromPoints;
+  factory DebtorStatementProjection.fromMap(Map<String, dynamic> json) => DebtorStatementProjection(
+    paymentType: json["paymentType"] != null ? PaymentTypeModel.fromMap(json["paymentType"]) : null,
+    referenceNumber: json['referenceNumber'],
+    items: json['items'] != null ? List<SaleItemModel>.from(json['items'].map((x) => SaleItemModel.fromMap(x))) : null,
+    dateTime: json['dateTime'],
+    currency: json['currency'] != null ? CurrencyModel.fromMap(json["currency"]) : null,
+    baseCurrency: json['baseCurrency'] != null ? CurrencyModel.fromMap(json["baseCurrency"]) : null,
+    balance: json['balance'] != null ? json['balance'].toDouble() :0.00,
+    amount: json['amount'] != null ? json['amount'].toDouble() :0.00,
+    paymentDescription: json['paymentDescription'],
+    saleStatus: json['saleStatus'],
+    reversed: json['reversed'],
+    cashPayment: json['cashPayment'],
+    isFromPoints: json['isFromPoints'],
+    debit: json['debit'] != null ? json['debit'].toDouble() :0.00,
+    credit: json['credit'] != null ? json['credit'].toDouble() :0.00,
   );
 }
 
@@ -200,6 +252,7 @@ class CustomerController extends GetxController {
   void filterCustomers(String query) {
     print(query);
     searchQuery.value = query;
+    print("allCustomers.length: ${allCustomers.length}");
     filteredCustomers.value = allCustomers.value.where((cus) {
       final name = cus.name!.toLowerCase() ?? '';
 
@@ -212,8 +265,10 @@ class CustomerController extends GetxController {
          accNo = cus.accountNumber!.toString().toLowerCase();
       }
       final lowerQuery = query.toLowerCase();
-      return name.contains(lowerQuery) || mobilePhone.contains(lowerQuery) || accNo.contains(lowerQuery);
+      return name.contains(lowerQuery) ;
+          // || mobilePhone.contains(lowerQuery) || accNo.contains(lowerQuery);
     }).toList();
+    filteredCustomers.forEach((element) => print(element.toJson()));
   }
 
   List<CustomerModel> loadCustomers(GetStorage box) {
@@ -375,7 +430,7 @@ class CustomerController extends GetxController {
                 title: Text('Last 7 Days'),
                 onTap: () {
                   Get.back();
-                  _printStatementWithDates(customer, sevenDaysAgo, now, 'Last 7 days');
+                  _fetchAndShowStatement(customer, startDate: sevenDaysAgo, endDate: now, description: 'Last 7 days');
                 },
               ),
               Divider(),
@@ -384,7 +439,7 @@ class CustomerController extends GetxController {
                 title: Text('Last 30 Days'),
                 onTap: () {
                   Get.back();
-                  _printStatementWithDates(customer, thirtyDaysAgo, now, 'Last 30 days');
+                  _fetchAndShowStatement(customer, startDate: thirtyDaysAgo, endDate: now, description: 'Last 30 days');
                 },
               ),
               Divider(),
@@ -393,7 +448,7 @@ class CustomerController extends GetxController {
                 title: Text('Last 90 Days'),
                 onTap: () {
                   Get.back();
-                  _printStatementWithDates(customer, ninetyDaysAgo, now, 'Last 90 days');
+                  _fetchAndShowStatement(customer, startDate: ninetyDaysAgo, endDate: now, description: 'Last 90 days');
                 },
               ),
               Divider(),
@@ -492,7 +547,7 @@ class CustomerController extends GetxController {
                       ElevatedButton(
                         onPressed: () {
                           Get.back();
-                          _printStatementWithDates(customer, selectedStartDate.value, selectedEndDate.value, 'Custom range');
+                          _fetchAndShowStatement(customer, startDate: selectedStartDate.value, endDate: selectedEndDate.value, description: 'Custom range');
                         },
                         child: Text('Apply'),
                       ),
@@ -507,18 +562,209 @@ class CustomerController extends GetxController {
     );
   }
 
-  // Internal method to print with specific dates
-  Future<void> _printStatementWithDates(CustomerModel customer, DateTime startDate, DateTime endDate, String rangeDescription) async {
-    await printCustomerStatementWithDates(customer, startDate: startDate, endDate: endDate, description: rangeDescription);
+  // Internal method to show statement preview dialog
+  void _showStatementPreview(
+      CustomerModel customer,
+      List<DebtorStatementProjection> items,
+      String description,
+      double totalCredit,
+      double totalDebit,
+      double openingBalance,
+      double closingBalance,
+      ) {
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        child: Container(
+          width: Get.width * 0.95,
+          height: Get.height * 0.85,
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Statement: ${customer.name}',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close),
+                    onPressed: () => Get.back(),
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Opening Balance: ${openingBalance.toStringAsFixed(2)}'),
+                  Text('Period: $description', style: TextStyle(color: Colors.grey[600])),
+                ],
+              ),
+              SizedBox(height: 10),
+              Divider(height: 1),
+              Expanded(
+                child: items.isEmpty
+                    ? Center(child: Text("No transactions found"))
+                    : Column(
+                        children: [
+                          // Header Row
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                            child: Row(
+                              children: const [
+                                Expanded(flex: 2, child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+                                Expanded(flex: 2, child: Text('Payment Type', style: TextStyle(fontWeight: FontWeight.bold))),
+                                Expanded(flex: 2, child: Text('Reference No.', style: TextStyle(fontWeight: FontWeight.bold))),
+                                Expanded(flex: 3, child: Text('Description', style: TextStyle(fontWeight: FontWeight.bold))),
+                                Expanded(flex: 1, child: Text('Currency', style: TextStyle(fontWeight: FontWeight.bold))),
+                                Expanded(flex: 1, child: Text('Debit', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green))),
+                                Expanded(flex: 1, child: Text('Credit', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red))),
+                                Expanded(flex: 1, child: Text('Balance', style: TextStyle(fontWeight: FontWeight.bold))),
+                              ],
+                            ),
+                          ),
+                          Divider(height: 1),
+                          Expanded(
+                            child: ListView.builder(
+                              itemCount: items.length,
+                              itemBuilder: (context, index) {
+                                final item = items[index];
+                                var debitAmount = item.debit ?? 0.0;
+                                var creditAmount = item.credit ?? 0.0;
+
+                                // Main transaction details row
+                                Widget transactionDetailsRow = Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                                  child: Row(
+                                    children: [
+                                      Expanded(flex: 2, child: Text(item.dateTime?.substring(0, 10) ?? 'N/A')),
+                                      Expanded(flex: 2, child: Text(item.paymentType?.name ?? '')),
+                                      Expanded(flex: 2, child: Text(item.referenceNumber ?? 'N/A')),
+                                      Expanded(
+                                        flex: 3,
+                                        child: Text(
+                                          item.paymentDescription ?? '',
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 2,
+                                        ),
+                                      ),
+                                      Expanded(flex: 1, child: Text('${item.currency?.name} ${item.currency?.symbol} '?? '')),
+                                      Expanded(flex: 1, child: Text(debitAmount > 0 ? debitAmount.toStringAsFixed(2) : '-', style: TextStyle(color: Colors.green))),
+                                      Expanded(flex: 1, child: Text(creditAmount > 0 ? creditAmount.toStringAsFixed(2) : '-', style: TextStyle(color: Colors.red))),
+                                      Expanded(flex: 1, child: Text(item.balance?.toStringAsFixed(2) ?? '0.00')),
+                                    ],
+                                  ),
+                                );
+
+                                return Card(
+                                  margin: EdgeInsets.symmetric(vertical: 4.0, horizontal: 0.0),
+                                  child: ExpansionTile(
+                                    tilePadding: EdgeInsets.zero, // Remove default padding
+                                    title: transactionDetailsRow,
+                                    // Conditionally hide the trailing icon if no items
+                                    trailing: (item.items != null && item.items!.isNotEmpty) ? null : const SizedBox.shrink(),
+                                    children: (item.items != null && item.items!.isNotEmpty)
+                                        ? [
+                                            Padding(
+                                              padding: const EdgeInsets.only(left: 20.0, right: 8.0, top: 8.0, bottom: 4.0),
+                                              child: Row(
+                                                children: const [
+                                                  Expanded(flex: 4, child: Text('Item', style: TextStyle(fontWeight: FontWeight.bold))),
+                                                  Expanded(flex: 1, child: Text('Qty', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold))),
+                                                  Expanded(flex: 2, child: Text('Price', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold))),
+                                                ],
+                                              ),
+                                            ),
+                                            Divider(height: 1, indent: 20, endIndent: 8),
+                                            ...item.items!.map((saleItem) {
+                                              return Padding(
+                                                padding: const EdgeInsets.only(left: 20.0, right: 8.0, top: 4.0, bottom: 4.0), // Indent sale items
+                                                child: Row(
+                                                  children: [
+                                                    Expanded(flex: 4, child: Text(saleItem.inventoryItem!.name ?? 'N/A', style: TextStyle(fontStyle: FontStyle.italic))),
+                                                    Expanded(flex: 1, child: Text(saleItem.quantity?.toStringAsFixed(0) ?? '0', textAlign: TextAlign.center, style: TextStyle(fontStyle: FontStyle.italic))),
+                                                    Expanded(flex: 2, child: Text(saleItem.sellingPrice?.toStringAsFixed(2) ?? '0.00', textAlign: TextAlign.right, style: TextStyle(fontStyle: FontStyle.italic))),
+                                                  ],
+                                                ),
+                                              );
+                                            }).toList(),
+                                          ]
+                                        : [], // Empty list if no items
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+              Divider(height: 1),
+              SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Total Debit:', style: TextStyle(color: Colors.green)),
+                  Text(totalDebit.toStringAsFixed(2), style: TextStyle(color: Colors.green)),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Total Credit:', style: TextStyle(color: Colors.red)),
+                  Text(totalCredit.toStringAsFixed(2), style: TextStyle(color: Colors.red)),
+                ],
+              ),
+              SizedBox(height: 5),
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Closing balance', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      (closingBalance).toStringAsFixed(2),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: Icon(Icons.print),
+                  label: Text('Print Statement'),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () {
+                    Get.back(); // Close preview dialog
+                    _printerService.printCustomerStatement(
+                        customer, items, box, _localStorageService,
+                        dateRangeDescription: description);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  // Default method that shows the date range dialog
-  Future<void> printCustomerStatement(CustomerModel customer) async {
-    await showDateRangeDialog(customer);
-  }
-
-  // Updated method signature to accept optional date parameters
-  Future<void> printCustomerStatementWithDates(
+  // Internal method to fetch data and show statement
+  Future<void> _fetchAndShowStatement(
     CustomerModel customer, {
     DateTime? startDate,
     DateTime? endDate,
@@ -527,27 +773,26 @@ class CustomerController extends GetxController {
     var connection = await _connectivityService.checkServerConnection();
     if(connection){
       try {
+        AppHelper.showLoading();
         // Use provided dates or default to last 30 days
         final DateTime now = endDate ?? DateTime.now();
         final DateTime thirtyDaysAgo = startDate ?? now.subtract(Duration(days: 30));
-        final String fromDate = DateFormat('yyyy-MM-dd').format(thirtyDaysAgo);
-        final String toDate = DateFormat('yyyy-MM-dd').format(now);
-        
+        final String fromDate = DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(thirtyDaysAgo);
+        final String toDate = DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(now);
+        final String currency ='';
+
         // Log the actual dates for debugging
         print("==================== ACCOUNT STATEMENT FILTER ====================");
-        print("Current DateTime.now(): $now");
         print("Customer: ${customer.name}");
-        print("Customer ID: ${customer.id}");
         print("Filter Period: ${description ?? 'Last 30 days'}");
         print("From Date: $fromDate");
         print("To Date: $toDate");
         print("========================================================");
         
         // Add query parameters for date filtering
-        final String endpoint = "/sale/get-by-customer/${customer.id!}?startDate=$fromDate&endDate=$toDate";
+        final String endpoint = "/sale/customer-statement-mobile/?id=${customer.id!}&startDate=$fromDate&endDate=$toDate&currency=$currency";
         
         print("API Endpoint: $endpoint");
-        print("Fetching data...");
         
         var response = await BaseHttpClient().getAuthWithCompanyHeader(
             endpoint, user.companyId!).catchError((
@@ -556,75 +801,47 @@ class CustomerController extends GetxController {
           if (onError is BadRequestException) {
             var apiError = json.decode(onError.message!);
             AppHelper.showErroDialog(description: apiError["reason"]);
-            print(apiError["reason"]);
           } else {
             AppHelper.handleError(onError);
           }
         });
 
+        AppHelper.hideLoading();
+
         if (response != null) {
-          List<dynamic> list = jsonDecode(response);
-          List<CustomerProjectionModel> allItemsList = List<CustomerProjectionModel>.from(list.map((i) => CustomerProjectionModel.fromMap(i)));
+          var res = jsonDecode(response);
+          print("RESPONSE: ${res['items']}");
+          List<dynamic> list = res['items'];
+          double openingBalance =  res['openingBalance'];
+          double closingBalance =  res['closingBalance'];
+          List<DebtorStatementProjection> itemsList = List<DebtorStatementProjection>.from(list.map((i) => DebtorStatementProjection.fromMap(i)));
 
-          // Filter transactions to selected date range
-          List<CustomerProjectionModel> itemsList = allItemsList.where((item) {
-            if (item.paymentReceived?.dateTime == null) return false;
-            try {
-              String dateStr = item.paymentReceived!.dateTime!.substring(0, 10);
-              DateTime itemDate = DateTime.parse(dateStr);
-              return itemDate.isAfter(thirtyDaysAgo.subtract(Duration(days: 1))) && 
-                     itemDate.isBefore(now.add(Duration(days: 1)));
-            } catch (e) {
-              return false;
-            }
-          }).toList();
-
-          print("==================== FILTERED TRANSACTIONS (${description ?? 'Last 30 Days'}) ====================");
-          print("Total records before filter: ${allItemsList.length}");
-          print("Total records after filter: ${itemsList.length}");
-          print("\n");
+          print("==================== FETCHED TRANSACTIONS (${description ?? 'Last 30 Days'}) ====================");
+          print("Total records fetched: ${itemsList.length}");
+          
+          double totalDebit = 0.0;
+          double totalCredit = 0.0;
           
           if (itemsList.isNotEmpty) {
-            double totalAmount = 0.0;
-            double totalDebit = 0.0;
-            double totalCredit = 0.0;
-            
-            for (var i = 0; i < itemsList.length; i++) {
-              var item = itemsList[i];
-              var isCredit = item.paymentReceived?.paymentType?.isCredit ?? false;
-              var amount = item.paymentReceived?.amount ?? 0.0;
-              
-              // Display transaction
-              print("${i + 1}. ${item.paymentReceived?.dateTime?.substring(0, 10) ?? 'N/A'} | "
-                    "Ref: ${item.reference ?? 'N/A'} | "
-                    "${isCredit ? 'CR' : 'DR'} | "
-                    "${item.paymentReceived?.currency?.symbol ?? '\$'}${amount.toStringAsFixed(2)} | "
-                    "Bal: ${item.paymentReceived?.currency?.symbol ?? '\$'}${item.paymentReceived?.accountBalance?.toStringAsFixed(2) ?? '0.00'}");
-              print("   ${item.paymentReceived?.paymentDescription ?? 'No description'}");
-              
-              // Calculate totals
-              totalAmount += amount;
-              if (isCredit) {
-                totalCredit += amount;
-              } else {
-                totalDebit += amount;
-              }
+            for (var item in itemsList) {
+              totalCredit += item.credit ?? 0.0;
+              totalDebit += item.debit ?? 0.0;
             }
-            
-            print("\n--- Summary ---");
-            print("Total Transactions: ${itemsList.length}");
-            print("Total Credit: ${totalCredit.toStringAsFixed(2)}");
-            print("Total Debit: ${totalDebit.toStringAsFixed(2)}");
-            print("Net Amount: ${(totalCredit - totalDebit).toStringAsFixed(2)}");
-          } else {
-            print("No transactions found in the last 30 days.");
           }
-          print("================================================================================");
-
-          _printerService.printCustomerStatement(customer,itemsList, box, _localStorageService, dateRangeDescription: description);
+          
+          // Show preview dialog
+          _showStatementPreview(
+            customer, 
+            itemsList, 
+            description ?? 'Last 30 days', 
+            totalCredit, 
+            totalDebit,
+            openingBalance,
+              closingBalance
+          );
         }
-        AppHelper.hideLoading();
       } catch (e) {
+        AppHelper.hideLoading();
         Get.snackbar('Error', 'Failed to fetch sales: $e',
             snackPosition: SnackPosition.BOTTOM);
       }
@@ -632,6 +849,11 @@ class CustomerController extends GetxController {
       Get.snackbar("Error", "Failed to connect to server",
           snackPosition: SnackPosition.BOTTOM);
     }
+  }
+
+  // Default method that shows the date range dialog for viewing statement
+  Future<void> viewStatement(CustomerModel customer) async {
+    await showDateRangeDialog(customer);
   }
 
   // Debounced save payment method
@@ -697,7 +919,8 @@ class CustomerController extends GetxController {
     bb.write(AppConstants.PAYMENT_RECEIVED_LIST, itemsListMap);
     Get.snackbar("New Payment", "Payment Saved Successfully",
         snackPosition: SnackPosition.BOTTOM);
-    var index = allCustomers.indexOf(customer);
+    var index =allCustomers
+        .indexWhere((c) => c.name == customer.name || c.name == name.value);
     if(customer.currencyBalance==null || customer.currencyBalance!.isEmpty) {
       CustomerCurrencyAmount currencyAmount = CustomerCurrencyAmount(currency: selectedCurrency.value!, balance: double.parse(payAccAmtEditingController.text),
       );
@@ -741,16 +964,24 @@ class CustomerController extends GetxController {
   }
 
   Future<void> setLoyalCustomer(CustomerModel customer) async {
+    List<CustomerModel> customers = allCustomers.value;
     GetStorage bb = GetStorage();
-    int? index = allCustomers.indexOf((customer));
+    print('customer: ${customer.name}');
+    int? index  = allCustomers
+          .indexWhere((c) => c.name == customer.name || c.name == name.value);
+
+    print('index: $index ');
     customer.isLoyalCustomer = true;
     customer.updated = true;
-    List<CustomerModel> customers = allCustomers.value;
-    customers[index] = customer;
-    allCustomers.value = customers;
-    filteredCustomers.value = customers;
+    print('customer: ${customers[index].name}');
+    allCustomers[index] = customer;
+    allCustomers.refresh();
+    filteredCustomers = allCustomers;
+    filteredCustomers.refresh();
+    // allCustomers.value = customers;
+    // filteredCustomers.value = customers;
     List<Map<String, dynamic>> itemsListMap =
-        customers.map((item) => item.toMap()).toList();
+        allCustomers.map((item) => item.toMap()).toList();
     bb.write(AppConstants.CUSTOMER_LIST, itemsListMap);
     // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
     await reloadCustomersFromStorage();
@@ -765,17 +996,15 @@ class CustomerController extends GetxController {
   Future<void> updateCustomerInfo() async {
     GetStorage bb = GetStorage();
     final CustomerModel? selected = selectedCustomer.value;
-
     // Try to locate the customer using stable identifiers first
     int index = -1;
-    if (selected != null) {
-      index = allCustomers.indexWhere((c) =>
-          (selected.id != null && c.id == selected.id) ||
-          (selected.customerId != null && c.customerId == selected.customerId) ||
-          (selected.accountNumber != null &&
+     if (selected != null) {
+      index = filteredCustomers.indexWhere((c) =>
+          (selected.id != null && selected.id!.isNotEmpty && c.id == selected.id) ||
+          (selected.customerId != null && selected.customerId!.isNotEmpty && c.customerId == selected.customerId) ||
+          (selected.accountNumber != null && selected.accountNumber!.isNotEmpty &&
               c.accountNumber == selected.accountNumber));
     }
-
     // Fallback to matching by current or previous name
     if (index == -1) {
       index = allCustomers
@@ -1222,12 +1451,6 @@ class CustomerController extends GetxController {
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text('Cancel'),
-          ),
-        ],
       ),
     );
   }

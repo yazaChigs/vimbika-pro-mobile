@@ -244,7 +244,20 @@ class CustomerListScreen extends StatelessWidget {
                                                 value: 2,
                                                 onTap: () {
                                                   customerController
-                                                      .printCustomerStatement(
+                                                      .viewStatement(
+                                                          customer);
+                                                },
+                                              ),
+                                              PopupMenuItem(
+                                                child: ListTile(
+                                                    leading: Icon(Icons.print),
+                                                    title: Text(
+                                                        "View Statement")
+                                                ),
+                                                value: 2,
+                                                onTap: () {
+                                                  customerController
+                                                      .viewStatement(
                                                           customer);
                                                 },
                                               ),

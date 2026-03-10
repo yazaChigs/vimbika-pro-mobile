@@ -151,7 +151,7 @@ class PrinterService extends GetxService {
         }
 
   }
-  Future<void> printCustomerStatement(CustomerModel customer,List<CustomerProjectionModel> customerProjections, GetStorage box,  LocalStorageService _localStorageService, {String? dateRangeDescription}) async {
+  Future<void> printCustomerStatement(CustomerModel customer,List<DebtorStatementProjection> customerProjections, GetStorage box,  LocalStorageService _localStorageService, {String? dateRangeDescription}) async {
     AvailablePrinterModel? prin = _localStorageService.findActivePrinter(box);
         if (prin != null) {
           if(prin.type == 'SUNMI_INBUILT_PRINTER') {
@@ -1209,7 +1209,7 @@ class PrinterService extends GetxService {
    }
 
   // Generate USB Customer Statement
-  Future<void> generateUSBCustomerStatement(CustomerModel customer, List<CustomerProjectionModel>? projectionsa, AvailablePrinterModel printer, {String? dateRangeDescription}) async {
+  Future<void> generateUSBCustomerStatement(CustomerModel customer, List<DebtorStatementProjection>? projectionsa, AvailablePrinterModel printer, {String? dateRangeDescription}) async {
     print("==================== PRINTING ACCOUNT STATEMENT (USB) ====================");
     print("Customer: ${customer.name}");
     print("Total transactions to print: ${projectionsa?.length ?? 0}");
@@ -1264,20 +1264,20 @@ class PrinterService extends GetxService {
     // Transaction items
     if (projectionsa != null && projectionsa.isNotEmpty) {
       for (var payment in projectionsa) {
-        String date = payment.paymentReceived!.dateTime!.substring(0, 10);
-        String reference = payment.reference ?? 'N/A';
-        String description = payment.paymentReceived!.paymentDescription ?? '';
-        String type = payment.paymentReceived!.paymentType!.isCredit! ? 'CR' : 'DR';
-        String currencySymbol = payment.paymentReceived!.currency?.symbol ?? '\$';
-        double amount = payment.paymentReceived!.amount ?? 0.0;
-        double balance = payment.paymentReceived!.accountBalance ?? 0.0;
+        String date = payment.dateTime!.substring(0, 10);
+        String reference = payment.referenceNumber ?? 'N/A';
+        String description = payment.paymentDescription ?? '';
+        String type = payment.paymentType!.isCredit! ? 'CR' : 'DR';
+        String currencySymbol = payment.currency?.symbol ?? '\$';
+        double amount = payment.amount ?? 0.0;
+        double balance = payment.balance ?? 0.0;
 
         // Date and Reference
         receiptData += generator.text('$date  Ref: $reference',
             styles: PosStyles(align: PosAlign.left, bold: true));
         
         // Description and Payment Method on same line
-        String paymentMethod = payment.paymentReceived?.paymentType?.name ?? '';
+        String paymentMethod = payment.paymentType?.name ?? '';
         String combinedLine = '$description';
         if (paymentMethod.isNotEmpty) {
           combinedLine += ' | $paymentMethod';
@@ -2217,7 +2217,7 @@ class PrinterService extends GetxService {
    }
 
     // Print Customer Statement
-   Future<void> printSunmiCustomerStatement(CustomerModel customer, List<CustomerProjectionModel>? projectionsa, {String? dateRangeDescription}) async {
+   Future<void> printSunmiCustomerStatement(CustomerModel customer, List<DebtorStatementProjection>? projectionsa, {String? dateRangeDescription}) async {
      // Only print on Android platforms
      if (Platform.isWindows) {
        print("==================== PRINT PREVIEW (Windows - Printing Disabled) ====================");
@@ -2236,9 +2236,9 @@ class PrinterService extends GetxService {
        print("\n--- Print Data Preview ---");
        for (var i = 0; i < projectionsa.length && i < 5; i++) {
          var payment = projectionsa[i];
-         print("Line ${i + 1}: ${payment.paymentReceived!.dateTime!.substring(0,10)} - ${payment.paymentReceived!.paymentDescription}");
-         print("         Amount: ${payment.paymentReceived!.currency!.symbol ?? '\$'} ${payment.paymentReceived!.amount?.toStringAsFixed(2)}");
-         print("         Balance: ${payment.paymentReceived!.currency!.symbol ?? '\$'}${payment.paymentReceived!.accountBalance?.toStringAsFixed(2)}");
+         print("Line ${i + 1}: ${payment.dateTime!.substring(0,10)} - ${payment.paymentDescription}");
+         print("         Amount: ${payment.currency!.symbol ?? '\$'} ${payment.amount?.toStringAsFixed(2)}");
+         print("         Balance: ${payment.currency!.symbol ?? '\$'}${payment.balance?.toStringAsFixed(2)}");
        }
        if (projectionsa.length > 5) {
          print("         ... (${projectionsa.length - 5} more lines to print)");
@@ -2283,8 +2283,8 @@ class PrinterService extends GetxService {
 
      // Items
      for (var payment in projectionsa!) {
-       await SunmiPrinter.printText("${payment.paymentReceived!.dateTime!.substring(0,10)}:${payment.reference}:(${payment.paymentReceived!.paymentDescription})[${payment.paymentReceived!.paymentType!.isCredit! ? 'CR' : 'DR'}] "
-           " ${payment.paymentReceived!.currency!.symbol ?? '\$'} ${payment.paymentReceived!.amount?.toStringAsFixed(2)} bal: ${payment.paymentReceived!.currency!.symbol ?? '\$'}${payment.paymentReceived!.accountBalance?.toStringAsFixed(2)} ");
+       await SunmiPrinter.printText("${payment.dateTime!.substring(0,10)}:${payment.referenceNumber}:(${payment.paymentDescription})[${payment.paymentType!.isCredit! ? 'CR' : 'DR'}] "
+           " ${payment.currency!.symbol ?? '\$'} ${payment.amount?.toStringAsFixed(2)} bal: ${payment.currency!.symbol ?? '\$'}${payment.balance?.toStringAsFixed(2)} ");
        // await SunmiPrinter.printText("New Balance: ${cur?.symbol ?? ''} ${payment.payer!.currencyBalance!.firstWhere((cb) => cb.currency.id == payment.currency?.id).balance?.toStringAsFixed(2)}");
        // await SunmiPrinter.printText("${item.notes ?? ''}");
        // await SunmiPrinter.printText("--------------------------------");
