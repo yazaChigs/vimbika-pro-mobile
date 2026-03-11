@@ -596,7 +596,11 @@ class CartController extends GetxController {
   }
 
   onCustomerChange(CustomerModel? newValue) {
-    if (newValue == null) return;
+    if (newValue == null) {
+      selectedCustomer.value = allCustomers.firstWhere((element) => element.name == 'WalkIn');
+      isCustomerSelected.value = true;
+      return;
+    }
     print("onCustomerChange -> incoming: ${newValue.name}, id: ${newValue.id}, customerId: ${newValue.customerId}, acc: ${newValue.accountNumber}");
     // Rebind to instance in allCustomers to satisfy dropdown identity checks
     CustomerModel? match;

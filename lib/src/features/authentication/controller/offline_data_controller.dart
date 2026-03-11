@@ -63,7 +63,7 @@ class OfflineDataController extends GetxController {
   Future<void> getOfflineData(UserModel user, GetStorage box) async{
     // Always load cached data first to ensure app works offline
     loadCachedData(box);
-    
+    print("getting getOfflineData");
     if(isInternetAccess.value){
       // Try to fetch fresh data from server
       // Use await to ensure companies are loaded before UI renders dropdown
@@ -115,7 +115,19 @@ class OfflineDataController extends GetxController {
   }
   
   // Load cached data from local storage
-  void loadCachedData(GetStorage box) {
+  Future<void> loadCachedData(GetStorage box) async {
+    var _activeCompany = box.read(AppConstants.ACTIVE_COMPANY);
+    if(_activeCompany != null && _activeCompany is Map) {
+      CompanyModel savedCompany = CompanyModel.fromMap(
+          Map<String, dynamic>.from(_activeCompany));
+      print("user company id = ${user.company!.id}");
+      print("saved company id = ${savedCompany.id}");
+      if (user.company!.id != savedCompany.id) {
+        List<Map<String, dynamic>> itemsListMap = [];
+        box.write(AppConstants.BRANCH_PRODUCTS, itemsListMap);
+        return;
+      }
+    }
     // Load companies
     List<CompanyModel> cachedCompanies = _localStorageService.getOfflineList<CompanyModel>(
       AppConstants.COMPANY_LIST,
@@ -135,20 +147,28 @@ class OfflineDataController extends GetxController {
       cachedCompanies = uniqueCompanies.values.toList();
       companyList.value = cachedCompanies;
     }
-    
+
     // Auto-select company from storage if it exists (for auto-fill after logout/close shift)
     var activeCompany = box.read(AppConstants.ACTIVE_COMPANY);
     if(activeCompany != null && activeCompany is Map) {
       try {
         CompanyModel savedCompany = CompanyModel.fromMap(Map<String, dynamic>.from(activeCompany));
-        // Verify the company exists in the cached list
-        try {
-          CompanyModel foundCompany = companyList.firstWhere((c) => c.id == savedCompany.id);
-          selectedCompany.value = foundCompany;
-          isCompanySelected.value = true;
-          print("Auto-selected company: ${foundCompany.name} (ID: ${foundCompany.id})");
-        } catch (e) {
-          print("Company ${savedCompany.id} not found in cached list, skipping auto-selection");
+        if(user.company!.id == savedCompany.id) {
+          // Verify the company exists in the cached list
+          try {
+            CompanyModel foundCompany =
+                companyList.firstWhere((c) => c.id == savedCompany.id);
+            selectedCompany.value = foundCompany;
+            isCompanySelected.value = true;
+            print(
+                "Auto-selected company: ${foundCompany.name} (ID: ${foundCompany.id})");
+          } catch (e) {
+            print(
+                "Company ${savedCompany.id} not found in cached list, skipping auto-selection");
+          }
+        }else{
+          print("different company selected");
+          return;
         }
       } catch (e) {
         print("Error auto-selecting company: $e");

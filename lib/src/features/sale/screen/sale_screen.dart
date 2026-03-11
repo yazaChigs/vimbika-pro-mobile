@@ -1008,6 +1008,7 @@ class SaleScreen extends GetView {
                                               }
                                             }
                                           } else if (exp.length >= 12) {
+                                            print("else if");
                                             String chackCode = exp.length > 2
                                                 ? exp.substring(0, 2)
                                                 : '';
@@ -1066,24 +1067,29 @@ class SaleScreen extends GetView {
                                                   .indexWhere((item) =>
                                                       item.item?.itemCode ==
                                                       exp);
+                                              print(index);
                                               if (index != -1) {
                                                 ProductFullInfoModel foundItem =
                                                     saleController
                                                         .allProducts[index];
-                                                var indexC = cartController
-                                                    .cartItems
-                                                    .indexWhere((item) =>
-                                                        item.product.item?.id ==
-                                                        foundItem.item?.id);
-                                                if (indexC != -1) {
+                                                print('${foundItem.item?.name}');
+                                                // var indexC = cartController
+                                                //     .cartItems
+                                                //     .indexWhere((item) =>
+                                                //         item.product.item?.id ==
+                                                //         foundItem.item?.id);
+                                                // print('indexC: $indexC');
+                                                // if (indexC != -1) {
                                                   cartController.addToCart(
                                                       foundItem, 1);
                                                   saleController
                                                       .barCodeTextEditingController
                                                       .clear();
-                                                }
+                                                // }
+
                                               } else
                                                 // Item not found, handle this case
+                                                print("item not found");
                                                 Get.snackbar(
                                                     "Not Found",
                                                     "Product with item  code " +
@@ -1092,7 +1098,16 @@ class SaleScreen extends GetView {
                                                     snackPosition:
                                                         SnackPosition.BOTTOM);
                                             }
-                                          }
+                                          }else{
+                                            var index = saleController.allProducts.indexWhere((item) =>item.item?.itemCode ==exp);
+                                            if (index != -1) {
+                                              ProductFullInfoModel foundItem = saleController.allProducts[index];
+                                              cartController.addToCart(foundItem, 1);
+                                              saleController.barCodeTextEditingController.clear();
+                                            } else
+                                              Get.snackbar("Not Found","Product with item  code " +exp +" is not found!!!",snackPosition:
+                                              SnackPosition.BOTTOM);
+                                            }
                                         }
                                       },
                                       validator: (value) {
@@ -1270,8 +1285,12 @@ class SaleScreen extends GetView {
                             }
                             return null;
                           },
-                          onChanged: (CustomerModel selected) {
-                            cartController.onCustomerChange(selected);
+                          onChanged: (selected) {
+                            if (selected is CustomerModel) {
+                              cartController.onCustomerChange(selected);
+                            } else {
+                              cartController.onCustomerChange(null);
+                            }
                           },
                           underline: SizedBox.shrink(),
                           style: TextStyle(

@@ -448,6 +448,7 @@ class SaleController extends GetxController {
     storageProductList.sort((a, b) => a.item!.name!.trim().compareTo(b.item!.name!.trim()));
     allProducts.value = storageProductList;
     filteredProducts.value = storageProductList;
+    filteredProducts.refresh();
 
     if(allProducts.isEmpty) {
       getBranchStock(box);

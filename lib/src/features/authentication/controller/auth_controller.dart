@@ -13,6 +13,7 @@ import 'package:presentation_displays/displays_manager.dart';
 import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
+import 'package:vimbika_pos_app/src/features/authentication/controller/offline_data_controller.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/jwt_request_model.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/jwt_response_model.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
@@ -136,33 +137,6 @@ class AuthController extends GetxController {
         _localStorageService.writeItems(
             AppConstants.AVAILABLE_PRINTERS, tempList, box);
       }
-
-/*    final html = '''
-              <html>
-                <body style="font-family:sans-serif;text-align:center;">
-                  <h2>🛒 Sale in Progress</h2>
-                  <p>2x Cappuccino</p>
-                  <h3>Total: \$5.60</h3>
-                </body>
-              </html>
-              ''';
-    CustomerDisplay.updateDisplay(html);
-    print("canPrintToDisplay");
-    bool canPrintToDisplay = await _printerService.initializeSunmiLCD();
-    print("canPrintToDisplay: ${canPrintToDisplay}");
-    if(canPrintToDisplay){
-      await _printerService.sendTextToLCD();
-    }
-    saleController.displayWelcome();*/
-
-    // Get.to(SunmiLcdScreen(), binding: SunmiBinding());
-
-
-   // //_printData(_telpoFlutterChannel);
-   //  await TelpoM8().
-   //  await printQRCode("https://chatgpt.com/c/6741d059-f26c-800c-b6d2-7b14022cc7dc");
-
-
   }
 
 
@@ -221,6 +195,10 @@ class AuthController extends GetxController {
       if(response != null){
 
         final userResponseModel = JwtResponseModel.fromJson(response);
+        Future<bool> sameCompany = isSameCompanyAsCachedUser(userResponseModel.user!);
+        if(await sameCompany){
+          Get.delete<OfflineDataController>();
+        }
         box.write(AppConstants.SUBSCRIPTIONS, userResponseModel.subscriptions);
 
         if( await hasValidSubscription()){
@@ -430,6 +408,16 @@ class AuthController extends GetxController {
     }
     box.write(AppConstants.RENEWAL_DATE, renewalDate);
     AppHelper.showErroDialog(title: "Subscription Expired", description: "Your subscription has Expired, contact your admin");
+    return false;
+  }
+
+  // Verify if the current user belongs to the same company as the cached user
+  Future<bool> isSameCompanyAsCachedUser(UserModel currentUser) async {
+    var cachedUserInfo = box.read(AppConstants.USER_INFO);
+    if (cachedUserInfo != null) {
+      var cachedUser = UserModel.fromMap(Map<String, dynamic>.from(cachedUserInfo));
+        return currentUser.company!.id == cachedUser.company!.id;
+    }
     return false;
   }
 

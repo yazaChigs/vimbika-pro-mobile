@@ -131,7 +131,7 @@ class ViewShiftScreen extends StatelessWidget {
                               textStyle: TextStyle(fontSize: 16,color: Colors.white, fontWeight: FontWeight.bold), // Set text size
                             ),
                             child: Text(
-                              shiftController.isClosingShift.value ? 'CLOSING...' : 'CLOSE SHIFT'
+                              shiftController.isClosingShift.value ? 'CLOSING...' : 'CLOSE SHIFT', style: TextStyle(color: Colors.redAccent),
                             ),
                           )),
                         ),
