@@ -236,7 +236,7 @@ class CustomerListScreen extends StatelessWidget {
                                                             .PAY_ACC_FORM);
                                                       },
                                                     ),
-                                              PopupMenuItem(
+                                              /*PopupMenuItem(
                                                 child: ListTile(
                                                     leading: Icon(Icons.print),
                                                     title: Text(
@@ -247,7 +247,7 @@ class CustomerListScreen extends StatelessWidget {
                                                       .viewStatement(
                                                           customer);
                                                 },
-                                              ),
+                                              ),*/
                                               PopupMenuItem(
                                                 child: ListTile(
                                                     leading: Icon(Icons.print),
