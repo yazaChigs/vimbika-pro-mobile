@@ -130,28 +130,11 @@ class CartController extends GetxController {
   RxBool rearScreenAvailable = false.obs; // Observing the state of the checkbox
   RxBool addAmtToAcc = false.obs; // Observing the state of the checkbox
   late SettingsModel settingsModel = SettingsModel(sellNilItems: false);
-  RxBool isFiscaliseReceiptEnabled = false.obs;
   RxBool isCustomerEmailValid = false.obs;
   RxBool emailReceipt = false.obs;
   RxBool fiscalizeReceipt = false.obs;
-  RxBool zimraFiscalizeReceipt = false.obs;
-  
-  // Method to check and update fiscal status from storage (similar to web version)
-  void checkFiscalDeviceStatus() {
-    final fiscalStatus = box.read(AppConstants.IS_FISCALISATION_ENABLED) ?? false;
-    final deviceFiscalSetting = box.read(AppConstants.DEFAULT_FISCAL_SETTING) ?? false;
-
-    // if (fiscalStatus != fiscalizeReceipt.value) {
-    //   fiscalizeReceipt.value = fiscalStatus;
-    //   if (fiscalStatus && deviceFiscalSetting) {
-    //     isFiscaliseReceiptEnabled.value = true;
-    //     zimraFiscalizeReceipt.value = true;
-    //   } else if (!fiscalStatus) {
-    //     isFiscaliseReceiptEnabled.value = false;
-    //     zimraFiscalizeReceipt.value = false;
-    //   }
-    // }
-  }
+  RxBool fiscalizeCurrentReceipt = false.obs;
+  RxBool isFiscaliseReceiptEnabled = false.obs;
   Rx<CompanyModel?> company = CompanyModel().obs;
 
   // Debouncer for charge operation
@@ -250,20 +233,9 @@ class CartController extends GetxController {
     branch.value = BranchModel.fromMap(Map<String, dynamic>.from(branchModel));
 
     // syncOfflineSales();
-    var fiscalStatus = box.read(AppConstants.IS_FISCALISATION_ENABLED) ?? false;
-    var deviceFiscalSetting =
-        box.read(AppConstants.DEFAULT_FISCAL_SETTING) ?? false;
-    // if(fiscalStatus) {
-    //   zimraFiscalizeReceipt.value = branch.value!.alwaysFiscalize ?? false;
-    //   isFiscaliseReceiptEnabled.value = deviceFiscalSetting;
-    //   if (zimraFiscalizeReceipt.isFalse) {
-    //     zimraFiscalizeReceipt.value = deviceFiscalSetting;
-    //   }
-    // }else{
-    //   zimraFiscalizeReceipt.value = false;
-    //   isFiscaliseReceiptEnabled.value = false;
-    //   fiscalizeReceipt.value = false;
-    // }
+    isFiscaliseReceiptEnabled.value = box.read(AppConstants.IS_FISCALISATION_ENABLED) ?? false;
+    fiscalizeReceipt.value = box.read(AppConstants.ENABLE_TAX) ?? false;
+    isFiscaliseReceiptEnabled.value = box.read(AppConstants.ENABLE_TAX) ?? false;
     tipAmtTextEditingController.text = "0.00";
     amtToAccTextEditingController.text = "0.00";
     List<PaymentReceivedModel> paymentReceiveds = loadPaymentReceived(box);
@@ -1305,6 +1277,7 @@ class CartController extends GetxController {
       amtToAccTextEditingController.text = "0.00";
     if(tipAmtTextEditingController.text.isEmpty)
       tipAmtTextEditingController.text = "0.00";
+    bool fiscalReceipt = box.read(AppConstants.ENABLE_TAX) ?? false;
     SaleModel sale = SaleModel(
         id: saleTicketId.value.length > 2 ? saleTicketId.value : null,
         active: true,
@@ -1334,8 +1307,8 @@ class CartController extends GetxController {
         posReference: ref,
         customer: isWalkIn ? null : selectedCustomer.value,
         isWalkInCustomer: isWalkIn,
-        taxInvoice: zimraFiscalizeReceipt.value,
-        fiscalized: zimraFiscalizeReceipt.value,
+        taxInvoice: fiscalReceipt,
+        fiscalized: fiscalReceipt,
         emailReceipt: emailReceipt.value,
         totalDiscount: 0,
         ticketName: ticketName,
@@ -1356,7 +1329,7 @@ class CartController extends GetxController {
       String ref  = generateOrderNumber();
       printTicket(saleInfoModel, ref);
     }
-    if (stat && isFiscaliseReceiptEnabled.value && !isOnHold) {
+    if (stat && fiscalizeCurrentReceipt.value && !isOnHold) {
       SaleModel? responseFromServerSale =
           await SyncService.saveSale(sale, user.value!, box, company.value!);
       if (responseFromServerSale != null) {
@@ -1365,7 +1338,7 @@ class CartController extends GetxController {
               SaleInfoModel(sale: responseFromServerSale, syncStatus: true);
         } else {
           SaleInfoModel? infoModel;
-          if(isFiscaliseReceiptEnabled.value) {
+          if(fiscalizeCurrentReceipt.value) {
             infoModel = await getSale(responseFromServerSale.id!);
           }
           if (infoModel != null) {

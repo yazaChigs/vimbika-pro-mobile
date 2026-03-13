@@ -774,16 +774,14 @@ class CheckoutScreen extends StatelessWidget {
                           )),
                       SizedBox(height: 5),
                       Obx(() {
-                        if (cartController.fiscalizeReceipt.value) {
+                        if (cartController.isFiscaliseReceiptEnabled.value) {
                           return CheckboxListTile(
                             title: Text('Fiscalize Receipt'),
                             value:
-                                cartController.isFiscaliseReceiptEnabled.value,
+                                cartController.fiscalizeReceipt.value,
                             onChanged: (bool? value) {
-                              cartController.isFiscaliseReceiptEnabled.value =
+                              cartController.fiscalizeReceipt.value =
                                   value ?? false;
-                              cartController.zimraFiscalizeReceipt.value =
-                                  value!;
                             },
                           );
                         } else {

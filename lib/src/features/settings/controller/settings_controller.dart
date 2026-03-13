@@ -61,7 +61,8 @@ class SettingsController extends GetxController {
     var branch = box.read(AppConstants.SELECTED_BRANCH);
 
     selectedBranch = BranchModel.fromMap(Map<String, dynamic>.from(branch));
-    isFiscalisationEnabled.value  = selectedBranch!.alwaysFiscalize!;
+    isFiscalisationEnabled.value  = selectedBranch.alwaysFiscalize!;
+    box.write(AppConstants.ENABLE_TAX, selectedBranch.alwaysFiscalize);
 
     loadCurrencies(box);
   }
@@ -69,9 +70,10 @@ class SettingsController extends GetxController {
   Future<void> toggleDefaultFiscalSetting() async {
     bool stat = await _connectivityService.checkServerConnection();
     if(stat) {
-      selectedBranch!.alwaysFiscalize = !selectedBranch!.alwaysFiscalize!;
-      isFiscalisationEnabled.value = selectedBranch!.alwaysFiscalize!;
-      box.write(AppConstants.SELECTED_BRANCH, selectedBranch!.toMap());
+      selectedBranch.alwaysFiscalize = !selectedBranch.alwaysFiscalize!;
+      isFiscalisationEnabled.value = selectedBranch.alwaysFiscalize!;
+      box.write(AppConstants.SELECTED_BRANCH, selectedBranch.toMap());
+      box.write(AppConstants.ENABLE_TAX, selectedBranch.alwaysFiscalize);
 
       SyncService.saveBranch(selectedBranch!, user, box);
     }else{

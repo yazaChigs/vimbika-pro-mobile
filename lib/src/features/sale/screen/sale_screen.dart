@@ -2476,42 +2476,47 @@ class SaleScreen extends GetView {
                                                           return SizedBox
                                                               .shrink();
                                                         }
-
-                                                        // Check fiscal device status (similar to web version's isFiscalDeviceRegistered)
-                                                        // This will rebuild whenever cart items change, ensuring we check storage regularly
-                                                        final _ = cartController
-                                                            .cartItems.length;
-                                                        cartController
-                                                            .checkFiscalDeviceStatus();
-
                                                         // Show checkbox if fiscal device is registered (like web version's *ngIf="isFiscalDeviceRegistered")
                                                         if (cartController
                                                             .fiscalizeReceipt
                                                             .value) {
                                                           return Container(
-                                                            height:
-                                                                48, // Match height of other checkboxes
-                                                            child:
-                                                                CheckboxListTile(
-                                                              title: Text(
-                                                                  'Fiscalize Receipt'),
-                                                              value: cartController
-                                                                  .isFiscaliseReceiptEnabled
-                                                                  .value,
-                                                              onChanged: (bool?
-                                                                  value) {
-                                                                cartController
-                                                                        .isFiscaliseReceiptEnabled
-                                                                        .value =
-                                                                    value ??
-                                                                        false;
-                                                                cartController
-                                                                        .zimraFiscalizeReceipt
-                                                                        .value =
-                                                                    value ??
-                                                                        false;
-                                                              },
+                                                            height:48, // Match height of other checkboxes
+                                                            decoration: BoxDecoration(
+                                                              border: Border(
+                                                                bottom: BorderSide(color: Colors.grey, width: 2.0),
+                                                              ),
                                                             ),
+                                                            child:
+                                                                Expanded(
+                                                                  child: Row(
+                                                                    children: [
+                                                                      Expanded(
+                                                                        flex:9,
+                                                                        child: CheckboxListTile(
+                                                                          title: Text(
+                                                                          'fiscal invoice'),
+                                                                          enabled: false,
+                                                                          value: cartController.fiscalizeReceipt.value,
+                                                                          onChanged: (bool?
+                                                                          value) {
+                                                                        cartController.fiscalizeReceipt.value = value ??false;
+                                                                        },
+                                                                        ),
+                                                                      ),
+                                                                      Expanded(
+                                                                        flex: 1,
+                                                                        child: CheckboxListTile(
+                                                                          value: cartController.fiscalizeCurrentReceipt.value,
+                                                                          onChanged: (bool?
+                                                                          value) {
+                                                                        cartController.fiscalizeCurrentReceipt.value = value ??false;
+                                                                        },
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                ),
                                                           );
                                                         } else {
                                                           return Container(); // Empty when fiscal device not available

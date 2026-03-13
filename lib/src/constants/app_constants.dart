@@ -53,6 +53,7 @@ class AppConstants {
   static const SELECTED_SHIFT_REF = "SELECTED_SHIFT_REF";
 
   static const DEFAULT_FISCAL_SETTING = "DEFAULT_FISCAL_SETTING";
+  static const ENABLE_TAX = "ENABLE_TAX";
   static const USE_NFC = "USE_NFC";
   static const REQUISITION_LIST = "REQUISITION_LIST";
   static const REQUISITION_HISTORY = "REQUISITION_HISTORY";
