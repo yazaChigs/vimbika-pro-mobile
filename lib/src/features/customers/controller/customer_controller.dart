@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:intl/intl.dart';
-import 'package:meta/meta.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/features/authentication/model/user_model.dart';
 import 'package:vimbika_pos_app/src/features/customers/model/customer_currency_amount.dart';
@@ -330,34 +329,16 @@ class CustomerController extends GetxController {
     GetStorage bb = GetStorage();
     var branchModel = bb.read(AppConstants.SELECTED_BRANCH) ?? {};
     int count = allCustomers.length + 1;
-    // Prevent duplicates by name (per branch) or account number (case-insensitive, non-empty)
-    final String newName = name.value.trim();
-    final String newAcc = accountNumber.value.trim();
-    final String branchKey = branchModel['id']?.toString() ?? branchModel['name']?.toString() ?? '';
+    final String newName = name.value.trim().toLowerCase();
 
-    final bool exists = allCustomers.any((customer) {
-      final String? existingName = customer.name?.trim();
-      final String existingBranch = customer.branch?.id?.toString() ??
-          customer.branch?.name?.toString() ??
-          '';
-      final String? existingAcc = customer.accountNumber?.trim();
+    final bool nameExists = newName.isNotEmpty && allCustomers.any(
+        (c) => c.name?.trim().toLowerCase() == newName
+    );
 
-      // Match name only if same branch and both names non-empty
-      final bool sameName = newName.isNotEmpty &&
-          existingName != null &&
-          existingName.toLowerCase() == newName.toLowerCase() &&
-          branchKey.isNotEmpty &&
-          existingBranch == branchKey;
-
-      // Match account number when provided
-      final bool sameAcc = newAcc.isNotEmpty &&
-          existingAcc != null &&
-          existingAcc.toLowerCase() == newAcc.toLowerCase();
-
-      return sameName || sameAcc;
-    });
-
-    if (!exists) {
+    if (nameExists) {
+        Get.snackbar("Error", "A customer with the same name already exists.",
+          snackPosition: SnackPosition.BOTTOM);
+    } else {
       String ref = AppConstants.getDateNowRef("CUS", count);
       BaseNameModel branch =
           BaseNameModel.fromMap(Map<String, dynamic>.from(branchModel));
@@ -398,9 +379,6 @@ class CustomerController extends GetxController {
       // Reload from CustomerController to ensure proper offline handling (same as sale screen refresh fix)
       await reloadCustomersFromStorage();
       cartController.refreshCustomersFromList(List<CustomerModel>.from(allCustomers));
-    }else{
-      Get.snackbar("Error", "Customer Already Exists",
-          snackPosition: SnackPosition.BOTTOM);
     }
   }
 
