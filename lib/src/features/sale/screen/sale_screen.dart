@@ -2297,38 +2297,28 @@ class SaleScreen extends GetView {
                                                               ),
                                                             ),
                                                             child:
-                                                                Expanded(
-                                                                  child: Row(
-                                                                    children: [
-                                                                      Expanded(
-                                                                        flex:9,
-                                                                        child: CheckboxListTile(
-                                                                          title: Text(
-                                                                          'fiscal invoice'),
-                                                                          enabled: false,
-                                                                          value: cartController.fiscalizeReceipt.value,
-                                                                          onChanged: (bool?
-                                                                          value) {
-                                                                        cartController.fiscalizeReceipt.value = value ??false;
-                                                                        },
-                                                                        ),
-                                                                      ),
-                                                                      Expanded(
-                                                                        flex: 1,
-                                                                        child: CheckboxListTile(
-                                                                          value: cartController.fiscalizeCurrentReceipt.value,
-                                                                          onChanged: (bool?
-                                                                          value) {
-                                                                        cartController.fiscalizeCurrentReceipt.value = value ??false;
-                                                                        },
-                                                                        ),
-                                                                      ),
-                                                                    ],
-                                                                  ),
-                                                                ),
+                                                            CheckboxListTile(
+                                                              title: Text(
+                                                                  cartController.fiscalizeReceipt.value?'Fiscal Invoice':'Receipt'),
+                                                              // enabled: false,
+                                                              value: cartController.fiscalizeCurrentReceipt.value,
+                                                              onChanged: (bool?
+                                                              value) {
+                                                                cartController.fiscalizeCurrentReceipt.value = value ??false;
+                                                              },
+                                                            ),
                                                           );
                                                         } else {
-                                                          return Container(); // Empty when fiscal device not available
+                                                          return Container(
+                                                              child: Text(
+                                                                  cartController
+                                                                      .fiscalizeReceipt
+                                                                      .value
+                                                                      ? 'Fiscal Invoice'
+                                                                      : 'Receipt',
+                                                                  style: TextStyle(
+                                                                      color: Colors
+                                                                          .grey)));
                                                         }
                                                       }),
                                                       Container(
