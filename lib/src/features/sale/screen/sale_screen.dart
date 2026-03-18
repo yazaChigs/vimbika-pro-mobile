@@ -417,7 +417,153 @@ class SaleScreen extends GetView {
                             labelText: "Bar Code",
                             hintText: "Bar Code",
                           ),
-                          onChanged: saleController.onBarcodeChanged,
+                          onChanged: (String val) {
+                            if (val.isNotEmpty) {
+                              String exp = val;
+
+                              if (saleController.useSerialNumbers) {
+                                var index = saleController.allProducts
+                                    .indexWhere((item) =>
+                                        item.barCodes?.contains(exp) == true);
+                                if (index != -1) {
+                                  ProductFullInfoModel foundItem =
+                                      saleController.allProducts[index];
+                                  var indexC = cartController.cartItems
+                                      .indexWhere((item) =>
+                                          item.product.item?.id ==
+                                          foundItem.item?.id);
+                                  if (indexC != -1) {
+                                    cartController.addToCartWithBarCode(
+                                        foundItem, 1, exp);
+                                    saleController.barCodeTextEditingController
+                                        .clear();
+                                  } else {
+                                    Get.snackbar(
+                                        "Info", "Product added to cart !!!",
+                                        snackPosition: SnackPosition.BOTTOM);
+                                    cartController.addToCartWithBarCode(
+                                        foundItem, 1, exp);
+                                    saleController.barCodeTextEditingController
+                                        .clear();
+                                  }
+                                } else {
+                                  var index = saleController.allProducts
+                                      .indexWhere(
+                                          (item) => item.item?.itemCode == exp);
+                                  if (index != -1) {
+                                    ProductFullInfoModel foundItem =
+                                        saleController.allProducts[index];
+                                    var indexC = cartController.cartItems
+                                        .indexWhere((item) =>
+                                            item.product.item?.id ==
+                                            foundItem.item?.id);
+                                    if (indexC != -1) {
+                                      cartController.addToCart(foundItem, 1);
+                                      saleController
+                                          .barCodeTextEditingController
+                                          .clear();
+                                    } else {
+                                      Get.snackbar(
+                                          "Info", "Product added to cart !!!",
+                                          snackPosition: SnackPosition.BOTTOM);
+                                      cartController.addToCart(foundItem, 1);
+                                      saleController
+                                          .barCodeTextEditingController
+                                          .clear();
+                                    }
+                                  } else {
+                                    Get.snackbar(
+                                        "Not Found",
+                                        "Product with item  code " +
+                                            exp +
+                                            " is not found!!!",
+                                        snackPosition: SnackPosition.BOTTOM);
+                                  }
+                                }
+                              } else if (exp.length >= 12) {
+                                String chackCode =
+                                    exp.length > 2 ? exp.substring(0, 2) : '';
+                                String productCode =
+                                    exp.length > 6 ? exp.substring(2, 6) : '';
+                                String categoryCode =
+                                    exp.length > 7 ? exp.substring(6, 7) : '';
+                                String weight = exp.length > 12
+                                    ? exp.substring(7, 12)
+                                    : '0';
+
+                                double kgs = double.parse(weight) / 1000;
+                                double roundedValue =
+                                    double.parse(kgs.toStringAsFixed(3));
+                                if (kgs > 0) {
+                                  var index = saleController.allProducts
+                                      .indexWhere((item) =>
+                                          item.item?.itemCode == productCode);
+                                  if (index != -1) {
+                                    ProductFullInfoModel foundItem =
+                                        saleController.allProducts[index];
+                                    var indexC = cartController.cartItems
+                                        .indexWhere((item) =>
+                                            item.product.item?.id ==
+                                            foundItem.item?.id);
+                                    if (indexC != -1) {
+                                      cartController.addToCart(
+                                          foundItem, roundedValue);
+                                      saleController
+                                          .barCodeTextEditingController
+                                          .clear();
+                                    } else {
+                                      Get.snackbar(
+                                          "Info", "Product added to cart !!!",
+                                          snackPosition: SnackPosition.BOTTOM);
+                                      cartController.addToCart(
+                                          foundItem, roundedValue);
+                                      saleController
+                                          .barCodeTextEditingController
+                                          .clear();
+                                    }
+                                  } else {
+                                    Get.snackbar(
+                                        "Not Found",
+                                        "Product with item  code " +
+                                            productCode +
+                                            " is not found!!!",
+                                        snackPosition: SnackPosition.BOTTOM);
+                                  }
+                                }
+                              } else {
+                                var index = saleController.allProducts
+                                    .indexWhere(
+                                        (item) => item.item?.itemCode == exp);
+                                if (index != -1) {
+                                  ProductFullInfoModel foundItem =
+                                      saleController.allProducts[index];
+                                  var indexC = cartController.cartItems
+                                      .indexWhere((item) =>
+                                          item.product.item?.id ==
+                                          foundItem.item?.id);
+                                  if (indexC != -1) {
+                                    cartController.addToCart(foundItem, 1);
+                                    saleController.barCodeTextEditingController
+                                        .clear();
+                                  } else {
+                                    Get.snackbar(
+                                        "Info", "Product added to cart !!!",
+                                        snackPosition: SnackPosition.BOTTOM);
+                                    cartController.addToCart(foundItem, 1);
+                                    saleController.barCodeTextEditingController
+                                        .clear();
+                                  }
+                                } else {
+                                  Get.snackbar(
+                                      "Not Found",
+                                      "Product with item  code " +
+                                          exp +
+                                          " is not found!!!",
+                                      snackPosition: SnackPosition.BOTTOM);
+                                }
+                              }
+                            }
+                          },
                           validator: (value) {
                             return null;
                           },
@@ -2151,7 +2297,8 @@ class SaleScreen extends GetView {
                                                               ),
                                                             ),
                                                             child:
-                                                                Row( // <--- Changed from Expanded to Row
+                                                                Expanded(
+                                                                  child: Row(
                                                                     children: [
                                                                       Expanded(
                                                                         flex:9,
@@ -2178,6 +2325,7 @@ class SaleScreen extends GetView {
                                                                       ),
                                                                     ],
                                                                   ),
+                                                                ),
                                                           );
                                                         } else {
                                                           return Container(); // Empty when fiscal device not available
