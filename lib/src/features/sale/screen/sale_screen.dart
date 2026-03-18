@@ -2309,16 +2309,7 @@ class SaleScreen extends GetView {
                                                             ),
                                                           );
                                                         } else {
-                                                          return Container(
-                                                              child: Text(
-                                                                  cartController
-                                                                      .fiscalizeReceipt
-                                                                      .value
-                                                                      ? 'Fiscal Invoice'
-                                                                      : 'Receipt',
-                                                                  style: TextStyle(
-                                                                      color: Colors
-                                                                          .grey)));
+                                                          return Container();
                                                         }
                                                       }),
                                                       Container(
