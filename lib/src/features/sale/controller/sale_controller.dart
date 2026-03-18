@@ -76,6 +76,7 @@ class SaleController extends GetxController {
   final TextEditingController searchTextEditingController = TextEditingController(text: "");
   late  GetStorage box;
   Timer? _syncTimer; // Add a timer variable
+  Timer? _debounce;
   Rx<CompanyModel?> company = CompanyModel().obs;
 
   final TextEditingController barCodeTextEditingController = TextEditingController();
@@ -128,10 +129,129 @@ class SaleController extends GetxController {
   @override
   void onClose() {
     // Cancel the timer when the controller is disposed
-   // _syncTimer?.cancel();
+   _syncTimer?.cancel();
+   _debounce?.cancel();
     super.onClose();
   }
 
+  void onBarcodeChanged(String val) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      if (val.isNotEmpty) {
+        String exp = val;
+
+        print('code: $val');
+        if (useSerialNumbers) {
+          var index = allProducts
+              .indexWhere((item) => item.barCodes?.contains(exp) == true);
+          if (index != -1) {
+            ProductFullInfoModel foundItem = allProducts[index];
+            var indexC = cartController.cartItems
+                .indexWhere((item) => item.product.item?.id == foundItem.item?.id);
+            if (indexC != -1) {
+              // Get.snackbar("Info",
+              //     "Product already added !!!",
+              //     snackPosition: SnackPosition.BOTTOM);
+              cartController.addToCartWithBarCode(foundItem, 1, exp);
+              barCodeTextEditingController.clear();
+            } else {
+              Get.snackbar("Info", "Product added to cart !!!",
+                  snackPosition: SnackPosition.BOTTOM);
+              cartController.addToCartWithBarCode(foundItem, 1, exp);
+              barCodeTextEditingController.clear();
+            }
+          } else {
+            var index =
+                allProducts.indexWhere((item) => item.item?.itemCode == exp);
+            if (index != -1) {
+              ProductFullInfoModel foundItem = allProducts[index];
+              var indexC = cartController.cartItems
+                  .indexWhere((item) => item.product.item?.id == foundItem.item?.id);
+              if (indexC != -1) {
+                // Get.snackbar("Info",
+                //     "Product already added !!!",
+                //     snackPosition: SnackPosition.BOTTOM);
+                cartController.addToCart(foundItem, 1);
+                barCodeTextEditingController.clear();
+              } else {
+                Get.snackbar("Info", "Product added to cart !!!",
+                    snackPosition: SnackPosition.BOTTOM);
+                cartController.addToCart(foundItem, 1);
+                barCodeTextEditingController.clear();
+              }
+            } else {
+              // Item not found, handle this case
+              Get.snackbar("Not Found",
+                  "Product with item  code " + exp + " is not found!!!",
+                  snackPosition: SnackPosition.BOTTOM);
+            }
+          }
+        } else if (exp.length >= 12) {
+          print("else if");
+          String chackCode = exp.length > 2 ? exp.substring(0, 2) : '';
+          String productCode = exp.length > 6 ? exp.substring(2, 6) : '';
+          String categoryCode = exp.length > 7 ? exp.substring(6, 7) : '';
+          String weight = exp.length > 12 ? exp.substring(7, 12) : '0';
+
+          var index = allProducts
+              .indexWhere((item) => item.item?.itemCode == productCode);
+          print(index);
+          if (index != -1) {
+            double kgs = double.parse(weight) / 1000;
+            double roundedValue = double.parse(kgs.toStringAsFixed(3));
+            if (kgs > 0) {
+              ProductFullInfoModel foundItem = allProducts[index];
+              var indexC = cartController.cartItems
+                  .indexWhere((item) => item.product.item?.id == foundItem.item?.id);
+              if (indexC != -1) {
+                cartController.addToCart(foundItem, roundedValue);
+                barCodeTextEditingController.clear();
+              } else {
+                Get.snackbar("Info", "Product added to cart !!!",
+                    snackPosition: SnackPosition.BOTTOM);
+                cartController.addToCart(foundItem, roundedValue);
+                barCodeTextEditingController.clear();
+              }
+            }
+          } else {
+            var index =
+                allProducts.indexWhere((item) => item.item?.itemCode == exp);
+            print(index);
+            if (index != -1) {
+              ProductFullInfoModel foundItem = allProducts[index];
+              print('${foundItem.item?.name}');
+              // var indexC = cartController
+              //     .cartItems
+              //     .indexWhere((item) =>
+              //         item.product.item?.id ==
+              //         foundItem.item?.id);
+              // print('indexC: $indexC');
+              // if (indexC != -1) {
+              cartController.addToCart(foundItem, 1);
+              barCodeTextEditingController.clear();
+              // }
+            } else
+              // Item not found, handle this case
+              print("item not found");
+            Get.snackbar("Not Found",
+                "Product with item  code " + productCode + " is not found!!!",
+                snackPosition: SnackPosition.BOTTOM);
+          }
+        } else {
+          var index =
+              allProducts.indexWhere((item) => item.item?.itemCode == exp);
+          if (index != -1) {
+            ProductFullInfoModel foundItem = allProducts[index];
+            cartController.addToCart(foundItem, 1);
+            barCodeTextEditingController.clear();
+          } else
+            Get.snackbar(
+                "Not Found", "Product with item  code " + exp + " is not found!!!",
+                snackPosition: SnackPosition.BOTTOM);
+        }
+      }
+    });
+  }
 
 
   Future<SaleInfoModel?> getSale(String saleId) async{
