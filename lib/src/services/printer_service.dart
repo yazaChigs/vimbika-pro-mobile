@@ -2695,7 +2695,7 @@ class PrinterService extends GetxService {
       receiptBuffer.writeln("Thank you for your purchase!");
 
       // Print consolidated text
-      await TelpoM8().printWithThermalPrinter(receiptBuffer.toString());
+     /* await TelpoM8().printWithThermalPrinter(receiptBuffer.toString());*/
 
       if (sale.receiptQrCode != null) {
         final qrValidationResult = QrValidator.validate(
@@ -2722,15 +2722,15 @@ class PrinterService extends GetxService {
         final Uint8List qrImageBytes = Uint8List.fromList(img.encodePng(grayscaleImage));
 
         // Print QR Code Image
-        await TelpoM8().printImageWithThermalPrinter(qrImageBytes);
+        /*await TelpoM8().printImageWithThermalPrinter(qrImageBytes);*/
 
         // Print QR Code Information
-        await TelpoM8().printWithThermalPrinter(
+      /*  await TelpoM8().printWithThermalPrinter(
             "Scan the QR Code above\n"
                 "${sale.receiptQrData!}\n"
                 "Verify this receipt at:\n"
                 "${sale.receiptQrCode!}\n"
-        );
+        );*/
       }
 
       // Footer
@@ -3544,18 +3544,18 @@ class PrinterService extends GetxService {
       final Uint8List qrImageBytes = Uint8List.fromList(img.encodePng(grayscaleImage));
 
       // Step 2: Print Header
-      await TelpoM8().printWithThermalPrinter(
+   /*   await TelpoM8().printWithThermalPrinter(
           "********** TEST PRINT **********\n"
               "Company Name: Demo Corp\n"
               "Address: 123 Test Street\n"
               "Contact: +1-800-555-5555\n\n"
-      );
+      );*/
 
       // Step 3: Print QR Code
-      await TelpoM8().printImageWithThermalPrinter(qrImageBytes);
+    /*  await TelpoM8().printImageWithThermalPrinter(qrImageBytes);*/
 
       // Step 4: Print Dummy Transaction Info
-      await TelpoM8().printWithThermalPrinter(
+     /* await TelpoM8().printWithThermalPrinter(
           "\nTransaction Details\n"
               "----------------------------\n"
               "Date: 2024-01-01 12:34 PM\n"
@@ -3565,10 +3565,10 @@ class PrinterService extends GetxService {
               "----------------------------\n\n"
               "Scan the QR Code above to visit our website!\n"
               "********** END OF TEST **********\n\n"
-      );
+      );*/
 
       // Step 5: Finalize Print
-      await TelpoM8().printWithThermalPrinter("Thank you!\n");
+     /* await TelpoM8().printWithThermalPrinter("Thank you!\n");*/
     } catch (e) {
       debugPrint('Error during test print: $e');
     }
