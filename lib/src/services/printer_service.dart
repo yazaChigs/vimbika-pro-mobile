@@ -454,7 +454,6 @@ class PrinterService extends GetxService {
     for (var item in sale.items!) {
       String itemName = item.inventoryItem?.name ?? 'Item';
       double total = item.total ?? 0;
-      total = total * cur!.rate!;
       String amountStr = total.toStringAsFixed(2);
 
       // Format: Description left-padded to 40 chars, then amount
@@ -534,7 +533,7 @@ class PrinterService extends GetxService {
     double netAmount = (sale.amountAfterDiscount ?? 0.0) - (sale.totalTaxAmount ?? 0.0);
     double grossAmount = sale.amountAfterDiscount ?? 0.0;
     double vatPercentage = grossAmount > 0 ? (sale.totalTaxAmount ?? 0.0) / grossAmount * 100 : 0.0;
-    
+
     // Amount Paid - right-align amount
     String amountPaidLine = 'Amount Paid'.padRight(30) + (cur?.symbol ?? '') + ' ' + (sale.amountPaid?.toStringAsFixed(2) ?? '0.00');
     receiptData.add(LineText(
@@ -543,7 +542,7 @@ class PrinterService extends GetxService {
       align: LineText.ALIGN_LEFT,
       linefeed: 1,
     ));
-    
+
     // Change - right-align amount
     String changeLine = 'Change:'.padRight(30) + (cur?.symbol ?? '') + ' ' + (sale.change?.toStringAsFixed(2) ?? '0.00');
       receiptData.add(LineText(
@@ -552,7 +551,7 @@ class PrinterService extends GetxService {
         align: LineText.ALIGN_LEFT,
         linefeed: 1,
       ));
-    
+
     // Net Amount - right-align amount
     String netLine = 'Net Amount'.padRight(30) + (cur?.symbol ?? '') + ' ' + netAmount.toStringAsFixed(2);
     receiptData.add(LineText(
@@ -1333,20 +1332,20 @@ class PrinterService extends GetxService {
         bytes: receiptData,
         type: PrinterType.usb,
       );
-      
+
       print("✓ Data sent to printer successfully");
-      
+
       // Wait for printer to finish processing before disconnecting
       // Statements may be longer, so give more time
       await Future.delayed(Duration(milliseconds: 1000));
-      
+
       // Disconnect after printing statement (unlike receipts which stay connected)
       await PrinterManager.instance.disconnect(type: PrinterType.usb);
       print("✓ Disconnected from printer");
-      
+
       Get.snackbar('Success', 'Account statement printed successfully',
           snackPosition: SnackPosition.BOTTOM);
-      
+
       print("==================== ACCOUNT STATEMENT PRINTED (USB) ====================");
     } catch (e, stackTrace) {
       print("ERROR printing account statement: $e");
@@ -1491,13 +1490,13 @@ class PrinterService extends GetxService {
    Future<void> printSunmiSaleReceipt(SaleModel sale, bool waScan) async {
      // Only print on Android platforms
      if (Platform.isWindows) {
-       print("Sunmi printer not available on Windows");
+       print("Sunmi printer not available on Windows ${SaleModel}");
        return;
      }
-     
+
      CurrencyModel? cur = sale.currency;
      var box = GetStorage();
-     
+
      // Get Fiscal Device information (from backend format)
      String? vatNumber;
      String? deviceSerialNo;
@@ -1527,7 +1526,7 @@ class PrinterService extends GetxService {
      } catch (e) {
        // Error reading company - continue without it
      }
-     
+
      // Get raw branch data from storage (branch has street, city, contactNumber)
      try {
        var branchData = box.read(AppConstants.SELECTED_BRANCH);
@@ -1538,14 +1537,14 @@ class PrinterService extends GetxService {
        // Error reading branch - continue without it
      }
 
-     Uint8List imageBytes = await readLocalFileBytes();
+    //  Uint8List imageBytes = await readLocalFileBytes();
 
      await SunmiPrinter.initPrinter();
      await SunmiPrinter.startTransactionPrint(true);
 
      // Header - Logo
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-     await SunmiPrinter.printImage(imageBytes); // Directly print the image bytes
+    //  await SunmiPrinter.printImage(imageBytes); // Directly print the image bytes
      await SunmiPrinter.printText("\n");
 
      // Company Name and Branch
@@ -1576,7 +1575,7 @@ class PrinterService extends GetxService {
      // Company Address, Email, Phone (all from company, not branch) - accessed same way as company name
      try {
        String? address;
-       
+
        // Address: Only from company (combine street, stateProvince, and city) - accessed like company?.name
        List<String> companyAddressParts = [];
        if (company?.street != null && company!.street!.isNotEmpty) companyAddressParts.add(company.street!);
@@ -1586,13 +1585,13 @@ class PrinterService extends GetxService {
        if (companyAddressParts.isNotEmpty) {
          address = companyAddressParts.join(' ');
        }
-       
+
        // Email: From company email - accessed like company?.name
        String? email = company?.email;
-       
+
        // Phone: From company mobilePhone - accessed like company?.name
        String? phone = company?.mobilePhone;
-       
+
        // Print address, email, and phone if available (centered, no labels)
        if (address != null && address.isNotEmpty) {
          await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
@@ -1645,7 +1644,7 @@ class PrinterService extends GetxService {
      // Separator
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
      await SunmiPrinter.printText("---------------------------");
-     
+
      // Items Header - with proper spacing
      String headerLine = 'Description'.padRight(30) + 'Amount';
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
@@ -1659,9 +1658,7 @@ class PrinterService extends GetxService {
        String itemName = item.inventoryItem?.name ?? "Item";
        itemName + "\t ${item.sellingPrice?.toStringAsFixed(2)??0} x ${item.quantity??0}";
        double total = item.total ?? 0;
-       total = total * cur!.rate!;
        String amountStr = total.toStringAsFixed(2);
-       
        // Format: Description left-padded to 40 chars, then amount
        String itemLine = itemName.padRight(30) + amountStr;
        await SunmiPrinter.printText(itemLine);
@@ -1684,7 +1681,6 @@ class PrinterService extends GetxService {
          await SunmiPrinter.printText(paymentLine);
        }
      }
-
      // Separator
      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
      await SunmiPrinter.printText("---------------------------");
@@ -1704,25 +1700,25 @@ class PrinterService extends GetxService {
      double netAmount = (sale.amountAfterDiscount ?? 0.0) - (sale.totalTaxAmount ?? 0.0);
      double grossAmount = sale.amountAfterDiscount ?? 0.0;
      double vatPercentage = grossAmount > 0 ? (sale.totalTaxAmount ?? 0.0) / grossAmount * 100 : 0.0;
-     
+
      // Amount Paid - right-align amount
      String amountPaidLine = 'Amount Paid'.padRight(22) + (cur?.symbol ?? '') + ' ' + (sale.amountPaid?.toStringAsFixed(2) ?? '0.00');
      await SunmiPrinter.printText(amountPaidLine);
-     
+
      // Change - right-align amount
      String changeLine = 'Change:'.padRight(22) + (cur?.symbol ?? '') + ' ' + (sale.change?.toStringAsFixed(2) ?? '0.00');
      await SunmiPrinter.printText(changeLine);
-     
+
      // Net Amount - right-align amount
      String netLine = 'Net Amount'.padRight(22) + (cur?.symbol ?? '') + ' ' + netAmount.toStringAsFixed(2);
      await SunmiPrinter.printText(netLine);
-     
+
      // VAT with percentage - right-align amount
      if (sale.totalTaxAmount != null && sale.totalTaxAmount! > 0) {
        String vatLine = 'VAT (${sale.totalTaxAmount!>0?15:0.0}%)'.padRight(22) + (cur?.symbol ?? '') + ' ' + sale.totalTaxAmount!.toStringAsFixed(2);
        await SunmiPrinter.printText(vatLine);
      }
-     
+
      // Gross Amount - right-align amount
      String grossLine = 'Gross Amount'.padRight(22) + (cur?.symbol ?? '') + ' ' + grossAmount.toStringAsFixed(2);
      await SunmiPrinter.printText(grossLine);
@@ -1779,10 +1775,10 @@ class PrinterService extends GetxService {
   Future<void> printSunmiSaleBill(SaleModel sale,List<CurrencyModel> currencies) async {
     // Only print on Android platforms
     if (Platform.isWindows) {
-      print("Sunmi printer not available on Windows");
+      print("Sunmi printer not available on Windows ${sale}");
       return;
     }
-    
+
     CurrencyModel? cur = sale.currency;
     currencies.removeWhere((c) => c.id == cur!.id);
 
@@ -1821,8 +1817,6 @@ class PrinterService extends GetxService {
        double quantity = item.quantity ?? 0;
        double price = item.sellingPrice ?? 0;
        double total = item.total ?? 0;
-       total = total * cur!.rate!;
-       price = price * cur!.rate!;
        await SunmiPrinter.printText("$itemName");
        await SunmiPrinter.printText("Qty: $quantity  Price: ${cur?.symbol ?? ''} ${price.toStringAsFixed(2)}");
        await SunmiPrinter.printText("Total: ${cur?.symbol ?? ''} ${total.toStringAsFixed(2)}");
@@ -1883,7 +1877,7 @@ class PrinterService extends GetxService {
       print("[KOT][Sunmi] skipped on Windows: Sunmi printer not available");
        return;
      }
-     
+
      CurrencyModel? cur = sale.currency;
 
     // Print company logo if available
@@ -1999,7 +1993,7 @@ class PrinterService extends GetxService {
     await SunmiPrinter.exitTransactionPrint(true);
     print('[KOT][Sunmi] done');
   }
-  
+
   // Print KOT via USB (ESC/POS)
   Future<void> printKOTUsb(SaleModel sale, String orderNum, AvailablePrinterModel printer) async {
     final profile = await CapabilityProfile.load();
@@ -2062,19 +2056,19 @@ class PrinterService extends GetxService {
     // Send
     try {
       var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
-      
+
       bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
-      
+
       if (!connected) {
         Get.snackbar('Error', 'Failed to connect to printer',
             snackPosition: SnackPosition.BOTTOM);
         return;
       }
-      
+
       await PrinterManager.instance.send(bytes: bytes, type: PrinterType.usb);
-      
+
       await PrinterManager.instance.disconnect(type: PrinterType.usb);
-      
+
       Get.snackbar('Success', 'KOT printed successfully', snackPosition: SnackPosition.BOTTOM);
     } catch (e, st) {
       Get.snackbar('Error', 'Failed to print KOT: $e', snackPosition: SnackPosition.BOTTOM);
@@ -2142,19 +2136,19 @@ class PrinterService extends GetxService {
     // Send
     try {
       var model = UsbPrinterInput(name: printer.name, vendorId: printer.vendorId, productId: printer.productId);
-      
+
       bool connected = await PrinterManager.instance.connect(type: PrinterType.usb, model: model);
-      
+
       if (!connected) {
         Get.snackbar('Error', 'Failed to connect to printer',
             snackPosition: SnackPosition.BOTTOM);
         return;
       }
-      
+
       await PrinterManager.instance.send(bytes: bytes, type: PrinterType.usb);
-      
+
       await PrinterManager.instance.disconnect(type: PrinterType.usb);
-      
+
       Get.snackbar('Success', 'KOT printed successfully', snackPosition: SnackPosition.BOTTOM);
     } catch (e, st) {
       Get.snackbar('Error', 'Failed to print KOT: $e', snackPosition: SnackPosition.BOTTOM);
@@ -2168,7 +2162,7 @@ class PrinterService extends GetxService {
        print("Sunmi printer not available on Windows");
        return;
      }
-     
+
      CurrencyModel? cur = payment.currency;
 
      Uint8List imageBytes = await readLocalFileBytes();
@@ -2231,7 +2225,7 @@ class PrinterService extends GetxService {
      print("Customer: ${customer.name}");
      print("Total transactions to print: ${projectionsa?.length ?? 0}");
      print("Date range: Last 30 days");
-     
+
      if (projectionsa != null && projectionsa.isNotEmpty) {
        print("\n--- Print Data Preview ---");
        for (var i = 0; i < projectionsa.length && i < 5; i++) {
@@ -2268,12 +2262,12 @@ class PrinterService extends GetxService {
     await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
     await SunmiPrinter.printText("ACCOUNT STATEMENT");
     await SunmiPrinter.printText("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}");
-    
+
     // Date Range (if provided)
     if (dateRangeDescription != null && dateRangeDescription.isNotEmpty) {
       await SunmiPrinter.printText("Period: $dateRangeDescription");
     }
-    
+
     // Separator
     await SunmiPrinter.printText("--------------------------------");
 
@@ -2310,7 +2304,7 @@ class PrinterService extends GetxService {
       print("Sunmi printer not available on Windows");
       return;
     }
-    
+
     Uint8List imageBytes = await readLocalFileBytes();
     String todayDate = DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now());
 
@@ -2608,7 +2602,7 @@ class PrinterService extends GetxService {
       final file = File(path);
       if (await file.exists()) {
         Uint8List log =  await file.readAsBytes(); // Read and return the image bytes
-        
+
         // Check if file is empty
         if (log.isEmpty) {
           throw Exception("Logo file is empty");
@@ -2641,7 +2635,7 @@ class PrinterService extends GetxService {
       print("Telpo printer not available on Windows");
       return;
     }
-    
+
     try {
       CurrencyModel? cur = sale.currency;
 
@@ -3439,6 +3433,7 @@ class PrinterService extends GetxService {
      // Only print on Android platforms
      if (Platform.isWindows) {
        print("Sunmi printer not available on Windows");
+
        return;
      }
      
