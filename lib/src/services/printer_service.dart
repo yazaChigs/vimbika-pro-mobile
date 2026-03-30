@@ -451,8 +451,15 @@ class PrinterService extends GetxService {
     ));
 
     // Items - description left, amount right-aligned
+    print("--- Printing Sale Items Details (Bluetooth) ---");
     for (var item in sale.items!) {
       String itemName = item.inventoryItem?.name ?? 'Item';
+      double unitPrice = item.sellingPrice ?? 0;
+      double qty = item.quantity ?? 0;
+      double itemTotal = item.total ?? 0;
+
+      print("Item: $itemName | Unit Price: $unitPrice | Qty: $qty | Total: $itemTotal");
+
       double total = item.total ?? 0;
       String amountStr = total.toStringAsFixed(2);
 
@@ -580,6 +587,9 @@ class PrinterService extends GetxService {
       align: LineText.ALIGN_LEFT,
       linefeed: 1,
     ));
+
+    print("Sale Totals: Net: $netAmount | VAT: ${sale.totalTaxAmount} | Gross: $grossAmount | Paid: ${sale.amountPaid} | Change: ${sale.change}");
+    print("-----------------------------------");
 
     // Tip (if present) - missing feature added
     if(sale.tipAmount != null && sale.tipAmount! > 0) {
@@ -1018,8 +1028,15 @@ class PrinterService extends GetxService {
          styles: PosStyles(align: PosAlign.center));
 
      // Items - description left, amount right-aligned
+     print("--- Printing Sale Items Details (USB) ---");
      for (var item in sale.items!) {
        String itemName = item.inventoryItem?.name ?? 'Item';
+       double unitPrice = item.sellingPrice ?? 0;
+       double qty = item.quantity ?? 0;
+       double itemTotal = item.total ?? 0;
+
+       print("Item: $itemName | Unit Price: $unitPrice | Qty: $qty | Total: $itemTotal");
+
        double total = item.total ?? 0;
        String amountStr = total.toStringAsFixed(2);
        
@@ -1095,6 +1112,9 @@ class PrinterService extends GetxService {
      String grossLine = 'Gross Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + grossAmount.toStringAsFixed(2);
      receiptData += generator.text(grossLine,
         styles: PosStyles(align: PosAlign.left));
+
+     print("Sale Totals: Net: $netAmount | VAT: ${sale.totalTaxAmount} | Gross: $grossAmount | Paid: ${sale.amountPaid} | Change: ${sale.change}");
+     print("-----------------------------------");
 
     // Tip (if present) - missing feature added
     if(sale.tipAmount != null && sale.tipAmount! > 0) {
@@ -1654,9 +1674,15 @@ class PrinterService extends GetxService {
 
      // Items - description left, amount right-aligned
      await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+     print("--- Printing Sale Items Details (Sunmi) ---");
      for (var item in sale.items!) {
        String itemName = item.inventoryItem?.name ?? "Item";
-       itemName + "\t ${item.sellingPrice?.toStringAsFixed(2)??0} x ${item.quantity??0}";
+       double unitPrice = item.sellingPrice ?? 0;
+       double qty = item.quantity ?? 0;
+       double itemTotal = item.total ?? 0;
+
+       print("Item: $itemName | Unit Price: $unitPrice | Qty: $qty | Total: $itemTotal");
+
        double total = item.total ?? 0;
        String amountStr = total.toStringAsFixed(2);
        // Format: Description left-padded to 40 chars, then amount
@@ -1722,6 +1748,10 @@ class PrinterService extends GetxService {
      // Gross Amount - right-align amount
      String grossLine = 'Gross Amount'.padRight(22) + (cur?.symbol ?? '') + ' ' + grossAmount.toStringAsFixed(2);
      await SunmiPrinter.printText(grossLine);
+
+     print("Sale Totals: Net: $netAmount | VAT: ${sale.totalTaxAmount} | Gross: $grossAmount | Paid: ${sale.amountPaid} | Change: ${sale.change}");
+     print("-----------------------------------");
+
      if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false))
        {
          await SunmiPrinter.printText(
@@ -2657,11 +2687,14 @@ class PrinterService extends GetxService {
       receiptBuffer.writeln("--------------------------------");
 
       // Items
+      print("--- Printing Sale Items Details (Telpo) ---");
       for (var item in sale.items!) {
         String itemName = item.inventoryItem?.name ?? "Item";
         double quantity = item.quantity ?? 0;
         double price = item.sellingPrice ?? 0;
         double total = item.total ?? 0;
+
+        print("Item: $itemName | Unit Price: $price | Qty: $quantity | Total: $total");
 
         receiptBuffer.writeln("$itemName");
         receiptBuffer.writeln("Qty: $quantity | Price: ${price.toStringAsFixed(2)} | Total: ${total.toStringAsFixed(2)}");
@@ -2672,6 +2705,9 @@ class PrinterService extends GetxService {
       receiptBuffer.writeln("Subtotal: ${cur?.symbol ?? ''} ${sale.amountAfterDiscount?.toStringAsFixed(2)}");
       receiptBuffer.writeln("Amount Paid: ${cur?.symbol ?? ''} ${sale.amountPaid?.toStringAsFixed(2)} \t\t${sale.paymentTypes!.map((pt)=>pt.paymentType!.name!).join(', ')}");
       receiptBuffer.writeln("Change: ${cur?.symbol ?? ''} ${sale.change?.toStringAsFixed(2)}");
+
+      print("Sale Totals: Gross: ${sale.amountAfterDiscount} | Paid: ${sale.amountPaid} | Change: ${sale.change}");
+      print("-----------------------------------");
 
       // Tip (if present) - missing feature added
       if(sale.tipAmount != null && sale.tipAmount! > 0) {
@@ -3345,7 +3381,7 @@ class PrinterService extends GetxService {
 
     // Total Submitted
     if (totalSubmitted.isNotEmpty) {
-      receiptData += generator.text('Total Submitted:',
+      receiptData += generator.text('\nTotal Submitted:',
           styles: PosStyles(align: PosAlign.left, bold: true));
       for (var total in totalSubmitted) {
         receiptData += generator.text(' ${total['currencyName']}:\t\t${total['totalAmount']}',
