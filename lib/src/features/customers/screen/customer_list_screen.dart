@@ -33,6 +33,7 @@ class CustomerListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Refresh customers when screen is built
+    var screenSize = MediaQuery.of(context).size.width > 950;
     _refreshCustomersOnInit();
 
     String fullName =
@@ -114,14 +115,15 @@ class CustomerListScreen extends StatelessWidget {
                   ),
                 ),
               ),
+
               Expanded(
                 child: Obx(() {
                   return GridView.builder(
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: isMobile(context) ? 2 : 4,
+                      crossAxisCount: isMobile(context) ? 1 : 4,
                       // crossAxisSpacing: 3.0,
                       // mainAxisSpacing: 3.0,
-                      childAspectRatio: 1.5,
+                      childAspectRatio: isMobile(context)? 2.5:1.5,
                     ),
                     shrinkWrap: true,
                     itemCount: customerController.filteredCustomers.length,
@@ -129,18 +131,21 @@ class CustomerListScreen extends StatelessWidget {
                       var customer =
                           customerController.filteredCustomers[index];
                       return Card(
-                          color: context.theme.colorScheme.primaryContainer,
+                          color: Colors.blueAccent[50],
+                          elevation: 2,
                           // margin: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                           child: GridTile(
                             child: Column(
-                              // mainAxisAlignment: MainAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
                                         customer.name ?? 'Unknown Name',
                                         overflow: TextOverflow.ellipsis,
                                         maxLines: 1,
@@ -152,117 +157,117 @@ class CustomerListScreen extends StatelessWidget {
                                         ),
                                         textAlign: TextAlign.right,
                                       ),
-                                    ),
-                                    (customer.isLoyalCustomer ?? false)
-                                        ? IconButton(
-                                            onPressed: () {},
-                                            icon: Icon(
-                                              Icons.check,
-                                              size: 40,
-                                              color: Colors.green,
-                                            ),
-                                          )
-                                        : SizedBox(),
-                                    PopupMenuButton(
-                                        onSelected: (result) {},
-                                        itemBuilder: (context) => [
-                                              PopupMenuItem(
-                                                child: ListTile(
-                                                    leading: Icon(Icons.edit),
-                                                    title: Text("Edit")),
-                                                value: 0,
-                                                onTap: () {
-                                                  customerController
-                                                          .nameEditingController
-                                                          .text =
-                                                      customer.name ?? "";
-                                                  customerController
-                                                      .addressEditingController
-                                                      .text = customer
-                                                          .street ??
-                                                      "";
-                                                  customerController
-                                                      .emailEditingController
-                                                      .text = customer
-                                                          .email ??
-                                                      "";
-                                                  customerController
-                                                      .mobileNumberEditingController
-                                                      .text = customer
-                                                          .mobilePhone ??
-                                                      "";
-                                                  customerController
-                                                      .accNoEditingController
-                                                      .text = customer
-                                                          .accountNumber ??
-                                                      "";
-                                                  customerController
-                                                      .selectedCustomer
-                                                      .value = customer;
-                                                  customerController
-                                                      .editCustomer
-                                                      .value = true;
-                                                  Get.toNamed(
-                                                      AppRoutes.CUSTOMER_FORM);
-                                                },
-                                              ),
-                                              !(customer.isLoyalCustomer ??
-                                                      false)
-                                                  ? PopupMenuItem(
-                                                      child: ListTile(
-                                                          leading: Icon(Icons
-                                                              .account_box),
-                                                          title: Text(
-                                                              "Set AS Loyal Customer")),
-                                                      value: 1,
-                                                      onTap: () {
-                                                        customerController
-                                                            .setLoyalCustomer(
-                                                                customer);
-                                                      },
-                                                    )
-                                                  : PopupMenuItem(
-                                                      child: ListTile(
-                                                          leading: Icon(Icons
-                                                              .credit_card_outlined),
-                                                          title: Text(
-                                                              "Credit Account")),
-                                                      value: 1,
-                                                      onTap: () {
-                                                        customerController
-                                                            .selectedCustomer
-                                                            .value = customer;
-                                                        Get.toNamed(AppRoutes
-                                                            .PAY_ACC_FORM);
-                                                      },
-                                                    ),
-                                              /*PopupMenuItem(
-                                                child: ListTile(
-                                                    leading: Icon(Icons.print),
-                                                    title: Text(
-                                                        "Print Statement")),
-                                                value: 2,
-                                                onTap: () {
-                                                  customerController
-                                                      .viewStatement(
-                                                          customer);
-                                                },
-                                              ),*/
-                                              PopupMenuItem(
-                                                child: ListTile(
-                                                    leading: Icon(Icons.print),
-                                                    title: Text(
-                                                        "View Statement")
+                                      // (customer.isLoyalCustomer ?? false)
+                                      //     ? IconButton(
+                                      //         onPressed: () {},
+                                      //         icon: Icon(
+                                      //           Icons.check,
+                                      //           size: 40,
+                                      //           color: Colors.green,
+                                      //         ),
+                                      //       )
+                                      //     : SizedBox(),
+                                      PopupMenuButton(
+                                          onSelected: (result) {},
+                                          itemBuilder: (context) => [
+                                                PopupMenuItem(
+                                                  child: ListTile(
+                                                      leading: Icon(Icons.edit),
+                                                      title: Text("Edit")),
+                                                  value: 0,
+                                                  onTap: () {
+                                                    customerController
+                                                            .nameEditingController
+                                                            .text =
+                                                        customer.name ?? "";
+                                                    customerController
+                                                        .addressEditingController
+                                                        .text = customer
+                                                            .street ??
+                                                        "";
+                                                    customerController
+                                                        .emailEditingController
+                                                        .text = customer
+                                                            .email ??
+                                                        "";
+                                                    customerController
+                                                        .mobileNumberEditingController
+                                                        .text = customer
+                                                            .mobilePhone ??
+                                                        "";
+                                                    customerController
+                                                        .accNoEditingController
+                                                        .text = customer
+                                                            .accountNumber ??
+                                                        "";
+                                                    customerController
+                                                        .selectedCustomer
+                                                        .value = customer;
+                                                    customerController
+                                                        .editCustomer
+                                                        .value = true;
+                                                    Get.toNamed(
+                                                        AppRoutes.CUSTOMER_FORM);
+                                                  },
                                                 ),
-                                                value: 2,
-                                                onTap: () {
-                                                  customerController
-                                                      .viewStatement(
-                                                          customer);
-                                                },
-                                              ),
-                                            ]),
-                                  ],
+                                                !(customer.isLoyalCustomer ??
+                                                        false)
+                                                    ? PopupMenuItem(
+                                                        child: ListTile(
+                                                            leading: Icon(Icons
+                                                                .account_box),
+                                                            title: Text(
+                                                                "Set AS Loyal Customer")),
+                                                        value: 1,
+                                                        onTap: () {
+                                                          customerController
+                                                              .setLoyalCustomer(
+                                                                  customer);
+                                                        },
+                                                      )
+                                                    : PopupMenuItem(
+                                                        child: ListTile(
+                                                            leading: Icon(Icons
+                                                                .credit_card_outlined),
+                                                            title: Text(
+                                                                "Credit Account")),
+                                                        value: 1,
+                                                        onTap: () {
+                                                          customerController
+                                                              .selectedCustomer
+                                                              .value = customer;
+                                                          Get.toNamed(AppRoutes
+                                                              .PAY_ACC_FORM);
+                                                        },
+                                                      ),
+                                                /*PopupMenuItem(
+                                                  child: ListTile(
+                                                      leading: Icon(Icons.print),
+                                                      title: Text(
+                                                          "Print Statement")),
+                                                  value: 2,
+                                                  onTap: () {
+                                                    customerController
+                                                        .viewStatement(
+                                                            customer);
+                                                  },
+                                                ),*/
+                                                PopupMenuItem(
+                                                  child: ListTile(
+                                                      leading: Icon(Icons.print),
+                                                      title: Text(
+                                                          "View Statement")
+                                                  ),
+                                                  value: 2,
+                                                  onTap: () {
+                                                    customerController
+                                                        .viewStatement(
+                                                            customer);
+                                                  },
+                                                ),
+                                              ]),
+                                    ],
+                                  ),
                                 ),
                                 Text(
                                   'Customer No.: ${customer.accountNumber ?? 'N/A'}',

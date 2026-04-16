@@ -61,10 +61,10 @@ class TicketListScreen extends StatelessWidget {
               child: Obx(() {
                 return GridView.builder(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: orientation == Orientation.landscape ? 3 : 2,
+                    crossAxisCount: orientation == Orientation.landscape ? 3 : 1,
                     crossAxisSpacing: 3.0,
                     mainAxisSpacing: 3.0,
-                    childAspectRatio: 1.5,
+                    childAspectRatio:orientation == Orientation.landscape ? 2 : 2.5,
                   ),
                   itemCount: ticketController.filteredTickets.length,
                   itemBuilder: (context, index) {

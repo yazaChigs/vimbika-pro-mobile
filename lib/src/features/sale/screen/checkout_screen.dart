@@ -607,66 +607,66 @@ class CheckoutScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 // Quick amount buttons for tablet view
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-                  child: Row(
-                      children: [
-                        Expanded(
-                          child: _buildQuickAmountButton(
-                            context,
-                            '0.5',
-                            0.5,
-                            cartController,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: _buildQuickAmountButton(
-                            context,
-                            '1',
-                            1.0,
-                            cartController,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: _buildQuickAmountButton(
-                            context,
-                            '2',
-                            2.0,
-                            cartController,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: _buildQuickAmountButton(
-                            context,
-                            '5',
-                            5.0,
-                            cartController,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: _buildQuickAmountButton(
-                            context,
-                            '10',
-                            10.0,
-                            cartController,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: _buildQuickAmountButton(
-                            context,
-                            '20',
-                            20.0,
-                            cartController,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                // Padding(
+                //   padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                //   child: Row(
+                //       children: [
+                //         Expanded(
+                //           child: _buildQuickAmountButton(
+                //             context,
+                //             '0.5',
+                //             0.5,
+                //             cartController,
+                //           ),
+                //         ),
+                //         const SizedBox(width: 4),
+                //         Expanded(
+                //           child: _buildQuickAmountButton(
+                //             context,
+                //             '1',
+                //             1.0,
+                //             cartController,
+                //           ),
+                //         ),
+                //         const SizedBox(width: 4),
+                //         Expanded(
+                //           child: _buildQuickAmountButton(
+                //             context,
+                //             '2',
+                //             2.0,
+                //             cartController,
+                //           ),
+                //         ),
+                //         const SizedBox(width: 4),
+                //         Expanded(
+                //           child: _buildQuickAmountButton(
+                //             context,
+                //             '5',
+                //             5.0,
+                //             cartController,
+                //           ),
+                //         ),
+                //         const SizedBox(width: 4),
+                //         Expanded(
+                //           child: _buildQuickAmountButton(
+                //             context,
+                //             '10',
+                //             10.0,
+                //             cartController,
+                //           ),
+                //         ),
+                //         const SizedBox(width: 4),
+                //         Expanded(
+                //           child: _buildQuickAmountButton(
+                //             context,
+                //             '20',
+                //             20.0,
+                //             cartController,
+                //           ),
+                //         ),
+                //       ],
+                //     ),
+                //   ),
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: TextFormField(

@@ -41,32 +41,21 @@ class CartScreen extends StatelessWidget {
                       padding: const EdgeInsets.all(8.0),
                       child: ListTile(
                         
-                        tileColor: context.theme.colorScheme.primary,
-                        leading: CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          placeholder: (context, url) =>
-                              CircularProgressIndicator(),
-                          errorWidget: (context, url, error) => Image.asset(
-                            'assets/images/dummy/dummy.png', // Path to your error image
-                            fit: BoxFit.cover,
-                          ),
-                        ),
+                        tileColor: Colors.lightBlue[100],
                         title: Text(
                           cartItem.product.item!.name ?? '',
-                          style: TextStyle(
-                              color: context.theme.colorScheme.onPrimary),
+
                         ),
                         subtitle: Text(
-                            '${cartItem.product.item!.sellingPrice} x ${cartItem.quantity}',
-                            style: TextStyle(
-                                color: context.theme.colorScheme.onPrimary)),
+                            'Quantity ${cartItem.quantity.toInt()}', style: TextStyle(fontWeight: cartItem.quantity>1 ? FontWeight.bold : null),
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
                               icon: Icon(
                                 Icons.remove,
-                                color: context.theme.colorScheme.onPrimary,
+                                color: Colors.cyan,
                               ),
                               onPressed: () =>
                                   cartController.decrementQuantity(cartItem),
@@ -74,13 +63,12 @@ class CartScreen extends StatelessWidget {
                             Text(
                               '${(cartItem.quantity * cartItem.product.item!.sellingPrice).toStringAsFixed(2)}',
                               style: TextStyle(
-                                  color: context.theme.colorScheme.onPrimary,
                                   fontWeight: FontWeight.bold),
                             ),
                             IconButton(
                               icon: Icon(
                                 Icons.add,
-                                color: context.theme.colorScheme.onPrimary,
+                                color: Colors.cyan,
                               ),
                               onPressed: () =>
                                   cartController.incrementQuantity(cartItem),
@@ -88,7 +76,7 @@ class CartScreen extends StatelessWidget {
                             IconButton(
                               icon: Icon(
                                 Icons.delete,
-                                color: Colors.red,
+                                color: Colors.cyan,
                               ),
                               onPressed: () =>
                                   cartController.removeFromCart(cartItem),
@@ -109,9 +97,9 @@ class CartScreen extends StatelessWidget {
                     Text(
                       'Total : ${cartController.selectedCurrency.value?.symbol ?? ''} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
                       style: const TextStyle(
-                          fontSize: 24,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Colors.indigoAccent),
+                          color: Colors.cyan),
                     ),
                     SizedBox(height: 10),
                     ElevatedButton(
@@ -124,8 +112,8 @@ class CartScreen extends StatelessWidget {
                       },
                       style: TextButton.styleFrom(
                         backgroundColor:
-                            context.theme.colorScheme.primary, // Set button color to primary theme color
-                        foregroundColor: context.theme.colorScheme.onPrimary, // Set text color to onPrimary theme color
+                        Colors.cyan, // Set button color to primary theme color
+                        // foregroundColor: context.theme.colorScheme.onPrimary, // Set text color to onPrimary theme color
                         textStyle: TextStyle(
                             fontSize: 16,
                             color: context.theme.colorScheme.onPrimary,

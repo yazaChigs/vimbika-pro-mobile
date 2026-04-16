@@ -616,7 +616,7 @@ class SaleScreen extends GetView {
                                   padding: const EdgeInsets.all(8.0),
                                   child: Card(
                                       child: ListTile(
-                                    tileColor: context.theme.colorScheme.primaryContainer,
+                                    tileColor: Colors.cyan[300],
                                     /*  leading: CachedNetworkImage(
                                     imageUrl: imageUrl,
                                     placeholder: (context, url) =>
@@ -641,7 +641,7 @@ class SaleScreen extends GetView {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
-                                            "\$${product.item!.sellingPrice.toStringAsFixed(2)}"),
+                                            "\$${product.item!.sellingPrice.toStringAsFixed(2)}", style: TextStyle(fontSize: 13),),
                                         SizedBox(
                                           height:
                                               4, // Space between price and button

@@ -186,6 +186,8 @@ class ReceiptScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var screenSize = MediaQuery.of(context).size.width > 950;
+
     String fullName =
         "${receiptController.user.firstName} ${receiptController.user.lastName}";
     String initials = receiptController.user.firstName[0] +
@@ -243,6 +245,7 @@ class ReceiptScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SizedBox(height: 10),
+              screenSize?
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -370,6 +373,130 @@ class ReceiptScreen extends StatelessWidget {
                     ),
                   ))
                 ],
+              ):
+              Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: TextField(
+                      readOnly: true,
+                      controller: receiptController.startDateController,
+                      decoration: InputDecoration(
+                        labelText: 'Select Start Date',
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: context.theme.colorScheme.primary),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: context.theme.colorScheme.primary,
+                              width: 2.0),
+                        ),
+                        border: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: context.theme.colorScheme.primary)),
+                        prefixIcon: Icon(Icons.calendar_today),
+                      ),
+                      onTap: () async {
+                        DateTime? selectedDate = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime.now(),
+                        );
+                        if (selectedDate != null) {
+                          String formattedDate =
+                          DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+                              .format(selectedDate);
+                          receiptController.startDateController.text =
+                              DateFormat('yyyy-MM-dd').format(selectedDate);
+                          receiptController.startDate.value = formattedDate;
+                          //receiptController.getSalesByDate(formattedDate);
+                        }
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: TextField(
+                      readOnly: true,
+                      controller: receiptController.endDateController,
+                      decoration: InputDecoration(
+                        labelText: 'Select End Date',
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: context.theme.colorScheme.primary),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: context.theme.colorScheme.primary,
+                              width: 2.0),
+                        ),
+                        border: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: context.theme.colorScheme.primary)),
+                        prefixIcon: Icon(Icons.calendar_today),
+                      ),
+                      onTap: () async {
+                        DateTime? selectedDate = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime.now(),
+                        );
+                        if (selectedDate != null) {
+                          String formattedDate =
+                          DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+                              .format(selectedDate);
+                          receiptController.endDateController.text =
+                              DateFormat('yyyy-MM-dd').format(selectedDate);
+                          receiptController.endDate.value = formattedDate;
+                        }
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Obx(() {
+                      return CustomDropdownWidget<BaseNameModel>(
+                        //add boader color
+                        items: receiptController.categories.value,
+                        selectedItem:
+                        receiptController.selectedCategory.value,
+                        hint: "Select Category",
+                        isSelected: receiptController.isCatSelected,
+                        selectedValue: receiptController.selectedCategory,
+                        icon: Icons.shopping_basket_outlined,
+                        onChanged: (BaseNameModel? newValue) {
+                          print("Selected category: ${newValue?.name}");
+                          receiptController.isCatSelected.value = true;
+                          receiptController.selectedCategory.value =
+                          newValue!;
+                        },
+                        validator: (value) {
+                          return null;
+                        },
+                        itemBuilder: (BaseNameModel value) =>
+                            Text(value.name!),
+                      );
+                    }),
+                  ),
+
+                     Container(
+                       width: 300,
+                       child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: context.theme.colorScheme.primary,
+                        ),
+                        onPressed: () {
+                          receiptController.searchSales();
+                        },
+                        child: Text('SEARCH'),
+
+                       ),
+                     ),
+
+                ],
               ),
 /*
               Padding(
@@ -410,7 +537,7 @@ class ReceiptScreen extends StatelessWidget {
                         Text(
                           'Totals by Currency',
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize:screenSize? 20: 15,
                             fontWeight: FontWeight.bold,
                             color: context.theme.colorScheme.primary,
                           ),
@@ -421,7 +548,7 @@ class ReceiptScreen extends StatelessWidget {
                           return Text(
                             '${entry.key}  ${entry.value.toStringAsFixed(2)}',
                             style: TextStyle(
-                                fontSize: 18,
+                                fontSize: screenSize? 18: 15,
                                 fontWeight: FontWeight.bold,
                                 color: context.theme.colorScheme.onSurface),
                           );
@@ -533,7 +660,8 @@ class ReceiptScreen extends StatelessWidget {
                         }
                       }
 
-                      return Column(
+                      return screenSize?
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (showDayDivider) _buildDayDivider(dayDividerText),
@@ -657,6 +785,144 @@ class ReceiptScreen extends StatelessWidget {
                                                               saleInfo, index);
                                                     },
                                                   )
+                                                : SizedBox(),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                          :Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (showDayDivider) _buildDayDivider(dayDividerText),
+                          if (showShiftDivider)
+                            _buildShiftDivider(shiftDividerText),
+                          Card(
+                            color: sale!.saleStatus == "REVERSED"
+                                ? Colors.redAccent[100]
+                                : context.theme.colorScheme.primaryContainer,
+                            child: ListTile(
+                              leading: Text(
+                                '${sale!.currency?.symbol ?? ''} ${sale.amountAfterDiscount!.toStringAsFixed(2).toString()}',
+                                style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.lightGreen),
+                              ),
+                              title: Text(
+                                sale.referenceNumber!,
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    color: context.theme.colorScheme.primary,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    children: [
+                                      Text(sale.paymentTypes!
+                                          .map((paymentType) =>
+                                      paymentType.paymentType!.name)
+                                          .join(),
+                                        style: TextStyle(fontSize: 12),
+                                      ),
+                                      // Text(sale.timeIniated!
+                                      //     .replaceFirst('T', ' ')),
+                                    ],
+                                  ),
+                                  Expanded(
+                                      child: IconButton(
+                                          onPressed: () async {
+                                            if(saleInfo.syncStatus == false && !receiptController.isSingleClickCLicked.value && await receiptController.internetAccess()){
+                                              receiptController.isSingleClickCLicked.value = true;
+                                              var synced =  receiptController.syncSale(saleInfo, index);
+                                              if(await synced){
+                                                receiptController.filteredReceipts[index].syncStatus = true;
+                                                receiptController.filteredReceipts.refresh();
+                                                receiptController.isSingleClickCLicked.value = false;
+                                              }
+                                            }
+                                          },
+                                          icon: saleInfo.syncStatus == true
+                                              ? Icon(Icons.check,
+                                              color: Colors.green, size: 20)
+                                              : Icon(
+                                              Icons.sync_problem_outlined,
+                                              color: Colors.red,
+                                              size: 20))),
+                                ],
+                              ),
+                              trailing: Column(
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '${sale.saleStatus ?? 'N/A'}',
+                                    style: sale.saleStatus != 'REVERSED'
+                                        ? TextStyle(
+                                        fontSize: 12,
+                                        color: context.theme.colorScheme
+                                            .primaryContainer)
+                                        : TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.red[700]),
+                                  ),
+                                  Expanded(
+                                    child: Container(
+                                      width: 120,
+                                      height: double.infinity,
+                                      child: Row(
+                                        mainAxisAlignment:
+                                        MainAxisAlignment.end,
+                                        children: [
+                                          IconButton(
+                                            icon: Icon(Icons.print_outlined,
+                                                color: context
+                                                    .theme.colorScheme.primary,
+                                                size: 20),
+                                            onPressed: () async {
+                                              if (receiptController
+                                                  .isPrintClicked.isFalse) {
+                                                receiptController.isPrintClicked
+                                                    .value = true;
+                                                sale.saleStatus != 'REVERSED'
+                                                    ? receiptController
+                                                    .printSale(saleInfo)
+                                                    : null;
+                                              }
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: Icon(Icons.receipt_long_outlined,
+                                                color: context
+                                                    .theme.colorScheme.secondary,
+                                                size: 20),
+                                            onPressed: () {
+                                              receiptController.showReceiptDialog(saleInfo);
+                                            },
+                                          ),
+                                          Container(
+                                            child: sale.saleStatus != 'REVERSED'
+                                                ? IconButton(
+                                              enableFeedback: true,
+                                              icon: Icon(
+                                                  Icons
+                                                      .delete_forever_outlined,
+                                                  color: Colors.redAccent,
+                                                  size: 20),
+                                              onPressed: () {
+                                                receiptController
+                                                    .showConfirmDialogToDeleteItem(
+                                                    saleInfo, index);
+                                              },
+                                            )
                                                 : SizedBox(),
                                           ),
                                         ],
