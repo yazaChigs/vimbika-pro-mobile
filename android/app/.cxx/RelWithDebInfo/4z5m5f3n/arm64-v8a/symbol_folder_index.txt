@@ -1,0 +1,1 @@
+/home/yaza/totalit/vimbika-android/vimbika-mobile-pos/build/app/intermediates/cxx/RelWithDebInfo/4z5m5f3n/obj/arm64-v8a

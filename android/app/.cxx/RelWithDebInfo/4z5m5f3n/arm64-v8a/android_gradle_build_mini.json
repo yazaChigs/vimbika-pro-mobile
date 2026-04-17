@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "/home/yaza/develop/flutter/packages/flutter_tools/gradle/src/main/groovy/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/home/yaza/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/home/yaza/totalit/vimbika-android/vimbika-mobile-pos/android/app/.cxx/RelWithDebInfo/4z5m5f3n/arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/home/yaza/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/home/yaza/totalit/vimbika-android/vimbika-mobile-pos/android/app/.cxx/RelWithDebInfo/4z5m5f3n/arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {}
+}
