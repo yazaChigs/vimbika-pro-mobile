@@ -64,7 +64,7 @@ class TicketListScreen extends StatelessWidget {
                     crossAxisCount: orientation == Orientation.landscape ? 3 : 1,
                     crossAxisSpacing: 3.0,
                     mainAxisSpacing: 3.0,
-                    childAspectRatio:orientation == Orientation.landscape ? 2 : 2.5,
+                    childAspectRatio:orientation == Orientation.landscape ? 1.5 : 2.5,
                   ),
                   itemCount: ticketController.filteredTickets.length,
                   itemBuilder: (context, index) {

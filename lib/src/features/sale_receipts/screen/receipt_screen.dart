@@ -670,7 +670,7 @@ class ReceiptScreen extends StatelessWidget {
                           Card(
                             color: sale!.saleStatus == "REVERSED"
                                 ? Colors.redAccent[100]
-                                : context.theme.colorScheme.primaryContainer,
+                                : context.theme.colorScheme.secondary,
                             child: ListTile(
                               leading: Text(
                                 '${sale!.currency?.symbol ?? ''} ${sale.amountAfterDiscount!.toStringAsFixed(2).toString()}',
@@ -764,7 +764,7 @@ class ReceiptScreen extends StatelessWidget {
                                           IconButton(
                                             icon: Icon(Icons.receipt_long_outlined,
                                                 color: context
-                                                    .theme.colorScheme.secondary,
+                                                    .theme.colorScheme.primary,
                                                 size: 30),
                                             onPressed: () {
                                               receiptController.showReceiptDialog(saleInfo);
@@ -806,7 +806,7 @@ class ReceiptScreen extends StatelessWidget {
                           Card(
                             color: sale!.saleStatus == "REVERSED"
                                 ? Colors.redAccent[100]
-                                : context.theme.colorScheme.primaryContainer,
+                                : context.theme.colorScheme.secondary,
                             child: ListTile(
                               leading: Text(
                                 '${sale!.currency?.symbol ?? ''} ${sale.amountAfterDiscount!.toStringAsFixed(2).toString()}',
@@ -902,7 +902,7 @@ class ReceiptScreen extends StatelessWidget {
                                           IconButton(
                                             icon: Icon(Icons.receipt_long_outlined,
                                                 color: context
-                                                    .theme.colorScheme.secondary,
+                                                    .theme.colorScheme.primary,
                                                 size: 20),
                                             onPressed: () {
                                               receiptController.showReceiptDialog(saleInfo);

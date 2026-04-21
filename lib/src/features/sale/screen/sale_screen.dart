@@ -729,7 +729,7 @@ class SaleScreen extends GetView {
                         },
                         child: Text(
                           'Ticket',
-                          style: TextStyle(color: Colors.white),
+                          style: TextStyle(color: Colors.black),
                         ),
                       ),
                       SizedBox(width: 4),
@@ -2473,7 +2473,7 @@ class SaleScreen extends GetView {
                                                                         ? context
                                                                             .theme
                                                                             .colorScheme
-                                                                            .inversePrimary
+                                                                            .secondary
                                                                         : context
                                                                             .theme
                                                                             .colorScheme
@@ -2751,10 +2751,7 @@ class SaleScreen extends GetView {
                                                           style: TextButton
                                                               .styleFrom(
                                                             backgroundColor: canCharge
-                                                                ? context
-                                                                    .theme
-                                                                    .colorScheme
-                                                                    .inversePrimary
+                                                                ? Colors.green
                                                                 : context
                                                                     .theme
                                                                     .colorScheme
@@ -2775,7 +2772,7 @@ class SaleScreen extends GetView {
                                                               Icons
                                                                   .check_circle,
                                                               color: canCharge
-                                                                  ? Colors.green
+                                                                  ? Colors.green[300]
                                                                   : Colors.red,
                                                               size: 30),
                                                           label: Text(
@@ -2799,8 +2796,7 @@ class SaleScreen extends GetView {
                                                                       .center,
                                                               style: TextStyle(
                                                                   fontSize: 12,
-                                                                  color: Colors
-                                                                      .red),
+                                                                  color: Colors.red),
                                                             ),
                                                           ),
                                                       ],

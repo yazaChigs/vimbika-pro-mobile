@@ -19,12 +19,16 @@ class ProductTileWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       clipBehavior: Clip.antiAlias,
-      color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[700] : context.theme.colorScheme.inversePrimary,
+      color: Colors.lightBlue[100],
       elevation: 2,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(2.0),
         child: Container(
+          color:  context
+              .theme
+              .colorScheme
+              .secondary,
           // height: 200,
           padding: const EdgeInsets.all(4.0),
           child: Column(

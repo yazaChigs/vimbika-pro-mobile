@@ -131,7 +131,7 @@ class CustomerListScreen extends StatelessWidget {
                       var customer =
                           customerController.filteredCustomers[index];
                       return Card(
-                          color: Colors.blueAccent[50],
+                          color: Colors.blueAccent[100],
                           elevation: 2,
                           // margin: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                           child: GridTile(
@@ -140,23 +140,27 @@ class CustomerListScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.all(8.0),
+                                  padding: const EdgeInsets.all(10.0),
                                   child: Row(
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        customer.name ?? 'Unknown Name',
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: context.theme.colorScheme
-                                              .onPrimaryContainer,
-                                        ),
-                                        textAlign: TextAlign.right,
+                                        '${customer.name ?? 'Unknown Name'}',
+                                        style: TextStyle(fontSize: 16),
                                       ),
+                                      // Text(
+                                      //   customer.name ?? 'Unknown Name',
+                                      //   overflow: TextOverflow.ellipsis,
+                                      //   maxLines: 1,
+                                      //   style: TextStyle(
+                                      //     fontSize: 18,
+                                      //     fontWeight: FontWeight.bold,
+                                      //     color: context.theme.colorScheme
+                                      //         .onPrimaryContainer,
+                                      //   ),
+                                      //   textAlign: TextAlign.right,
+                                      // ),
                                       // (customer.isLoyalCustomer ?? false)
                                       //     ? IconButton(
                                       //         onPressed: () {},
