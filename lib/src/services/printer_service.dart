@@ -1030,7 +1030,7 @@ class PrinterService extends GetxService {
      // Items - description left, amount right-aligned
      print("--- Printing Sale Items Details (USB) ---");
      for (var item in sale.items!) {
-       String itemName = item.inventoryItem?.name ?? 'Item';
+       String itemName = '${item.inventoryItem?.name} x ${item.quantity} @ ${item.sellingPrice}' ?? 'Item';
        double unitPrice = item.sellingPrice ?? 0;
        double qty = item.quantity ?? 0;
        double itemTotal = item.total ?? 0;
