@@ -5,10 +5,60 @@ import 'package:get/get.dart';
 import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/features/sale/controller/cart_controller.dart';
 import 'package:vimbika_pos_app/src/shared/controller/inactivity_controller.dart';
+import 'package:vimbika_pos_app/src/features/sale/model/cart_item_model.dart';
 
 class CartScreen extends StatelessWidget {
   final CartController cartController = Get.find();
   final InactivityController inactivityController = Get.find();
+
+  void _showEditQuantityDialog(BuildContext context, CartItemModel cartItem) {
+    final TextEditingController quantityController =
+        TextEditingController(text: cartItem.quantity.toStringAsFixed(0));
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Edit Quantity'),
+          content: TextField(
+            controller: quantityController,
+            keyboardType: TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+            ],
+            decoration: InputDecoration(
+              labelText: 'Quantity',
+              hintText: 'Enter quantity',
+            ),
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final double? newQuantity =
+                    double.tryParse(quantityController.text);
+                if (newQuantity != null) {
+                  cartController.updateQuantity(cartItem, newQuantity);
+                  Navigator.pop(context);
+                } else {
+                  Get.snackbar(
+                    "Invalid Quantity",
+                    "Please enter a valid number",
+                    snackPosition: SnackPosition.BOTTOM,
+                  );
+                }
+              },
+              child: Text('Update'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,14 +90,25 @@ class CartScreen extends StatelessWidget {
                     return Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: ListTile(
-                        
                         tileColor: Colors.lightBlue[100],
                         title: Text(
                           cartItem.product.item!.name ?? '',
-
                         ),
-                        subtitle: Text(
-                            'Quantity ${cartItem.quantity.toInt()}', style: TextStyle(fontWeight: cartItem.quantity>1 ? FontWeight.bold : null),
+                        subtitle: InkWell(
+                          onTap: () => _showEditQuantityDialog(context, cartItem),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4.0),
+                            child: Text(
+                              'Quantity ${cartItem.quantity.toStringAsFixed(cartItem.quantity % 1 == 0 ? 0 : 2)}',
+                              style: TextStyle(
+                                fontWeight: cartItem.quantity > 1
+                                    ? FontWeight.bold
+                                    : null,
+                                decoration: TextDecoration.underline,
+                                decorationStyle: TextDecorationStyle.dashed,
+                              ),
+                            ),
+                          ),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -62,8 +123,7 @@ class CartScreen extends StatelessWidget {
                             ),
                             Text(
                               '${(cartItem.quantity * cartItem.product.item!.sellingPrice).toStringAsFixed(2)}',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold),
+                              style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                             IconButton(
                               icon: Icon(
@@ -112,7 +172,7 @@ class CartScreen extends StatelessWidget {
                       },
                       style: TextButton.styleFrom(
                         backgroundColor:
-                        Colors.cyan, // Set button color to primary theme color
+                            Colors.cyan, // Set button color to primary theme color
                         // foregroundColor: context.theme.colorScheme.onPrimary, // Set text color to onPrimary theme color
                         textStyle: TextStyle(
                             fontSize: 16,

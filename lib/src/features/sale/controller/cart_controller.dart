@@ -769,6 +769,21 @@ class CartController extends GetxController {
     cartItems.refresh();
   }
 
+  void updateQuantity(CartItemModel cartItem, double quantity) {
+    if (quantity > cartItem.product.stock!.toDouble() && !sellNilItems) {
+      Get.snackbar("Check your Quantity",
+          "Quantity can not be greater than stock available!!!",
+          snackPosition: SnackPosition.BOTTOM);
+      cartItem.quantity = cartItem.product.stock!.toDouble();
+    } else if (quantity <= 0) {
+      removeFromCart(cartItem);
+    } else {
+      cartItem.quantity = quantity;
+      calculateTotalAmounts(cartItems);
+      cartItems.refresh();
+    }
+  }
+
   calculateTotalAmounts(List<CartItemModel> items) {
     double totalCostInBCurrency =
         items.fold(0.0, (sum, item) => sum + item.totalPrice);

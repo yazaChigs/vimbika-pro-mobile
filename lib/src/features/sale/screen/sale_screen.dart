@@ -15,6 +15,7 @@ import 'package:vimbika_pos_app/src/constants/app_constants.dart';
 import 'package:vimbika_pos_app/src/constants/app_routes.dart';
 import 'package:vimbika_pos_app/src/features/sale/controller/cart_controller.dart';
 import 'package:vimbika_pos_app/src/features/sale/controller/sale_controller.dart';
+import 'package:vimbika_pos_app/src/features/sale/model/cart_item_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/model/product_full_info_model.dart';
 import 'package:vimbika_pos_app/src/features/sale/screen/product_description_screen.dart';
 import 'package:vimbika_pos_app/src/features/sale/screen/barcode_scanner_screen.dart';
@@ -64,6 +65,55 @@ class SaleScreen extends GetView {
       MediaQuery.of(context).size.width >= 950.0;
 
   SaleScreen({super.key});
+
+  void _showEditQuantityDialog(BuildContext context, CartItemModel cartItem) {
+    final TextEditingController quantityController =
+        TextEditingController(text: cartItem.quantity.toStringAsFixed(cartItem.quantity % 1 == 0 ? 0 : 2));
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Edit Quantity'),
+          content: TextField(
+            controller: quantityController,
+            keyboardType: TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+            ],
+            decoration: InputDecoration(
+              labelText: 'Quantity',
+              hintText: 'Enter quantity',
+            ),
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final double? newQuantity =
+                    double.tryParse(quantityController.text);
+                if (newQuantity != null) {
+                  cartController.updateQuantity(cartItem, newQuantity);
+                  Navigator.pop(context);
+                } else {
+                  Get.snackbar(
+                    "Invalid Quantity",
+                    "Please enter a valid number",
+                    snackPosition: SnackPosition.BOTTOM,
+                  );
+                }
+              },
+              child: Text('Update'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1352,8 +1402,7 @@ class SaleScreen extends GetView {
                                                   .value
                                                   .toStringAsFixed(2);
                                           cartController.hasAmountText.value =
-                                              true;
-                                          cartController.amountPaid.value =
+                                              true;                                          cartController.amountPaid.value =
                                               cartController
                                                   .totalCostInSelectedCurrency
                                                   .value;
@@ -1472,7 +1521,7 @@ class SaleScreen extends GetView {
                                                   return Card(
                                                     child: ListTile(
                                                       contentPadding:
-                                                          EdgeInsets.zero,
+                                                          EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                                                       minTileHeight: 25,
                                                       tileColor: context
                                                           .theme
@@ -1493,10 +1542,50 @@ class SaleScreen extends GetView {
                                                             fontStyle: FontStyle
                                                                 .italic),
                                                       ),
-                                                      subtitle: Text(
-                                                        style: TextStyle(fontWeight:cartItem.quantity>1 ? FontWeight.bold : FontWeight.normal),
-                                                          'Qty: ${cartItem.quantity} Price: \$${cartItem.product.item!.sellingPrice.toStringAsFixed(2)} \n '
-                                                          '${cartItem.notes}'),
+                                                      subtitle: Column(
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        children: [
+                                                          InkWell(
+                                                            onTap: () => _showEditQuantityDialog(context, cartItem),
+                                                            child: Padding(
+                                                              padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                                              child: Row(
+                                                                children: [
+                                                                  Container(
+                                                                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                                    decoration: BoxDecoration(
+                                                                      color: context.theme.colorScheme.primary.withOpacity(0.1),
+                                                                      borderRadius: BorderRadius.circular(4),
+                                                                    ),
+                                                                    child: Text(
+                                                                      'Qty: ${cartItem.quantity.toStringAsFixed(cartItem.quantity % 1 == 0 ? 0 : 2)}',
+                                                                      style: TextStyle(
+                                                                        fontSize: 14,
+                                                                        fontWeight: FontWeight.bold,
+                                                                        color: context.theme.colorScheme.primary,
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                  SizedBox(width: 8),
+                                                                  Text(
+                                                                    '@ \$${cartItem.product.item!.sellingPrice.toStringAsFixed(2)}',
+                                                                    style: TextStyle(
+                                                                      fontSize: 13,
+                                                                      fontWeight: FontWeight.w500,
+                                                                      color: Colors.grey[800],
+                                                                    ),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          if (cartItem.notes != null && cartItem.notes!.isNotEmpty)
+                                                            Text(
+                                                              cartItem.notes!,
+                                                              style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.blueGrey),
+                                                            ),
+                                                        ],
+                                                      ),
                                                       trailing: Row(
                                                         mainAxisSize:
                                                             MainAxisSize.min,
@@ -1504,11 +1593,8 @@ class SaleScreen extends GetView {
                                                           Text(
                                                             "\$${cartItem.totalPrice.toStringAsFixed(2)}",
                                                             style: TextStyle(
-                                                                fontSize: 18,
-                                                                color: context
-                                                                    .theme
-                                                                    .colorScheme
-                                                                    .primary,
+                                                                fontSize: 16,
+                                                                color: Colors.indigo[900],
                                                                 fontWeight:
                                                                     FontWeight
                                                                         .bold),
@@ -1518,6 +1604,20 @@ class SaleScreen extends GetView {
                                                                   (result) {},
                                                               itemBuilder:
                                                                   (context) => [
+                                                                        PopupMenuItem(
+                                                                          child: ListTile(
+                                                                              leading: Icon(
+                                                                                Icons.edit,
+                                                                                color: Colors.blueAccent,
+                                                                              ),
+                                                                              title: Text("Edit Qty")),
+                                                                          value:
+                                                                              0,
+                                                                          onTap:
+                                                                              () {
+                                                                            _showEditQuantityDialog(context, cartItem);
+                                                                          },
+                                                                        ),
                                                                         PopupMenuItem(
                                                                           child: ListTile(
                                                                               leading: Icon(
@@ -2085,8 +2185,7 @@ class SaleScreen extends GetView {
                                                                           width:
                                                                               2.0,
                                                                         ),
-                                                                      ),
-                                                                      focusedBorder: OutlineInputBorder(
+                                                                      ),                                                                      focusedBorder: OutlineInputBorder(
                                                                         borderRadius:
                                                                             BorderRadius.circular(8.0),
                                                                         borderSide:
