@@ -379,7 +379,6 @@ class CartController extends GetxController {
           );
         }
       } catch (e) {
-        // Handle display manager errors gracefully
         print('Display manager error: $e');
       }
     }
@@ -639,7 +638,7 @@ class CartController extends GetxController {
     if (amtToAccTextEditingController.text.isNotEmpty) {
       try {
         amtToAccValue = double.parse(amtToAccTextEditingController.text);
-      } catch (e) {
+      } catch (_) {
         amtToAccValue = 0.0;
       }
     }
@@ -694,7 +693,7 @@ class CartController extends GetxController {
       'currency': selectedCurrency.value!.name,
       'imageUrl': '${AppConstants.VIMBIKA_BACKEND_URL}/company/logo/${company.value!.id}',
       'items': cartItems.isNotEmpty
-          ? List<String>.from(cartItems.map((x) =>  '${x.product.item!.name} X ${x.quantity}\t\t [${selectedCurrency.value!.symbol} ${x.product.item!.sellingPrice*x.quantity} ]'))
+          ? List<String>.from(cartItems.map((x) =>  '${x.product.item!.name} X ${x.quantity.toStringAsFixed(3).replaceAll(RegExp(r"([.]*0+)(?!.*\d)"), "")}\t\t [${selectedCurrency.value!.symbol} ${x.totalPrice.toStringAsFixed(2)} ]'))
           : [],
       'numberOfItems':cartItems.fold(0.0, (previousValue, element) => previousValue + element.quantity)
     };
@@ -760,8 +759,11 @@ class CartController extends GetxController {
   }
 
   void decrementQuantity(CartItemModel cartItem) {
-    if (cartItem.quantity > 1) {
-      cartItem.quantity--;
+    if (cartItem.quantity > 0.001) { // Allow decrementing to very small quantities
+      cartItem.quantity = double.parse((cartItem.quantity - 1).toStringAsFixed(3)); // Ensure 3 decimal places
+      if (cartItem.quantity < 0.001) { // If it goes below a minimal threshold, remove
+        removeFromCart(cartItem);
+      }
     } else {
       removeFromCart(cartItem);
     }
@@ -778,7 +780,7 @@ class CartController extends GetxController {
     } else if (quantity <= 0) {
       removeFromCart(cartItem);
     } else {
-      cartItem.quantity = quantity;
+      cartItem.quantity = double.parse(quantity.toStringAsFixed(3)); // Ensure 3 decimal places
       calculateTotalAmounts(cartItems);
       cartItems.refresh();
     }
@@ -1485,7 +1487,7 @@ class CartController extends GetxController {
       AppHelper.hideLoading();
     }
   } finally {
-    _syncLockService.releaseChargeLock();
+    _syncLockService.acquireChargeLock();
   }
   }
 

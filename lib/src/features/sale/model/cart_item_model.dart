@@ -18,20 +18,28 @@ class CartItemModel {
   String notes;
   double discount;
 
-  double get totalPrice => breakage ? 0.00 : (product.item!.sellingPrice  - discount )* quantity;
+  double get totalPrice {
+    if (breakage) return 0.00;
+    double price = (product.item!.sellingPrice - discount) * quantity;
+    return double.parse(price.toStringAsFixed(3));
+  }
 
-  double get totalTaxAmount => breakage ? 0.00 :  product.item!.taxAmount * quantity;
+  double get totalTaxAmount {
+    if (breakage) return 0.00;
+    double tax = product.item!.taxAmount * quantity;
+    return double.parse(tax.toStringAsFixed(3));
+  }
 
 
   factory CartItemModel.fromMap(Map<String, dynamic> json) => CartItemModel(
-    quantity: json["quantity"],
+    quantity: json["quantity"].toDouble(),
     notes: json["notes"],
     breakage: json["breakage"],
     product: ProductFullInfoModel.fromMap(json["product"]),
     usedCodes: json["usedCodes"] != null
         ? Set<String>.from(json["usedCodes"].map((x) => x.toString()))
         : {},
-    discount: json["discount"] ?? 0.0,
+    discount: json["discount"]?.toDouble() ?? 0.0,
   );
   Map<String, dynamic> toMap() => {
     "quantity": quantity,

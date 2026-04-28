@@ -1017,14 +1017,14 @@ class PrinterService extends GetxService {
      receiptData += generator.feed(1);
 
      // Separator
-     receiptData += generator.text('------------------------------------------------',
+     receiptData += generator.text('-------------------------',
          styles: PosStyles(align: PosAlign.center));
      
      // Items Header - with proper spacing
-     String headerLine = 'Description'.padRight(40) + 'Amount';
+     String headerLine = 'Description'.padRight(25) + 'Amount';
      receiptData += generator.text(headerLine,
          styles: PosStyles(align: PosAlign.left));
-     receiptData += generator.text('------------------------------------------------',
+     receiptData += generator.text('-------------------------',
          styles: PosStyles(align: PosAlign.center));
 
      // Items - description left, amount right-aligned
@@ -1041,13 +1041,13 @@ class PrinterService extends GetxService {
        String amountStr = total.toStringAsFixed(2);
        
        // Format: Description left-padded to 40 chars, then amount right-aligned
-       String itemLine = itemName.padRight(40) + amountStr;
+       String itemLine = itemName.padRight(25) + amountStr;
        receiptData += generator.text(itemLine,
              styles: PosStyles(align: PosAlign.left));
        }
 
      // Separator
-     receiptData += generator.text('------------------------------------------------',
+     receiptData += generator.text('-------------------------',
          styles: PosStyles(align: PosAlign.center));
 
      // Payment Types: Total [Currency] [Amount] and [Currency] [PaymentName]
@@ -1055,30 +1055,30 @@ class PrinterService extends GetxService {
        String currencySymbol = paymentType.currency?.symbol ?? cur?.symbol ?? '';
        double amount = paymentType.amount ?? 0.0;
        String paymentName = paymentType.paymentType?.name ?? '';
-       String totalLine = 'Total $currencySymbol'.padRight(40) + amount.toStringAsFixed(2);
+       String totalLine = 'Total $currencySymbol'.padRight(25) + amount.toStringAsFixed(2);
        receiptData += generator.text(totalLine,
              styles: PosStyles(align: PosAlign.left));
       if (paymentName.isNotEmpty) {
-        String paymentLine = '$currencySymbol $paymentName'.padRight(40) + amount.toStringAsFixed(2);
+        String paymentLine = '$currencySymbol $paymentName'.padRight(25) + amount.toStringAsFixed(2);
         receiptData += generator.text(paymentLine,
              styles: PosStyles(align: PosAlign.left));
        }
      }
 
      // Separator
-     receiptData += generator.text('------------------------------------------------',
+     receiptData += generator.text('-------------------------',
          styles: PosStyles(align: PosAlign.center));
 
      // Number of items
      int itemCount = sale.items?.length ?? 0;
-     String itemsLine = 'Number of items'.padRight(40) + itemCount.toString();
+     String itemsLine = 'Number of items'.padRight(25) + itemCount.toString();
      receiptData += generator.text(itemsLine,
            styles: PosStyles(align: PosAlign.left));
 
      // Separator (double)
-     receiptData += generator.text('------------------------------------------------',
+     receiptData += generator.text('-------------------------',
            styles: PosStyles(align: PosAlign.center));
-     receiptData += generator.text('------------------------------------------------',
+     receiptData += generator.text('-------------------------',
          styles: PosStyles(align: PosAlign.center));
 
      // Calculate net and gross amounts
@@ -1087,29 +1087,29 @@ class PrinterService extends GetxService {
      double vatPercentage = grossAmount > 0 ? (sale.totalTaxAmount ?? 0.0) / grossAmount * 100 : 0.0;
     
      // Amount Paid - right-align amount
-     String amountPaidLine = 'Amount Paid'.padRight(40) + (cur?.symbol ?? '') + ' ' + (sale.amountPaid?.toStringAsFixed(2) ?? '0.00');
+     String amountPaidLine = 'Amount Paid'.padRight(25) + (cur?.symbol ?? '') + ' ' + (sale.amountPaid?.toStringAsFixed(2) ?? '0.00');
      receiptData += generator.text(amountPaidLine,
         styles: PosStyles(align: PosAlign.left));
     
      // Change - right-align amount
-     String changeLine = 'Change:'.padRight(40) + (cur?.symbol ?? '') + ' ' + (sale.change?.toStringAsFixed(2) ?? '0.00');
+     String changeLine = 'Change:'.padRight(25) + (cur?.symbol ?? '') + ' ' + (sale.change?.toStringAsFixed(2) ?? '0.00');
      receiptData += generator.text(changeLine,
            styles: PosStyles(align: PosAlign.left));
      
      // Net Amount - right-align amount
-     String netLine = 'Net Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + netAmount.toStringAsFixed(2);
+     String netLine = 'Net Amount'.padRight(25) + (cur?.symbol ?? '') + ' ' + netAmount.toStringAsFixed(2);
      receiptData += generator.text(netLine,
            styles: PosStyles(align: PosAlign.left));
 
      // VAT with percentage - right-align amount
     if (sale.totalTaxAmount != null && sale.totalTaxAmount! > 0) {
-       String vatLine = 'VAT (${vatPercentage.toStringAsFixed(0)}%)'.padRight(40) + (cur?.symbol ?? '') + ' ' + sale.totalTaxAmount!.toStringAsFixed(2);
+       String vatLine = 'VAT (${vatPercentage.toStringAsFixed(0)}%)'.padRight(25) + (cur?.symbol ?? '') + ' ' + sale.totalTaxAmount!.toStringAsFixed(2);
        receiptData += generator.text(vatLine,
           styles: PosStyles(align: PosAlign.left));
     }
     
      // Gross Amount - right-align amount
-     String grossLine = 'Gross Amount'.padRight(40) + (cur?.symbol ?? '') + ' ' + grossAmount.toStringAsFixed(2);
+     String grossLine = 'Gross Amount'.padRight(25) + (cur?.symbol ?? '') + ' ' + grossAmount.toStringAsFixed(2);
      receiptData += generator.text(grossLine,
         styles: PosStyles(align: PosAlign.left));
 

@@ -68,7 +68,7 @@ class SaleScreen extends GetView {
 
   void _showEditQuantityDialog(BuildContext context, CartItemModel cartItem) {
     final TextEditingController quantityController =
-        TextEditingController(text: cartItem.quantity.toStringAsFixed(cartItem.quantity % 1 == 0 ? 0 : 2));
+        TextEditingController(text: cartItem.quantity.toStringAsFixed(3).replaceAll(RegExp(r"([.]*0+)(?!.*\d)"), ""));
 
     showDialog(
       context: context,
@@ -79,11 +79,11 @@ class SaleScreen extends GetView {
             controller: quantityController,
             keyboardType: TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}')),
             ],
             decoration: InputDecoration(
               labelText: 'Quantity',
-              hintText: 'Enter quantity',
+              hintText: 'Enter quantity (max 3 decimal places)',
             ),
             autofocus: true,
           ),
@@ -467,153 +467,7 @@ class SaleScreen extends GetView {
                             labelText: "Bar Code",
                             hintText: "Bar Code",
                           ),
-                          onChanged: (String val) {
-                            if (val.isNotEmpty) {
-                              String exp = val;
-
-                              if (saleController.useSerialNumbers) {
-                                var index = saleController.allProducts
-                                    .indexWhere((item) =>
-                                        item.barCodes?.contains(exp) == true);
-                                if (index != -1) {
-                                  ProductFullInfoModel foundItem =
-                                      saleController.allProducts[index];
-                                  var indexC = cartController.cartItems
-                                      .indexWhere((item) =>
-                                          item.product.item?.id ==
-                                          foundItem.item?.id);
-                                  if (indexC != -1) {
-                                    cartController.addToCartWithBarCode(
-                                        foundItem, 1, exp);
-                                    saleController.barCodeTextEditingController
-                                        .clear();
-                                  } else {
-                                    Get.snackbar(
-                                        "Info", "Product added to cart !!!",
-                                        snackPosition: SnackPosition.BOTTOM);
-                                    cartController.addToCartWithBarCode(
-                                        foundItem, 1, exp);
-                                    saleController.barCodeTextEditingController
-                                        .clear();
-                                  }
-                                } else {
-                                  var index = saleController.allProducts
-                                      .indexWhere(
-                                          (item) => item.item?.itemCode == exp);
-                                  if (index != -1) {
-                                    ProductFullInfoModel foundItem =
-                                        saleController.allProducts[index];
-                                    var indexC = cartController.cartItems
-                                        .indexWhere((item) =>
-                                            item.product.item?.id ==
-                                            foundItem.item?.id);
-                                    if (indexC != -1) {
-                                      cartController.addToCart(foundItem, 1);
-                                      saleController
-                                          .barCodeTextEditingController
-                                          .clear();
-                                    } else {
-                                      Get.snackbar(
-                                          "Info", "Product added to cart !!!",
-                                          snackPosition: SnackPosition.BOTTOM);
-                                      cartController.addToCart(foundItem, 1);
-                                      saleController
-                                          .barCodeTextEditingController
-                                          .clear();
-                                    }
-                                  } else {
-                                    Get.snackbar(
-                                        "Not Found",
-                                        "Product with item  code " +
-                                            exp +
-                                            " is not found!!!",
-                                        snackPosition: SnackPosition.BOTTOM);
-                                  }
-                                }
-                              } else if (exp.length >= 12) {
-                                String chackCode =
-                                    exp.length > 2 ? exp.substring(0, 2) : '';
-                                String productCode =
-                                    exp.length > 6 ? exp.substring(2, 6) : '';
-                                String categoryCode =
-                                    exp.length > 7 ? exp.substring(6, 7) : '';
-                                String weight = exp.length > 12
-                                    ? exp.substring(7, 12)
-                                    : '0';
-
-                                double kgs = double.parse(weight) / 1000;
-                                double roundedValue =
-                                    double.parse(kgs.toStringAsFixed(3));
-                                if (kgs > 0) {
-                                  var index = saleController.allProducts
-                                      .indexWhere((item) =>
-                                          item.item?.itemCode == productCode);
-                                  if (index != -1) {
-                                    ProductFullInfoModel foundItem =
-                                        saleController.allProducts[index];
-                                    var indexC = cartController.cartItems
-                                        .indexWhere((item) =>
-                                            item.product.item?.id ==
-                                            foundItem.item?.id);
-                                    if (indexC != -1) {
-                                      cartController.addToCart(
-                                          foundItem, roundedValue);
-                                      saleController
-                                          .barCodeTextEditingController
-                                          .clear();
-                                    } else {
-                                      Get.snackbar(
-                                          "Info", "Product added to cart !!!",
-                                          snackPosition: SnackPosition.BOTTOM);
-                                      cartController.addToCart(
-                                          foundItem, roundedValue);
-                                      saleController
-                                          .barCodeTextEditingController
-                                          .clear();
-                                    }
-                                  } else {
-                                    Get.snackbar(
-                                        "Not Found",
-                                        "Product with item  code " +
-                                            productCode +
-                                            " is not found!!!",
-                                        snackPosition: SnackPosition.BOTTOM);
-                                  }
-                                }
-                              } else {
-                                var index = saleController.allProducts
-                                    .indexWhere(
-                                        (item) => item.item?.itemCode == exp);
-                                if (index != -1) {
-                                  ProductFullInfoModel foundItem =
-                                      saleController.allProducts[index];
-                                  var indexC = cartController.cartItems
-                                      .indexWhere((item) =>
-                                          item.product.item?.id ==
-                                          foundItem.item?.id);
-                                  if (indexC != -1) {
-                                    cartController.addToCart(foundItem, 1);
-                                    saleController.barCodeTextEditingController
-                                        .clear();
-                                  } else {
-                                    Get.snackbar(
-                                        "Info", "Product added to cart !!!",
-                                        snackPosition: SnackPosition.BOTTOM);
-                                    cartController.addToCart(foundItem, 1);
-                                    saleController.barCodeTextEditingController
-                                        .clear();
-                                  }
-                                } else {
-                                  Get.snackbar(
-                                      "Not Found",
-                                      "Product with item  code " +
-                                          exp +
-                                          " is not found!!!",
-                                      snackPosition: SnackPosition.BOTTOM);
-                                }
-                              }
-                            }
-                          },
+                          onChanged: saleController.onBarcodeChanged,
                           validator: (value) {
                             return null;
                           },
@@ -685,7 +539,7 @@ class SaleScreen extends GetView {
                                     title: Text(itemName),
                                     subtitle: Text('Available units ' +
                                         '(' +
-                                        product.stock!.toInt().toString() +
+                                        product.stock!.toStringAsFixed(3).replaceAll(RegExp(r"([.]*0+)(?!.*\d)"), "") +
                                         ')'),
                                     trailing: Column(
                                       mainAxisSize: MainAxisSize.min,
@@ -1558,7 +1412,7 @@ class SaleScreen extends GetView {
                                                                       borderRadius: BorderRadius.circular(4),
                                                                     ),
                                                                     child: Text(
-                                                                      'Qty: ${cartItem.quantity.toStringAsFixed(cartItem.quantity % 1 == 0 ? 0 : 2)}',
+                                                                      'Qty: ${cartItem.quantity.toStringAsFixed(3).replaceAll(RegExp(r"([.]*0+)(?!.*\d)"), "")}',
                                                                       style: TextStyle(
                                                                         fontSize: 14,
                                                                         fontWeight: FontWeight.bold,
@@ -2065,61 +1919,47 @@ class SaleScreen extends GetView {
                                                       return SizedBox.shrink();
                                                     }
 
-                                                    return SingleChildScrollView(
-                                                      scrollDirection:
-                                                          Axis.horizontal,
-                                                      child: Row(
-                                                        mainAxisAlignment:
-                                                            MainAxisAlignment
-                                                                .spaceEvenly,
-                                                        children: [
+                                                    return Wrap(
+                                                      spacing: 8.0,
+                                                      runSpacing: 4.0,
+                                                      alignment: WrapAlignment.center,
+                                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                                      children: [
+                                                        Text(
+                                                          'Total: ',
+                                                          style: TextStyle(
+                                                            fontSize: 15,
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          '${cartController.selectedCurrency.value!.symbol} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
+                                                          style: TextStyle(
+                                                              fontSize: 20,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              color: Colors
+                                                                  .indigo),
+                                                        ),
+                                                        if (cartController.change > 0) ...[
                                                           Text(
-                                                            'Total: ',
+                                                            'Change: ',
                                                             style: TextStyle(
                                                               fontSize: 15,
                                                             ),
                                                           ),
                                                           Text(
-                                                            '${cartController.selectedCurrency.value!.symbol} ${cartController.totalCostInSelectedCurrency.toStringAsFixed(2)}',
+                                                            '${cartController.selectedCurrency.value!.symbol} ${cartController.change.toStringAsFixed(2)}',
                                                             style: TextStyle(
                                                                 fontSize: 20,
                                                                 fontWeight:
                                                                     FontWeight
                                                                         .bold,
                                                                 color: Colors
-                                                                    .indigo),
+                                                                    .orange),
                                                           ),
-                                                          cartController
-                                                                      .change >
-                                                                  0
-                                                              ? Text(
-                                                                  'Change: ',
-                                                                  style:
-                                                                      TextStyle(
-                                                                    fontSize:
-                                                                        15,
-                                                                  ),
-                                                                )
-                                                              : SizedBox
-                                                                  .shrink(),
-                                                          cartController
-                                                                      .change >
-                                                                  0
-                                                              ? Text(
-                                                                  '${cartController.selectedCurrency.value!.symbol} ${cartController.change.toStringAsFixed(2)}',
-                                                                  style: TextStyle(
-                                                                      fontSize:
-                                                                          20,
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .bold,
-                                                                      color: Colors
-                                                                          .orange),
-                                                                )
-                                                              : SizedBox
-                                                                  .shrink(),
                                                         ],
-                                                      ),
+                                                      ],
                                                     );
                                                   }),
                                                   Obx(() {

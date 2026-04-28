@@ -207,8 +207,7 @@ class SaleController extends GetxController {
                 cartController.addToCart(foundItem, roundedValue);
                 barCodeTextEditingController.clear();
               } else {
-                Get.snackbar("Info", "Product added to cart !!!",
-                    snackPosition: SnackPosition.BOTTOM);
+                print(foundItem.item?.name);
                 cartController.addToCart(foundItem, roundedValue);
                 barCodeTextEditingController.clear();
               }
@@ -230,12 +229,13 @@ class SaleController extends GetxController {
               cartController.addToCart(foundItem, 1);
               barCodeTextEditingController.clear();
               // }
-            } else
+            } else {
               // Item not found, handle this case
               print("item not found");
-            Get.snackbar("Not Found",
-                "Product with item  code " + productCode + " is not found!!!",
-                snackPosition: SnackPosition.BOTTOM);
+              Get.snackbar("Not Found",
+                  "Product with item  code " + productCode + " is not found!!!",
+                  snackPosition: SnackPosition.BOTTOM);
+            }
           }
         } else {
           var index =
