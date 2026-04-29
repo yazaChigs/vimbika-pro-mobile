@@ -30,7 +30,6 @@ import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/screen/pdf_preview_screen.dart';
 import 'package:vimbika_pos_app/src/features/ticket/controller/ticket_controller.dart';
 import 'package:vimbika_pos_app/src/services/app_exceptions.dart';
-import 'package:vimbika_pos_app/src/services/background_service.dart';
 import 'package:vimbika_pos_app/src/services/base_http_client.dart';
 import 'package:vimbika_pos_app/src/services/connectivity_service.dart';
 import 'package:vimbika_pos_app/src/services/generate_flutter_pdf.dart';
@@ -1089,7 +1088,7 @@ class CartController extends GetxController {
     customerAmountPaid.value = 0.0;
     change.value = 0.0;
     hasAmountText.value = false;
-    isFirstQuickAmountButtonUsed.value = false; // Reset flag when cleared
+    isFirstQuickAmountButtonUsed.value = false; // Reset flag for next sale
     isAmountPaidManuallyEntered.value = false; // Reset flag when cleared
     // Refresh payment types when amount is cleared (affects "Add to Account" mode)
     if (selectedCurrency.value != null && selectedCustomer.value != null) {
@@ -1150,6 +1149,7 @@ class CartController extends GetxController {
     } finally {
       _isCharging = false;
       isCharging.value = false;
+      _syncLockService.releaseChargeLock(); // Corrected: Release the lock here
     }
   }
 
@@ -1312,8 +1312,8 @@ class CartController extends GetxController {
         referenceNumber: ref,
         change: change.value,
         customerAmountPaid: customerAmountPaid.value,
-        timeIniated: timeInit,
         timeInit: timeInit,
+        timeIniated: timeInit,
         currency: selectedCurrency.value,
         baseCurrency: baseCurrency.value,
         paymentType: isOnHold ? null : selectedPaymentType.value,
@@ -1409,10 +1409,8 @@ class CartController extends GetxController {
             );
             customer.currencyBalance!.add(currencyAmount);
           } else {
-            var prev = customer.currencyBalance!.firstWhere((cd) =>
-            cd.currency.id == selectedCurrency.value!.id).balance;
-            customer.currencyBalance!.firstWhere((cd) =>
-            cd.currency.id == selectedCurrency.value!.id).balance =
+            var prev = customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance;
+            customer.currencyBalance!.firstWhere((cd)=>cd.currency.id == selectedCurrency.value!.id).balance =
             (prev! + double.parse(amtToAccTextEditingController.text));
           }
           saleInfoModel.sale!.customer = customer;
@@ -1487,7 +1485,7 @@ class CartController extends GetxController {
       AppHelper.hideLoading();
     }
   } finally {
-    _syncLockService.acquireChargeLock();
+    _syncLockService.releaseChargeLock();
   }
   }
 
@@ -1728,6 +1726,11 @@ class CartController extends GetxController {
     isFirstQuickAmountButtonUsed.value = false; // Reset flag for next sale
     postToRearScreen();
     resetFormKey();
+    
+    // Reset charging flags to ensure next sale can be processed
+    _isCharging = false;
+    isCharging.value = false;
+
     Get.delete<SaleController>();
     Get.delete<CartController>();
     Get.delete<ShiftController>();
