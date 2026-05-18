@@ -52,7 +52,7 @@ class SettingsController extends GetxController {
     box = GetStorage();
     useNfc.value  = box.read(AppConstants.USE_NFC) ?? false;
     isDarkModeEnabled.value = box.read(AppConstants.THEME_MODE) ?? false;
-    numberOfReceipts.value = box.read(AppConstants.NUMBER_OF_RECEIPTS) ?? 1;
+    numberOfReceipts.value = box.read(AppConstants.NUMBER_OF_RECEIPTS) ?? 2;
     defaultPaymentMethodId.value  = box.read(AppConstants.DEFAULT_PAYMENT_METHOD_ID) ?? "";
     List<PaymentTypeModel> tempList = getOfflinePaymentTypeList(box);
     paymentTypesList.value = tempList;

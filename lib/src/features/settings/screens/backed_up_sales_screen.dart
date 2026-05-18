@@ -37,7 +37,7 @@ class BackedUpSalesScreen extends StatelessWidget {
           itemBuilder: (context, index) {
             final file = controller.backedUpFiles[index];
             final fileName = file.path.split('/').last;
-            final isShift = file.path.contains('/Shifts/');
+            final isShift = file.path.contains('/Shifts');
             final stats = file.statSync();
             final dateStr = DateFormat('yyyy-MM-dd HH:mm').format(stats.modified);
             final sizeKb = (stats.size / 1024).toStringAsFixed(2);

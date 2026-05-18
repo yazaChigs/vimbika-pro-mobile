@@ -37,7 +37,7 @@ class FilePreviewScreen extends StatelessWidget {
           // Reverse the rows to show newest first (since CSV is append-only)
           final rows = data.skip(1).toList().reversed.toList();
 
-          final isShift = file.path.contains('/Shifts/');
+          final isShift = file.path.contains('/Shifts');
           
           Widget summaryWidget = const SizedBox.shrink();
 
