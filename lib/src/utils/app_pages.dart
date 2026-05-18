@@ -17,6 +17,7 @@ import 'package:vimbika_pos_app/src/features/settings/screens/default_currency_s
 import 'package:vimbika_pos_app/src/features/settings/screens/default_payment_method_screen.dart';
 import 'package:vimbika_pos_app/src/features/settings/screens/fiscal_settings_screen.dart';
 import 'package:vimbika_pos_app/src/features/settings/screens/settings_screen.dart';
+import 'package:vimbika_pos_app/src/features/settings/screens/backed_up_sales_screen.dart';
 import 'package:vimbika_pos_app/src/features/shift/screen/cash_management_screen.dart';
 import 'package:vimbika_pos_app/src/features/shift/screen/open_shift_screen.dart';
 import 'package:vimbika_pos_app/src/features/shift/screen/submit_cash_screen.dart';
@@ -137,6 +138,10 @@ class AppPages {
         page: () => FiscalSettingsScreen(),
         transition: Transition.zoom),
     GetPage(
+        name: AppRoutes.BACKED_UP_SALES,
+        page: () => BackedUpSalesScreen(),
+        transition: Transition.zoom),
+    GetPage(
         name: AppRoutes.STOCK_REQUESTS_MENU,
         page: () => StockRequestMenuScreen(),
         transition: Transition.zoom),
@@ -170,4 +175,3 @@ class AppPages {
         transition: Transition.zoom)
   ];
 }
-

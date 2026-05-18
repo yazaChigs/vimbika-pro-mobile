@@ -16,6 +16,7 @@ import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
 
+import '../../../services/backup_service.dart';
 import '../../../services/sync_service.dart';
 
 class SubmitCashController extends GetxController {
@@ -245,6 +246,10 @@ class SubmitCashController extends GetxController {
     },);
     List<ShiftModel> updatedShifts = _localStorageService.replaceShift(shift, shiftList);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, updatedShifts, box);
+    
+    // Backup the shift to Excel (CSV)
+    BackupService.backupShiftToCsv(shift);
+    
     _printerService.printSunmiCashSubmitReceipt("CASH_SUBMIT", currencyAmountList);
     await SyncService.syncOfflineShifts(user.value!, box);
 

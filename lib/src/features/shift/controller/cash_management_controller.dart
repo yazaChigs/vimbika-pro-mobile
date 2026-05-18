@@ -17,6 +17,7 @@ import 'package:vimbika_pos_app/src/features/shift/model/currency_amount.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/screen/pdf_preview_screen.dart';
 import 'package:vimbika_pos_app/src/features/ticket/controller/ticket_controller.dart';
+import 'package:vimbika_pos_app/src/services/backup_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/currency_model.dart';
@@ -173,6 +174,10 @@ class CashManagementController extends GetxController {
     activeShift.shiftCurrencyAmounts!.add(currencyAmount);
     List<ShiftModel> updatedShifts = _localStorageService.replaceShift(activeShift, shiftList);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, updatedShifts, box);
+    
+    // Backup the shift to Excel (CSV)
+    BackupService.backupShiftToCsv(activeShift);
+    
     openCashDrawer();
     await SyncService.syncOfflineShifts(user.value!, box);
     Get.delete<CashManagementController>();

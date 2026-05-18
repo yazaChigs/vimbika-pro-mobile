@@ -37,6 +37,7 @@ import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_lock_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
+import 'package:vimbika_pos_app/src/services/backup_service.dart';
 import 'package:vimbika_pos_app/src/shared/models/bank_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/base_name_model.dart';
 import 'package:vimbika_pos_app/src/shared/models/branch_model.dart';
@@ -1203,6 +1204,9 @@ class CartController extends GetxController {
     bool breakage =  cartItems.any((item) => item.breakage);
     calculateTotalAmounts(saleCartItems);
     double totalSaleQuantity = 0;
+    for (var cartItem in saleCartItems) {
+      totalSaleQuantity = totalSaleQuantity + cartItem.quantity;
+    }
     List<SaleItemModel> saleItems = [];
     String timeInit =
         DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
@@ -1472,6 +1476,7 @@ class CartController extends GetxController {
         }
       }
       saleInfoModel.sale!.customer = customer;
+      BackupService.backupSaleToCsv(saleInfoModel.sale!);
       printCurrentSale(saleInfoModel, box);
       cancelSale();
       AppHelper.hideLoading();
@@ -1669,6 +1674,9 @@ class CartController extends GetxController {
             _localStorageService.replaceShift(activeShift, allShifts);
         _localStorageService.writeItems(
             AppConstants.SHIFT_LIST, updatedShifts, box);
+        
+        // Backup the shift to Excel (CSV)
+        BackupService.backupShiftToCsv(activeShift);
       }
       
       if(type == "CASH_IN") {

@@ -37,6 +37,7 @@ class SettingsController extends GetxController {
   RxBool isFiscalisationEnabled = false.obs;
   RxBool useNfc = false.obs;
   RxBool isDarkModeEnabled = false.obs;
+  RxInt numberOfReceipts = 2.obs;
 
   // Debouncer for save fiscal setting operation
   Timer? _saveFiscalDebouncer;
@@ -51,6 +52,7 @@ class SettingsController extends GetxController {
     box = GetStorage();
     useNfc.value  = box.read(AppConstants.USE_NFC) ?? false;
     isDarkModeEnabled.value = box.read(AppConstants.THEME_MODE) ?? false;
+    numberOfReceipts.value = box.read(AppConstants.NUMBER_OF_RECEIPTS) ?? 1;
     defaultPaymentMethodId.value  = box.read(AppConstants.DEFAULT_PAYMENT_METHOD_ID) ?? "";
     List<PaymentTypeModel> tempList = getOfflinePaymentTypeList(box);
     paymentTypesList.value = tempList;
@@ -65,6 +67,12 @@ class SettingsController extends GetxController {
     box.write(AppConstants.ENABLE_TAX, selectedBranch.alwaysFiscalize);
 
     loadCurrencies(box);
+  }
+
+  void setNumberOfReceipts(int count) {
+    if (count < 1) count = 1;
+    numberOfReceipts.value = count;
+    box.write(AppConstants.NUMBER_OF_RECEIPTS, count);
   }
 
   Future<void> toggleDefaultFiscalSetting() async {

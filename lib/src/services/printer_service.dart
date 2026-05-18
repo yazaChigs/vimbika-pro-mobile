@@ -63,17 +63,21 @@ class PrinterService extends GetxService {
           SettingsModel settingsModel;
           var settings = box.read(AppConstants.COMPANY_SETTINGS) ?? {};
           settingsModel = SettingsModel.fromMap(Map<String, dynamic>.from(settings));
-          if(prin.type == 'SUNMI_INBUILT_PRINTER') {
-            await printSunmiSaleReceipt(saleInfo.sale!, settingsModel.enableWaInvReq??false);
-          }
-          if(prin.type == 'TELPO_INBUILT_PRINTER') {
-            await printTelpoSaleReceipt(saleInfo.sale!, settingsModel.enableWaInvReq??false);
-          }
-          if (prin.type == 'bluetooth') {
-            await generateBluetoothReceipt(saleInfo.sale!, prin, settingsModel.enableWaInvReq??false);
-          }
-          if (prin.type == 'usb') {
-            await generateUSBReceipt(saleInfo.sale!, prin, settingsModel.enableWaInvReq??false);
+          
+          int numberOfReceipts = box.read(AppConstants.NUMBER_OF_RECEIPTS) ?? 1;
+          for (int i = 0; i < numberOfReceipts; i++) {
+            if(prin.type == 'SUNMI_INBUILT_PRINTER') {
+              await printSunmiSaleReceipt(saleInfo.sale!, settingsModel.enableWaInvReq??false);
+            }
+            if(prin.type == 'TELPO_INBUILT_PRINTER') {
+              await printTelpoSaleReceipt(saleInfo.sale!, settingsModel.enableWaInvReq??false);
+            }
+            if (prin.type == 'bluetooth') {
+              await generateBluetoothReceipt(saleInfo.sale!, prin, settingsModel.enableWaInvReq??false);
+            }
+            if (prin.type == 'usb') {
+              await generateUSBReceipt(saleInfo.sale!, prin, settingsModel.enableWaInvReq??false);
+            }
           }
         } else {
           Get.snackbar('Error', 'Default Printer Not Found. Please add printer.',

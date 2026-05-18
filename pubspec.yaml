@@ -37,6 +37,8 @@ dependencies:
   intl: ^0.18.0
   path_provider: ^2.0.13
   uuid: ^3.0.7
+  csv: ^5.0.1
+  file_picker: ^6.0.0 # Added for file picking functionality
   flutter:
     sdk: flutter
 
@@ -45,6 +47,7 @@ dependencies:
   cupertino_icons: ^1.0.6
   # flutter_pos_printer_platform_image_3: ^1.2.0  # Windows compatibility issue - path too long
   permission_handler: ^10.2.0
+  share_plus: ^10.1.0
   flutter_esc_pos_utils: ^1.0.1
   bluetooth_print: ^4.3.0
   webview_flutter: ^4.10.0

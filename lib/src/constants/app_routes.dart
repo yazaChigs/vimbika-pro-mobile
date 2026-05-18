@@ -31,4 +31,5 @@ class AppRoutes {
   static const BARCODE_SCANNER = "/barcode_scanner";
   static const SUNMI_LCD = "/sunmi_lcd";
   static const SHIFTS_HISTORY = "/shifts_history";
+  static const BACKED_UP_SALES = "/backed_up_sales";
 }

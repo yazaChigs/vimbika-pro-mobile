@@ -8,6 +8,8 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_pos_printer_platform_image_3
   permission_handler_windows
   printing
+  share_plus
+  url_launcher_windows
   windows_taskbar
 )
 

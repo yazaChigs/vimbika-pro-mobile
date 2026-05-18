@@ -12,7 +12,7 @@ class AppConstants {
   // static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
   // static const VIMBIKA_BACKEND_URL = "https://mashwede.vimbika.africa/mashwede/api";
   //     static const VIMBIKA_BACKEND_URL = "http://192.168.1.99:8080/vimbika-pro/api";
-          static const VIMBIKA_BACKEND_URL = "http://192.168.1.146:8080/vimbika-pro/api";
+          static const VIMBIKA_BACKEND_URL = "http://192.168.1.148:8080/vimbika-pro/api";
   // static const VIMBIKA_BACKEND_URL = "http://172.20.10.12:8080/vimbika-pro/api";
   static const USER_INFO = "USER_INFO";
   static const ACTIVE_COMPANY = "ACTIVE_COMPANY";
@@ -46,6 +46,7 @@ class AppConstants {
   static const ALWAYS_PRINT = "ALWAYS_PRINT";
   static const USE_KOT = "USE_KOT";
   static const KOT_NUMBER = "KOT_NUMBER";
+  static const NUMBER_OF_RECEIPTS = "NUMBER_OF_RECEIPTS";
   static const SYNCING_IN_PROGRESS = "SYNCING_IN_PROGRESS";
   static const DEFAULT_CURRENCY_ID = "DEFAULT_CURRENCY_ID";
   static const DEFAULT_PAYMENT_METHOD_ID = "DEFAULT_PAYMENT_METHOD_ID";

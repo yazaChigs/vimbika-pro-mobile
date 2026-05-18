@@ -16,6 +16,7 @@ import 'package:vimbika_pos_app/src/features/sale/controller/sale_controller.dar
 import 'package:vimbika_pos_app/src/features/shift/model/currency_amount.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_model.dart';
 import 'package:vimbika_pos_app/src/features/shift/model/shift_response_model.dart';
+import 'package:vimbika_pos_app/src/services/backup_service.dart';
 import 'package:vimbika_pos_app/src/services/local_storage_service.dart';
 import 'package:vimbika_pos_app/src/services/printer_service.dart';
 import 'package:vimbika_pos_app/src/services/sync_service.dart';
@@ -275,6 +276,9 @@ class ShiftController extends GetxController {
     activeShift.value = shiftModel;
     shifts.add(shiftModel);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, shifts, box);
+    
+    // Backup the shift to Excel (CSV)
+    BackupService.backupShiftToCsv(shiftModel);
     
     // CRITICAL: Set SELECTED_SHIFT_REF to ensure this newly opened shift is prioritized
     // This prevents getActiveShift from returning an old open shift when making sales
@@ -564,6 +568,10 @@ class ShiftController extends GetxController {
     // The sync service will set stopSync = true after successfully syncing the closed shift
     temp.stopSync = false;
     print("Close Shift: Marked shift ${temp.shiftReference} as closed with stopSync=false to ensure it syncs when back online");
+    
+    // Save shift currency amounts to Excel (CSV)
+    await BackupService.backupShiftToCsv(temp);
+    
     List<ShiftModel> shi =  _localStorageService.replaceShift(temp, shifts);
     _localStorageService.writeItems(AppConstants.SHIFT_LIST, shi, box);
     

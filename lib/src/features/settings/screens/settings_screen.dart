@@ -5,8 +5,11 @@ import 'package:vimbika_pos_app/src/widgets/app_widgets.dart';
 
 import '../controller/settings_controller.dart';
 
+import '../../../services/sync_service.dart';
+
 class SettingsScreen extends StatelessWidget {
   final SettingsController controller = Get.put(SettingsController());
+  // final SyncService syncService = Get.find<SyncService>();
   @override
   Widget build(BuildContext context) {
     AppWidgets appWidgets = AppWidgets();
@@ -48,6 +51,18 @@ class SettingsScreen extends StatelessWidget {
               onTap: () => Get.toNamed(AppRoutes.DEFAULT_CURRENCY_SCREEN),
             ),
             const SizedBox(height: 20),
+            appWidgets.buildSettingButton(
+              context,
+              title: 'Backed Up Files',
+              icon: Icons.backup,
+              onTap: () async {
+                bool isAuthenticated = await SyncService().showAuthenticationDialog(context);
+                if (isAuthenticated) {
+                  Get.toNamed(AppRoutes.BACKED_UP_SALES);
+                }
+              },
+            ),
+            const SizedBox(height: 20),
             Obx(() => CheckboxListTile(
               title: Text(
                 'Use NFC',
@@ -73,7 +88,32 @@ class SettingsScreen extends StatelessWidget {
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,
             )),
-
+            const SizedBox(height: 20),
+            Obx(() => Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Number of Receipts', style: TextStyle(fontSize: 16)),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.remove_circle_outline),
+                      onPressed: () {
+                        if (controller.numberOfReceipts.value > 1) {
+                          controller.setNumberOfReceipts(controller.numberOfReceipts.value - 1);
+                        }
+                      },
+                    ),
+                    Text(controller.numberOfReceipts.value.toString(), style: TextStyle(fontSize: 16)),
+                    IconButton(
+                      icon: Icon(Icons.add_circle_outline),
+                      onPressed: () {
+                        controller.setNumberOfReceipts(controller.numberOfReceipts.value + 1);
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            )),
             Spacer(),
           ],
         ),
