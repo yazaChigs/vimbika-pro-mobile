@@ -1,0 +1,248 @@
+import 'package:vimbika_pro/app_constants/app_theme.dart';
+import 'package:vimbika_pro/model/customer.dart';
+import 'package:vimbika_pro/services/customer_service.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:vimbika_pro/app_constants/app_constants.dart';
+import 'package:vimbika_pro/model/company.dart';
+import 'package:vimbika_pro/model/branch.dart';
+import 'package:vimbika_pro/model/user.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart'; // Added for debugPrint
+
+import '../model/customer_currency_amount.dart'; // Import connectivity_plus
+
+class AddCustomerScreen extends StatefulWidget {
+  final Customer? customer;
+
+  const AddCustomerScreen({super.key, this.customer});
+
+  @override
+  State<AddCustomerScreen> createState() => _AddCustomerScreenState();
+}
+
+class _AddCustomerScreenState extends State<AddCustomerScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final CustomerService _customerService = CustomerService();
+
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
+  late TextEditingController _phoneController;
+  late TextEditingController _addressController;
+  late TextEditingController _accountNumberController;
+  late TextEditingController _taxNumberController;
+  late TextEditingController _tinNumberController;
+
+  bool _isSaving = false;
+  bool _isTaxEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.customer?.name);
+    _emailController = TextEditingController(text: widget.customer?.email);
+    _phoneController = TextEditingController(text: widget.customer?.phoneNumber);
+    _addressController = TextEditingController(text: widget.customer?.address);
+    _accountNumberController = TextEditingController(text: widget.customer?.accountNumber);
+    _taxNumberController = TextEditingController(text: widget.customer?.taxNumber);
+    _tinNumberController = TextEditingController(text: widget.customer?.tinNumber);
+    _loadTaxConfig();
+  }
+
+  Future<void> _loadTaxConfig() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isTaxEnabled = prefs.getBool(AppConstants.keyIsPriceInclusiveTax) ?? true;
+    });
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    _accountNumberController.dispose();
+    _taxNumberController.dispose();
+    _tinNumberController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveCustomer() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
+
+      // Get the company from logged in user if possible
+      Company? currentCompany = widget.customer?.company;
+      Branch? currentBranch = widget.customer?.branch;
+
+      if (currentCompany == null || currentBranch == null) {
+        final String? userData = prefs.getString(isOfflineMode ? AppConstants.keyOfflineUserData : AppConstants.keyOnlineUserData);
+        if (userData != null) {
+            final user = User.fromJson(jsonDecode(userData));
+            currentCompany ??= user.branch?.company;
+            currentBranch ??= user.branch;
+        }
+      }
+
+      if (currentCompany == null) {
+        final String? companyData = prefs.getString(isOfflineMode ? AppConstants.keyOfflineCompanyData : AppConstants.keyOnlineCompanyData);
+        if (companyData != null) {
+          currentCompany = Company.fromJson(jsonDecode(companyData));
+        }
+      }
+
+      Customer customerToSave = Customer(
+        id: widget.customer?.id, // Use existing ID if editing
+        name: _nameController.text,
+        email: _emailController.text,
+        phoneNumber: _phoneController.text,
+        address: _addressController.text,
+        accountNumber: _accountNumberController.text,
+        taxNumber: _taxNumberController.text,
+        tinNumber: _tinNumberController.text,
+        currencyBalance: widget.customer?.currencyBalance, // preserve existing balance
+        company: currentCompany, // preserve or set company
+        branch: currentBranch, // set branch
+        dateCreated: widget.customer?.dateCreated,
+        dateModified: widget.customer?.dateModified,
+        createdByName: widget.customer?.createdByName,
+        modifiedByName: widget.customer?.modifiedByName,
+        version: widget.customer?.version,
+        isSynced: false, // Initially false, will be updated after successful API sync
+      );
+
+      // Assign a local ID if it's a new customer
+      if (customerToSave.id == null) {
+        customerToSave = customerToSave.copyWith(id: 'local_${DateTime.now().millisecondsSinceEpoch}');
+      }
+
+      // 1. Save locally first
+      await _customerService.saveCustomerLocally(customerToSave);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Customer saved locally.'), backgroundColor: Colors.green),
+        );
+      }
+
+      // 2. Attempt to save to API in the background (after popping the screen)
+      // We don't await this call, allowing the function to complete and the screen to pop.
+      _syncCustomerToApi(customerToSave);
+      
+      if (mounted) {
+        Navigator.pop(context, customerToSave); // Return the saved customer object
+      }
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('An unexpected error occurred: $e'), backgroundColor: Colors.red),
+        );
+        print('An unexpected error occurred: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  // New function to handle API sync in the background
+  Future<void> _syncCustomerToApi(Customer customer) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final connectivityResult = await (Connectivity().checkConnectivity());
+    bool isConnected = connectivityResult.any((result) => result != ConnectivityResult.none);
+    final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
+
+    if (isConnected && !isOfflineMode) {
+      try {
+        final savedCustomer = await _customerService.saveCustomer(customer);
+        // Update local storage with the API-saved customer, marking as synced
+        await _customerService.saveCustomerLocally(savedCustomer.copyWith(isSynced: true));
+        debugPrint('Customer synced to API successfully: ${savedCustomer.id}');
+      } catch (e) {
+        debugPrint('Failed to sync customer ${customer.id} to API: $e');
+        // Customer remains unsynced locally. A separate retry mechanism will handle this.
+      }
+    } else {
+      debugPrint('Not connected or in offline mode. Customer ${customer.id} remains unsynced.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.nearlyWhite,
+      appBar: AppBar(
+        title: Text(widget.customer == null ? 'Add Customer' : 'Edit Customer', style: AppTheme.title),
+        backgroundColor: AppTheme.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: AppTheme.nearlyBlack),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              _buildTextField(_nameController, 'Customer Name', 'Enter full name', required: true),
+              _buildTextField(_accountNumberController, 'Account Number', 'Enter account number'),
+              if (_isTaxEnabled) ...[
+                _buildTextField(_taxNumberController, 'Tax Number', 'Enter tax number'),
+                _buildTextField(_tinNumberController, 'TIN Number', 'Enter TIN number'),
+              ],
+              _buildTextField(_emailController, 'Email Address', 'example@mail.com', keyboardType: TextInputType.emailAddress),
+              _buildTextField(_phoneController, 'Phone Number', '+263...', keyboardType: TextInputType.phone),
+              _buildTextField(_addressController, 'Physical Address', 'Street, City', maxLines: 3),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _saveCustomer,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.vimbikaBlue,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Save Customer', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                ),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String label, String hint, {bool required = false, TextInputType keyboardType = TextInputType.text, int maxLines = 1}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        maxLines: maxLines,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          filled: true,
+          fillColor: AppTheme.white,
+        ),
+        validator: required ? (value) => value == null || value.isEmpty ? 'This field is required' : null : null,
+      ),
+    );
+  }
+}

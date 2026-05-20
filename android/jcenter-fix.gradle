@@ -1,0 +1,10 @@
+allprojects {
+    buildscript {
+        repositories {
+            ext.jcenter = { mavenCentral() }
+        }
+    }
+    repositories {
+        ext.jcenter = { mavenCentral() }
+    }
+}
