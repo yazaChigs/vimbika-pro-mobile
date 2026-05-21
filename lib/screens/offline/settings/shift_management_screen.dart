@@ -13,6 +13,7 @@ import '../../../model/user.dart';
 import '../../../services/mobile_shift_service.dart';
 import '../../../model/base_name_model.dart'; // Import BaseNameModel
 import 'shift_summary_preview_screen.dart'; // Import the new preview screen
+import '../../../services/printer_service.dart'; // Import PrinterService
 
 class ShiftManagementScreen extends StatefulWidget {
   const ShiftManagementScreen({super.key}); // Use super.key
@@ -31,6 +32,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
 
   final MobilePosShiftService _shiftService = MobilePosShiftService();
   final SaleSyncService _saleSyncService = SaleSyncService();
+  final PrinterService _printerService = PrinterService(); // Instantiate PrinterService
 
   @override
   void initState() {
@@ -89,8 +91,6 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
       _isLoading = true;
     });
     try {
-      // print(_currentUser!.toJson()); // Removed print statement
-      // Convert Company object to BaseNameModel
       final BaseNameModel companyBaseNameModel = BaseNameModel(
         id: _currentUser!.branch!.company!.id,
         name: _currentUser!.branch!.company!.name,
@@ -99,14 +99,13 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
       final newShift = MobilePosShift(
         userId: _currentUser!.id,
         userFullName: _currentUser!.userName,
-        company: companyBaseNameModel, // Use the converted BaseNameModel
-        openingTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()), // Apply the requested format
+        company: companyBaseNameModel,
+        openingTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
         isShiftClosed: false,
-        shiftCurrencyAmounts: [], // Initialize with empty list
+        shiftCurrencyAmounts: [],
       );
 
       if (_isOfflineMode) {
-        // Save shift locally in offline mode
         final SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString(AppConstants.keyCurrentOpenShift, newShift.toJson());
         if (!mounted) return;
@@ -117,7 +116,6 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
           const SnackBar(content: Text('Offline shift opened successfully!')),
         );
       } else {
-        // Existing online shift creation logic
         final createdShift = await _shiftService.createShift(newShift);
         if (!mounted) return;
         setState(() {
@@ -133,7 +131,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
         SnackBar(content: Text('Failed to open shift: $e')),
       );
     } finally {
-      if (mounted) { // Only call setState if the widget is still mounted
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
@@ -146,7 +144,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
       _isLoading = true;
     });
     try {
-      if (_currentShift == null) {
+      if (_currentShift == null || (_currentShift?.isShiftClosed ?? true)) {
         throw Exception('No active shift to close.');
       }
 
@@ -156,7 +154,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
       // Sync all unsynced items
       await _saleSyncService.syncSales();
 
-      _currentShift!.closingTime =DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()); // Apply the requested format
+      _currentShift!.closingTime = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
       _currentShift!.isShiftClosed = true;
 
       // Save or update shift based on mode
@@ -167,25 +165,11 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
         await _shiftService.createShift(_currentShift!);
       }
 
-      // Logout
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.remove(AppConstants.keyUserData);
-      await prefs.setBool(AppConstants.keyHasUser, false);
-      await prefs.setBool(AppConstants.keyIsOfflineMode, true);
-
       if (!mounted) return;
-      setState(() {
-        _currentShift = null; // Clear current shift as it's closed
-      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Shift closed successfully! Logging out...')),
+        const SnackBar(content: Text('Shift closed successfully!')),
       );
-
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-            (Route<dynamic> route) => false,
-      );
+      await _loadInitialData(); // Reload data to update UI after closing shift
 
     } catch (e) {
       if (!mounted) return;
@@ -193,7 +177,43 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
         SnackBar(content: Text('Failed to close shift: $e')),
       );
     } finally {
-      if (mounted) { // Only call setState if the widget is still mounted
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _logout() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      // Clear user preferences
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.remove(AppConstants.keyUserData);
+      await prefs.setBool(AppConstants.keyHasUser, false);
+      await prefs.setBool(AppConstants.keyIsOfflineMode, true); // Default to offline mode on logout
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Logged out successfully!')),
+      );
+
+      // Navigate to login screen and remove all previous routes
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (Route<dynamic> route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to log out: $e')),
+      );
+    } finally {
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
@@ -204,13 +224,13 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
   void _showCashActivityDialog(String type) {
     final TextEditingController amountController = TextEditingController();
     final TextEditingController notesController = TextEditingController();
-    Currency? dialogSelectedCurrency = _selectedCurrency; // Use a local variable for the dialog's state
+    Currency? dialogSelectedCurrency = _selectedCurrency;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('$type Amount'),
-        content: StatefulBuilder( // Use StatefulBuilder to manage dialog's internal state
+        content: StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -227,7 +247,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<Currency>(
-                  initialValue: dialogSelectedCurrency, // Changed value to initialValue
+                  initialValue: dialogSelectedCurrency,
                   decoration: const InputDecoration(
                     labelText: 'Currency',
                     border: OutlineInputBorder(),
@@ -239,7 +259,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                     );
                   }).toList(),
                   onChanged: (Currency? newValue) {
-                    setState(() { // Use the dialog's setState
+                    setState(() {
                       dialogSelectedCurrency = newValue;
                     });
                   },
@@ -289,18 +309,17 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     try {
       final MobileShiftCurrencyAmount newActivity = MobileShiftCurrencyAmount(
         amount: amount,
-        currency: selectedCurrency, // Use the selected currency
-        amountType: type == 'Cash In' ? 'CASH_IN' : 'CASH_OUT', // Map "Cash In" to "CASH_IN" etc.
+        currency: selectedCurrency,
+        amountType: type == 'Cash In' ? 'CASH_IN' : 'CASH_OUT',
         notes: notes,
-        timeCreated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()), // Use timeCreated from model
-        shiftReference: _currentShift!.shiftReference, // Use shiftReference from model
-        isCash: true, ref: '', // Assuming these are always cash transactions
+        timeCreated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
+        shiftReference: _currentShift!.shiftReference,
+        isCash: true, ref: '',
       );
 
       _currentShift!.shiftCurrencyAmounts ??= [];
       _currentShift!.shiftCurrencyAmounts!.add(newActivity);
 
-      // Send update to backend via _shiftService
       if (_isOfflineMode) {
         final SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString(AppConstants.keyCurrentOpenShift, _currentShift!.toJson());
@@ -322,7 +341,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
         SnackBar(content: Text('Failed to record $type: $e')),
       );
     } finally {
-      if (mounted) { // Only call setState if the widget is still mounted
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
@@ -348,6 +367,68 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     );
   }
 
+  Future<void> _printShiftSummary() async {
+    if (_currentShift == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No active shift to print summary.')),
+      );
+      return;
+    }
+    if (!_printerService.isConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Printer not connected. Please check printer settings.')),
+      );
+      return;
+    }
+    if (_currentUser?.branch?.company == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Company information not available. Cannot print summary.')),
+      );
+      return;
+    }
+    try {
+      await _printerService.printShiftSummary(_currentShift!, _availableCurrencies, _currentUser!.branch!.company!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Shift summary sent to printer.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to print shift summary: $e')),
+      );
+    }
+  }
+
+  Future<void> _printFullShiftReport() async {
+    if (_currentShift == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No active shift to print full report.')),
+      );
+      return;
+    }
+    if (!_printerService.isConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Printer not connected. Please check printer settings.')),
+      );
+      return;
+    }
+    if (_currentUser?.branch?.company == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Company information not available. Cannot print full report.')),
+      );
+      return;
+    }
+    try {
+      await _printerService.printFullShiftReport(_currentShift!, _availableCurrencies, _currentUser!.branch!.company!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Full shift report sent to printer.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to print full shift report: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -368,15 +449,30 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                   _buildCurrentShiftStatus(),
                   const SizedBox(height: 20),
                   _currentShift == null || (_currentShift?.isShiftClosed ?? true)
-                      ? ElevatedButton.icon(
-                          onPressed: _openShift,
-                          icon: const Icon(Icons.play_arrow),
-                          label: const Text('Open New Shift'),
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(50),
-                            backgroundColor: AppTheme.vimbikaBlue,
-                            foregroundColor: Colors.white,
-                          ),
+                      ? Column(
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: _openShift,
+                              icon: const Icon(Icons.play_arrow),
+                              label: const Text('Open New Shift'),
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(50),
+                                backgroundColor: AppTheme.vimbikaBlue,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            ElevatedButton.icon(
+                              onPressed: _logout,
+                              icon: const Icon(Icons.logout),
+                              label: const Text('Log Out'),
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(50),
+                                backgroundColor: AppTheme.vimbikaBlue,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
                         )
                       : Column(
                           children: [
@@ -390,10 +486,32 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                                 foregroundColor: Colors.white,
                               ),
                             ),
+                            const SizedBox(height: 10),
+                            ElevatedButton.icon(
+                              onPressed: _logout,
+                              icon: const Icon(Icons.logout),
+                              label: const Text('Log Out'),
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(50),
+                                backgroundColor: AppTheme.vimbikaBlue,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
                             const SizedBox(height: 20),
                             _buildShiftActivityButtons(),
                             const SizedBox(height: 20),
                             _buildShiftSummary(),
+                            const SizedBox(height: 20),
+                            ElevatedButton.icon(
+                              onPressed: _printFullShiftReport,
+                              icon: const Icon(Icons.print),
+                              label: const Text('Print Full Shift Report'),
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(50),
+                                backgroundColor: AppTheme.vimbikaBlue,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
                           ],
                         ),
                   const SizedBox(height: 30),
@@ -424,7 +542,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Shift ID: ${_currentShift!.id ?? 'N/A'}', style: const TextStyle(fontSize: 16)),
+                  Text('Shift Reference: ${_currentShift!.shiftReference ?? 'N/A'}', style: const TextStyle(fontSize: 16)),
                   Text('Opened by: ${_currentShift!.userFullName ?? 'N/A'}', style: const TextStyle(fontSize: 16)),
                   Text(
                     'Opening Time: ${(_currentShift!.openingTime != null) ? DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(_currentShift!.openingTime!)) : 'N/A'}',
@@ -486,21 +604,6 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
           ],
         ),
         const SizedBox(height: 10),
-        ElevatedButton.icon(
-          onPressed: () {
-            // TODO: Navigate to POS screen or show dialog for cash sales
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Cash Sales functionality to be implemented')),
-            );
-          },
-          icon: const Icon(Icons.point_of_sale),
-          label: const Text('Record Cash Sale'),
-          style: ElevatedButton.styleFrom(
-            minimumSize: const Size.fromHeight(50),
-            backgroundColor: AppTheme.vimbikaBlue,
-            foregroundColor: Colors.white,
-          ),
-        ),
       ],
     );
   }
@@ -510,17 +613,16 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
       return const SizedBox.shrink();
     }
 
-    // Group activities by currency
-    Map<String, Map<String, double>> currencyTotals = {}; // {currencyId: {type: amount}}
-    Map<String, Map<String, double>> paymentTypeBreakdown = {}; // {currencyId: {paymentTypeName: totalAmount}}
+    Map<String, Map<String, double>> currencyTotals = {};
+    Map<String, Map<String, double>> paymentTypeBreakdown = {};
 
     _currentShift!.shiftCurrencyAmounts?.forEach((activity) {
       if (activity.currency.id != null) {
         currencyTotals.putIfAbsent(activity.currency.id!, () => {
           'CASH_IN': 0.0,
           'CASH_OUT': 0.0,
-          'CASH_PAYMENT': 0.0, // Payments made with cash
-          'OTHER_PAYMENT': 0.0, // Payments made with non-cash methods
+          'CASH_PAYMENT': 0.0,
+          'OTHER_PAYMENT': 0.0,
         });
 
         if (activity.amountType == 'CASH_IN') {
@@ -538,7 +640,6 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                 (currencyTotals[activity.currency.id!]!['OTHER_PAYMENT'] ?? 0.0) + activity.amount;
           }
 
-          // Populate paymentTypeBreakdown for 'Payment' activities
           final currencyId = activity.currency.id!;
           final paymentTypeName = activity.paymentType ?? 'Unknown Payment Type';
 
@@ -567,10 +668,20 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                   'Shift Summary',
                   style: AppTheme.title.copyWith(fontSize: 18),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.receipt),
-                  onPressed: _previewShiftSummary,
-                  tooltip: 'Preview Shift Summary',
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.receipt),
+                      onPressed: _previewShiftSummary,
+                      tooltip: 'Preview Shift Summary',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.print),
+                      onPressed: _printShiftSummary,
+                      tooltip: 'Print Shift Summary',
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -589,7 +700,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                 final otherPaymentTotal = totals['OTHER_PAYMENT'] ?? 0.0;
 
                 final totalSales = cashPaymentTotal + otherPaymentTotal;
-                final totalCash = cashInTotal - cashOutTotal + cashPaymentTotal; // Assuming initial cash is 0 for now
+                final totalCash = cashInTotal - cashOutTotal + cashPaymentTotal;
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
@@ -600,7 +711,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                         '${currency.name} (${currency.symbol})',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
-                      _buildSummaryRow('Initial Cash:', '${currency.symbol} 0.00'), // TODO: Get initial cash per currency
+                      _buildSummaryRow('Initial Cash:', '${currency.symbol} 0.00'),
                       _buildSummaryRow('Total Cash In:', '${currency.symbol} ${cashInTotal.toStringAsFixed(2)}', color: Colors.green),
                       _buildSummaryRow('Total Cash Out:', '${currency.symbol} ${cashOutTotal.toStringAsFixed(2)}', color: Colors.orange),
                       _buildSummaryRow('Total Cash Sales:', '${currency.symbol} ${cashPaymentTotal.toStringAsFixed(2)}', color: AppTheme.vimbikaBlue),
@@ -608,30 +719,29 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                       const Divider(height: 8),
                       _buildSummaryRow('Total Sales:', '${currency.symbol} ${totalSales.toStringAsFixed(2)}', isBold: true, color: AppTheme.vimbikaBlue),
                       _buildSummaryRow('Total Cash:', '${currency.symbol} ${totalCash.toStringAsFixed(2)}', isBold: true),
-                      
-                      // Add payment type breakdown section
+                      const SizedBox(height: 10),
                       if (paymentTypeBreakdown.containsKey(currencyId) && paymentTypeBreakdown[currencyId]!.isNotEmpty)
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 10),
                             Text(
-                              'Payment Breakdown:',
+                              'Sales by Payment Type:',
                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.darkText),
                             ),
                             ...paymentTypeBreakdown[currencyId]!.entries.map((ptEntry) {
                               return _buildSummaryRow(
                                 '  ${ptEntry.key}:',
                                 '${currency.symbol} ${ptEntry.value.toStringAsFixed(2)}',
-                                fontSize: 14, // Slightly smaller font for breakdown
+                                fontSize: 14,
                               );
-                            }), // Removed .toList()
+                            }),
                           ],
                         ),
                     ],
                   ),
                 );
-              }), // Removed .toList()
+              }),
             const SizedBox(height: 10),
             Text(
               'Activities:',
@@ -649,11 +759,11 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                 } else if (activity.amountType == 'CASH_OUT') {
                   activityLabel = 'Cash Out';
                   activityColor = Colors.red;
-                } else if (activity.amountType == 'Payment') {
+                } else if (activity.amountType == 'SALE') {
                   activityLabel = activity.isCash == true ? 'Cash Sale' : 'Other Sale';
                   activityColor = AppTheme.vimbikaBlue;
                 } else {
-                  activityLabel = activity.amountType; // Fallback
+                  activityLabel = activity.amountType;
                   activityColor = Colors.black;
                 }
 
@@ -684,8 +794,6 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
   }
 
   Widget _buildPastShiftsSection() {
-    // This section would fetch and display a list of past shifts.
-    // For now, it's a placeholder.
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -700,7 +808,6 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
             ),
             const Divider(),
             const Text('No past shifts to display yet.'),
-            // TODO: Implement fetching and displaying past shifts using _shiftService.getMobilePosShiftCurrencyAmountsByDate
           ],
         ),
       ),

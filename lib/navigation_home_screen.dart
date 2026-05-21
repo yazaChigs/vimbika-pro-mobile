@@ -17,8 +17,21 @@ import 'package:vimbika_pro/reports_screen.dart';
 import 'package:vimbika_pro/screens/online/online_reports_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart'; // Import provider
+import 'package:vimbika_pro/screens/offline/settings/shift_management_screen.dart';
 
 import 'inventory/inventory_screen.dart';
+
+// Define a provider to handle navigation within the drawer
+class NavigationProvider extends ChangeNotifier {
+  final Function(DrawerIndex) _changeIndexCallback;
+
+  NavigationProvider(this._changeIndexCallback);
+
+  void navigateTo(DrawerIndex index) {
+    _changeIndexCallback(index);
+  }
+}
 
 class NavigationHomeScreen extends StatefulWidget {
   const NavigationHomeScreen({super.key});
@@ -52,20 +65,59 @@ class _NavigationHomeScreenState extends State<NavigationHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppTheme.white,
-      child: SafeArea(
-        top: false,
-        bottom: false,
-        child: Scaffold(
-          backgroundColor: AppTheme.nearlyWhite,
-          body: DrawerUserController(
-            screenIndex: drawerIndex,
-            drawerWidth: MediaQuery.of(context).size.width * 0.75,
-            onDrawerCall: (DrawerIndex drawerIndexdata) {
-              changeIndex(drawerIndexdata);
-            },
-            screenView: screenView,
+    return ChangeNotifierProvider(
+      create: (context) => NavigationProvider(changeIndex),
+      child: Container(
+        color: AppTheme.white,
+        child: SafeArea(
+          top: false,
+          bottom: false,
+          child: Scaffold(
+            backgroundColor: AppTheme.nearlyWhite,
+            appBar: AppBar(
+              backgroundColor: AppTheme.white,
+              elevation: 0,
+              leading: (drawerIndex == DrawerIndex.customers ||
+                      drawerIndex == DrawerIndex.sales ||
+                      drawerIndex == DrawerIndex.pos ||
+                      drawerIndex == DrawerIndex.settings)
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back, color: AppTheme.nearlyBlack),
+                      onPressed: () {
+                        changeIndex(DrawerIndex.home);
+                      },
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.menu, color: AppTheme.nearlyBlack),
+                      onPressed: () {
+                        drawerUserControllerKey.currentState?.toggleDrawer();
+                      },
+                    ),
+              title: Text(
+                drawerIndex == DrawerIndex.home ? 'Home' :
+                drawerIndex == DrawerIndex.pos ? 'POS' :
+                drawerIndex == DrawerIndex.inventory ? 'Inventory' :
+                drawerIndex == DrawerIndex.sales ? 'Sales' :
+                drawerIndex == DrawerIndex.purchases ? 'Purchases' :
+                drawerIndex == DrawerIndex.expenses ? 'Expenses' :
+                drawerIndex == DrawerIndex.reports ? 'Reports' :
+                drawerIndex == DrawerIndex.customers ? 'Customers' :
+                drawerIndex == DrawerIndex.suppliers ? 'Suppliers' :
+                drawerIndex == DrawerIndex.settings ? 'Settings' :
+                drawerIndex == DrawerIndex.shifts ? 'Shifts' :
+                'Vimbika Pro', // Default title
+                style: AppTheme.title,
+              ),
+            ),
+            body: DrawerUserController(
+              key: drawerUserControllerKey, // Assign the GlobalKey
+              screenIndex: drawerIndex,
+              drawerWidth: MediaQuery.of(context).size.width * 0.75,
+              onDrawerCall: (DrawerIndex drawerIndexdata) {
+                changeIndex(drawerIndexdata);
+              },
+              screenView: screenView,
+            ),
           ),
         ),
       ),
@@ -139,6 +191,11 @@ class _NavigationHomeScreenState extends State<NavigationHomeScreen> {
         case DrawerIndex.reports:
           setState(() {
             screenView = _isOfflineMode ? const ReportsScreen() : const OnlineReportsScreen();
+          });
+          break;
+        case DrawerIndex.shifts:
+          setState(() {
+            screenView = const ShiftManagementScreen();
           });
           break;
         default:

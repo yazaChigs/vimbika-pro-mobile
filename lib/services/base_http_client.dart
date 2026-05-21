@@ -15,8 +15,35 @@ class BaseHttpClient {
   Future<dynamic> get(String api) async {
     var uri = Uri.parse(BASE_URL + api);
     try {
+      print(uri.toString());
       var response = await http.get(uri).timeout(Duration(seconds: TIME_OUT_DURATION));
       return _processResponse(response);
+    } on SocketException {
+      throw FetchDataException('No Internet connection', uri.toString());
+    } on TimeoutException {
+      throw ApiNotRespondingException('API not responded in time', uri.toString());
+    }
+  }
+
+  Future<http.Response> getRaw(String api) async {
+    var uri = Uri.parse(BASE_URL + api);
+    try {
+      print(uri.toString());
+      var response = await http.get(uri).timeout(Duration(seconds: TIME_OUT_DURATION));
+      return response;
+    } on SocketException {
+      throw FetchDataException('No Internet connection', uri.toString());
+    } on TimeoutException {
+      throw ApiNotRespondingException('API not responded in time', uri.toString());
+    }
+  }
+
+  Future<http.Response> getAuthRaw(String api) async {
+    var uri = Uri.parse(BASE_URL + api);
+    var httpClient = AuthenticatedHttpClient();
+    try {
+      var response = await httpClient.get(uri).timeout(Duration(seconds: TIME_OUT_DURATION));
+      return response;
     } on SocketException {
       throw FetchDataException('No Internet connection', uri.toString());
     } on TimeoutException {

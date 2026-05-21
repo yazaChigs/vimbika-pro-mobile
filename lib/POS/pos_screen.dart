@@ -10,7 +10,9 @@ import 'package:vimbika_pro/POS/pos_screen_controller.dart';
 import 'package:collection/collection.dart'; // Import for groupBy
 
 import '../model/customer_currency_amount.dart';
-import '../model/sale.dart'; // Import the controller
+import '../model/sale.dart';
+import '../model/sale_item.dart'; // Import SaleItem
+
 
 class POSScreen extends StatelessWidget {
   const POSScreen({super.key});
@@ -410,13 +412,13 @@ class POSScreen extends StatelessWidget {
                                         padding: EdgeInsets.zero,
                                         onSelected: (value) {
                                           if (value == 'price') {
-                                            _showEditDialog(context, 'Edit Price', priceController!, (val) {
+                                            _showEditDialog(context, 'Edit Price', priceController!, controller, (val) {
                                               controller.updateCartItemDetails(index, sellingPrice: val);
                                             });
                                           } else if (value == 'discount') {
-                                            _showEditDialog(context, 'Edit Discount', discountController!, (val) {
+                                            _showEditDialog(context, 'Edit Discount', discountController!, controller, (val) {
                                               controller.updateCartItemDetails(index, discountAmount: val);
-                                            });
+                                            }, item: item);
                                           }
                                         },
                                         itemBuilder: (context) => [
@@ -556,6 +558,18 @@ class POSScreen extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 8),
+        // New "Print Receipt" checkbox
+        if (controller.cart.isNotEmpty)
+          SwitchListTile(
+            title: const Text('Print Receipt for this Sale'),
+            value: controller.printReceiptForThisSale,
+            onChanged: (value) {
+              controller.printReceiptForThisSale = value;
+            },
+            secondary: const Icon(Icons.print),
+            contentPadding: EdgeInsets.zero, // Adjust padding as needed
+          ),
+        const SizedBox(height: 8),
         if (controller.balanceDueConverted > 0.01)
           Column(
             children: [
@@ -563,7 +577,9 @@ class POSScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: controller.addPayment,
+                      onPressed: () {
+                        controller.addPayment(context);
+                      },
                       icon: const Icon(Icons.payment, size: 18),
                       label: const Text('Add Payment', style: TextStyle(fontSize: 12)),
                     ),
@@ -592,7 +608,9 @@ class POSScreen extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: controller.payFromAccount,
+                    onPressed: () {
+                      controller.payFromAccount(context);
+                    },
                     icon: const Icon(Icons.account_balance_wallet, size: 18),
                     label: const Text('Pay via ACC', style: TextStyle(fontSize: 12)),
                     style: ElevatedButton.styleFrom(
@@ -692,48 +710,42 @@ class POSScreen extends StatelessWidget {
                   }
                 });
 
-                return GestureDetector(
-                  onTap: () {
-                    if (!focusNode.hasFocus) {
-                      focusNode.requestFocus();
-                    }
-                    // Trigger rebuild to show all options by simulating a text change to current text or empty
-                    textEditingController.text = textEditingController.text;
-                  },
-                  child: TextField(
-                    controller: textEditingController,
-                    focusNode: focusNode,
-                    decoration: InputDecoration(
-                      hintText: 'Search or select customer...',
-                      prefixIcon: const Icon(Icons.person_search),
-                      suffixIcon: textEditingController.text.isNotEmpty || controller.selectedCustomer != null
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                textEditingController.clear();
-                                controller.selectedCustomer = null;
-                                focusNode.requestFocus(); // Keep focus after clearing
-                              },
-                            )
-                          : const Icon(Icons.arrow_drop_down), // Add dropdown icon when empty
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      filled: true,
-                      fillColor: AppTheme.nearlyWhite,
-                      isDense: true,
-                    ),
-                    onChanged: (value) {
-                      if (value.isEmpty) {
-                        controller.selectedCustomer = null;
-                      }
-                    },
-                    onTap: () {
-                      // Workaround to show dropdown on tap when empty
-                      if (textEditingController.text.isEmpty) {
-                        textEditingController.text = ' ';
-                        textEditingController.text = '';
-                      }
-                    },
+                return TextField(
+                  controller: textEditingController,
+                  focusNode: focusNode, // Use the Autocomplete's provided FocusNode
+                  canRequestFocus: controller.customerSelectFocus, // Manually disable focus
+                  decoration: InputDecoration(
+                    hintText: 'Search or select customer...',
+                    prefixIcon: const Icon(Icons.person_search),
+                    suffixIcon: textEditingController.text.isNotEmpty || controller.selectedCustomer != null
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              textEditingController.clear();
+                              controller.selectedCustomer = null;
+                              FocusScope.of(context).requestFocus(focusNode); // Request focus using the provided focusNode
+                            },
+                          )
+                        : const Icon(Icons.arrow_drop_down), // Add dropdown icon when empty
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: AppTheme.nearlyWhite,
+                    isDense: true,
                   ),
+                  onChanged: (value) {
+                    if (value.isEmpty) {
+                      controller.selectedCustomer = null;
+                      controller.customerSelectFocus = false;
+                    }
+                  },
+                  onTap: () {
+                    controller.customerSelectFocus = true;
+                    // Workaround to show dropdown on tap when empty
+                    if (textEditingController.text.isEmpty) {
+                      textEditingController.text = ' ';
+                      textEditingController.text = '';
+                    }
+                  },
                 );
               },
               optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<Customer> onSelected, Iterable<Customer> options) {
@@ -753,7 +765,9 @@ class POSScreen extends StatelessWidget {
                               onSelected(option);
                             },
                             child: ListTile(
-                              title: Text(option.name),
+                              dense: true,
+                              visualDensity: VisualDensity.compact,
+                              title: Text(option.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                               subtitle: option.accountNumber != null ? Text(option.accountNumber!) : null,
                             ),
                           );
@@ -882,34 +896,79 @@ class POSScreen extends StatelessWidget {
     );
   }
 
-  void _showEditDialog(BuildContext context, String title, TextEditingController textController, Function(double) onSubmitted) {
+  void _showEditDialog(BuildContext context, String title, TextEditingController textController, POSScreenController controller, Function(double) onSubmitted, {SaleItem? item}) {
+    bool isPercentage = title.toLowerCase().contains('discount');
+    bool discountAsPercentage = true; // Default to percentage for discount dialog
+
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text(title),
-          content: TextField(
-            controller: textController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            autofocus: true,
-            decoration: const InputDecoration(border: OutlineInputBorder()),
-            onTap: () {
-              textController.selection = TextSelection(baseOffset: 0, extentOffset: textController.text.length);
-            },
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () {
-                final val = double.tryParse(textController.text);
-                if (val != null) {
-                  onSubmitted(val);
-                }
-                Navigator.pop(context);
-              },
-              child: const Text('Save'),
-            ),
-          ],
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(title),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isPercentage)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text('Value'),
+                        Switch(
+                          value: discountAsPercentage,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              discountAsPercentage = value;
+                            });
+                          },
+                        ),
+                        const Text('Percentage'),
+                      ],
+                    ),
+                  TextField(
+                    controller: textController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      suffixText: discountAsPercentage && isPercentage ? '%' : null,
+                    ),
+                    onTap: () {
+                      textController.selection = TextSelection(baseOffset: 0, extentOffset: textController.text.length);
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    controller.customerSelectFocus = false;
+                    Navigator.pop(context);
+                  }, 
+                  child: const Text('Cancel')
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final val = double.tryParse(textController.text);
+                    if (val != null) {
+                      if (isPercentage && discountAsPercentage) {
+                        if (item != null) {
+                          final discountAmount = (item.quantity * item.sellingPrice) * (val / 100);
+                          onSubmitted(discountAmount);
+                        }
+                      } else {
+                        onSubmitted(val);
+                      }
+                    }
+                    controller.customerSelectFocus = false;
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
         );
       },
     );

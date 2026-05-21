@@ -2,14 +2,15 @@ import 'package:vimbika_pro/app_constants/app_theme.dart';
 import 'package:vimbika_pro/custom_drawer/home_drawer.dart';
 import 'package:flutter/material.dart';
 
+// Define a GlobalKey for DrawerUserControllerState
+final GlobalKey<_DrawerUserControllerState> drawerUserControllerKey = GlobalKey<_DrawerUserControllerState>();
+
 class DrawerUserController extends StatefulWidget {
   const DrawerUserController({
     Key? key,
     this.drawerWidth = 250,
     this.onDrawerCall,
     this.screenView,
-    this.animatedIconData = AnimatedIcons.arrow_menu,
-    this.menuView,
     this.drawerIsOpen,
     this.screenIndex,
   }) : super(key: key);
@@ -18,8 +19,6 @@ class DrawerUserController extends StatefulWidget {
   final Function(DrawerIndex)? onDrawerCall;
   final Widget? screenView;
   final Function(bool)? drawerIsOpen;
-  final AnimatedIconData? animatedIconData;
-  final Widget? menuView;
   final DrawerIndex? screenIndex;
 
   @override
@@ -53,7 +52,7 @@ class _DrawerUserControllerState extends State<DrawerUserController>
       initialScrollOffset: widget.drawerWidth,
     );
     scrollController!..addListener(() {
-      if (scrollController!.offset <= 0) {
+      if (scrollController!.offset <= 0) { // Drawer is open
         if (scrolloffset != 1.0) {
           setState(() {
             scrolloffset = 1.0;
@@ -68,13 +67,13 @@ class _DrawerUserControllerState extends State<DrawerUserController>
           curve: Curves.fastOutSlowIn,
         );
       } else if (scrollController!.offset > 0 &&
-          scrollController!.offset < widget.drawerWidth.floor()) {
+          scrollController!.offset < widget.drawerWidth.floor()) { // Drawer is partially open/closing
         iconAnimationController?.animateTo(
           (scrollController!.offset * 100 / (widget.drawerWidth)) / 100,
           duration: const Duration(milliseconds: 0),
           curve: Curves.fastOutSlowIn,
         );
-      } else {
+      } else { // Drawer is closed
         if (scrolloffset != 0.0) {
           setState(() {
             scrolloffset = 0.0;
@@ -99,6 +98,23 @@ class _DrawerUserControllerState extends State<DrawerUserController>
     return true;
   }
 
+  // Public method to toggle the drawer
+  Future<void> toggleDrawer() async {
+    if (scrollController!.offset != 0.0) { // Drawer is closed, animate to open
+      await scrollController?.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.fastOutSlowIn,
+      );
+    } else { // Drawer is open, animate to close
+      await scrollController?.animateTo(
+        widget.drawerWidth,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.fastOutSlowIn,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var brightness = MediaQuery.of(context).platformBrightness;
@@ -112,18 +128,15 @@ class _DrawerUserControllerState extends State<DrawerUserController>
         child: SizedBox(
           height: MediaQuery.of(context).size.height,
           width: MediaQuery.of(context).size.width + widget.drawerWidth,
-          //we use with as screen width and add drawerWidth (from navigation_home_screen)
           child: Row(
             children: <Widget>[
               SizedBox(
                 width: widget.drawerWidth,
-                //we divided first drawer Width with HomeDrawer and second full-screen Width with all home screen, we called screen View
                 height: MediaQuery.of(context).size.height,
                 child: AnimatedBuilder(
                   animation: iconAnimationController!,
                   builder: (BuildContext context, Widget? child) {
                     return Transform(
-                      //transform we use for the stable drawer  we, not need to move with scroll view
                       transform: Matrix4.translationValues(
                         scrollController!.offset,
                         0.0,
@@ -134,11 +147,9 @@ class _DrawerUserControllerState extends State<DrawerUserController>
                             ? DrawerIndex.home
                             : widget.screenIndex,
                         iconAnimationController: iconAnimationController,
-                        callBackIndex: (DrawerIndex indexType) {
-                          onDrawerClick();
-                          try {
-                            widget.onDrawerCall!(indexType);
-                          } catch (e) {}
+                        callBackIndex: (DrawerIndex indexType) async {
+                          await toggleDrawer(); // Call the public toggleDrawer
+                          widget.onDrawerCall!(indexType);
                         },
                       ),
                     );
@@ -148,7 +159,6 @@ class _DrawerUserControllerState extends State<DrawerUserController>
               SizedBox(
                 width: MediaQuery.of(context).size.width,
                 height: MediaQuery.of(context).size.height,
-                //full-screen Width with widget.screenView
                 child: Container(
                   decoration: BoxDecoration(
                     color: AppTheme.white,
@@ -161,57 +171,19 @@ class _DrawerUserControllerState extends State<DrawerUserController>
                   ),
                   child: Stack(
                     children: <Widget>[
-                      //this IgnorePointer we use as touch(user Interface) widget.screen View, for example scrolloffset == 1 means drawer is close we just allow touching all widget.screen View
+                      // Corrected IgnorePointer logic: ignore when drawer is OPEN (scrolloffset == 1.0)
                       IgnorePointer(
-                        ignoring: scrolloffset == 1 || false,
+                        ignoring: scrolloffset == 1.0,
                         child: widget.screenView,
                       ),
-                      //alternative touch(user Interface) for widget.screen, for example, drawer is close we need to tap on a few home screen area and close the drawer
+                      // Overlay to close the drawer by tapping outside, only visible when drawer is OPEN
                       if (scrolloffset == 1.0)
                         InkWell(
                           onTap: () {
-                            onDrawerClick();
+                            toggleDrawer(); // Call the public toggleDrawer
                           },
                         ),
-                      // this just menu and arrow icon animation
-                      Padding(
-                        padding: EdgeInsets.only(
-                          top: MediaQuery.of(context).padding.top + 8,
-                          left: 8,
-                        ),
-                        child: SizedBox(
-                          width: AppBar().preferredSize.height - 8,
-                          height: AppBar().preferredSize.height - 8,
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(
-                                AppBar().preferredSize.height,
-                              ),
-                              child: Center(
-                                // if you use your own menu view UI you add form initialization
-                                child: widget.menuView != null
-                                    ? widget.menuView
-                                    : AnimatedIcon(
-                                        color: isLightMode
-                                            ? AppTheme.darkGrey
-                                            : AppTheme.white,
-                                        icon:
-                                            widget.animatedIconData ??
-                                            AnimatedIcons.arrow_menu,
-                                        progress: iconAnimationController!,
-                                      ),
-                              ),
-                              onTap: () {
-                                FocusScope.of(
-                                  context,
-                                ).requestFocus(FocusNode());
-                                onDrawerClick();
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
+                      // REMOVED THE INTERFERING DRAWER ICON FROM HERE
                     ],
                   ),
                 ),
@@ -221,22 +193,5 @@ class _DrawerUserControllerState extends State<DrawerUserController>
         ),
       ),
     );
-  }
-
-  void onDrawerClick() {
-    //if scrollcontroller.offset != 0.0 then we set to closed the drawer(with animation to offset zero position) if is not 1 then open the drawer
-    if (scrollController!.offset != 0.0) {
-      scrollController?.animateTo(
-        0.0,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.fastOutSlowIn,
-      );
-    } else {
-      scrollController?.animateTo(
-        widget.drawerWidth,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.fastOutSlowIn,
-      );
-    }
   }
 }

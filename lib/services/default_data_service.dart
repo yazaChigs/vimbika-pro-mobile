@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/cupertino.dart' as painting;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../app_constants/app_constants.dart';
@@ -12,6 +13,7 @@ import 'category_service.dart';
 import 'customer_service.dart';
 import 'payments_service.dart';
 import 'bank_service.dart';
+import 'package:http/http.dart' as http; // Add this import
 
 class DefaultDataService {
   final BranchService _branchService = BranchService();
@@ -49,7 +51,6 @@ class DefaultDataService {
       //
       // // Fetch customers
       await _customerService.fetchCustomers();
-
       if(branch!=null && branch.company!=null) {
         await downloadAndSaveImage(branch.company!.id!);
       }
@@ -61,25 +62,62 @@ class DefaultDataService {
     }
   }
 
+  Future<File?> getImage(String companyId) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final imagePath = '${directory.path}/company_logo.png';
+    final imageFile = File(imagePath);
+
+    if (await imageFile.exists()) {
+      return imageFile;
+    } else {
+      final downloadedPath = await downloadAndSaveImage(companyId);
+      if (downloadedPath != null) {
+        return File(downloadedPath);
+      }
+    }
+    return null;
+  }
+
 
   Future<String?> downloadAndSaveImage(String companyId) async {
     final BaseHttpClient _client = BaseHttpClient();
-    String imageUrl = "${AppConstants.VIMBIKA_BACKEND_URL}/company/logo/${companyId}";
+    String imageUrl = "/company/logo/${companyId}";
     try {
       // Get the application directory for storing files
       final directory = await getApplicationDocumentsDirectory();
-      final imagePath = '${directory.path}/assets/images/company_logo.png';
+      final imagePath = '${directory.path}/company_logo.png';
 
 
+      print('Attempting to download image from: $imageUrl');
       // Download the image from the URL
-      final response = await _client.get(imageUrl);
-      print(response.headers['content-type']);
+      final http.Response response = await _client.getAuthRaw(imageUrl);
+      
+      print('Download Response Status Code: ${response.statusCode}');
+      print('Download Response Content-Type: ${response.headers['content-type']}');
+      print('Download Response Content-Length: ${response.headers['content-length']}');
+      print('Download Response Body Length: ${response.bodyBytes.length} bytes');
+
       if (response.statusCode == 200) {
+        if(response.bodyBytes.isEmpty) {
+          print('Warning: Downloaded image is empty.');
+          return null;
+        }
+
         // Save the image to local storage
         final file = File(imagePath);
+        // Ensure directory exists
+        await file.parent.create(recursive: true);
         await file.writeAsBytes(response.bodyBytes);
-        print('Image saved to: $imagePath');
+        
+        final savedSize = await file.length();
+        print('Image successfully saved to: $imagePath. Saved size: $savedSize bytes.');
+        
+        // Evict cache to ensure the new image is loaded next time Image.file is used
+        painting.imageCache.evict(painting.FileImage(file));
+
         return imagePath; // Return the local file path of the image
+      } else {
+         print('Failed to download image. Server returned: ${response.body}');
       }
     } catch (e) {
       print('Failed to download and save image: $e');

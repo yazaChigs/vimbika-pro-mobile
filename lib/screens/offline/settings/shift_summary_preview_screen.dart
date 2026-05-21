@@ -85,6 +85,7 @@ class ShiftSummaryPreviewScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 Center(child: Text('Shift Report', style: AppTheme.subtitle.copyWith(fontSize: 18))),
                 const SizedBox(height: 16),
+                _buildInfoRow('Shift Ref:', shift.shiftReference ?? 'N/A'),
                 _buildInfoRow('User:', shift.userFullName ?? 'N/A'),
                 _buildInfoRow('Shift Start:', (shift.openingTime != null) ? DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(shift.openingTime!)) : 'N/A'),
                 _buildInfoRow('Shift End:', (shift.closingTime != null) ? DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(shift.closingTime!)) : 'N/A'),
@@ -121,7 +122,7 @@ class ShiftSummaryPreviewScreen extends StatelessWidget {
                         const Divider(height: 16, thickness: 0.5),
                         _buildSummaryRow('Total Sales:', '${currency.symbol} ${totalSales.toStringAsFixed(2)}', isBold: true),
                         _buildSummaryRow('Expected Cash:', '${currency.symbol} ${totalCash.toStringAsFixed(2)}', isBold: true),
-
+                        const SizedBox(height: 10),
                         if (paymentTypeBreakdown.containsKey(currencyId) && paymentTypeBreakdown[currencyId]!.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 16.0),

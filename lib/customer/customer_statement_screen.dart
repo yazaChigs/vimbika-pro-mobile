@@ -2,12 +2,14 @@ import 'package:vimbika_pro/app_constants/app_theme.dart';
 import 'package:vimbika_pro/model/customer.dart';
 import 'package:vimbika_pro/model/sale.dart';
 import 'package:vimbika_pro/model/payment_received.dart';
+import 'package:vimbika_pro/model/currency.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 
 import '../app_constants/app_constants.dart';
+import '../services/customer_service.dart';
 
 class StatementEntry {
   final DateTime date;
@@ -15,6 +17,7 @@ class StatementEntry {
   final double debit; // Sales / Charges
   final double credit; // Payments
   final String reference;
+  final double balance;
 
   StatementEntry({
     required this.date,
@@ -22,6 +25,7 @@ class StatementEntry {
     this.debit = 0.0,
     this.credit = 0.0,
     required this.reference,
+    this.balance = 0.0,
   });
 }
 
@@ -39,151 +43,200 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
   double _totalBilled = 0.0;
   double _totalPaid = 0.0;
   bool _isLoading = true;
+  String _baseCurrencySymbol = '\$';
+  DateTime? _startDate;
+  DateTime? _endDate;
+  List<Currency> _currencies = [];
+  Currency? _selectedCurrency;
 
   @override
   void initState() {
     super.initState();
+    _initializeFilters();
+  }
+
+  Future<void> _initializeFilters() async {
+    await _loadCurrencies();
+    _selectedCurrency = _currencies.isNotEmpty ? _currencies.firstWhere((c) => c.isBaseCurrency == true, orElse: () => _currencies.first) : null;
     _loadStatement();
   }
 
+  Future<void> _loadCurrencies() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final List<String> currenciesJson = prefs.getStringList(AppConstants.keyCurrencies) ?? [];
+    if (currenciesJson.isNotEmpty) {
+      setState(() {
+        _currencies = currenciesJson.map((c) => Currency.fromJson(jsonDecode(c))).toList();
+      });
+    }
+  }
+
   Future<void> _loadStatement() async {
+    setState(() {
+      _isLoading = true;
+    });
+
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final bool isOffline = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
     
-    // Load Sales
-    final String salesKey = isOffline ? AppConstants.keyOfflineSales : AppConstants.keySales;
-    final List<String> salesJson = prefs.getStringList(salesKey) ?? [];
+    if (_selectedCurrency != null) {
+      setState(() {
+        _baseCurrencySymbol = _selectedCurrency!.symbol ?? '\$';
+      });
+    }
     
-    // Load unattached payments (e.g. from "Add Balance" or account top-ups)
-    final String offlinePaymentsKey = AppConstants.keyOfflinePaymentsReceived;
-    final List<String> offlinePaymentsJson = prefs.getStringList(offlinePaymentsKey) ?? [];
-    
-    final String unsyncedPaymentsKey = AppConstants.keyUnsyncedReceivedPayments;
-    final List<String> unsyncedPaymentsJson = prefs.getStringList(unsyncedPaymentsKey) ?? [];
-
     List<StatementEntry> entries = [];
     double billed = 0.0;
     double paid = 0.0;
-    
-    // To avoid duplicate payments, keep track of payment IDs
-    Set<String> processedPaymentIds = {};
 
-    for (var item in salesJson) {
-      final sale = Sale.fromJson(jsonDecode(item));
-      if (sale.customer?.id == widget.customer.id) {
-        
-        bool isCreditSale = false;
+    if (isOffline) {
+      // Load Sales
+      final String salesKey = AppConstants.keyOfflineSales;
+      final List<String> salesJson = prefs.getStringList(salesKey) ?? [];
+      
+      // Load unattached payments (e.g. from "Add Balance" or account top-ups)
+      final String offlinePaymentsKey = AppConstants.keyOfflinePaymentsReceived;
+      final List<String> offlinePaymentsJson = prefs.getStringList(offlinePaymentsKey) ?? [];
+      
+      final String unsyncedPaymentsKey = AppConstants.keyUnsyncedReceivedPayments;
+      final List<String> unsyncedPaymentsJson = prefs.getStringList(unsyncedPaymentsKey) ?? [];
 
-        // Check if the sale was entirely a credit sale
-        if (sale.payments != null && sale.payments!.isNotEmpty) {
-           // A sale is considered a "credit sale" if the payment method used implies they are not paying cash now.
-           // Since our payment types for credit start with CREDIT- or ACC- (sometimes), we need to check.
-           // Actually, if they use ACC- it means they paid from existing balance. 
-           // If they use CREDIT-, it means they are creating a debt.
-           
-           // For simplicity, let's just say a sale creates a debit (bill) no matter what.
-           // If they pay immediately (even from account), it creates a matching credit.
-        }
+      // To avoid duplicate payments, keep track of payment IDs
+      Set<String> processedPaymentIds = {};
 
-        // Add Sale as a Debit
-        entries.add(StatementEntry(
-          date: DateTime.tryParse(sale.timeIniated) ?? DateTime.now(),
-          description: 'Invoice Sale',
-          debit: sale.grandTotal,
-          reference: '#${sale.id?.substring(0, 8).toUpperCase() ?? sale.posReference ?? 'N/A'}',
-        ));
-        billed += sale.grandTotal;
+      for (var item in salesJson) {
+        final sale = Sale.fromJson(jsonDecode(item));
+        if (sale.customer?.id == widget.customer.id) {
+          
+          // Add Sale as a Debit
+          entries.add(StatementEntry(
+            date: DateTime.tryParse(sale.timeIniated) ?? DateTime.now(),
+            description: 'Invoice Sale',
+            debit: sale.grandTotal,
+            reference: '#${sale.id?.substring(0, 8).toUpperCase() ?? sale.posReference ?? 'N/A'}',
+          ));
+          billed += sale.grandTotal;
 
-        // Add each Payment as a Credit
-        if (sale.payments != null) {
-          for (var payment in sale.payments!) {
-            if (payment.id != null) processedPaymentIds.add(payment.id!);
-            
-            final String paymentName = payment.paymentType?.name.toUpperCase() ?? '';
+          // Add each Payment as a Credit
+          if (sale.payments != null) {
+            for (var payment in sale.payments!) {
+              if (payment.id != null) processedPaymentIds.add(payment.id!);
+              
+              final String paymentName = payment.paymentType?.name.toUpperCase() ?? '';
 
-            if (paymentName.startsWith('ACC-')) {
-                // Paying FROM account reduces the debt on this specific invoice, 
-                // but technically means we are using pre-existing credits.
-                // It still acts as a credit against this sale in the ledger context.
-                entries.add(StatementEntry(
-                  date: DateTime.tryParse(payment.paymentDate ?? sale.timeIniated) ?? DateTime.now(),
-                  description: 'Paid via Account Balance',
-                  credit: payment.amount,
-                  reference: '#${sale.id?.substring(0, 8).toUpperCase() ?? sale.posReference ?? 'N/A'}',
-                ));
-                paid += payment.amount;
-            } else if (paymentName.startsWith('CREDIT-')) {
-                // If the payment type is CREDIT-, it means they are taking it on credit.
-                // This means NO actual money was received.
-                // We should NOT add this as a credit to their statement, because they still owe this money.
-                // The sale itself already added the debit.
-            } else {
-                // Standard cash/bank payment
-                entries.add(StatementEntry(
-                  date: DateTime.tryParse(payment.paymentDate ?? sale.timeIniated) ?? DateTime.now(),
-                  description: 'Payment Received (${payment.paymentType?.name ?? "Cash"})',
-                  credit: payment.amount,
-                  reference: '#${sale.id?.substring(0, 8).toUpperCase() ?? sale.posReference ?? 'N/A'}',
-                ));
-                paid += payment.amount;
+              if (paymentName.startsWith('ACC-')) {
+                  entries.add(StatementEntry(
+                    date: DateTime.tryParse(payment.paymentDate ?? sale.timeIniated) ?? DateTime.now(),
+                    description: 'Paid via Account Balance',
+                    credit: payment.amount,
+                    reference: '#${sale.id?.substring(0, 8).toUpperCase() ?? sale.posReference ?? 'N/A'}',
+                  ));
+                  paid += payment.amount;
+              } else if (paymentName.startsWith('CREDIT-')) {
+                  // Do not add as credit, as it's a debt
+              } else {
+                  // Standard cash/bank payment
+                  entries.add(StatementEntry(
+                    date: DateTime.tryParse(payment.paymentDate ?? sale.timeIniated) ?? DateTime.now(),
+                    description: 'Payment Received (${payment.paymentType?.name ?? "Cash"})',
+                    credit: payment.amount,
+                    reference: '#${sale.id?.substring(0, 8).toUpperCase() ?? sale.posReference ?? 'N/A'}',
+                  ));
+                  paid += payment.amount;
+              }
             }
           }
         }
       }
-    }
-    
-    // Process standalone payments (Top-ups / Add Balance)
-    // Combine offline and unsynced to ensure we get all local ones
-    List<PaymentReceived> standalonePayments = [];
-    for (var item in offlinePaymentsJson) {
-        standalonePayments.add(PaymentReceived.fromJson(jsonDecode(item)));
-    }
-    for (var item in unsyncedPaymentsJson) {
-        final payment = PaymentReceived.fromJson(jsonDecode(item));
-        if (!standalonePayments.any((p) => p.id == payment.id)) {
-            standalonePayments.add(payment);
-        }
-    }
-    
-    for (var payment in standalonePayments) {
-        // Only process if it belongs to this customer and wasn't already processed as part of a sale
-        if (payment.payer?.id == widget.customer.id && (payment.id == null || !processedPaymentIds.contains(payment.id))) {
-            
-            // If it's a PAY_ACCOUNT description, it means money was deposited INTO the account
-            if (payment.paymentDescription == 'PAY_ACCOUNT') {
-                entries.add(StatementEntry(
-                  date: DateTime.tryParse(payment.dateTime ?? payment.paymentDate ?? '') ?? DateTime.now(),
-                  description: 'Account Deposit (${payment.paymentType?.name ?? "Cash"})',
-                  credit: payment.amount,
-                  reference: '#${payment.id?.substring(0, 8).toUpperCase() ?? 'TOPUP'}',
-                ));
-                paid += payment.amount;
-            } else if (payment.paymentDescription == 'SALE') {
-                 // In case a standalone sale payment got orphaned here
-                
-                final String paymentName = payment.paymentType?.name.toUpperCase() ?? '';
-                if (!paymentName.startsWith('CREDIT-') && !paymentName.startsWith('ACC-')) {
-                   entries.add(StatementEntry(
+      
+      // Process standalone payments (Top-ups / Add Balance)
+      // Combine offline and unsynced to ensure we get all local ones
+      List<PaymentReceived> standalonePayments = [];
+      for (var item in offlinePaymentsJson) {
+          standalonePayments.add(PaymentReceived.fromJson(jsonDecode(item)));
+      }
+      for (var item in unsyncedPaymentsJson) {
+          final payment = PaymentReceived.fromJson(jsonDecode(item));
+          if (!standalonePayments.any((p) => p.id == payment.id)) {
+              standalonePayments.add(payment);
+          }
+      }
+      
+      for (var payment in standalonePayments) {
+          // Only process if it belongs to this customer and wasn't already processed as part of a sale
+          if (payment.payer?.id == widget.customer.id && (payment.id == null || !processedPaymentIds.contains(payment.id))) {
+              
+              // If it's a PAY_ACCOUNT description, it means money was deposited INTO the account
+              if (payment.paymentDescription == 'PAY_ACCOUNT') {
+                  entries.add(StatementEntry(
                     date: DateTime.tryParse(payment.dateTime ?? payment.paymentDate ?? '') ?? DateTime.now(),
-                    description: 'Payment Received (${payment.paymentType?.name ?? "Cash"})',
+                    description: 'Account Deposit (${payment.paymentType?.name ?? "Cash"})',
                     credit: payment.amount,
-                    reference: '#${payment.id?.substring(0, 8).toUpperCase() ?? 'PAYMENT'}',
+                    reference: '#${payment.id?.substring(0, 8).toUpperCase() ?? 'TOPUP'}',
                   ));
                   paid += payment.amount;
-                }
-            } else if (payment.paymentType?.isCredit == true && payment.paymentType?.name != null && !payment.paymentType!.name.toUpperCase().startsWith('ACC-')) {
-                 // This is a charge to the account (buying on credit) not attached to a sale? Unlikely but handle it
-                 entries.add(StatementEntry(
-                  date: DateTime.tryParse(payment.dateTime ?? payment.paymentDate ?? '') ?? DateTime.now(),
-                  description: 'Credit Charge',
-                  debit: payment.amount,
-                  reference: '#${payment.id?.substring(0, 8).toUpperCase() ?? 'CREDIT'}',
-                ));
-                billed += payment.amount;
+              } else if (payment.paymentDescription == 'SALE') {
+                   // In case a standalone sale payment got orphaned here
+                  
+                  final String paymentName = payment.paymentType?.name.toUpperCase() ?? '';
+                  if (!paymentName.startsWith('CREDIT-') && !paymentName.startsWith('ACC-')) {
+                     entries.add(StatementEntry(
+                      date: DateTime.tryParse(payment.dateTime ?? payment.paymentDate ?? '') ?? DateTime.now(),
+                      description: 'Payment Received (${payment.paymentType?.name ?? "Cash"})',
+                      credit: payment.amount,
+                      reference: '#${payment.id?.substring(0, 8).toUpperCase() ?? 'PAYMENT'}',
+                    ));
+                    paid += payment.amount;
+                  }
+              } else if (payment.paymentType?.isCredit == true && payment.paymentType?.name != null && !payment.paymentType!.name.toUpperCase().startsWith('ACC-')) {
+                   // This is a charge to the account (buying on credit) not attached to a sale? Unlikely but handle it
+                   entries.add(StatementEntry(
+                    date: DateTime.tryParse(payment.dateTime ?? payment.paymentDate ?? '') ?? DateTime.now(),
+                    description: 'Credit Charge',
+                    debit: payment.amount,
+                    reference: '#${payment.id?.substring(0, 8).toUpperCase() ?? 'CREDIT'}',
+                  ));
+                  billed += payment.amount;
+              }
+              
+              if (payment.id != null) processedPaymentIds.add(payment.id!);
+          }
+      }
+    } else {
+      // Online mode: Fetch statements from CustomerService
+      try {
+        final customerService = CustomerService();
+        final ledgerResponse = await customerService.getCustomerStatements(
+          currency: _selectedCurrency!.name!,
+          accountId: widget.customer.id,
+          startDate: _startDate != null ? DateFormat('yyyy-MM-dd').format(_startDate!) : null,
+          endDate: _endDate != null ? DateFormat('yyyy-MM-dd').format(_endDate!) : null,
+        );
+
+        if (ledgerResponse.lines != null) {
+            final onlineEntries = ledgerResponse.lines!.map((row) {
+              return StatementEntry(
+                  date: row.date ?? DateTime.now(),
+                  description: row.type ?? row.accountingSource ?? 'N/A',
+                  debit: row.debit ?? 0.0,
+                  credit: row.credit ?? 0.0,
+                  reference: row.reference ?? 'N/A',
+                  balance: row.runningBalance ?? 0.0
+              );
+            }).toList();
+
+            entries.addAll(onlineEntries);
+
+            for (var entry in onlineEntries) {
+              billed += entry.debit;
+              paid += entry.credit;
             }
-            
-            if (payment.id != null) processedPaymentIds.add(payment.id!);
         }
+      } catch (e) {
+        // Handle error, e.g., show a snackbar or log the error
+        debugPrint('Error fetching online statement: $e');
+        // Optionally, fall back to offline data or show an error message to the user
+      }
     }
 
     // Sort by date latest first
@@ -213,6 +266,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
+                _buildFilterBar(),
                 _buildHeader(),
                 _buildLedgerHeaders(),
                 Expanded(
@@ -241,16 +295,23 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
                                   ),
                                   Expanded(
                                     child: Text(
-                                      entry.debit > 0 ? '\$${entry.debit.toStringAsFixed(2)}' : '-',
+                                      entry.debit > 0 ? '$_baseCurrencySymbol${entry.debit.toStringAsFixed(2)}' : '-',
                                       textAlign: TextAlign.right,
                                       style: const TextStyle(color: Colors.red),
                                     ),
                                   ),
                                   Expanded(
                                     child: Text(
-                                      entry.credit > 0 ? '\$${entry.credit.toStringAsFixed(2)}' : '-',
+                                      entry.credit > 0 ? '$_baseCurrencySymbol${entry.credit.toStringAsFixed(2)}' : '-',
                                       textAlign: TextAlign.right,
                                       style: const TextStyle(color: Colors.green),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      '$_baseCurrencySymbol${entry.balance.toStringAsFixed(2)}',
+                                      textAlign: TextAlign.right,
+                                      style: const TextStyle(fontWeight: FontWeight.bold),
                                     ),
                                   ),
                                 ],
@@ -261,6 +322,67 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _buildFilterBar() {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: DropdownButton<Currency>(
+              value: _selectedCurrency,
+              hint: const Text('Select Currency'),
+              isExpanded: true,
+              items: _currencies.map((Currency currency) {
+                return DropdownMenuItem<Currency>(
+                  value: currency,
+                  child: Text(currency.name ?? 'Unnamed Currency'),
+                );
+              }).toList(),
+              onChanged: (Currency? newValue) {
+                setState(() {
+                  _selectedCurrency = newValue;
+                  _loadStatement();
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.date_range),
+            onPressed: () async {
+              final picked = await showDateRangePicker(
+                context: context,
+                firstDate: DateTime(2000),
+                lastDate: DateTime.now(),
+                initialDateRange: _startDate != null && _endDate != null
+                    ? DateTimeRange(start: _startDate!, end: _endDate!)
+                    : null,
+              );
+              if (picked != null) {
+                setState(() {
+                  _startDate = picked.start;
+                  _endDate = picked.end;
+                  _loadStatement();
+                });
+              }
+            },
+          ),
+          if (_startDate != null || _endDate != null)
+            IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () {
+                setState(() {
+                  _startDate = null;
+                  _endDate = null;
+                  _loadStatement();
+                });
+              },
+            ),
+        ],
+      ),
     );
   }
 
@@ -296,6 +418,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
           Expanded(flex: 2, child: Text('Transaction', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
           Expanded(child: Text('Debit', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
           Expanded(child: Text('Credit', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+          Expanded(child: Text('Balance', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
         ],
       ),
     );
@@ -307,7 +430,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
         Text(label, style: const TextStyle(fontSize: 10, color: AppTheme.grey)),
         const SizedBox(height: 4),
         Text(
-          '\$${amount.toStringAsFixed(2)}',
+          '$_baseCurrencySymbol${amount.toStringAsFixed(2)}',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
         ),
       ],

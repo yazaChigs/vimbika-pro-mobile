@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:vimbika_pro/services/default_data_service.dart';
 import 'package:vimbika_pro/services/printer_service.dart';
 import 'package:vimbika_pro/app_constants/app_theme.dart';
 import 'package:vimbika_pro/model/sale.dart';
@@ -6,10 +9,35 @@ import 'package:intl/intl.dart';
 
 import 'app_constants/app_constants.dart';
 
-class SaleReceiptScreen extends StatelessWidget {
+class SaleReceiptScreen extends StatefulWidget {
   final Sale sale;
 
   const SaleReceiptScreen({super.key, required this.sale});
+
+  @override
+  State<SaleReceiptScreen> createState() => _SaleReceiptScreenState();
+}
+
+class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
+  File? _logoFile;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLogo();
+  }
+
+  Future<void> _loadLogo() async {
+    if (widget.sale.company?.id != null) {
+      final defaultDataService = DefaultDataService();
+      final imageFile = await defaultDataService.getImage(widget.sale.company!.id!);
+      if (imageFile != null && await imageFile.exists()) {
+        setState(() {
+          _logoFile = imageFile;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +58,7 @@ class SaleReceiptScreen extends StatelessWidget {
                 // Ensure printer is initialized and connected if possible
                 await printerService.init();
                 if (printerService.isConnected) {
-                  await printerService.printSale(sale);
+                  await printerService.printSale(widget.sale);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Printing receipt...')),
@@ -61,7 +89,7 @@ class SaleReceiptScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.share_outlined),
             onPressed: () {
-              print(sale.items.map((item)=> item.toJson()));
+              print(widget.sale.items.map((item)=> item.toJson()));
               // TODO: Implement PDF sharing/printing
             },
           ),
@@ -79,6 +107,12 @@ class SaleReceiptScreen extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (_logoFile != null)
+                    Image.file(
+                      _logoFile!,
+                      height: 100,
+                      width: 100,
+                    ),
                   const Text('VIMBIKA LITE', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2)),
                   const Text('Official Sales Receipt', style: TextStyle(fontSize: 12, color: AppTheme.grey)),
                   const SizedBox(height: 24),
@@ -90,7 +124,7 @@ class SaleReceiptScreen extends StatelessWidget {
                         children: [
                           const Text('DATE', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
                           Text(
-                            DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(sale.timeIniated))
+                            DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(widget.sale.timeIniated))
                               , style: const TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       ),
@@ -98,21 +132,21 @@ class SaleReceiptScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           const Text('RECEIPT #', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
-                          Text(sale.id?.substring(0, 8).toUpperCase() ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text(widget.sale.id?.substring(0, 8).toUpperCase() ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ],
                   ),
                   const Divider(height: 32),
-                  if (sale.customer != null) ...[
+                  if (widget.sale.customer != null) ...[
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text('CUSTOMER', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
-                          Text(sale.customer!.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          if (sale.customer!.phoneNumber != null) Text(sale.customer!.phoneNumber!, style: const TextStyle(fontSize: 12)),
+                          Text(widget.sale.customer!.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          if (widget.sale.customer!.phoneNumber != null) Text(widget.sale.customer!.phoneNumber!, style: const TextStyle(fontSize: 12)),
                         ],
                       ),
                     ),
@@ -123,7 +157,7 @@ class SaleReceiptScreen extends StatelessWidget {
                     child: Text('ITEMS', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
                   ),
                   const SizedBox(height: 8),
-                  ...sale.items.map((item) => Padding(
+                  ...widget.sale.items.map((item) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -140,17 +174,17 @@ class SaleReceiptScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('TOTAL', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text('\$${sale.grandTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.vimbikaBlue)),
+                      Text('\$${widget.sale.grandTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.vimbikaBlue)),
                     ],
                   ),
                   const SizedBox(height: 24),
-                  if (sale.payments != null && sale.payments!.isNotEmpty) ...[
+                  if (widget.sale.payments != null && widget.sale.payments!.isNotEmpty) ...[
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Text('PAYMENT DETAILS', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
                     ),
                     const SizedBox(height: 4),
-                    ...sale.payments!.map((p) => Row(
+                    ...widget.sale.payments!.map((p) => Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(p.paymentType?.name ?? 'Method', style: const TextStyle(fontSize: 12)),

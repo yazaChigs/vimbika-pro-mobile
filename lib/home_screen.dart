@@ -6,6 +6,7 @@ import 'package:vimbika_pro/screens/online/online_reports_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'model/homelist.dart';
+import 'package:vimbika_pro/services/default_data_service.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({Key? key}) : super(key: key);
@@ -19,6 +20,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   AnimationController? animationController;
   bool multiple = true;
   bool _isOfflineMode = true;
+  final DefaultDataService _defaultDataService = DefaultDataService();
 
   @override
   void initState() {

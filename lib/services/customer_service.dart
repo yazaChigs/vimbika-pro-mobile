@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vimbika_pro/model/currency.dart';
 import '../app_constants/app_constants.dart';
 import '../model/customer.dart';
 import '../model/user.dart';
+import '../model/ledger_response.dart'; // Import the LedgerResponse model
 import 'base_http_client.dart';
 
 class CustomerService {
@@ -129,5 +131,49 @@ class CustomerService {
     final String customerKey = isOfflineMode ? AppConstants.keyOfflineCustomers : AppConstants.keyCustomers;
 
     await prefs.setStringList(customerKey, customers.map((c) => jsonEncode(c.toJson())).toList());
+  }
+
+  // Fetches customer statements from the API
+  Future<LedgerResponse> getCustomerStatements({
+    required String currency,
+    String? accountId,
+    String? startDate,
+    String? endDate,
+  }) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? userData = prefs.getString(AppConstants.keyOnlineUserData);
+    
+    if (userData == null) throw Exception('User not logged in');
+    final user = User.fromJson(jsonDecode(userData));
+    
+    final String? companyId = user.branch?.company?.id;
+    if (companyId == null) throw Exception('Company ID not found for user');
+
+    final Map<String, dynamic> requestBody = {
+      'currency': currency,
+      'accounts':
+        ['TRADE_RECEIVABLES', 'CUSTOMER_DEPOSITS']
+      ,
+    };
+
+    if (accountId != null) {
+      requestBody['accountId'] = accountId;
+    }
+    if (startDate != null) {
+      requestBody['startDate'] = startDate;
+    }
+    if (endDate != null) {
+      requestBody['endDate'] = endDate;
+    }
+
+    final String jsonBody = jsonEncode(requestBody);
+
+    final String responseStr = await _client.postAuthWithCompanyHeader(
+      '/ledger',
+      jsonBody,
+      companyId,
+      'POST'
+    );
+    return LedgerResponse.fromJson(jsonDecode(responseStr));
   }
 }

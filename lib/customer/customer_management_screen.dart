@@ -8,6 +8,8 @@ import '../model/payment_type.dart';
 import '../model/bank.dart'; // Import the Bank model
 import 'add_customer_screen.dart';
 import 'customer_statement_screen.dart'; // Import the new controller
+import '../custom_drawer/home_drawer.dart'; // Import DrawerIndex
+import '../navigation_home_screen.dart'; // Import NavigationProvider
 
 class CustomerManagementScreen extends StatefulWidget {
   const CustomerManagementScreen({super.key});
@@ -361,7 +363,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                   context,
                   MaterialPageRoute(builder: (context) => const AddCustomerScreen()),
                 );
-                if (mounted && result != null) { // Add mounted check here
+                if (mounted && result != null) { // Add mounted check
                   final message = await controller.syncCustomers();
                   if (mounted && message != null) {
                     ScaffoldMessenger.of(context).showSnackBar(

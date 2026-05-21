@@ -12,12 +12,24 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
   final PrinterService _printerService = PrinterService();
   bool _isLoading = false;
   List<BluetoothDevice> _bluetoothDevices = [];
+  bool _alwaysPrintReceipt = false;
+  int _numberOfReceiptsPerSale = 1; // Added for the new setting
+  final TextEditingController _receiptCountController = TextEditingController(); // Controller for the text field
 
   @override
   void initState() {
     super.initState();
-    _printerService.init().then((_) {
-      setState(() {});
+    _initPrinterSettings();
+  }
+
+  Future<void> _initPrinterSettings() async {
+    setState(() => _isLoading = true);
+    await _printerService.init();
+    _alwaysPrintReceipt = await _printerService.getAlwaysPrintReceipt();
+    _numberOfReceiptsPerSale = await _printerService.getNumberOfReceiptsPerSale(); // Load initial state
+    _receiptCountController.text = _numberOfReceiptsPerSale.toString(); // Set controller text
+    setState(() {
+      _isLoading = false;
       if (_printerService.printerType == PrinterTypes.bluetooth) {
         _getBondedBluetoothDevices();
       }
@@ -48,6 +60,31 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
     }
   }
 
+  void _onAlwaysPrintReceiptChanged(bool value) async {
+    setState(() {
+      _alwaysPrintReceipt = value;
+    });
+    await _printerService.setAlwaysPrintReceipt(value);
+  }
+
+  void _onNumberOfReceiptsChanged(String value) async {
+    int? count = int.tryParse(value);
+    if (count != null && count > 0) {
+      setState(() {
+        _numberOfReceiptsPerSale = count;
+      });
+      await _printerService.setNumberOfReceiptsPerSale(count); // Persist the setting
+    } else if (value.isEmpty) {
+      // Allow empty input temporarily, but don't save 0 or negative
+      // The user might be in the middle of typing.
+      // We can add more robust validation if needed.
+    } else {
+      // If invalid input, revert to last valid state or show error
+      _receiptCountController.text = _numberOfReceiptsPerSale.toString();
+      _showSnackBar('Please enter a valid number (greater than 0).');
+    }
+  }
+
   void _connectBluetooth(BluetoothDevice device) async {
     setState(() => _isLoading = true);
     try {
@@ -73,8 +110,14 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
     }
 
     try {
-      await _printerService.printReceipt("Test Page\nPrinter configured successfully\n");
-      _showSnackBar('Test page sent to printer');
+      // Print test page multiple times based on the setting
+      for (int i = 0; i < _numberOfReceiptsPerSale; i++) {
+        await _printerService.printReceipt("Test Page ${i + 1}\nPrinter configured successfully\n");
+        if (i < _numberOfReceiptsPerSale - 1) {
+          await Future.delayed(const Duration(milliseconds: 500)); // Small delay between prints
+        }
+      }
+      _showSnackBar('Test page(s) sent to printer');
     } catch (e) {
       _showSnackBar('Print Error: $e');
     }
@@ -84,6 +127,12 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     }
+  }
+
+  @override
+  void dispose() {
+    _receiptCountController.dispose();
+    super.dispose();
   }
 
   @override
@@ -123,6 +172,45 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                             value: PrinterTypes.sunmi,
                             groupValue: printerType,
                             onChanged: _onPrinterTypeChanged,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Card(
+                    child: SwitchListTile(
+                      title: const Text('Always Print Receipt'),
+                      value: _alwaysPrintReceipt,
+                      onChanged: _onAlwaysPrintReceiptChanged,
+                      secondary: Icon(Icons.print),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Number of Receipts per Sale', style: Theme.of(context).textTheme.titleMedium),
+                          TextFormField(
+                            controller: _receiptCountController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Number of Copies',
+                              hintText: 'e.g., 1, 2, 3',
+                            ),
+                            onChanged: _onNumberOfReceiptsChanged,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a number';
+                              }
+                              if (int.tryParse(value) == null || int.parse(value) <= 0) {
+                                return 'Please enter a positive number';
+                              }
+                              return null;
+                            },
                           ),
                         ],
                       ),

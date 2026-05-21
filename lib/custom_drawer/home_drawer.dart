@@ -83,6 +83,11 @@ class _HomeDrawerState extends State<HomeDrawer> {
         icon: const Icon(Icons.point_of_sale_outlined),
       ),
       DrawerList(
+        index: DrawerIndex.shifts,
+        labelName: 'Shifts',
+        icon: const Icon(Icons.access_time),
+      ),
+      DrawerList(
         index: DrawerIndex.inventory,
         labelName: 'Inventory',
         icon: const Icon(Icons.inventory_2_outlined),
@@ -129,7 +134,9 @@ class _HomeDrawerState extends State<HomeDrawer> {
       allDrawerItems.removeWhere((item) => 
         item.index == DrawerIndex.inventory ||
         item.index == DrawerIndex.expenses ||
-        item.index == DrawerIndex.purchases);
+        item.index == DrawerIndex.purchases ||
+        item.index == DrawerIndex.suppliers || // Added for online mode
+        item.index == DrawerIndex.reports); // Added for online mode
     }
 
     if (mounted) {
@@ -429,6 +436,7 @@ enum DrawerIndex {
   purchases,
   expenses,
   reports,
+  shifts,
   testing,
 }
 

@@ -236,9 +236,10 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
       return;
     }
 
-    final filteredPaymentTypes = _paymentTypes.where((pt) => 
+    final List<PaymentType> availablePaymentTypes = _paymentTypes.where((pt) => 
       (pt.currency == null || pt.currency?.id == _selectedCurrency?.id) &&
-      !(pt.name ?? '').startsWith('ACC-')
+      !(pt.name ?? '').startsWith('ACC-') &&
+      !_payments.any((p) => p.paymentType?.id == pt.id) // Filter out already selected payment types
     ).toList();
 
     PaymentType? selectedType;
@@ -247,31 +248,44 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (dialogContext, setDialogState) => AlertDialog(
           title: const Text('Add Payment'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<PaymentType>(
-                initialValue: selectedType,
-                decoration: const InputDecoration(labelText: 'Payment Method'),
-                items: filteredPaymentTypes.map((t) => DropdownMenuItem(value: t, child: Text(t.name))).toList(),
-                onChanged: (val) => setDialogState(() => selectedType = val),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: amountController,
-                decoration: const InputDecoration(labelText: 'Amount'),
-                keyboardType: TextInputType.number,
-                onTap: () => amountController.selection = TextSelection(baseOffset: 0, extentOffset: amountController.text.length),
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ...availablePaymentTypes.map((paymentType) {
+                  return RadioListTile<PaymentType>(
+                    title: Text(paymentType.name),
+                    value: paymentType,
+                    groupValue: selectedType,
+                    onChanged: (PaymentType? newValue) {
+                      setDialogState(() {
+                        selectedType = newValue;
+                      });
+                    },
+                  );
+                }).toList(),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: amountController,
+                  decoration: const InputDecoration(labelText: 'Amount'),
+                  keyboardType: TextInputType.number,
+                  onTap: () => amountController.selection = TextSelection(baseOffset: 0, extentOffset: amountController.text.length),
+                ),
+              ],
+            ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
             ElevatedButton(
               onPressed: () {
-                if (selectedType == null) return;
+                if (selectedType == null) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(content: Text('Please select a payment method.'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
                 final amount = double.tryParse(amountController.text) ?? 0.0;
                 if (amount <= 0) return;
 
@@ -284,7 +298,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
                     paymentDate: DateTime.now(),
                   ));
                 });
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               child: const Text('Add'),
             ),
@@ -706,12 +720,12 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
                       ),
                     );
                   },
-                  child: const Icon(Icons.edit, size: 16, color: AppTheme.vimbikaBlue),
+                  child: const Icon(Icons.edit, size: 24, color: AppTheme.vimbikaBlue), // Increased size to 24
                 ),
                 const SizedBox(width: 8),
                 InkWell(
                   onTap: () => setState(() => _payments.removeAt(index)),
-                  child: const Icon(Icons.close, size: 16, color: Colors.red),
+                  child: const Icon(Icons.close, size: 24, color: Colors.red), // Increased size to 24
                 )
               ],
             ),

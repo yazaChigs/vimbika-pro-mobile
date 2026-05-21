@@ -12,6 +12,9 @@ import 'model/sale.dart';
 import 'package:intl/intl.dart';
 import 'services/excel_export_service.dart';
 import 'services/sale_service.dart'; // Import SaleService
+import 'package:provider/provider.dart'; // Import provider
+import 'custom_drawer/home_drawer.dart'; // Import DrawerIndex
+import 'navigation_home_screen.dart'; // Import NavigationProvider
 
 class SalesScreen extends StatefulWidget {
   const SalesScreen({super.key});
@@ -39,7 +42,7 @@ class _SalesScreenState extends State<SalesScreen> {
   DateTime? _filterStartDate;
   DateTime? _filterEndDate;
 
-  final DateTime _apiStartDate = DateTime.now().subtract(const Duration(days: 30)).copyWith(hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0);
+  final DateTime _apiStartDate = DateTime.now().subtract(const Duration(days: 7)).copyWith(hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0);
   final DateTime _apiEndDate = DateTime.now().copyWith(hour: 23, minute: 59, second: 59, millisecond: 999, microsecond: 999);
 
   final SaleService _saleService = SaleService(); // Initialize SaleService
@@ -57,23 +60,20 @@ class _SalesScreenState extends State<SalesScreen> {
 
   @override
   void initState() {
-    _loadData();
     super.initState();
-  }
-
-  Future<MobilePosShift?> _getCurrentShift() async {
-    final prefs = await SharedPreferences.getInstance();
-    final currentShiftJson = prefs.getString(AppConstants.keyCurrentOpenShift);
-    if (currentShiftJson != null) {
-      return MobilePosShift.fromRawJson(currentShiftJson);
-    }
-    return null;
-  }
-
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
+    _filterStartDate = DateTime.now().copyWith(hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0);
+    _filterEndDate = DateTime.now().copyWith(hour: 23, minute: 59, second: 59, millisecond: 999, microsecond: 999);
+    _loadLocalData().then((_) {
+      _syncOnlineSales();
     });
+  }
+
+  Future<void> _loadLocalData() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     
@@ -91,26 +91,6 @@ class _SalesScreenState extends State<SalesScreen> {
     final String salesKey = isOfflineMode ? AppConstants.keyOfflineSales : AppConstants.keySales;
     const String backupSalesKey = 'backup_sales';
 
-    List<Sale> onlineSales = [];
-    if (!isOfflineMode) {
-      // Fetch online sales using SaleService
-      try {
-        final fetchedOnlineSales = await _saleService.fetchSales(
-          startDate: _apiStartDate,
-          endDate: _apiEndDate,
-          branchId: _selectedBranch?.id,
-          // categoryId: // No category filter currently in SalesScreen
-        );
-        onlineSales = fetchedOnlineSales.map((s) => Sale.fromOnlineSale(s)).toList();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to load online sales: $e')),
-          );
-        }
-      }
-    }
-
     // Load local sales from SharedPreferences
     final List<String> localSalesJson = prefs.getStringList(salesKey) ?? [];
     final List<Sale> localSales = localSalesJson.map((e) => Sale.fromJson(jsonDecode(e))).toList();
@@ -119,38 +99,15 @@ class _SalesScreenState extends State<SalesScreen> {
     final List<String> backupSalesJson = prefs.getStringList(backupSalesKey) ?? [];
     final List<Sale> backupSales = backupSalesJson.map((e) => Sale.fromJson(jsonDecode(e))).toList();
 
-
-    // Combine online and local sales to prevent duplicates
     final Map<String, Sale> combinedSalesMap = {};
 
-    // Add online sales first
-    for (var sale in onlineSales) {
-      if (sale.posReference != null) {
-        combinedSalesMap[sale.posReference!] = sale;
-      } else if (sale.id != null) {
-        combinedSalesMap[sale.id!] = sale;
-      }
-    }
-
-    // Add local sales, overwriting if they are newer/synced or if not present
     for (var sale in localSales) {
       final String? key = sale.posReference ?? sale.id;
       if (key != null) {
-        if (!combinedSalesMap.containsKey(key)) {
-          combinedSalesMap[key] = sale;
-        } else {
-          // If we already have it from online, we might want to prefer the local one if it's not yet synced
-          // But usually, if it's in onlineSales, it's already on the server.
-          // If local one is synced, they should be the same.
-          // Let's prefer the one that is synced.
-          if (sale.isSynced == true || combinedSalesMap[key]!.isSynced != true) {
-             combinedSalesMap[key] = sale;
-          }
-        }
+        combinedSalesMap[key] = sale;
       }
     }
     
-    // Add backup sales, avoiding duplicates
     for (var sale in backupSales) {
       final String? key = sale.posReference ?? sale.id;
       if (key != null && !combinedSalesMap.containsKey(key)) {
@@ -159,61 +116,115 @@ class _SalesScreenState extends State<SalesScreen> {
     }
 
     List<Sale> combinedSales = combinedSalesMap.values.toList();
-
-    // Sort sales by date, newest first
     combinedSales.sort((a, b) => b.timeIniated.compareTo(a.timeIniated));
 
-    setState(() {
-      _branches = loadedBranches;
-      _customers = loadedCustomers;
-      _allSales = combinedSales;
-      _applyFilters();
-    });
-    
     if (mounted) {
       setState(() {
+        _branches = loadedBranches;
+        _customers = loadedCustomers;
+        _allSales = combinedSales;
         _isLoading = false;
+        _applyFilters();
       });
     }
   }
 
+  Future<void> _syncOnlineSales() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
+    if (isOfflineMode) return;
+
+    try {
+      final fetchedOnlineSales = await _saleService.fetchSales(
+        startDate: _apiStartDate,
+        endDate: _apiEndDate,
+        branchId: _selectedBranch?.id,
+      );
+      List<Sale> onlineSales = fetchedOnlineSales.map((s) => Sale.fromOnlineSale(s)).toList();
+
+      final Map<String, Sale> salesMap = { for (var s in _allSales) (s.posReference ?? s.id)!: s };
+
+      for (var sale in onlineSales) {
+        final String? key = sale.posReference ?? sale.id;
+        if (key != null) {
+          salesMap[key] = sale;
+        }
+      }
+
+      List<Sale> combinedSales = salesMap.values.toList();
+      combinedSales.sort((a, b) => b.timeIniated.compareTo(a.timeIniated));
+
+      // Save combined sales to backup to avoid re-fetching
+      await prefs.setStringList('backup_sales', combinedSales.map((s) => jsonEncode(s.toJson())).toList());
+
+      if (mounted) {
+        setState(() {
+          _allSales = combinedSales;
+          _applyFilters();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to sync online sales: $e')),
+        );
+      }
+    }
+  }
+
+  Future<MobilePosShift?> _getCurrentShift() async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentShiftJson = prefs.getString(AppConstants.keyCurrentOpenShift);
+    if (currentShiftJson != null) {
+      return MobilePosShift.fromRawJson(currentShiftJson);
+    }
+    return null;
+  }
+
+  Future<void> _loadData() async {
+    await _loadLocalData();
+    await _syncOnlineSales();
+  }
+
   void _applyFilters() {
-    setState(() {
-      _filteredSales = _allSales.where((sale) {
-        // 1. Search Filter (Customer Name or Sale ID)
-        final matchesSearch = (sale.customer?.name.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) || 
-                             (sale.id?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-                             (_searchQuery.isEmpty);
+    if (mounted) {
+      setState(() {
+        _filteredSales = _allSales.where((sale) {
+          // 1. Search Filter (Customer Name or Sale ID)
+          final matchesSearch = (sale.customer?.name.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) || 
+                               (sale.id?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
+                               (_searchQuery.isEmpty);
 
-        // 2. Branch Filter
-        final matchesBranch = _selectedBranch == null || sale.branch?.id == _selectedBranch!.id;
+          // 2. Branch Filter
+          final matchesBranch = _selectedBranch == null || sale.branch?.id == _selectedBranch!.id;
 
-        // 3. Customer Filter
-        final matchesCustomer = _selectedCustomer == null || sale.customer?.id == _selectedCustomer!.id;
+          // 3. Customer Filter
+          final matchesCustomer = _selectedCustomer == null || sale.customer?.id == _selectedCustomer!.id;
 
-        // 4. Status Filter
-        final matchesStatus = _selectedStatus == 'All' || sale.status == _selectedStatus;
+          // 4. Status Filter
+          final matchesStatus = _selectedStatus == 'All' || sale.status == _selectedStatus;
 
-        // 5. Shift Filter
-        bool matchesShift = true;
-        if (_currentShiftOnly && _currentShift != null) {
-           matchesShift = sale.shiftReference == _currentShift?.shiftReference;
-        }
-        
-        // 6. Date Filter
-        bool matchesDate = true;
-        if (_filterStartDate != null && _filterEndDate != null) {
-            try {
-                DateTime saleDate = DateTime.parse(sale.timeIniated);
-                matchesDate = saleDate.isAfter(_filterStartDate!) && saleDate.isBefore(_filterEndDate!);
-            } catch (e) {
-                matchesDate = false;
-            }
-        }
+          // 5. Shift Filter
+          bool matchesShift = true;
+          if (_currentShiftOnly && _currentShift != null) {
+             matchesShift = sale.shiftReference == _currentShift?.shiftReference;
+          }
+          
+          // 6. Date Filter
+          bool matchesDate = true;
+          if (_filterStartDate != null && _filterEndDate != null) {
+              try {
+                  DateTime saleDate = DateTime.parse(sale.timeIniated);
+                  matchesDate = saleDate.isAfter(_filterStartDate!) && saleDate.isBefore(_filterEndDate!);
+              } catch (e) {
+                  matchesDate = false;
+              }
+          }
 
-        return matchesSearch && matchesBranch && matchesCustomer && matchesStatus && matchesShift && matchesDate;
-      }).toList();
-    });
+          return matchesSearch && matchesBranch && matchesCustomer && matchesStatus && matchesShift && matchesDate;
+        }).toList();
+      });
+    }
   }
   
   String _formatDate(String dateString) {
@@ -242,9 +253,11 @@ class _SalesScreenState extends State<SalesScreen> {
     ) ?? false;
 
     if (confirm) {
-      setState(() {
-        _isLoading = true;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = true;
+        });
+      }
       try {
         final SharedPreferences prefs = await SharedPreferences.getInstance();
         final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
@@ -294,10 +307,12 @@ class _SalesScreenState extends State<SalesScreen> {
           : null,
     );
     if (picked != null) {
-      setState(() {
-        _filterStartDate = picked.start.copyWith(hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0);
-        _filterEndDate = picked.end.copyWith(hour: 23, minute: 59, second: 59, millisecond: 999, microsecond: 999);
-      });
+      if (mounted) {
+        setState(() {
+          _filterStartDate = picked.start.copyWith(hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0);
+          _filterEndDate = picked.end.copyWith(hour: 23, minute: 59, second: 59, millisecond: 999, microsecond: 999);
+        });
+      }
       _applyFilters();
     }
   }
@@ -310,7 +325,7 @@ class _SalesScreenState extends State<SalesScreen> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    if (mounted) setState(() => _isLoading = true);
     try {
       final String fileName = 'Sales_Export_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}';
       await _excelExportService.exportSalesToExcel(_filteredSales, fileName);
@@ -333,7 +348,7 @@ class _SalesScreenState extends State<SalesScreen> {
   }
 
   Future<void> _importSales() async {
-    setState(() => _isLoading = true);
+    if (mounted) setState(() => _isLoading = true);
     try {
       final List<Sale> importedSales = await _excelExportService.importSalesFromExcel();
       if (importedSales.isNotEmpty) {
@@ -683,26 +698,28 @@ class _SalesScreenState extends State<SalesScreen> {
                        padding: EdgeInsets.zero,
                        constraints: const BoxConstraints(),
                        onPressed: () {
-                           setState(() {
-                               _filterStartDate = null;
-                               _filterEndDate = null;
-                           });
+                           if (mounted) {
+                             setState(() {
+                                 _filterStartDate = DateTime.now().copyWith(hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0);
+                                 _filterEndDate = DateTime.now().copyWith(hour: 23, minute: 59, second: 59, millisecond: 999, microsecond: 999);
+                             });
+                           }
                            _applyFilters();
                        }
                    ),
                 const SizedBox(width: 8),
                 _buildFilterChip('Status', ['All', 'Fully Paid', 'Partially Paid', 'Reversed'], _selectedStatus, (val) {
-                  setState(() => _selectedStatus = val);
+                  if (mounted) setState(() => _selectedStatus = val);
                   _applyFilters();
                 }),
                 const SizedBox(width: 8),
                 _buildCompactDropdown<Branch>('Branch', _branches, _selectedBranch, (val) {
-                  setState(() => _selectedBranch = val);
+                  if (mounted) setState(() => _selectedBranch = val);
                   _applyFilters();
                 }, (b) => b.name),
                 const SizedBox(width: 8),
                 _buildCompactDropdown<Customer>('Customer', _customers, _selectedCustomer, (val) {
-                  setState(() => _selectedCustomer = val);
+                  if (mounted) setState(() => _selectedCustomer = val);
                   _applyFilters();
                 }, (c) => c.name),
                 if (_currentShift != null) ...[
@@ -711,9 +728,11 @@ class _SalesScreenState extends State<SalesScreen> {
                     label: const Text('Current Shift', style: TextStyle(fontSize: 12)),
                     selected: _currentShiftOnly,
                     onSelected: (bool selected) {
-                      setState(() {
-                        _currentShiftOnly = selected;
-                      });
+                      if (mounted) {
+                        setState(() {
+                          _currentShiftOnly = selected;
+                        });
+                      }
                       _applyFilters();
                     },
                     selectedColor: AppTheme.vimbikaBlue.withAlpha(25),
@@ -785,15 +804,17 @@ class _SalesScreenState extends State<SalesScreen> {
           const SizedBox(height: 8),
           TextButton(
             onPressed: () {
-              setState(() {
-                _searchQuery = '';
-                _selectedBranch = null;
-                _selectedCustomer = null;
-                _selectedStatus = 'All';
-                _currentShiftOnly = false;
-                _filterStartDate = null;
-                _filterEndDate = null;
-              });
+              if (mounted) {
+                setState(() {
+                  _searchQuery = '';
+                  _selectedBranch = null;
+                  _selectedCustomer = null;
+                  _selectedStatus = 'All';
+                  _currentShiftOnly = false;
+                  _filterStartDate = null;
+                  _filterEndDate = null;
+                });
+              }
               _applyFilters();
             },
             child: const Text('Clear all filters'),
