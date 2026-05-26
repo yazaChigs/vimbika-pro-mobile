@@ -197,6 +197,7 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
         userFullName: '${widget.user.firstName ?? ''} ${widget.user.lastName ?? ''}'.trim(),
         synced: false,
         stopSync: false,
+        active: true
       );
 
       await shiftService.createShift(newShift);

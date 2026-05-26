@@ -288,9 +288,9 @@ class PrinterService {
     _bluetooth.printCustom("--------------------------------", 1, 1);
 
     // Payment Details
-    if (sale.payments != null && sale.payments!.isNotEmpty) {
+    if (sale.paymentTypes != null && sale.paymentTypes!.isNotEmpty) {
       _bluetooth.printCustom("Payment Details:", 1, 0);
-      for (var payment in sale.payments!) {
+      for (var payment in sale.paymentTypes!) {
         _bluetooth.printCustom("${payment.paymentType?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", 1, 0);
       }
       _bluetooth.printCustom("--------------------------------", 1, 1);
@@ -361,9 +361,9 @@ class PrinterService {
     await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
 
     // Payment Details
-    if (sale.payments != null && sale.payments!.isNotEmpty) {
+    if (sale.paymentTypes != null && sale.paymentTypes!.isNotEmpty) {
       await SunmiPrinter.printText("Payment Details:", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
-      for (var payment in sale.payments!) {
+      for (var payment in sale.paymentTypes!) {
         await SunmiPrinter.printText("${payment.paymentType?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
       }
       await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));

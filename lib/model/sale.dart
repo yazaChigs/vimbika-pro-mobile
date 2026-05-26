@@ -15,7 +15,7 @@ class Sale extends BaseEntity {
   final Currency? currency;
   final Currency? baseCurrency;
   final List<SaleItem> items;
-  final List<PaymentReceived>? payments;
+  final List<PaymentReceived>? paymentTypes;
   final String timeIniated;
   final String? status; // This maps to OnlineSale.status
   final String? notes;
@@ -55,6 +55,7 @@ class Sale extends BaseEntity {
   final bool? isWalkInCustomer;
   final String? ticketName;
   final String? ticketComment;
+  final String? totalQuantity;
 
 
   // Added for compatibility with existing UI
@@ -74,7 +75,7 @@ class Sale extends BaseEntity {
     this.currency,
     this.baseCurrency,
     required this.items,
-    this.payments,
+    this.paymentTypes,
     required this.timeIniated,
     this.status,
     this.notes,
@@ -114,6 +115,7 @@ class Sale extends BaseEntity {
     this.isWalkInCustomer,
     this.ticketName,
     this.ticketComment,
+    this.totalQuantity
   });
 
   Sale copyWith({
@@ -129,7 +131,7 @@ class Sale extends BaseEntity {
     Currency? currency,
     Currency? baseCurrency,
     List<SaleItem>? items,
-    List<PaymentReceived>? payments,
+    List<PaymentReceived>? paymentTypes,
     String? timeIniated,
     String? status,
     String? notes,
@@ -169,6 +171,7 @@ class Sale extends BaseEntity {
     bool? isWalkInCustomer,
     String? ticketName,
     String? ticketComment,
+    String? totalQuantity,
   }) {
     return Sale(
       id: id ?? this.id,
@@ -183,7 +186,7 @@ class Sale extends BaseEntity {
       currency: currency ?? this.currency,
       baseCurrency: baseCurrency ?? this.baseCurrency,
       items: items ?? this.items,
-      payments: payments ?? this.payments,
+      paymentTypes: paymentTypes ?? this.paymentTypes,
       timeIniated: timeIniated ?? this.timeIniated,
       status: status ?? this.status,
       notes: notes ?? this.notes,
@@ -223,6 +226,7 @@ class Sale extends BaseEntity {
       isWalkInCustomer: isWalkInCustomer ?? this.isWalkInCustomer,
       ticketName: ticketName ?? this.ticketName,
       ticketComment: ticketComment ?? this.ticketComment,
+      totalQuantity: totalQuantity ?? this.totalQuantity,
     );
   }
 
@@ -249,8 +253,8 @@ class Sale extends BaseEntity {
       items: json['items'] != null
           ? (json['items'] as List).map((i) => SaleItem.fromJson(i)).toList()
           : [],
-      payments: json['payments'] != null
-          ? (json['payments'] as List).map((i) => PaymentReceived.fromJson(i)).toList()
+      paymentTypes: json['paymentTypes'] != null
+          ? (json['paymentTypes'] as List).map((i) => PaymentReceived.fromJson(i)).toList()
           : null,
       timeIniated: json['timeIniated'].toString(),
       status: json['status']?.toString(),
@@ -291,6 +295,7 @@ class Sale extends BaseEntity {
       isWalkInCustomer: json['isWalkInCustomer'] as bool?,
       ticketName: json['ticketName']?.toString(),
       ticketComment: json['ticketComment']?.toString(),
+      totalQuantity: json['totalQuantity']?.toString(),
     );
   }
 
@@ -311,7 +316,7 @@ class Sale extends BaseEntity {
       branch: onlineSale.branch,
       currency: onlineSale.currency,
       items: onlineSale.items ?? [],
-      payments: onlineSale.paymentTypes,
+      paymentTypes: onlineSale.paymentTypes,
       timeIniated: onlineSale.timeIniated!,
       status: onlineSale.status,
       isSynced: true,
@@ -352,6 +357,7 @@ class Sale extends BaseEntity {
       isWalkInCustomer: onlineSale.isWalkInCustomer,
       ticketName: onlineSale.ticketName,
       ticketComment: onlineSale.ticketComment,
+      totalQuantity: onlineSale.totalQuantity,
     );
   }
 
@@ -369,7 +375,7 @@ class Sale extends BaseEntity {
       'currency': currency?.toJson(),
       'baseCurrency': baseCurrency?.toJson(),
       'items': items.map((i) => i.toJson()).toList(),
-      'payments': payments?.map((i) => i.toJson()).toList(),
+      'paymentTypes': paymentTypes?.map((i) => i.toJson()).toList(),
       'timeIniated': timeIniated,
       'status': status,
       'notes': notes,
@@ -409,6 +415,7 @@ class Sale extends BaseEntity {
       'isWalkInCustomer': isWalkInCustomer,
       'ticketName': ticketName,
       'ticketComment': ticketComment,
+      'totalQuantity': totalQuantity,
     };
   }
 }

@@ -4,6 +4,7 @@ import 'currency.dart';
 class Bank extends BaseNameEntity {
   final String? accountNumber;
   final String? branch;
+  String? bankName;
   final Currency? currency;
   bool? isSystemCreated;
 
@@ -14,6 +15,7 @@ class Bank extends BaseNameEntity {
     String? createdByName,
     String? modifiedByName,
     int? version,
+    this.bankName,
     required String name,
     String? description,
     this.accountNumber,
@@ -56,6 +58,7 @@ class Bank extends BaseNameEntity {
           ? (json['currency'] is String ? Currency(id: json['currency']) : Currency.fromMap(json['currency']))
           : null,
       isSystemCreated: json['isSystemCreated'] is bool ? json['isSystemCreated'] : false,
+      bankName: json['bankName']?.toString(),
     );
   }
 
@@ -73,6 +76,7 @@ class Bank extends BaseNameEntity {
       'branch': branch,
       'currency': currency?.toJson(),
       'isSystemCreated': isSystemCreated,
+      'bankName': bankName,
     };
   }
 }

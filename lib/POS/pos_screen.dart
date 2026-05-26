@@ -324,7 +324,7 @@ class POSScreen extends StatelessWidget {
                       final taxRate = item.inventoryItem?.tax?.taxPercentage ?? 0.0;
 
                       final rate = controller.selectedCurrency?.rate ?? 1.0;
-                      double displayTotal = (item.total + item.taxAmount) * rate;
+                      double displayTotal = (item.total ) * rate;
 
                       final String itemId = item.inventoryItem!.id!;
                       TextEditingController? quantityController = controller.quantityControllers[itemId];
@@ -471,7 +471,7 @@ class POSScreen extends StatelessWidget {
 
   Widget _buildPaymentSummarySection(BuildContext context, POSScreenController controller, Map<String, double> groupedPayments, {bool isDialog = false}) {
     final double taxAmountConverted = controller.taxTotalBase * (controller.selectedCurrency?.rate ?? 1.0);
-    final double subtotalConverted = controller.subTotalBase * (controller.selectedCurrency?.rate ?? 1.0);
+    final double subtotalConverted = controller.subTotalBase - controller.taxTotalBase * (controller.selectedCurrency?.rate ?? 1.0);
 
     return Column(
       children: [

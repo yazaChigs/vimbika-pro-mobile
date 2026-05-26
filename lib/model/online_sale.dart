@@ -54,6 +54,7 @@ class OnlineSale {
   final bool? isWalkInCustomer;
   final String? ticketName;
   final String? ticketComment;
+  final String? totalQuantity;
 
   // Added for compatibility with existing UI
   double get grandTotal => amountAfterDiscount ?? baseSaleAmount ?? 0.0;
@@ -106,6 +107,7 @@ class OnlineSale {
     this.isWalkInCustomer,
     this.ticketName,
     this.ticketComment,
+    this.totalQuantity,
   });
 
   factory OnlineSale.fromJson(Map<String, dynamic> json) {
@@ -168,6 +170,7 @@ class OnlineSale {
       isWalkInCustomer: json['isWalkInCustomer'],
       ticketName: json['ticketName']?.toString(),
       ticketComment: json['ticketComment']?.toString(),
+      totalQuantity: json['totalQuantity']?.toString(),
     );
   }
 
@@ -220,6 +223,7 @@ class OnlineSale {
       'isWalkInCustomer': isWalkInCustomer,
       'ticketName': ticketName,
       'ticketComment': ticketComment,
+      'totalQuantity': totalQuantity,
     };
   }
 }

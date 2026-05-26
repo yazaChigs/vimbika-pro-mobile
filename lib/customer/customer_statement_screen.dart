@@ -118,8 +118,8 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
           billed += sale.grandTotal;
 
           // Add each Payment as a Credit
-          if (sale.payments != null) {
-            for (var payment in sale.payments!) {
+          if (sale.paymentTypes != null) {
+            for (var payment in sale.paymentTypes!) {
               if (payment.id != null) processedPaymentIds.add(payment.id!);
               
               final String paymentName = payment.paymentType?.name.toUpperCase() ?? '';

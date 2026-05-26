@@ -141,6 +141,7 @@ class SaleSyncService {
           failedToSyncSales.add(saleJson);
           continue;
         }
+        print('syncing: $saleJson');
 
         try {
           final String responseBody = await _client.postAuthWithCompanyHeader(

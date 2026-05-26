@@ -68,6 +68,19 @@ class _SalesScreenState extends State<SalesScreen> {
     });
   }
 
+  void _sortSales(List<Sale> sales) {
+    sales.sort((a, b) {
+      final bool aSynced = a.isSynced ?? false;
+      final bool bSynced = b.isSynced ?? false;
+      
+      if (aSynced != bSynced) {
+        return aSynced ? 1 : -1;
+      }
+      
+      return b.timeIniated.compareTo(a.timeIniated);
+    });
+  }
+
   Future<void> _loadLocalData() async {
     if (mounted) {
       setState(() {
@@ -116,7 +129,7 @@ class _SalesScreenState extends State<SalesScreen> {
     }
 
     List<Sale> combinedSales = combinedSalesMap.values.toList();
-    combinedSales.sort((a, b) => b.timeIniated.compareTo(a.timeIniated));
+    _sortSales(combinedSales);
 
     if (mounted) {
       setState(() {
@@ -152,7 +165,7 @@ class _SalesScreenState extends State<SalesScreen> {
       }
 
       List<Sale> combinedSales = salesMap.values.toList();
-      combinedSales.sort((a, b) => b.timeIniated.compareTo(a.timeIniated));
+      _sortSales(combinedSales);
 
       // Save combined sales to backup to avoid re-fetching
       await prefs.setStringList('backup_sales', combinedSales.map((s) => jsonEncode(s.toJson())).toList());
@@ -168,6 +181,35 @@ class _SalesScreenState extends State<SalesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to sync online sales: $e')),
         );
+      }
+    }
+  }
+
+  Future<void> _syncUnsyncedSales() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+    try {
+      await _saleService.syncSales();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unsynced sales synced successfully'), backgroundColor: Colors.green),
+        );
+      }
+      await _loadData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to sync sales: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -410,6 +452,11 @@ class _SalesScreenState extends State<SalesScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: AppTheme.nearlyBlack),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            onPressed: _isLoading ? null : _syncUnsyncedSales,
+            tooltip: 'Sync Unsynced Sales',
+          ),
           IconButton(
             icon: const Icon(Icons.file_download_outlined),
             onPressed: _isLoading ? null : _exportSales,

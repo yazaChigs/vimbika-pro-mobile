@@ -40,10 +40,11 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
 
   Future<void> _showAddBalanceDialog(BuildContext screenContext, Customer customer) async {
     final controller = Provider.of<CustomerController>(screenContext, listen: false);
+    final scaffoldMessenger = ScaffoldMessenger.of(screenContext);
 
     if (controller.currencies.isEmpty || controller.paymentTypes.isEmpty) {
       if (mounted) { // Add mounted check here as well
-        ScaffoldMessenger.of(this.context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('Currencies or Payment Types not loaded')),
         );
       }
@@ -55,7 +56,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
     
     if (validPaymentTypes.isEmpty) {
       if (mounted) { // Add mounted check here as well
-        ScaffoldMessenger.of(this.context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('No valid non-credit payment types found for the selected currency')),
         );
       }
@@ -139,7 +140,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                       // If payment type requires a bank but none is selected
                       if (selectedPaymentType!.banks?.isNotEmpty == true && selectedBank == null) {
                         if (mounted) {
-                          ScaffoldMessenger.of(this.context).showSnackBar(
+                          scaffoldMessenger.showSnackBar(
                             const SnackBar(content: Text('Please select a bank'), backgroundColor: Colors.red),
                           );
                         }
@@ -154,12 +155,12 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
 
                       if (mounted) {
                         if (message == null) {
-                          ScaffoldMessenger.of(this.context).showSnackBar(
+                          scaffoldMessenger.showSnackBar(
                             const SnackBar(content: Text('Balance added successfully'), backgroundColor: Colors.green),
                           );
                           Navigator.pop(dialogContext);
                         } else {
-                          ScaffoldMessenger.of(this.context).showSnackBar(
+                          scaffoldMessenger.showSnackBar(
                             SnackBar(content: Text(message), backgroundColor: Colors.red),
                           );
                         }
@@ -199,9 +200,10 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                   onPressed: controller.isLoading
                       ? null
                       : () async {
+                          final scaffoldMessenger = ScaffoldMessenger.of(context);
                           final message = await controller.syncCustomers();
                           if (mounted && message != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            scaffoldMessenger.showSnackBar(
                               SnackBar(content: Text(message)),
                             );
                           }
@@ -263,6 +265,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     child: ListTile(
                                       onTap: () async {
+                                        final scaffoldMessenger = ScaffoldMessenger.of(context);
                                         await Navigator.push(
                                           context,
                                           MaterialPageRoute(builder: (context) => CustomerStatementScreen(customer: customer)),
@@ -270,7 +273,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                                         // After returning from statement screen, refresh data
                                         final message = await controller.syncCustomers();
                                         if (mounted && message != null) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
+                                          scaffoldMessenger.showSnackBar(
                                             SnackBar(content: Text(message)),
                                           );
                                         }
@@ -333,6 +336,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                                           IconButton(
                                             icon: const Icon(Icons.edit_outlined, color: AppTheme.grey),
                                             onPressed: () async {
+                                              final scaffoldMessenger = ScaffoldMessenger.of(context);
                                               final result = await Navigator.push(
                                                 context,
                                                 MaterialPageRoute(builder: (context) => AddCustomerScreen(customer: customer)),
@@ -340,7 +344,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                                               if (result != null) {
                                                 final message = await controller.syncCustomers();
                                                 if (mounted && message != null) {
-                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                  scaffoldMessenger.showSnackBar(
                                                     SnackBar(content: Text(message)),
                                                   );
                                                 }
@@ -359,6 +363,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                   ),
             floatingActionButton: FloatingActionButton(
               onPressed: () async {
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const AddCustomerScreen()),
@@ -366,7 +371,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                 if (mounted && result != null) { // Add mounted check
                   final message = await controller.syncCustomers();
                   if (mounted && message != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    scaffoldMessenger.showSnackBar(
                       SnackBar(content: Text(message)),
                     );
                   }

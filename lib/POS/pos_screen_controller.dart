@@ -11,6 +11,7 @@ import 'package:vimbika_pro/model/payment_received.dart';
 import 'package:vimbika_pro/model/sale.dart';
 import 'package:vimbika_pro/model/customer.dart';
 import 'package:vimbika_pro/model/branch.dart';
+import 'package:vimbika_pro/model/bank.dart';
 import 'package:vimbika_pro/model/category.dart' as model;
 import 'package:vimbika_pro/model/customer_currency_amount.dart';
 import 'package:vimbika_pro/model/mobile_pos_shift.dart';
@@ -68,7 +69,6 @@ class POSScreenController extends ChangeNotifier {
   bool _isLoading = true;
   String _searchQuery = '';
   bool _allowOutOfStockSales = false;
-  bool _isPriceInclusiveTax = true;
   bool _isBarcodeSearchMode = false;
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _customerSearchController = TextEditingController();
@@ -103,7 +103,6 @@ class POSScreenController extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
   bool get allowOutOfStockSales => _allowOutOfStockSales;
-  bool get isPriceInclusiveTax => _isPriceInclusiveTax;
   bool get isBarcodeSearchMode => _isBarcodeSearchMode;
   TextEditingController get searchController => _searchController;
   TextEditingController get customerSearchController => _customerSearchController;
@@ -298,7 +297,6 @@ class POSScreenController extends ChangeNotifier {
     _selectedBranch = defaultBranch;
 
     _allowOutOfStockSales = prefs.getBool(AppConstants.keyAllowOutOfStockSales) ?? false;
-    _isPriceInclusiveTax = prefs.getBool(AppConstants.keyIsPriceInclusiveTax) ?? true;
 
     if (_currencies.isNotEmpty) {
       _selectedCurrency = _currencies.firstWhere(
@@ -368,13 +366,32 @@ class POSScreenController extends ChangeNotifier {
 
   double get taxTotalBase => _cart.fold(0, (sum, item) => sum + item.taxAmount);
 
-  double get grandTotalBase => subTotalBase + taxTotalBase;
+  double get grandTotalBase => subTotalBase;
 
   double get grandTotalConverted => grandTotalBase * (_selectedCurrency?.rate ?? 1.0);
   double get amountPaidConverted => _payments.fold(0, (sum, item) => sum + item.amount);
   double get balanceDueConverted => grandTotalConverted - amountPaidConverted;
 
+  Bank? _getCorrectBank(PaymentType? paymentType, Currency? currency) {
+    if (currency != null && paymentType != null) {
+      if (paymentType.banks != null) {
+        for (Bank bank in paymentType.banks!) {
+          if (bank.currency?.id == currency.id) {
+            print(bank.toJson());
+            return bank;
+          }
+        }
+      } else {
+        debugPrint('No banks associated with the selected payment type.');
+      }
+    } else {
+      debugPrint('Either currency or paymentType is null.');
+    }
+    return null;
+  }
+
   void addToCart(BranchStock stock) {
+    print('adding to cart: ${stock.item?.name}');
     final product = stock.item!;
 
     if (!_allowOutOfStockSales && !product.isService) {
@@ -403,22 +420,14 @@ class POSScreenController extends ChangeNotifier {
       final double newQty = existingItem.quantity + 1;
       final double taxRate = product.tax?.taxPercentage ?? 0.0;
       double itemTaxAmount;
-      double itemSubtotal;
-
-      if (_isPriceInclusiveTax) {
         double totalInclusive = newQty * product.sellingPrice;
         itemTaxAmount = totalInclusive - (totalInclusive / (1 + taxRate / 100));
-        itemSubtotal = totalInclusive - itemTaxAmount;
-      } else {
-        itemSubtotal = newQty * product.sellingPrice;
-        itemTaxAmount = itemSubtotal * (taxRate / 100);
-      }
 
       _cart[index] = SaleItem(
         inventoryItem: product,
         quantity: newQty,
         sellingPrice: product.sellingPrice,
-        total: itemSubtotal,
+        total: totalInclusive,
         taxAmount: itemTaxAmount,
         isMobile: true,
         id:index.toString(),
@@ -426,23 +435,15 @@ class POSScreenController extends ChangeNotifier {
     } else {
       final double taxRate = product.tax?.taxPercentage ?? 0.0;
       double itemTaxAmount;
-      double itemSubtotal;
-
-      if (_isPriceInclusiveTax) {
         double totalInclusive = 1 * product.sellingPrice;
         itemTaxAmount = totalInclusive - (totalInclusive / (1 + taxRate / 100));
-        itemSubtotal = totalInclusive - itemTaxAmount;
-      } else {
-        itemSubtotal = 1 * product.sellingPrice;
-        itemTaxAmount = itemSubtotal * (taxRate / 100);
-      }
 
       _cart.add(SaleItem(
         id: _cart.length.toString(),
         inventoryItem: product,
         quantity: 1.0,
         sellingPrice: product.sellingPrice,
-        total: itemSubtotal,
+        total: totalInclusive,
         taxAmount: itemTaxAmount,
         isMobile: true,
       ));
@@ -507,17 +508,9 @@ class POSScreenController extends ChangeNotifier {
 
     final double taxRate = product.tax?.taxPercentage ?? 0.0;
     double itemTaxAmount;
-    double itemSubtotal;
     double subtotalAfterDiscount = (newQuantity * newSellingPrice) - newDiscountAmount;
     if (subtotalAfterDiscount < 0) subtotalAfterDiscount = 0;
-
-    if (_isPriceInclusiveTax) {
       itemTaxAmount = subtotalAfterDiscount - (subtotalAfterDiscount / (1 + taxRate / 100));
-      itemSubtotal = subtotalAfterDiscount - itemTaxAmount;
-    } else {
-      itemTaxAmount = subtotalAfterDiscount * (taxRate / 100);
-      itemSubtotal = subtotalAfterDiscount;
-    }
 
     _cart[index] = SaleItem(
       id: index.toString(),
@@ -525,7 +518,7 @@ class POSScreenController extends ChangeNotifier {
       quantity: newQuantity,
       sellingPrice: newSellingPrice,
       discountAmount: newDiscountAmount,
-      total: itemSubtotal,
+      total: subtotalAfterDiscount,
       taxAmount: itemTaxAmount,
       isMobile: true,
     );
@@ -599,6 +592,7 @@ class POSScreenController extends ChangeNotifier {
           paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
           dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
           isMobile: true,
+          bank: _getCorrectBank(accountPaymentType, _selectedCurrency),
       ));
       
       notifyListeners();
@@ -748,10 +742,12 @@ class POSScreenController extends ChangeNotifier {
                   paymentType: selectedPaymentType,
                   currency: _selectedCurrency,
                   branch: _selectedBranch,
+                  payer: _selectedCustomer,
                   paymentDescription: 'SALE',
                   paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
                   dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
                   isMobile: true,
+                  bank: _getCorrectBank(selectedPaymentType, _selectedCurrency),
                 ));
 
                 // We DO NOT save payments to the shift here to avoid duplicates.
@@ -810,6 +806,9 @@ class POSScreenController extends ChangeNotifier {
     _isProcessingSale = true;
     notifyListeners();
 
+    if (_payments.isEmpty) {
+      _payments.map((toElement)=>print(toElement.bank!.toJson()));
+    }
     try {
       if (_cart.isEmpty) return;
 
@@ -889,7 +888,7 @@ class POSScreenController extends ChangeNotifier {
         company: _selectedBranch!.company,
         branch: _selectedBranch,
         items: _cart,
-        payments: _payments,
+        paymentTypes: _payments,
         timeIniated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
         status: 'Fully Paid',
         currency: _selectedCurrency,
@@ -907,7 +906,9 @@ class POSScreenController extends ChangeNotifier {
         ticketName: _ticketName, // Include ticket name in the completed sale
       );
       
-      await _saleService.saveSale(newSale);
+      _saleService.saveSale(newSale).catchError((e) {
+        debugPrint('Failed to save or sync sale in background: $e');
+      });
 
       // Print receipt based on selected printer and new setting
       try {
@@ -1007,6 +1008,7 @@ class POSScreenController extends ChangeNotifier {
       await clearPOSScreen(); // Await clearPOSScreen
     } finally {
       _isProcessingSale = false;
+      customerSelectFocus = false;
       notifyListeners();
     }
   }
@@ -1097,7 +1099,7 @@ class POSScreenController extends ChangeNotifier {
       customer: _selectedCustomer,
       branch: _selectedBranch,
       items: List.from(_cart),
-      payments: List.from(_payments),
+      paymentTypes: List.from(_payments),
       timeIniated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
       status: 'On Hold',
       currency: _selectedCurrency,
@@ -1134,7 +1136,7 @@ class POSScreenController extends ChangeNotifier {
     _disposeQuantityControllers();
 
     _cart.addAll(heldSale.items);
-    _payments.addAll(heldSale.payments ?? []);
+    _payments.addAll(heldSale.paymentTypes ?? []);
     _selectedCustomer = heldSale.customer;
     _selectedCurrency = heldSale.currency;
     _ticketName = heldSale.ticketName; // Load ticket name
@@ -1193,6 +1195,7 @@ class POSScreenController extends ChangeNotifier {
           paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
           dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
           isMobile: true,
+          bank: _getCorrectBank(cashPaymentType, _selectedCurrency),
         ));
 
         // We no longer save payments to the shift here to avoid duplicates.

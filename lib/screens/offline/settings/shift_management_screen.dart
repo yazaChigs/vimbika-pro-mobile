@@ -112,6 +112,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
         isShiftClosed: false,
         shiftCurrencyAmounts: [],
         shiftReference: 'SF${DateTime.now().millisecondsSinceEpoch}',
+        active: true
       );
 
       if (_isOfflineMode) {

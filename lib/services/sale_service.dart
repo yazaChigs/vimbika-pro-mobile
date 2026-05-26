@@ -75,6 +75,10 @@ class SaleService {
     await _saleSyncService.syncSales();
   }
 
+  Future<void> syncSales() async {
+    await _saleSyncService.syncSales();
+  }
+
   Future<List<OnlineSale>> fetchSales({
     required DateTime startDate,
     required DateTime endDate,
