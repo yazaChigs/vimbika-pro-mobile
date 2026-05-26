@@ -174,6 +174,7 @@ class LoginController extends ChangeNotifier {
         synced: false,
         stopSync: false,
         kotNumber: 0,
+        shiftReference: 'SF${DateTime.now().millisecondsSinceEpoch}',
         shiftCurrencyAmounts: [],
       );
 

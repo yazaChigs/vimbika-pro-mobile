@@ -36,6 +36,11 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
 
   Branch? _defaultBranch;
 
+  // New state variable for "sell nil items"
+  bool _sellNilItems = false;
+  // New state variable for "allow out of stock sales"
+  bool _allowOutOfStockSales = false;
+
   @override
   void initState() {
     super.initState();
@@ -74,6 +79,9 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
 
     // 5. Load Banks - Start with empty list for quick start as per requirements
     _banks = [];
+
+    // 6. Load allow out of stock sales setting
+    _allowOutOfStockSales = prefs.getBool(AppConstants.keyAllowOutOfStockSales) ?? false;
 
     setState(() {});
   }
@@ -119,6 +127,9 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
         AppConstants.keyOfflineBanks,
         _banks.map((b) => jsonEncode(b.toJson())).toList()
       );
+
+      // Save allow out of stock sales setting
+      await prefs.setBool(AppConstants.keyAllowOutOfStockSales, _allowOutOfStockSales);
 
       if (mounted) {
         Navigator.pushReplacement(
@@ -241,7 +252,7 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
   void _addNewPaymentType() {
     String name = '';
     String? selectedCurrencyId;
-    List<String> selectedBankIds = [];
+    String? selectedBankId; // Changed from List<String> to String?
 
     showDialog(
       context: context,
@@ -277,20 +288,17 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
                   if (_availableCurrencies.isEmpty)
                     const Text('No currencies available.', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
                   const SizedBox(height: 16),
-                  const Text('Associated Banks (Optional)', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('Associated Bank (Optional)', style: TextStyle(fontWeight: FontWeight.bold)), // Changed label
                   if (_banks.isNotEmpty)
                     ..._banks.map((bank) {
-                      return CheckboxListTile(
+                      return RadioListTile<String>( // Changed to RadioListTile
                         title: Text(bank.name),
                         subtitle: Text(bank.accountNumber ?? ''),
-                        value: selectedBankIds.contains(bank.id),
-                        onChanged: (bool? value) {
+                        value: bank.id!, // Value is the bank's ID
+                        groupValue: selectedBankId, // Group value is the currently selected bank ID
+                        onChanged: (String? value) {
                           setDialogState(() {
-                            if (value == true) {
-                              selectedBankIds.add(bank.id!);
-                            } else {
-                              selectedBankIds.remove(bank.id);
-                            }
+                            selectedBankId = value; // Update selectedBankId
                           });
                         },
                       );
@@ -314,8 +322,9 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
                     }
                     
                     List<Bank> selectedBanks = [];
-                    if (selectedBankIds.isNotEmpty) {
-                      selectedBanks = _banks.where((b) => selectedBankIds.contains(b.id)).toList();
+                    if (selectedBankId != null) { // Check for single selectedBankId
+                      final bank = _banks.firstWhere((b) => b.id == selectedBankId);
+                      selectedBanks.add(bank);
                     }
 
                     final newPaymentType = PaymentType(
@@ -541,7 +550,72 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // 4. Payment Types
+                  // 4. Allow Out of Stock Sales
+                  const Text('Stock Management', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 8),
+                  Card(
+                    elevation: 0,
+                    color: AppTheme.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
+                    child: SwitchListTile(
+                      title: const Text('Allow Out of Stock Sales'),
+                      subtitle: const Text('Enable to sell items even if their stock count is zero or negative.'),
+                      activeThumbColor: AppTheme.vimbikaBlue,
+                      value: _allowOutOfStockSales,
+                      onChanged: (val) => setState(() => _allowOutOfStockSales = val),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 5. Banks
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Banks', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            Text('Add banks for your transactions.', style: TextStyle(fontSize: 12, color: AppTheme.grey)),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline, color: AppTheme.vimbikaBlue),
+                        onPressed: _addNewBank,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (_banks.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text('Would you like to add any banks?', style: TextStyle(color: AppTheme.grey, fontStyle: FontStyle.italic)),
+                    ),
+                  if (_banks.isNotEmpty)
+                    Card(
+                      elevation: 0,
+                      color: AppTheme.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
+                      child: Column(
+                        children: List.generate(_banks.length, (index) {
+                          final bank = _banks[index];
+                          return Column(
+                            children: [
+                              if (index > 0) const Divider(height: 1),
+                              ListTile(
+                                leading: const Icon(Icons.account_balance, color: AppTheme.vimbikaBlue),
+                                title: Text(bank.name),
+                                subtitle: Text([bank.accountNumber, bank.branch].where((s) => s != null && s.isNotEmpty).join(' - ')),
+                              ),
+                            ],
+                          );
+                        }),
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+
+                  // 6. Payment Types
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -588,54 +662,6 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
                                     _paymentTypes[index] = pt.copyWith(active: val ?? false);
                                   });
                                 },
-                              ),
-                            ],
-                          );
-                        }),
-                      ),
-                    ),
-                  const SizedBox(height: 24),
-
-                  // 5. Banks
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Banks', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                            Text('Add banks for your transactions.', style: TextStyle(fontSize: 12, color: AppTheme.grey)),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle_outline, color: AppTheme.vimbikaBlue),
-                        onPressed: _addNewBank,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  if (_banks.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text('Would you like to add any banks?', style: TextStyle(color: AppTheme.grey, fontStyle: FontStyle.italic)),
-                    ),
-                  if (_banks.isNotEmpty)
-                    Card(
-                      elevation: 0,
-                      color: AppTheme.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
-                      child: Column(
-                        children: List.generate(_banks.length, (index) {
-                          final bank = _banks[index];
-                          return Column(
-                            children: [
-                              if (index > 0) const Divider(height: 1),
-                              ListTile(
-                                leading: const Icon(Icons.account_balance, color: AppTheme.vimbikaBlue),
-                                title: Text(bank.name),
-                                subtitle: Text([bank.accountNumber, bank.branch].where((s) => s != null && s.isNotEmpty).join(' - ')),
                               ),
                             ],
                           );

@@ -434,11 +434,23 @@ class PrinterService {
   }
 
   Future<void> _printBluetoothReceipt(String content) async {
-    // Basic implementation, you'll need to format `content` properly
-    // for ESC/POS commands if you need more advanced formatting.
     await _bluetooth.printNewLine();
     await Future.delayed(const Duration(milliseconds: 200));
-    await _bluetooth.printCustom(content, 1, 1); // Size 1, Align 1 (center)
+    
+    // Instead of printing the whole chunk at once (which might cause issues with center alignment
+    // trying to center the block instead of interpreting spaces), print line by line
+    final lines = content.split('\n');
+    for (String line in lines) {
+      // If a line is empty, skip printing or print new line,
+      // here we just use printCustom which handles basic strings
+      if (line.isNotEmpty) {
+        // Size 1, Align 0 (Left) to respect the spaces we added for right-alignment
+        await _bluetooth.printCustom(line, 1, 0); 
+      } else {
+        await _bluetooth.printNewLine();
+      }
+    }
+    
     await _bluetooth.printNewLine();
     await _bluetooth.printNewLine();
     await Future.delayed(const Duration(milliseconds: 300));
@@ -449,7 +461,15 @@ class PrinterService {
   Future<void> _printSunmiReceipt(String content) async {
     await SunmiPrinter.initPrinter();
     await SunmiPrinter.startTransactionPrint(true);
-    await SunmiPrinter.printText(content, style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    
+    final lines = content.split('\n');
+    for (String line in lines) {
+      if (line.isNotEmpty) {
+        // Use LEFT align to respect our spaces
+        await SunmiPrinter.printText(line, style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+      }
+    }
+    
     await SunmiPrinter.lineWrap(3);
     await SunmiPrinter.cut();
     await SunmiPrinter.submitTransactionPrint();
@@ -460,7 +480,7 @@ class PrinterService {
     StringBuffer buffer = StringBuffer();
 
     // Example formatting - adjust as needed for your specific receipt layout
-    buffer.writeln('----------------------------------------');
+    buffer.writeln('--------------------------------');
     buffer.writeln('          ${saleData['storeName'] ?? 'Vimbika Pro'}');
     buffer.writeln('          ${saleData['storeAddress'] ?? '123 Main St'}');
     
@@ -481,12 +501,12 @@ class PrinterService {
       buffer.writeln('Email: $companyEmail');
     }
 
-    buffer.writeln('----------------------------------------');
+    buffer.writeln('--------------------------------');
     final DateTime? saleDateTime = saleData['saleDateTime'] as DateTime?;
     buffer.writeln('Date: ${saleDateTime != null ? saleDateTime.toLocal().toString().substring(0, 16) : 'N/A'}');
-    buffer.writeln('----------------------------------------');
+    buffer.writeln('--------------------------------');
     buffer.writeln('Item            Qty   Price     Total');
-    buffer.writeln('----------------------------------------');
+    buffer.writeln('--------------------------------');
 
     List<Map<String, dynamic>> items = (saleData['items'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
     for (var item in items) {
@@ -497,11 +517,11 @@ class PrinterService {
       buffer.writeln('${name.padRight(15).substring(0, 15)} ${quantity.toString().padLeft(3)} ${price.toStringAsFixed(2).padLeft(7)} ${itemTotal.toStringAsFixed(2).padLeft(7)}');
     }
 
-    buffer.writeln('----------------------------------------');
+    buffer.writeln('--------------------------------');
     buffer.writeln('Subtotal:                 ${(saleData['subtotal'] ?? 0.0).toStringAsFixed(2).padLeft(7)}');
     buffer.writeln('Tax:                      ${(saleData['tax'] ?? 0.0).toStringAsFixed(2).padLeft(7)}');
     buffer.writeln('Total:                    ${(saleData['total'] ?? 0.0).toStringAsFixed(2).padLeft(7)}');
-    buffer.writeln('----------------------------------------');
+    buffer.writeln('--------------------------------');
 
     // Payment Details
     List<Map<String, dynamic>> payments = (saleData['payments'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
@@ -512,16 +532,24 @@ class PrinterService {
         final double amount = payment['amount'] ?? 0.0;
         buffer.writeln('$paymentType: ${amount.toStringAsFixed(2)}');
       }
-      buffer.writeln('----------------------------------------');
+      buffer.writeln('--------------------------------');
     }
 
-    buffer.writeln('        THANK YOU FOR YOUR PURCHASE!');
-    buffer.writeln('----------------------------------------');
-    buffer.writeln('Powered by Vimbika');
-    buffer.writeln('----------------------------------------');
+    buffer.writeln('  THANK YOU FOR YOUR PURCHASE!');
+    buffer.writeln('--------------------------------');
+    buffer.writeln('       Powered by Vimbika');
+    buffer.writeln('--------------------------------');
 
 
     return buffer.toString();
+  }
+
+  // Helper method for aligning labels and figures
+  // width changed from 40 to 32 to better fit 58mm thermal printers
+  String _alignLeftRight(String left, String right, {int width = 32}) {
+    int spaces = width - left.length - right.length;
+    if (spaces < 1) return '$left $right';
+    return '$left${' ' * spaces}$right';
   }
 
   // New methods for printing shift reports
@@ -551,27 +579,27 @@ class PrinterService {
 
   String _formatShiftSummaryContent(MobilePosShift shift, List<Currency> availableCurrencies, Company? company) {
     final StringBuffer buffer = StringBuffer();
-    buffer.writeln('----------------------------------------');
-    buffer.writeln('          SHIFT SUMMARY REPORT');
-    buffer.writeln('----------------------------------------');
+    buffer.writeln('--------------------------------');
+    buffer.writeln('      SHIFT SUMMARY REPORT');
+    buffer.writeln('--------------------------------');
     
     // Company Contact Details
     if (company != null) {
-      buffer.writeln('Company: ${company.name ?? 'N/A'}');
+      buffer.writeln(_alignLeftRight('Company:', company.name ?? 'N/A'));
       if (company.phoneNumber != null && company.phoneNumber!.isNotEmpty) {
-        buffer.writeln('Tel: ${company.phoneNumber!}');
+        buffer.writeln(_alignLeftRight('Tel:', company.phoneNumber!));
       }
       if (company.email != null && company.email!.isNotEmpty) {
-        buffer.writeln('Email: ${company.email!}');
+        buffer.writeln(_alignLeftRight('Email:', company.email!));
       }
-      buffer.writeln('----------------------------------------');
+      buffer.writeln('--------------------------------');
     }
 
-    buffer.writeln('Shift Ref: ${shift.shiftReference ?? 'N/A'}');
-    buffer.writeln('Opened by: ${shift.userFullName ?? 'N/A'}');
-    buffer.writeln('Opening Time: ${shift.openingTime != null ? DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(shift.openingTime!)) : 'N/A'}');
-    buffer.writeln('Closing Time: ${shift.closingTime != null ? DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(shift.closingTime!)) : 'N/A'}');
-    buffer.writeln('----------------------------------------');
+    buffer.writeln(_alignLeftRight('Shift Ref:', shift.shiftReference ?? 'N/A'));
+    buffer.writeln(_alignLeftRight('Opened by:', shift.userFullName ?? 'N/A'));
+    buffer.writeln(_alignLeftRight('Opening Time:', shift.openingTime != null ? DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(shift.openingTime!)) : 'N/A'));
+    buffer.writeln(_alignLeftRight('Closing Time:', shift.closingTime != null ? DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(shift.closingTime!)) : 'N/A'));
+    buffer.writeln('--------------------------------');
 
     Map<String, Map<String, double>> currencyTotals = {}; // {currencyId: {type: amount}}
     Map<String, Map<String, double>> paymentTypeBreakdown = {}; // {currencyId: {paymentTypeName: totalAmount}}
@@ -631,51 +659,51 @@ class PrinterService {
         final totalCash = cashInTotal - cashOutTotal + cashPaymentTotal; // Assuming initial cash is 0 for now
 
         buffer.writeln('\n--- ${currency.name} (${currency.symbol}) ---');
-        buffer.writeln('Initial Cash: ${currency.symbol} 0.00'); // TODO: Get initial cash per currency
-        buffer.writeln('Total Cash In: ${currency.symbol} ${cashInTotal.toStringAsFixed(2)}');
-        buffer.writeln('Total Cash Out: ${currency.symbol} ${cashOutTotal.toStringAsFixed(2)}');
-        buffer.writeln('Total Cash Sales: ${currency.symbol} ${cashPaymentTotal.toStringAsFixed(2)}');
-        buffer.writeln('Total Other Sales: ${currency.symbol} ${otherPaymentTotal.toStringAsFixed(2)}');
-        buffer.writeln('Total Sales: ${currency.symbol} ${totalSales.toStringAsFixed(2)}');
-        buffer.writeln('Total Cash: ${currency.symbol} ${totalCash.toStringAsFixed(2)}');
+        buffer.writeln(_alignLeftRight('Initial Cash:', '${currency.symbol} 0.00')); // TODO: Get initial cash per currency
+        buffer.writeln(_alignLeftRight('Total Cash In:', '${currency.symbol} ${cashInTotal.toStringAsFixed(2)}'));
+        buffer.writeln(_alignLeftRight('Total Cash Out:', '${currency.symbol} ${cashOutTotal.toStringAsFixed(2)}'));
+        buffer.writeln(_alignLeftRight('Total Cash Sales:', '${currency.symbol} ${cashPaymentTotal.toStringAsFixed(2)}'));
+        buffer.writeln(_alignLeftRight('Total Other Sales:', '${currency.symbol} ${otherPaymentTotal.toStringAsFixed(2)}'));
+        buffer.writeln(_alignLeftRight('Total Sales:', '${currency.symbol} ${totalSales.toStringAsFixed(2)}'));
+        buffer.writeln(_alignLeftRight('Total Cash:', '${currency.symbol} ${totalCash.toStringAsFixed(2)}'));
 
         if (paymentTypeBreakdown.containsKey(currencyId) && paymentTypeBreakdown[currencyId]!.isNotEmpty) {
-          buffer.writeln('\n  Sales by Payment Type:');
+          buffer.writeln('\nSales by Payment Type:');
           paymentTypeBreakdown[currencyId]!.entries.forEach((ptEntry) {
-            buffer.writeln('    ${ptEntry.key}: ${currency.symbol} ${ptEntry.value.toStringAsFixed(2)}');
+            buffer.writeln(_alignLeftRight('${ptEntry.key}:', '${currency.symbol} ${ptEntry.value.toStringAsFixed(2)}'));
           });
         }
       });
     }
-    buffer.writeln('----------------------------------------');
-    buffer.writeln('Powered by Vimbika');
-    buffer.writeln('----------------------------------------');
+    buffer.writeln('--------------------------------');
+    buffer.writeln('       Powered by Vimbika');
+    buffer.writeln('--------------------------------');
     return buffer.toString();
   }
 
   String _formatFullShiftReportContent(MobilePosShift shift, List<Currency> availableCurrencies, Company? company) {
     final StringBuffer buffer = StringBuffer();
-    buffer.writeln('----------------------------------------');
-    buffer.writeln('          FULL SHIFT REPORT');
-    buffer.writeln('----------------------------------------');
+    buffer.writeln('--------------------------------');
+    buffer.writeln('        FULL SHIFT REPORT');
+    buffer.writeln('--------------------------------');
 
     // Company Contact Details
     if (company != null) {
-      buffer.writeln('Company: ${company.name ?? 'N/A'}');
+      buffer.writeln(_alignLeftRight('Company:', company.name ?? 'N/A'));
       if (company.phoneNumber != null && company.phoneNumber!.isNotEmpty) {
-        buffer.writeln('Tel: ${company.phoneNumber!}');
+        buffer.writeln(_alignLeftRight('Tel:', company.phoneNumber!));
       }
       if (company.email != null && company.email!.isNotEmpty) {
-        buffer.writeln('Email: ${company.email!}');
+        buffer.writeln(_alignLeftRight('Email:', company.email!));
       }
-      buffer.writeln('----------------------------------------');
+      buffer.writeln('--------------------------------');
     }
 
-    buffer.writeln('Shift Ref: ${shift.shiftReference ?? 'N/A'}');
-    buffer.writeln('Opened by: ${shift.userFullName ?? 'N/A'}');
-    buffer.writeln('Opening Time: ${shift.openingTime != null ? DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(shift.openingTime!)) : 'N/A'}');
-    buffer.writeln('Closing Time: ${shift.closingTime != null ? DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(shift.closingTime!)) : 'N/A'}');
-    buffer.writeln('----------------------------------------');
+    buffer.writeln(_alignLeftRight('Shift Ref:', shift.shiftReference ?? 'N/A'));
+    buffer.writeln(_alignLeftRight('Opened by:', shift.userFullName ?? 'N/A'));
+    buffer.writeln(_alignLeftRight('Opening Time:', shift.openingTime != null ? DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(shift.openingTime!)) : 'N/A'));
+    buffer.writeln(_alignLeftRight('Closing Time:', shift.closingTime != null ? DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(shift.closingTime!)) : 'N/A'));
+    buffer.writeln('--------------------------------');
 
     // Summary section (same as shift summary)
     Map<String, Map<String, double>> currencyTotals = {};
@@ -735,26 +763,26 @@ class PrinterService {
         final totalCash = cashInTotal - cashOutTotal + cashPaymentTotal;
 
         buffer.writeln('\n--- ${currency.name} (${currency.symbol}) ---');
-        buffer.writeln('Initial Cash: ${currency.symbol} 0.00');
-        buffer.writeln('Total Cash In: ${currency.symbol} ${cashInTotal.toStringAsFixed(2)}');
-        buffer.writeln('Total Cash Out: ${currency.symbol} ${cashOutTotal.toStringAsFixed(2)}');
-        buffer.writeln('Total Cash Sales: ${currency.symbol} ${cashPaymentTotal.toStringAsFixed(2)}');
-        buffer.writeln('Total Other Sales: ${currency.symbol} ${otherPaymentTotal.toStringAsFixed(2)}');
-        buffer.writeln('Total Sales: ${currency.symbol} ${totalSales.toStringAsFixed(2)}');
-        buffer.writeln('Total Cash: ${currency.symbol} ${totalCash.toStringAsFixed(2)}');
+        buffer.writeln(_alignLeftRight('Initial Cash:', '${currency.symbol} 0.00'));
+        buffer.writeln(_alignLeftRight('Total Cash In:', '${currency.symbol} ${cashInTotal.toStringAsFixed(2)}'));
+        buffer.writeln(_alignLeftRight('Total Cash Out:', '${currency.symbol} ${cashOutTotal.toStringAsFixed(2)}'));
+        buffer.writeln(_alignLeftRight('Total Cash Sales:', '${currency.symbol} ${cashPaymentTotal.toStringAsFixed(2)}'));
+        buffer.writeln(_alignLeftRight('Total Other Sales:', '${currency.symbol} ${otherPaymentTotal.toStringAsFixed(2)}'));
+        buffer.writeln(_alignLeftRight('Total Sales:', '${currency.symbol} ${totalSales.toStringAsFixed(2)}'));
+        buffer.writeln(_alignLeftRight('Total Cash:', '${currency.symbol} ${totalCash.toStringAsFixed(2)}'));
 
         if (paymentTypeBreakdown.containsKey(currencyId) && paymentTypeBreakdown[currencyId]!.isNotEmpty) {
-          buffer.writeln('\n  Sales by Payment Type:');
+          buffer.writeln('\nSales by Payment Type:');
           paymentTypeBreakdown[currencyId]!.entries.forEach((ptEntry) {
-            buffer.writeln('    ${ptEntry.key}: ${currency.symbol} ${ptEntry.value.toStringAsFixed(2)}');
+            buffer.writeln(_alignLeftRight('${ptEntry.key}:', '${currency.symbol} ${ptEntry.value.toStringAsFixed(2)}'));
           });
         }
       });
     }
 
-    buffer.writeln('\n----------------------------------------');
-    buffer.writeln('          DETAILED ACTIVITIES');
-    buffer.writeln('----------------------------------------');
+    buffer.writeln('\n--------------------------------');
+    buffer.writeln('      DETAILED ACTIVITIES');
+    buffer.writeln('--------------------------------');
 
     if (shift.shiftCurrencyAmounts == null || shift.shiftCurrencyAmounts!.isEmpty) {
       buffer.writeln('No detailed activities recorded.');
@@ -773,22 +801,22 @@ class PrinterService {
           activityLabel = activity.amountType;
         }
 
-        buffer.writeln('Time: ${activity.timeCreated != null ? DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(activity.timeCreated!)) : 'N/A'}');
-        buffer.writeln('Type: $activityLabel');
-        buffer.writeln('Amount: $amountPrefix${activity.currency.symbol} ${activity.amount.toStringAsFixed(2)}');
+        buffer.writeln(_alignLeftRight('Time:', activity.timeCreated != null ? DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(activity.timeCreated!)) : 'N/A'));
+        buffer.writeln(_alignLeftRight('Type:', activityLabel));
+        buffer.writeln(_alignLeftRight('Amount:', '$amountPrefix${activity.currency.symbol} ${activity.amount.toStringAsFixed(2)}'));
         if (activity.notes != null && activity.notes!.isNotEmpty) {
-          buffer.writeln('Notes: ${activity.notes}');
+          buffer.writeln(_alignLeftRight('Notes:', activity.notes!));
         }
         if (activity.posReference != null && activity.posReference!.isNotEmpty) {
-          buffer.writeln('Ref: ${activity.posReference}');
+          buffer.writeln(_alignLeftRight('Ref:', activity.posReference!));
         }
         buffer.writeln('---');
       });
     }
 
-    buffer.writeln('----------------------------------------');
-    buffer.writeln('Powered by Vimbika');
-    buffer.writeln('----------------------------------------');
+    buffer.writeln('--------------------------------');
+    buffer.writeln('       Powered by Vimbika');
+    buffer.writeln('--------------------------------');
     return buffer.toString();
   }
 }

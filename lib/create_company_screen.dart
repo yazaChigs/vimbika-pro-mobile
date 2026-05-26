@@ -22,6 +22,7 @@ class _CreateCompanyScreenState extends State<CreateCompanyScreen> {
   final TextEditingController _websiteController = TextEditingController();
 
   bool _isLoading = false;
+  bool _showOptionalFields = false; // New state variable
 
   Future<void> _handleCreateCompany() async {
     if (_nameController.text.isEmpty || _branchNameController.text.isEmpty) {
@@ -113,30 +114,46 @@ class _CreateCompanyScreenState extends State<CreateCompanyScreen> {
                 icon: Icons.store_outlined,
               ),
               const SizedBox(height: 16),
-              _buildTextField(
-                controller: _addressController,
-                hintText: 'Address',
-                icon: Icons.location_on_outlined,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _phoneController,
-                hintText: 'Phone Number',
-                icon: Icons.phone_outlined,
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _emailController,
-                hintText: 'Company Email',
-                icon: Icons.email_outlined,
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _websiteController,
-                hintText: 'Website',
-                icon: Icons.language_outlined,
+              // Optional Fields Section
+              ExpansionTile(
+                title: Text(
+                  _showOptionalFields ? 'Hide Optional Details' : 'Add Optional Details',
+                  style: TextStyle(color: AppTheme.vimbikaBlue),
+                ),
+                onExpansionChanged: (bool expanded) {
+                  setState(() {
+                    _showOptionalFields = expanded;
+                  });
+                },
+                initiallyExpanded: _showOptionalFields,
+                children: <Widget>[
+                  _buildTextField(
+                    controller: _addressController,
+                    hintText: 'Address',
+                    icon: Icons.location_on_outlined,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _phoneController,
+                    hintText: 'Phone Number',
+                    icon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _emailController,
+                    hintText: 'Company Email',
+                    icon: Icons.email_outlined,
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _websiteController,
+                    hintText: 'Website',
+                    icon: Icons.language_outlined,
+                  ),
+                  const SizedBox(height: 16), // Add some spacing after the last optional field
+                ],
               ),
               const SizedBox(height: 32),
               ElevatedButton(

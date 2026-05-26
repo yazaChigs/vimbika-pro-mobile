@@ -34,6 +34,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _confirmPasswordController = TextEditingController();
 
   bool _isLoading = false;
+  bool _showOptionalFields = false; // New state variable
   final Uuid _uuid = const Uuid(); // Initialize Uuid
 
   Future<void> _handleSignup() async {
@@ -163,15 +164,16 @@ class _SignupScreenState extends State<SignupScreen> {
       synced: false,
       stopSync: false,
       kotNumber: 0,
+      shiftReference: 'SF${DateTime.now().millisecondsSinceEpoch}',
       shiftCurrencyAmounts: [],
     );
 
     // Set as current open shift
-    await prefs.setString(AppConstants.keyCurrentOpenShift, shift.toJson());
+    await prefs.setString(AppConstants.keyCurrentOpenShift, jsonEncode(shift.toJson()));
 
     // Also add to the offline mobile shifts history
     final List<String> shiftsJson = prefs.getStringList(AppConstants.keyOfflineMobileShifts) ?? [];
-    shiftsJson.add(shift.toJson());
+    shiftsJson.add(jsonEncode(shift.toJson()));
     await prefs.setStringList(AppConstants.keyOfflineMobileShifts, shiftsJson);
   }
 
@@ -240,6 +242,7 @@ class _SignupScreenState extends State<SignupScreen> {
           currency: currency,
           banks: [cashBank],
           isSystemCreated: true,
+            active: true
         ));
         defaultPaymentTypes.add(PaymentType(
           id: _uuid.v4(), // Assign a unique ID
@@ -247,6 +250,7 @@ class _SignupScreenState extends State<SignupScreen> {
           currency: currency,
           banks: [arBank],
           isSystemCreated: true,
+          active: true
         ));
         
         // Add the account payment type requested
@@ -256,6 +260,7 @@ class _SignupScreenState extends State<SignupScreen> {
           currency: currency,
           banks: [arBank],
           isSystemCreated: true,
+            active: true
         ));
       }
 
@@ -347,25 +352,6 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 16),
               _buildTextField(
-                controller: _firstNameController,
-                hintText: 'First Name',
-                icon: Icons.badge_outlined,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _lastNameController,
-                hintText: 'Last Name',
-                icon: Icons.badge_outlined,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _phoneController,
-                hintText: 'Phone Number',
-                icon: Icons.phone_outlined,
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
                 controller: _pinController,
                 hintText: 'Login PIN (4 digits) *',
                 icon: Icons.pin_outlined,
@@ -385,6 +371,41 @@ class _SignupScreenState extends State<SignupScreen> {
                 hintText: 'Confirm Password *', // Updated hint text
                 icon: Icons.lock_outline,
                 isObscure: true,
+              ),
+              const SizedBox(height: 16),
+              // Optional Fields Section
+              ExpansionTile(
+                title: Text(
+                  _showOptionalFields ? 'Hide Optional Details' : 'Add Optional Details',
+                  style: TextStyle(color: AppTheme.vimbikaBlue),
+                ),
+                onExpansionChanged: (bool expanded) {
+                  setState(() {
+                    _showOptionalFields = expanded;
+                  });
+                },
+                initiallyExpanded: _showOptionalFields,
+                children: <Widget>[
+                  _buildTextField(
+                    controller: _firstNameController,
+                    hintText: 'First Name',
+                    icon: Icons.badge_outlined,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _lastNameController,
+                    hintText: 'Last Name',
+                    icon: Icons.badge_outlined,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _phoneController,
+                    hintText: 'Phone Number',
+                    icon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 16), // Add some spacing after the last optional field
+                ],
               ),
               const SizedBox(height: 32),
               ElevatedButton(

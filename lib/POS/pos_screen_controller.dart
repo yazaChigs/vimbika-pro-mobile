@@ -638,19 +638,25 @@ class POSScreenController extends ChangeNotifier {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Replaced GridView.builder with a Column of RadioListTile
-                ...filteredPaymentTypes.map((paymentType) {
-                  return RadioListTile<PaymentType>(
-                    title: Text(paymentType.name),
-                    value: paymentType,
-                    groupValue: selectedPaymentType,
-                    onChanged: (PaymentType? newValue) {
-                      setDialogState(() {
-                        selectedPaymentType = newValue;
-                      });
-                    },
-                  );
-                }).toList(),
+                SizedBox(
+                  height: 300.0,
+                  width: double.maxFinite,
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: filteredPaymentTypes.map((paymentType) {
+                      return RadioListTile<PaymentType>(
+                        title: Text(paymentType.name),
+                        value: paymentType,
+                        groupValue: selectedPaymentType,
+                        onChanged: (PaymentType? newValue) {
+                          setDialogState(() {
+                            selectedPaymentType = newValue;
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: amountController,

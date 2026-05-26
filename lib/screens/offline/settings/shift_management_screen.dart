@@ -67,8 +67,16 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
 
     // Load current open shift
     final String? currentShiftJson = prefs.getString(AppConstants.keyCurrentOpenShift);
-    if (currentShiftJson != null && currentShiftJson != 'null') {
-      _currentShift = MobilePosShift.fromRawJson(currentShiftJson);
+    if (currentShiftJson != null && currentShiftJson.isNotEmpty) {
+      try {
+        _currentShift = MobilePosShift.fromRawJson(currentShiftJson);
+      } catch (e) {
+        // If parsing fails, it means the stored JSON is invalid.
+        // Log the error and clear the malformed data.
+        print('Error parsing stored shift JSON: $e');
+        await prefs.remove(AppConstants.keyCurrentOpenShift);
+        _currentShift = null;
+      }
     } else {
       _currentShift = null;
     }
@@ -103,6 +111,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
         openingTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
         isShiftClosed: false,
         shiftCurrencyAmounts: [],
+        shiftReference: 'SF${DateTime.now().millisecondsSinceEpoch}',
       );
 
       if (_isOfflineMode) {
