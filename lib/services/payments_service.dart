@@ -203,21 +203,21 @@ class PaymentsService {
         return PaymentReceived.fromJson(jsonDecode(responseStr));
       } on SocketException catch (e) {
         debugPrint('SocketException during savePaymentReceived: $e. Saving locally.');
-        return await _savePaymentReceivedLocally(payment);
+        return await savePaymentReceivedLocally(payment);
       } on TimeoutException catch (e) {
         debugPrint('TimeoutException during savePaymentReceived: $e. Saving locally.');
-        return await _savePaymentReceivedLocally(payment);
+        return await savePaymentReceivedLocally(payment);
       } catch (e) {
         debugPrint('Error during savePaymentReceived: $e. Saving locally.');
-        return await _savePaymentReceivedLocally(payment);
+        return await savePaymentReceivedLocally(payment);
       }
     } else {
       debugPrint('Offline. Saving payment received locally.');
-      return await _savePaymentReceivedLocally(payment);
+      return await savePaymentReceivedLocally(payment);
     }
   }
 
-  Future<PaymentReceived> _savePaymentReceivedLocally(PaymentReceived payment) async {
+  Future<PaymentReceived> savePaymentReceivedLocally(PaymentReceived payment) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     List<PaymentReceived> unsyncedPayments = await getUnsyncedReceivedPaymentsLocally();
 

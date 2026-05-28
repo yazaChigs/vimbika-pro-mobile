@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vimbika_pro/app_constants/app_constants.dart';
+import 'package:vimbika_pro/customer/payment_receipt_screen.dart';
 import 'package:vimbika_pro/model/branch_stock.dart';
 import 'package:vimbika_pro/model/sale_item.dart';
 import 'package:vimbika_pro/model/currency.dart';
@@ -786,17 +787,37 @@ class POSScreenController extends ChangeNotifier {
                   });
 
                   final bank = _getCorrectBank(selectedPaymentType, _selectedCurrency);
-                  final message = await addCustomerDeposit(_selectedCustomer!, _selectedCurrency!, selectedPaymentType!, amt, selectedBank: bank);
+                  final payment = await addCustomerDeposit(_selectedCustomer!, _selectedCurrency!, selectedPaymentType!, amt, selectedBank: bank);
 
                   if (!context.mounted) return;
-                  if (message == null) {
+                  if (payment != null) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Deposit added successfully'), backgroundColor: Colors.green),
                     );
                     Navigator.pop(dialogContext, true);
+                    final bool? shouldPrint = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Print Receipt?'),
+                        content: const Text('Do you want to print a receipt for this deposit?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('No'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Yes'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (shouldPrint == true) {
+                      await _printerService.printPaymentReceipt(payment);
+                    }
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(message), backgroundColor: Colors.red),
+                      const SnackBar(content: Text('Failed to add deposit'), backgroundColor: Colors.red),
                     );
                   }
                   
@@ -1124,8 +1145,7 @@ class POSScreenController extends ChangeNotifier {
     }
   }
 
-  Future<String?> addCustomerDeposit(Customer customer, Currency selectedCurrency, PaymentType selectedPaymentType, double amount, {Bank? selectedBank}) async {
-    String? errorMessage;
+  Future<PaymentReceived?> addCustomerDeposit(Customer customer, Currency selectedCurrency, PaymentType selectedPaymentType, double amount, {Bank? selectedBank}) async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final bool isOfflineMode = !(prefs.getBool(AppConstants.keyIsOfflineMode) ?? false);
@@ -1216,9 +1236,17 @@ class POSScreenController extends ChangeNotifier {
       }
       // --- End of local balance update logic ---
 
-      _paymentsService.savePaymentReceived(newPayment).catchError((e) {
-        debugPrint('Failed to save payment in background: $e');
-      });
+      // Save locally first
+      final savedPayment = await _paymentsService.savePaymentReceivedLocally(newPayment);
+
+      // Then try to sync in background
+      if (!isOfflineMode) {
+        _paymentsService.syncReceivedPayment(savedPayment).catchError((e) {
+          debugPrint('Failed to sync payment in background: $e');
+          // It's already in the unsynced list, so the background sync process will pick it up
+          return false;
+        });
+      }
       
       // Reload data to reflect changes.
       await _loadData();
@@ -1245,11 +1273,11 @@ class POSScreenController extends ChangeNotifier {
         currentShift.shiftCurrencyAmounts!.add(shiftAmount);
         await _saveShift(currentShift);
       }
+      return savedPayment;
     } catch (e) {
-      errorMessage = 'Failed to add deposit: $e';
-      debugPrint(errorMessage);
+      debugPrint('Failed to add deposit: $e');
+      return null;
     }
-    return errorMessage;
   }
 
   Future<void> clearPOSScreen({Customer? newCustomer}) async {

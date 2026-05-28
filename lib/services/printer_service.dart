@@ -18,6 +18,7 @@ import 'package:vimbika_pro/model/currency.dart';
 import 'package:vimbika_pro/model/company.dart'; // Import the Company model
 import 'package:intl/intl.dart';
 import 'package:vimbika_pro/services/default_data_service.dart';
+import 'package:vimbika_pro/model/payment_received.dart';
 
 enum PrinterTypes { bluetooth, sunmi }
 
@@ -190,6 +191,55 @@ class PrinterService {
     await _savePrinterSettings();
   }
 
+  Future<void> printPaymentReceipt(PaymentReceived payment) async {
+    if (!_isConnected) {
+      print('Printer not connected. Cannot print payment receipt.');
+      return;
+    }
+
+    try {
+      final String content = _formatPaymentReceiptContent(payment);
+      for (int i = 0; i < _numberOfReceiptsPerSale; i++) {
+        if (_printerType == PrinterTypes.bluetooth) {
+          await _printBluetoothReceipt(content);
+        } else if (_printerType == PrinterTypes.sunmi) {
+          await _printSunmiReceipt(content);
+        }
+        if (i < _numberOfReceiptsPerSale - 1) {
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+      }
+    } catch (e) {
+      print('Error printing payment receipt: $e');
+      rethrow;
+    }
+  }
+
+  String _formatPaymentReceiptContent(PaymentReceived payment) {
+    StringBuffer buffer = StringBuffer();
+
+    buffer.writeln('--------------------------------');
+    buffer.writeln('          PAYMENT RECEIPT       ');
+    buffer.writeln('--------------------------------');
+    buffer.writeln('Receipt #: ${payment.id ?? 'N/A'}');
+    buffer.writeln('Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}');
+    if (payment.payer != null) {
+      buffer.writeln('Received From: ${payment.payer!.name}');
+    }
+    buffer.writeln('Amount: ${payment.currency?.symbol ?? ''} ${payment.amount.toStringAsFixed(2)}');
+    buffer.writeln('Payment Method: ${payment.paymentType?.name ?? 'N/A'}');
+    if (payment.bank != null) {
+      buffer.writeln('Bank: ${payment.bank!.name}');
+    }
+    buffer.writeln('--------------------------------');
+    buffer.writeln('  THANK YOU FOR YOUR PAYMENT!');
+    buffer.writeln('--------------------------------');
+    buffer.writeln('       Powered by Vimbika');
+    buffer.writeln('--------------------------------');
+
+    return buffer.toString();
+  }
+
   /// Prints a sale receipt using the Sale model.
   Future<void> printSale(Sale sale) async {
     if (!_isConnected) {
@@ -222,7 +272,6 @@ class PrinterService {
       final File? logoFile = await defaultDataService.getImage(sale.company!.id!);
       if (logoFile != null && await logoFile.exists()) {
         try {
-          print('Attempting to print BT image ${logoFile.path}');
           // Most BlueThermalPrinter versions use printImage for local file paths.
           // For thermal printers, adding a clear line and small delay helps avoid buffer issues.
           // Using printImageBytes can sometimes be more reliable than path if the plugin has issues reading the file.
@@ -312,9 +361,11 @@ class PrinterService {
       _bluetooth.printCustom("--------------------------------", 1, 1);
     }
 
-    if (sale.customer != null && sale.balance != null && sale.balance! > 0) {
-      _bluetooth.printCustom("Balance: $symbol${sale.balance!.toStringAsFixed(2)}", 1, 0);
-      _bluetooth.printCustom("--------------------------------", 1, 1);
+    Currency? cur = sale.currency;
+    // Account Balance (if ACC- payment type is used) - unique to Sunmi, now added to Telpo
+    if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty) {
+      _bluetooth.printCustom("Account Balance: ${cur?.symbol ?? ''} ${sale.customer!.currencyBalance!.firstWhere((cb) => cb.currency?.id == cur?.id, orElse: () => sale.customer!.currencyBalance!.first).balance!.toStringAsFixed(2)}",1,0);
+      _bluetooth.printCustom("--------------------------------\n", 1, 1);
     }
 
     // qr code
@@ -417,10 +468,18 @@ class PrinterService {
       await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
 
-    if (sale.customer != null && sale.balance != null && sale.balance! > 0) {
-      await SunmiPrinter.printText("Balance: $symbol${sale.balance!.toStringAsFixed(2)}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    Currency? cur = sale.currency;
+    if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false))
+    {
+      await SunmiPrinter.printText(
+          "Account Balance: ${cur?.symbol ?? ''} ${sale.customer!
+              .currencyBalance!
+              .firstWhere((cb) => cb.currency == cur)
+              .balance!
+              .toStringAsFixed(2)}");
       await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
+    await SunmiPrinter.printText("\n");
 
 
     //qr code

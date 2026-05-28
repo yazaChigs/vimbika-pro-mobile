@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:vimbika_pro/customer/payment_receipt_screen.dart';
+import 'package:vimbika_pro/model/payment_received.dart';
 import '../app_constants/app_theme.dart';
 import '../controllers/customer_controller.dart';
 import '../model/currency.dart';
@@ -30,6 +32,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
   Future<void> _showAddBalanceDialog(BuildContext screenContext, Customer customer, {bool isDeposit = false}) async {
     final controller = Provider.of<CustomerController>(screenContext, listen: false);
     final scaffoldMessenger = ScaffoldMessenger.of(screenContext);
+    final navigator = Navigator.of(screenContext);
 
     if (controller.currencies.isEmpty || controller.paymentTypes.isEmpty) {
       if (mounted) { // Add mounted check here as well
@@ -140,17 +143,22 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                         isSavingBalance = true;
                       });
 
-                      final message = await controller.addBalance(customer, selectedCurrency!, selectedPaymentType!, amount, selectedBank: selectedBank, isDeposit: isDeposit);
+                      final PaymentReceived? payment = await controller.addBalance(customer, selectedCurrency!, selectedPaymentType!, amount, selectedBank: selectedBank, isDeposit: isDeposit);
 
                       if (mounted) {
-                        if (message == null) {
+                        if (payment != null) {
                           scaffoldMessenger.showSnackBar(
                             SnackBar(content: Text(isDeposit ? 'Deposit added successfully' : 'Balance added successfully'), backgroundColor: Colors.green),
                           );
-                          Navigator.pop(dialogContext);
+                          Navigator.pop(dialogContext); // Close the dialog
+                          navigator.push(
+                            MaterialPageRoute(
+                              builder: (context) => PaymentReceiptScreen(payment: payment),
+                            ),
+                          );
                         } else {
                           scaffoldMessenger.showSnackBar(
-                            SnackBar(content: Text(message), backgroundColor: Colors.red),
+                            const SnackBar(content: Text('Failed to add balance'), backgroundColor: Colors.red),
                           );
                         }
                       }

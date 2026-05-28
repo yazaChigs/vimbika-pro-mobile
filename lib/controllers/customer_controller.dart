@@ -234,8 +234,7 @@ class CustomerController extends ChangeNotifier {
     return null;
   }
 
-  Future<String?> addBalance(Customer customer, Currency selectedCurrency, PaymentType selectedPaymentType, double amount, {Bank? selectedBank, bool isDeposit = false}) async {
-    String? errorMessage;
+  Future<PaymentReceived?> addBalance(Customer customer, Currency selectedCurrency, PaymentType selectedPaymentType, double amount, {Bank? selectedBank, bool isDeposit = false}) async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final Branch? defaultBranch = await _getDefaultBranch();
@@ -339,12 +338,11 @@ class CustomerController extends ChangeNotifier {
       // Always save locally first to be safe, especially in offline mode. 
       // The `savePaymentReceived` method in PaymentsService already handles online vs offline 
       // by saving locally if the sync fails, but we can also just rely on it.
-      if (isOfflineMode) {
-        await _paymentsService.savePaymentReceived(newPayment);
-      } else {
+      final savedPayment = await _paymentsService.savePaymentReceived(newPayment);
+      
+      if (!isOfflineMode) {
          // We are online. Delegate directly to the service to handle the API call.
          // Wait a tiny bit just in case we need the local customer save to finish
-        await _paymentsService.savePaymentReceived(newPayment);
         // Refresh customer list from API to get updated balance if we successfully synced.
         // Even if we fail, local is updated, but syncCustomers will fetch from API and overwrite local.
         // It's probably better to call _startPeriodicSyncCheck here and let background sync handle it,
@@ -364,7 +362,7 @@ class CustomerController extends ChangeNotifier {
           amountType: isDeposit ? 'CUSTOMER_DEPOSIT' : 'ACCOUNT_TOP_UP',
           // If online, it's possible savedPayment has no ID yet until synced back, fallback to generated. 
           // Assuming savePaymentReceived returns a valid object or we use local ID
-          ref: newPayment.id ?? 'payment_${DateTime.now().millisecondsSinceEpoch}',
+          ref: savedPayment.id ?? 'payment_${DateTime.now().millisecondsSinceEpoch}',
           posReference: '${customer.name}${DateTime.now().microsecondsSinceEpoch}',
           shiftReference: currentShift.shiftReference,
           isCash: selectedPaymentType.isCash,
@@ -380,14 +378,14 @@ class CustomerController extends ChangeNotifier {
           return currentShift;
         });
       }
+      return savedPayment;
     } catch (e) {
-      errorMessage = 'Failed to add balance: $e';
-      debugPrint(errorMessage);
+      debugPrint('Failed to add balance: $e');
+      return null;
     }
-    return errorMessage;
   }
   
-  Future<String?> addDeposit(Customer customer, Currency selectedCurrency, PaymentType selectedPaymentType, double amount, {Bank? selectedBank}) async {
+  Future<PaymentReceived?> addDeposit(Customer customer, Currency selectedCurrency, PaymentType selectedPaymentType, double amount, {Bank? selectedBank}) async {
     return addBalance(customer, selectedCurrency, selectedPaymentType, amount, selectedBank: selectedBank, isDeposit: true);
   }
 
