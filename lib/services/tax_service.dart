@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../app_constants/app_constants.dart';
 import '../model/tax.dart';
+import '../model/user.dart';
 import 'base_http_client.dart'; // Changed to BaseHttpClient
 
 class TaxService {
@@ -9,13 +10,21 @@ class TaxService {
 
   Future<List<Tax>> fetchTaxes() async {
     try {
-      final response = await _httpClient.get('tax/get-all');
+
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? userData = prefs.getString(AppConstants.keyOnlineUserData);
+
+      if (userData == null) throw Exception('User not logged in');
+      final user = User.fromJson(jsonDecode(userData));
+
+      final String? companyId = user.branch?.company?.id;
+      if (companyId == null) throw Exception('Company ID not found for user');
+      final response = await _httpClient.getAuthWithCompanyHeader('/tax/get-all', companyId);
       if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-        final List<dynamic> taxJsonList = responseData['data']; // Assuming the API returns data in a 'data' field
-        
-        final List<Tax> taxes = taxJsonList.map((json) => Tax.fromJson(json)).toList();
-        
+
+        final List<dynamic> data = jsonDecode(response);
+        final List<Tax> taxes = data.map((b) => Tax.fromJson(b)).toList();
+
         // Save to SharedPreferences
         final SharedPreferences prefs = await SharedPreferences.getInstance();
         final List<String> taxListString = taxes.map((tax) => jsonEncode(tax.toJson())).toList();

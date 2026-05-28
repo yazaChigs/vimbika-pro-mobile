@@ -164,7 +164,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           DoubleCellValue(item.reorderLevel),
           TextCellValue(item.isService.toString()),
           TextCellValue(stock.branch?.name ?? ''),
-          DoubleCellValue(stock.quantity),
+          DoubleCellValue(stock.stock),
         ];
 
         for (var j = 0; j < values.length; j++) {
@@ -227,9 +227,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
         if (_selectedItemType == 'Services') matchesItemType = item.isService;
 
         bool matchesStockStatus = true;
-        if (_selectedStockStatus == 'In Stock') matchesStockStatus = stock.quantity > 0;
-        if (_selectedStockStatus == 'Out of Stock') matchesStockStatus = stock.quantity <= 0 && !item.isService;
-        if (_selectedStockStatus == 'Low Stock') matchesStockStatus = stock.quantity <= item.reorderLevel && stock.quantity > 0;
+        if (_selectedStockStatus == 'In Stock') matchesStockStatus = stock.stock > 0;
+        if (_selectedStockStatus == 'Out of Stock') matchesStockStatus = stock.stock <= 0 && !item.isService;
+        if (_selectedStockStatus == 'Low Stock') matchesStockStatus = stock.stock <= item.reorderLevel && stock.stock > 0;
 
         return matchesSearch && matchesBranch && matchesCategory && matchesItemType && matchesStockStatus;
       }).toList();
@@ -301,15 +301,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: stock.quantity <= item.reorderLevel ? Colors.red.withAlpha(25) : Colors.green.withAlpha(25),
+                                        color: stock.stock <= item.reorderLevel ? Colors.red.withAlpha(25) : Colors.green.withAlpha(25),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
-                                        'Stock: ${stock.quantity.toStringAsFixed(0)} ${item.unit?.name ?? ''}',
+                                        'Stock: ${stock.stock.toStringAsFixed(0)} ${item.unit?.name ?? ''}',
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
-                                          color: stock.quantity <= item.reorderLevel ? Colors.red : Colors.green,
+                                          color: stock.stock <= item.reorderLevel ? Colors.red : Colors.green,
                                         ),
                                       ),
                                     ),

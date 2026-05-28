@@ -57,6 +57,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
 
   Future<void> _initializeFilters() async {
     await _loadCurrencies();
+    if (!mounted) return;
     _selectedCurrency = _currencies.isNotEmpty ? _currencies.firstWhere((c) => c.isBaseCurrency == true, orElse: () => _currencies.first) : null;
     _loadStatement();
   }
@@ -65,24 +66,31 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final List<String> currenciesJson = prefs.getStringList(AppConstants.keyCurrencies) ?? [];
     if (currenciesJson.isNotEmpty) {
-      setState(() {
-        _currencies = currenciesJson.map((c) => Currency.fromJson(jsonDecode(c))).toList();
-      });
+      if (mounted) {
+        setState(() {
+          _currencies = currenciesJson.map((c) => Currency.fromJson(jsonDecode(c))).toList();
+        });
+      }
     }
   }
 
   Future<void> _loadStatement() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
 
     final SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+
     final bool isOffline = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
     
     if (_selectedCurrency != null) {
-      setState(() {
-        _baseCurrencySymbol = _selectedCurrency!.symbol ?? '\$';
-      });
+      if (mounted) {
+        setState(() {
+          _baseCurrencySymbol = _selectedCurrency!.symbol ?? '\$';
+        });
+      }
     }
     
     List<StatementEntry> entries = [];
@@ -208,7 +216,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
         final customerService = CustomerService();
         final ledgerResponse = await customerService.getCustomerStatements(
           currency: _selectedCurrency!.name!,
-          accountId: widget.customer.id,
+          counterPartyId: widget.customer.id,
           startDate: _startDate != null ? DateFormat('yyyy-MM-dd').format(_startDate!) : null,
           endDate: _endDate != null ? DateFormat('yyyy-MM-dd').format(_endDate!) : null,
         );
@@ -242,12 +250,14 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
     // Sort by date latest first
     entries.sort((a, b) => b.date.compareTo(a.date));
 
-    setState(() {
-      _ledger = entries;
-      _totalBilled = billed;
-      _totalPaid = paid;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _ledger = entries;
+        _totalBilled = billed;
+        _totalPaid = paid;
+        _isLoading = false;
+      });
+    }
   }
 
   double get _balanceDue => _totalBilled - _totalPaid;
@@ -362,11 +372,13 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
                     : null,
               );
               if (picked != null) {
-                setState(() {
-                  _startDate = picked.start;
-                  _endDate = picked.end;
-                  _loadStatement();
-                });
+                if (mounted) {
+                  setState(() {
+                    _startDate = picked.start;
+                    _endDate = picked.end;
+                    _loadStatement();
+                  });
+                }
               }
             },
           ),

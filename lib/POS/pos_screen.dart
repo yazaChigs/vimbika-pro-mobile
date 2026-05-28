@@ -83,10 +83,31 @@ class POSScreen extends StatelessWidget {
                       ),
                   ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'Clear Sale',
-                  onPressed: controller.clearPOSScreen,
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (value) {
+                    if (value == 'clear_sale') {
+                      controller.clearPOSScreen();
+                    } else if (value == 'refresh_stock') {
+                      controller.downloadStockForDefaultBranch();
+                    } else if (value == 'download_other_data') {
+                      controller.downloadOtherData();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'clear_sale',
+                      child: Text('Clear Sale'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'refresh_stock',
+                      child: Text('Refresh Stock'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'download_other_data',
+                      child: Text('Download other data'),
+                    ),
+                  ],
                 ),
                 Stack(
                   alignment: Alignment.center,
@@ -184,7 +205,7 @@ class POSScreen extends StatelessWidget {
                         if (controller.isBarcodeSearchMode && val.isNotEmpty) {
                           final stock = controller.filteredBranchStocks.firstWhere(
                             (s) => s.item?.itemCode == val,
-                            orElse: () => BranchStock(id: '', item: null, branch: null, quantity: 0),
+                            orElse: () => BranchStock(id: '', item: null, branch: null, stock: 0),
                           );
                           if (stock.item != null) {
                             controller.addToCart(stock);
@@ -211,7 +232,7 @@ class POSScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              _buildCategoryFilter(controller),
+              _CategoryFilterWidget(controller: controller),
             ],
           ),
         ),
@@ -249,7 +270,7 @@ class POSScreen extends StatelessWidget {
                                       Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                       Text('${controller.selectedCurrency?.symbol ?? ''}${(product.sellingPrice * (controller.selectedCurrency?.rate ?? 1.0)).toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.vimbikaBlue, fontWeight: FontWeight.bold, fontSize: 12)),
                                       if (!controller.allowOutOfStockSales) // Conditionally display stock
-                                        Text(product.isService ? 'Service' : 'In Stock: ${stock.quantity.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: product.isService ? Colors.green : (stock.quantity <= 0 ? Colors.red : AppTheme.vimbikaBlue))),
+                                        Text(product.isService ? 'Service' : 'In Stock: ${stock.stock.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: product.isService ? Colors.green : (stock.stock <= 0 ? Colors.red : AppTheme.vimbikaBlue))),
                                     ],
                                   ),
                                 ),
@@ -570,7 +591,7 @@ class POSScreen extends StatelessWidget {
             contentPadding: EdgeInsets.zero, // Adjust padding as needed
           ),
         const SizedBox(height: 8),
-        if (controller.balanceDueConverted > 0.01)
+        if (controller.balanceDueConverted > 0.01 || (controller.cart.isEmpty && controller.selectedCustomer != null))
           Column(
             children: [
               Row(
@@ -585,22 +606,23 @@ class POSScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        await controller.quickCashSale();
-                        if (context.mounted && isDialog) {
-                          Navigator.pop(context);
-                        }
-                      },
-                      icon: const Icon(Icons.flash_on, size: 18),
-                      label: const Text('Quick Cash', style: TextStyle(fontSize: 12)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
+                  if (controller.cart.isNotEmpty)
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          await controller.quickCashSale();
+                          if (context.mounted && isDialog) {
+                            Navigator.pop(context);
+                          }
+                        },
+                        icon: const Icon(Icons.flash_on, size: 18),
+                        label: const Text('Quick Cash', style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
               if (controller.selectedCustomer != null && controller.cart.isNotEmpty) ...[
@@ -622,7 +644,7 @@ class POSScreen extends StatelessWidget {
               ],
             ],
           )
-        else if (controller.cart.isNotEmpty)
+        else if (controller.cart.isNotEmpty || controller.payments.isNotEmpty)
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -645,37 +667,6 @@ class POSScreen extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-
-  Widget _buildCategoryFilter(POSScreenController controller) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          _buildCategoryChip(controller, null),
-          ...controller.categories.map((cat) => _buildCategoryChip(controller, cat)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategoryChip(POSScreenController controller, model.Category? category) {
-    final isSelected = controller.selectedCategory?.id == category?.id;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(category?.name ?? 'All'),
-        selected: isSelected,
-        onSelected: (selected) {
-          controller.selectedCategory = selected ? category : null;
-        },
-        selectedColor: AppTheme.vimbikaBlue.withAlpha(50),
-        labelStyle: TextStyle(
-          color: isSelected ? AppTheme.vimbikaBlue : AppTheme.darkText,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
     );
   }
 
@@ -971,6 +962,87 @@ class POSScreen extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+class _CategoryFilterWidget extends StatefulWidget {
+  final POSScreenController controller;
+  const _CategoryFilterWidget({required this.controller});
+
+  @override
+  State<_CategoryFilterWidget> createState() => _CategoryFilterWidgetState();
+}
+
+class _CategoryFilterWidgetState extends State<_CategoryFilterWidget> {
+  final ScrollController _scrollController = ScrollController();
+
+  void _scrollLeft() {
+    _scrollController.animateTo(
+      _scrollController.offset - 200,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _scrollRight() {
+    _scrollController.animateTo(
+      _scrollController.offset + 200,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.chevron_left),
+          onPressed: _scrollLeft,
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildCategoryChip(widget.controller, null),
+                ...widget.controller.categories.map((cat) => _buildCategoryChip(widget.controller, cat)),
+              ],
+            ),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.chevron_right),
+          onPressed: _scrollRight,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryChip(POSScreenController controller, model.Category? category) {
+    final isSelected = controller.selectedCategory?.id == category?.id;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text(category?.name ?? 'All'),
+        selected: isSelected,
+        onSelected: (selected) {
+          controller.selectedCategory = selected ? category : null;
+        },
+        selectedColor: AppTheme.vimbikaBlue.withAlpha(50),
+        labelStyle: TextStyle(
+          color: isSelected ? AppTheme.vimbikaBlue : AppTheme.darkText,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
     );
   }
 }

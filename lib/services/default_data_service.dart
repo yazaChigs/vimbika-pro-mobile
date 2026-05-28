@@ -6,6 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../app_constants/app_constants.dart';
 import '../model/branch.dart';
 import '../model/currency.dart';
+import '../model/product_feature.dart';
+import '../model/user.dart';
+import 'app_exceptions.dart';
 import 'base_http_client.dart';
 import 'branch_service.dart';
 import 'currency_service.dart';
@@ -23,7 +26,7 @@ class DefaultDataService {
   final PaymentsService _paymentsService = PaymentsService();
   final BankService _bankService = BankService();
 
-  Future<void> fetchAndSaveDefaultData() async {
+  Future<void> fetchAndSaveDefaultData(User user) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 
     final Branch? branch = await _branchService.getDefaultBranch();
@@ -54,11 +57,31 @@ class DefaultDataService {
       if(branch!=null && branch.company!=null) {
         await downloadAndSaveImage(branch.company!.id!);
       }
-
+      
+      await getSettings(user, prefs);
 
 
     } catch (e) {
       rethrow;
+    }
+  }
+
+  Future<void>  getSettings(User user, SharedPreferences prefs) async{
+    var response = await BaseHttpClient().getAuthWithCompanyHeader("/product-feature/get", user.companyId!).catchError((onError){
+      if (onError is BadRequestException) {
+        throw onError;
+      } else {
+        throw onError;
+      }
+    });
+    if(response != null) {
+      ProductFeature itemConverted = ProductFeature.fromJson(json.decode(response));
+      prefs.setString(AppConstants.keyCompanySettings, json.encode(itemConverted.toJson()));
+      
+      // Update sell out of stock items setting
+      if (itemConverted.sellNilItems != null) {
+        prefs.setBool(AppConstants.keyAllowOutOfStockSales, itemConverted.sellNilItems!);
+      }
     }
   }
 

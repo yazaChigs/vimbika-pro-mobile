@@ -1,13 +1,17 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import 'package:image/image.dart' as img;
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sunmi_printer_plus/enums.dart';
 import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
 import 'package:sunmi_printer_plus/sunmi_style.dart';
 import 'package:vimbika_pro/app_constants/app_constants.dart';
+import 'package:vimbika_pro/model/product_feature.dart';
 import 'package:vimbika_pro/model/sale.dart';
 import 'package:vimbika_pro/model/mobile_pos_shift.dart';
 import 'package:vimbika_pro/model/currency.dart';
@@ -33,6 +37,7 @@ class PrinterService {
   bool _sunmiBound = false;
   bool _alwaysPrintReceipt = false;
   int _numberOfReceiptsPerSale = 1; // Added for the new setting
+  bool _waScan = false;
 
   // Getters for current printer status
   PrinterTypes get printerType => _printerType;
@@ -63,6 +68,12 @@ class PrinterService {
     // Load the new settings
     _alwaysPrintReceipt = prefs.getBool(AppConstants.keyAlwaysPrintReceipt) ?? false;
     _numberOfReceiptsPerSale = prefs.getInt(AppConstants.keyNumberOfReceiptsPerSale) ?? 1;
+    final String? settings = prefs.getString(AppConstants.keyCompanySettings);
+    if (settings != null) {
+      final json = jsonDecode(settings);
+      final productFeature = ProductFeature.fromJson(json as Map<String, dynamic>);
+      _waScan = productFeature.enableWaInvReq ?? false;
+    }
   }
 
   Future<void> _savePrinterSettings() async {
@@ -276,7 +287,9 @@ class PrinterService {
     _bluetooth.printCustom("--------------------------------", 1, 1);
     
     String symbol = sale.currency?.symbol ?? "";
+    num totalItems = 0;
     for (var item in sale.items) {
+      totalItems += item.quantity;
       String name = (item.inventoryItem?.name ?? "Item").padRight(15).substring(0, 15);
       String qty = item.quantity.toStringAsFixed(0).padLeft(3);
       String total = "$symbol${item.total.toStringAsFixed(2)}".padLeft(10);
@@ -284,6 +297,9 @@ class PrinterService {
     }
     
     _bluetooth.printCustom("--------------------------------", 1, 1);
+    _bluetooth.printCustom("Total Items: \t $totalItems", 1, 0);
+    _bluetooth.printCustom("Net Amount: \t $symbol${(sale.baseSaleAmount ?? 0.0).toStringAsFixed(2)}", 1, 0);
+    _bluetooth.printCustom("VAT Amount: \t $symbol${(sale.totalTaxAmount ?? 0.0).toStringAsFixed(2)}", 1, 0);
     _bluetooth.printCustom("TOTAL: $symbol${sale.grandTotal.toStringAsFixed(2)}", 2, 2);
     _bluetooth.printCustom("--------------------------------", 1, 1);
 
@@ -294,6 +310,24 @@ class PrinterService {
         _bluetooth.printCustom("${payment.paymentType?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", 1, 0);
       }
       _bluetooth.printCustom("--------------------------------", 1, 1);
+    }
+
+    if (sale.customer != null && sale.balance != null && sale.balance! > 0) {
+      _bluetooth.printCustom("Balance: $symbol${sale.balance!.toStringAsFixed(2)}", 1, 0);
+      _bluetooth.printCustom("--------------------------------", 1, 1);
+    }
+
+    // qr code
+    if(sale.receiptQrCode != null){
+      _bluetooth.printQRcode(sale.receiptQrCode!, 200, 200, 1);
+      _bluetooth.printCustom("Scan the QR Code above", 1, 1);
+      _bluetooth.printCustom(sale.receiptQrData!, 1, 1);
+      _bluetooth.printCustom("You can verify this receipt manually at ", 1, 1);
+      _bluetooth.printCustom(sale.receiptQrCode!, 1, 1);
+    } else if(sale.receiptQrCode==null && _waScan){
+      Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
+      _bluetooth.printImageBytes(waImageBytes);
+      _bluetooth.printNewLine();
     }
 
     _bluetooth.printNewLine();
@@ -318,6 +352,15 @@ class PrinterService {
       if (logoFile != null && await logoFile.exists()) {
         try {
           Uint8List bytes = await logoFile.readAsBytes();
+          
+          // Resize the image before printing
+          img.Image? image = img.decodeImage(bytes);
+          if (image != null) {
+            // Resize to a smaller width, e.g., 200 pixels
+            img.Image resized = img.copyResize(image, width: 200);
+            bytes = Uint8List.fromList(img.encodePng(resized));
+          }
+
           await SunmiPrinter.printImage(bytes);
         } catch (e) {
           print('Could not print SUNMI image $e');
@@ -349,7 +392,9 @@ class PrinterService {
     await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     
     String symbol = sale.currency?.symbol ?? "";
+    num totalItems = 0;
     for (var item in sale.items) {
+      totalItems += item.quantity;
       String name = (item.inventoryItem?.name ?? "Item").padRight(15).substring(0, 15);
       String qty = "x${item.quantity.toStringAsFixed(0)}".padLeft(5);
       String total = "$symbol${item.total.toStringAsFixed(2)}".padLeft(10);
@@ -357,6 +402,9 @@ class PrinterService {
     }
     
     await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    await SunmiPrinter.printText("Total Items: \t $totalItems", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    await SunmiPrinter.printText("Net Amount: \t $symbol${(sale.baseSaleAmount ?? 0.0).toStringAsFixed(2)}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    await SunmiPrinter.printText("VAT Amount: \t $symbol${(sale.totalTaxAmount ?? 0.0).toStringAsFixed(2)}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
     await SunmiPrinter.printText("TOTAL: $symbol${sale.grandTotal.toStringAsFixed(2)}", style: SunmiStyle(fontSize: SunmiFontSize.LG, align: SunmiPrintAlign.RIGHT, bold: true));
     await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
 
@@ -367,6 +415,32 @@ class PrinterService {
         await SunmiPrinter.printText("${payment.paymentType?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
       }
       await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    }
+
+    if (sale.customer != null && sale.balance != null && sale.balance! > 0) {
+      await SunmiPrinter.printText("Balance: $symbol${sale.balance!.toStringAsFixed(2)}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+      await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    }
+
+
+    //qr code
+
+    if(sale.receiptQrCode != null){
+      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+      await SunmiPrinter.printQRCode(sale.receiptQrCode!);
+      await SunmiPrinter.printText("Scan the QR Code above");
+      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+      await SunmiPrinter.printText(sale.receiptQrData!);
+      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+      await SunmiPrinter.printText("You can verify this receipt manually at ");
+      await SunmiPrinter.printText(sale.receiptQrCode!);
+    } else if(sale.receiptQrCode==null
+        && _waScan
+    ){
+      Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
+      await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+      await SunmiPrinter.printImage(waImageBytes);
+      await SunmiPrinter.printText("\n");
     }
 
     await SunmiPrinter.lineWrap(1);
@@ -407,6 +481,58 @@ class PrinterService {
       rethrow;
     }
   }
+
+
+  Future<Uint8List> generateWhatsappQR(String invoiceNumber, String currencySymbol, double amount) async{
+    // Generate QR Code using qr_flutter
+
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    ProductFeature settingsModel;
+    final String? settings = prefs.getString(AppConstants.keyCompanySettings);
+    if (settings == null) {
+      throw Exception("Company settings not found");
+    }else{
+      final json = jsonDecode(settings);
+      settingsModel = ProductFeature.fromJson(json as Map<String, dynamic>);
+    }
+    final String? phone = settingsModel.whatsappNumber;
+
+    // Check if WhatsApp number is available
+    if (phone == null || phone.isEmpty) {
+      throw Exception("WhatsApp number is not configured in company settings");
+    }
+
+    final String message = 'Hello, please send me the fiscalised invoice for $invoiceNumber ($currencySymbol $amount)';
+    final String encodedMessage = Uri.encodeComponent(message);
+    final String waLink = 'https://wa.me/$phone?text=$encodedMessage';
+    final qrValidationResult = QrValidator.validate(
+      data: waLink,
+      version: QrVersions.auto,
+      errorCorrectionLevel: QrErrorCorrectLevel.L,
+    );
+    if (qrValidationResult.status != QrValidationStatus.valid) {
+      throw Exception("Invalid QR code content");
+    }
+    final qrCodeImage = qrValidationResult.qrCode;
+    // final qrImage = img.Image(width: 300, height: 300); // 300x300 QR code image size
+    final painter = QrPainter.withQr(
+      qr: qrCodeImage!,
+      color: const Color(0xFF000000),
+      emptyColor: const Color(0xFFFFFFFF),
+      gapless: true,
+    );
+
+    // Convert QR code to Uint8List
+    // ByteData? byteData = await painter.toImageData(300);
+    // Uint8List imageBytes = byteData!.buffer.asUint8List();
+    final picData = await painter.toImageData(200); // Adjust size if needed
+    final img.Image baseSizeImage = img.decodeImage(picData!.buffer.asUint8List())!;
+    final img.Image grayscaleImage = img.grayscale(baseSizeImage);
+    final Uint8List qrImageBytes = Uint8List.fromList(img.encodePng(grayscaleImage));
+    return qrImageBytes;
+
+  }
+
 
   /// Prints a sale receipt using structured sale data.
   /// This method formats the provided `saleData` into a human-readable receipt

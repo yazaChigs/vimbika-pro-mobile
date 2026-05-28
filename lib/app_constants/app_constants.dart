@@ -5,8 +5,8 @@ class AppConstants {
   // static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
   // static const VIMBIKA_BACKEND_URL = "https://mashwede.vimbika.africa/mashwede/api";
   //     static const VIMBIKA_BACKEND_URL = "http://192.168.1.99:8080/vimbika-pro/api";
-          static const VIMBIKA_BACKEND_URL = "http://192.168.1.148:8080/vimbika-pro/api";
-  // static const VIMBIKA_BACKEND_URL = "http://172.20.10.4:8080/vimbika-pro/api";
+  //         static const VIMBIKA_BACKEND_URL = "http://192.168.1.148:8080/vimbika-pro/api";
+  static const VIMBIKA_BACKEND_URL = "http://172.20.10.12:8080/vimbika-pro/api";
   static const int defaultTimeout = 30000;
   static const CACHED_ACCESS_TOKEN = "CACHED_ACCESS_TOKEN";
   static const APP_DATE_TIME_FMT = "yyyy-MM-dd HH:mm:ss";
@@ -70,6 +70,7 @@ class AppConstants {
   static const String keyAllowOutOfStockSales = 'allow_out_of_stock_sales';
   static const String keyIsOfflineMode = 'is_offline_mode';
   static const String keyIsPriceInclusiveTax = 'is_price_inclusive_tax'; // Added this
+  static const String keyCompanySettings = 'company_settings';
 
   // Printer Settings
   static const String keyPrinterType = 'printer_type';

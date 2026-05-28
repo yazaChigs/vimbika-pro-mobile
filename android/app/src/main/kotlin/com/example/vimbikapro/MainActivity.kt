@@ -1,5 +1,1 @@
-package com.example.vimbikapro
-
-import io.flutter.embedding.android.FlutterActivity
-
-class MainActivity : FlutterActivity()
+// File moved to com/vimbika/business/MainActivity.kt

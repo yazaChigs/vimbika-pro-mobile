@@ -96,11 +96,30 @@ class _SalesScreenState extends State<SalesScreen> {
     final List<String> branchJson = prefs.getStringList('branches') ?? [];
     final List<Branch> loadedBranches = branchJson.map((e) => Branch.fromJson(jsonDecode(e))).toList();
 
+    final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
+    
+    // Initialize selected branch from default branch
+    final String defaultBranchKey = isOfflineMode ? AppConstants.keyOfflineBranch : AppConstants.keyDefaultBranch;
+    final String? defaultBranchJson = prefs.getString(defaultBranchKey);
+    Branch? initialSelectedBranch;
+    
+    if (defaultBranchJson != null) {
+      try {
+        final Branch defaultBranch = Branch.fromJson(jsonDecode(defaultBranchJson));
+        // Find matching branch from loaded branches to ensure reference is correct
+        initialSelectedBranch = loadedBranches.cast<Branch?>().firstWhere(
+          (b) => b?.id == defaultBranch.id, 
+          orElse: () => null
+        );
+      } catch (e) {
+        // Ignored, fallback to null
+      }
+    }
+
     // Load Customers
     final List<String> customerJson = prefs.getStringList('customers') ?? [];
     final List<Customer> loadedCustomers = customerJson.map((e) => Customer.fromJson(jsonDecode(e))).toList();
 
-    final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
     final String salesKey = isOfflineMode ? AppConstants.keyOfflineSales : AppConstants.keySales;
     const String backupSalesKey = 'backup_sales';
 
@@ -134,6 +153,7 @@ class _SalesScreenState extends State<SalesScreen> {
     if (mounted) {
       setState(() {
         _branches = loadedBranches;
+        _selectedBranch ??= initialSelectedBranch;
         _customers = loadedCustomers;
         _allSales = combinedSales;
         _isLoading = false;
@@ -547,7 +567,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                                 ),
                                                 const SizedBox(height: 2),
                                                 Text(
-                                                  '${sale.timeIniated} • ${sale.items.length} items',
+                                                  '${DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(sale.timeIniated))} • ${sale.items.length} items',
                                                   style: const TextStyle(fontSize: 12, color: AppTheme.grey),
                                                 ),
                                               ],

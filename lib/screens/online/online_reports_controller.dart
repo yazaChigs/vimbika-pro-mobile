@@ -264,8 +264,8 @@ class OnlineReportsController {
 
   void _calculateStockTotalsFromList() {
     final filteredStocks = branchStocks.where((s) => selectedBranch == null || s.branch?.id == selectedBranch!.id).toList();
-    totalStockCount = filteredStocks.fold(0.0, (sum, stock) => sum + stock.quantity);
-    totalStockValue = filteredStocks.fold(0.0, (sum, stock) => sum + (stock.quantity * (stock.item?.sellingPrice ?? 0.0)));
+    totalStockCount = filteredStocks.fold(0.0, (sum, stock) => sum + stock.stock);
+    totalStockValue = filteredStocks.fold(0.0, (sum, stock) => sum + (stock.stock * (stock.item?.sellingPrice ?? 0.0)));
   }
 
   Future<void> fetchStockSummary() async {

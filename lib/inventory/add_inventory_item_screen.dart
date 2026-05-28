@@ -211,7 +211,7 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
         id: widget.branchStock?.id ?? '${newItem.id}_bs', // Use existing ID or generate new one
         item: newItem,
         branch: _selectedBranch,
-        quantity: newItem.quantity,
+        stock: newItem.quantity,
       );
 
       final int branchStockIndex = localBranchStocks.indexWhere((element) => element.id == branchStock.id);

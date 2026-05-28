@@ -161,14 +161,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
       if (item == null) continue;
 
       totalItems++;
-      if (stock.quantity <= 0) {
+      if (stock.stock <= 0) {
         outOfStock++;
-      } else if (stock.quantity <= item.reorderLevel) {
+      } else if (stock.stock <= item.reorderLevel) {
         lowStock++;
       }
 
-      stockValuePurchase += (item.purchasePrice * stock.quantity);
-      stockValueSelling += (item.sellingPrice * stock.quantity);
+      stockValuePurchase += (item.purchasePrice * stock.stock);
+      stockValueSelling += (item.sellingPrice * stock.stock);
     }
 
     setState(() {

@@ -32,6 +32,7 @@ class CustomerController extends ChangeNotifier {
   List<PaymentType> _paymentTypes = [];
   bool _isLoading = false;
   String _searchQuery = '';
+  bool _isDisposed = false;
 
   Timer? _syncTimer;
   StreamSubscription? _connectivitySubscription;
@@ -50,13 +51,17 @@ class CustomerController extends ChangeNotifier {
 
   void _setLoading(bool value) {
     _isLoading = value;
-    notifyListeners();
+    if (!_isDisposed) {
+      notifyListeners();
+    }
   }
 
   void setSearchQuery(String query) {
     _searchQuery = query;
     _filterCustomers();
-    notifyListeners();
+     if (!_isDisposed) {
+      notifyListeners();
+    }
   }
 
   void _setupConnectivityListener() {
@@ -229,7 +234,7 @@ class CustomerController extends ChangeNotifier {
     return null;
   }
 
-  Future<String?> addBalance(Customer customer, Currency selectedCurrency, PaymentType selectedPaymentType, double amount, {Bank? selectedBank}) async {
+  Future<String?> addBalance(Customer customer, Currency selectedCurrency, PaymentType selectedPaymentType, double amount, {Bank? selectedBank, bool isDeposit = false}) async {
     String? errorMessage;
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -243,10 +248,10 @@ class CustomerController extends ChangeNotifier {
         branch: defaultBranch ?? customer.branch, // Use defaultBranch if available, else customer.branch
         amount: amount,
         amountPaid: amount,
-        paymentDescription: 'PAY_ACCOUNT',
+        paymentDescription: isDeposit ? 'CUSTOMER_DEPOSIT' : 'PAY_ACCOUNT',
         paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
         dateTime:DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
-        notes: 'Balance addition from mobile app',
+        notes: isDeposit ? 'Customer deposit from mobile app' : 'Balance addition from mobile app',
         bank: selectedBank, // Pass the selected Bank object
         isMobile: true,
       );
@@ -325,7 +330,9 @@ class CustomerController extends ChangeNotifier {
         _customers[customerIndex] = updatedCustomer;
         await _customerService.saveCustomerLocally(updatedCustomer); // Persist local change
         _filterCustomers(); // Re-filter to update UI if search query is active
-        notifyListeners(); // Notify listeners about the change
+        if (!_isDisposed) {
+          notifyListeners(); // Notify listeners about the change
+        }
       }
       // --- End of local balance update logic ---
 
@@ -348,17 +355,17 @@ class CustomerController extends ChangeNotifier {
       final MobilePosShift? currentShift = await _getCurrentShift();
       if (currentShift != null && !(currentShift.isShiftClosed ?? true)) {
         final MobileShiftCurrencyAmount shiftAmount = MobileShiftCurrencyAmount(
-          id: 'payment_${DateTime.now().millisecondsSinceEpoch}',
+          id: null,
           timeCreated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
           active: true,
           currency: selectedCurrency,
           amount: amount,
-          notes: 'Account Top-up for ${customer.name}',
-          amountType: 'Payment',
+          notes: isDeposit ? 'Customer Deposit for ${customer.name}' : 'Account Top-up for ${customer.name}',
+          amountType: isDeposit ? 'CUSTOMER_DEPOSIT' : 'ACCOUNT_TOP_UP',
           // If online, it's possible savedPayment has no ID yet until synced back, fallback to generated. 
           // Assuming savePaymentReceived returns a valid object or we use local ID
           ref: newPayment.id ?? 'payment_${DateTime.now().millisecondsSinceEpoch}',
-          posReference: null,
+          posReference: '${customer.name}${DateTime.now().microsecondsSinceEpoch}',
           shiftReference: currentShift.shiftReference,
           isCash: selectedPaymentType.isCash,
           paymentType: selectedPaymentType.name,
@@ -379,9 +386,14 @@ class CustomerController extends ChangeNotifier {
     }
     return errorMessage;
   }
+  
+  Future<String?> addDeposit(Customer customer, Currency selectedCurrency, PaymentType selectedPaymentType, double amount, {Bank? selectedBank}) async {
+    return addBalance(customer, selectedCurrency, selectedPaymentType, amount, selectedBank: selectedBank, isDeposit: true);
+  }
 
   @override
   void dispose() {
+    _isDisposed = true;
     _syncTimer?.cancel();
     _connectivitySubscription?.cancel();
     super.dispose();

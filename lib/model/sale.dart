@@ -56,6 +56,7 @@ class Sale extends BaseEntity {
   final String? ticketName;
   final String? ticketComment;
   final String? totalQuantity;
+  final String? amtToAcc;
 
 
   // Added for compatibility with existing UI
@@ -115,7 +116,8 @@ class Sale extends BaseEntity {
     this.isWalkInCustomer,
     this.ticketName,
     this.ticketComment,
-    this.totalQuantity
+    this.totalQuantity,
+    this.amtToAcc
   });
 
   Sale copyWith({
@@ -172,6 +174,7 @@ class Sale extends BaseEntity {
     String? ticketName,
     String? ticketComment,
     String? totalQuantity,
+    String? amtToAcc,
   }) {
     return Sale(
       id: id ?? this.id,
@@ -227,6 +230,7 @@ class Sale extends BaseEntity {
       ticketName: ticketName ?? this.ticketName,
       ticketComment: ticketComment ?? this.ticketComment,
       totalQuantity: totalQuantity ?? this.totalQuantity,
+      amtToAcc: amtToAcc ?? this.amtToAcc,
     );
   }
 
@@ -296,6 +300,7 @@ class Sale extends BaseEntity {
       ticketName: json['ticketName']?.toString(),
       ticketComment: json['ticketComment']?.toString(),
       totalQuantity: json['totalQuantity']?.toString(),
+      amtToAcc: json['amtToAcc']?.toString(),
     );
   }
 
@@ -358,6 +363,7 @@ class Sale extends BaseEntity {
       ticketName: onlineSale.ticketName,
       ticketComment: onlineSale.ticketComment,
       totalQuantity: onlineSale.totalQuantity,
+      amtToAcc: onlineSale.amtToAcc,
     );
   }
 
@@ -416,6 +422,7 @@ class Sale extends BaseEntity {
       'ticketName': ticketName,
       'ticketComment': ticketComment,
       'totalQuantity': totalQuantity,
+      'amtToAcc': amtToAcc,
     };
   }
 }

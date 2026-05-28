@@ -80,7 +80,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
       _suppliers = supplierJson.map((e) => Supplier.fromJson(jsonDecode(e))).toList();
       
       final List<BranchStock> branchStocks = branchStockJson.map((e) => BranchStock.fromJson(jsonDecode(e))).toList();
-      _inventoryItems = branchStocks.where((bs) => bs.item != null).map((bs) => bs.item!.copyWith(quantity: bs.quantity)).toList();
+      _inventoryItems = branchStocks.where((bs) => bs.item != null).map((bs) => bs.item!.copyWith(quantity: bs.stock)).toList();
 
       _paymentTypes = paymentTypeJson
           .map((e) => PaymentType.fromJson(jsonDecode(e)))
@@ -411,7 +411,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
               id: existingBS.id,
               branch: existingBS.branch,
               item: cartItem.inventoryItem, // Use updated item with new prices
-              quantity: existingBS.quantity + cartItem.quantity,
+              stock: existingBS.stock + cartItem.quantity,
               dateCreated: existingBS.dateCreated,
               dateModified: DateTime.now().toIso8601String(),
             );
@@ -420,7 +420,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
               id: DateTime.now().millisecondsSinceEpoch.toString() + (cartItem.inventoryItem?.id ?? ''),
               branch: _selectedBranch,
               item: cartItem.inventoryItem,
-              quantity: cartItem.quantity,
+              stock: cartItem.quantity,
               dateCreated: DateTime.now().toIso8601String(),
               dateModified: DateTime.now().toIso8601String(),
             ));

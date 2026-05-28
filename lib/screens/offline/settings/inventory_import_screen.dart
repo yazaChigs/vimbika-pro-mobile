@@ -137,7 +137,7 @@ class InventoryImportScreen extends BaseImportScreen {
         id: '${nowStr}_bs_$i',
         item: inventoryItem,
         branch: targetBranch,
-        quantity: double.tryParse(row[12]?.value?.toString() ?? '') ?? 0.0,
+        stock: double.tryParse(row[12]?.value?.toString() ?? '') ?? 0.0,
       );
 
       branchStocks.add(branchStock);

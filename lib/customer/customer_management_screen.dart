@@ -22,23 +22,12 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    _searchController.addListener(_onSearchChanged);
-  }
-
-  @override
   void dispose() {
-    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
 
-  void _onSearchChanged() {
-    Provider.of<CustomerController>(context, listen: false).setSearchQuery(_searchController.text);
-  }
-
-  Future<void> _showAddBalanceDialog(BuildContext screenContext, Customer customer) async {
+  Future<void> _showAddBalanceDialog(BuildContext screenContext, Customer customer, {bool isDeposit = false}) async {
     final controller = Provider.of<CustomerController>(screenContext, listen: false);
     final scaffoldMessenger = ScaffoldMessenger.of(screenContext);
 
@@ -72,7 +61,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
       context: screenContext,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text('Add Balance for ${customer.name}'),
+          title: Text(isDeposit ? 'Add Deposit for ${customer.name}' : 'Add Balance for ${customer.name}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -151,12 +140,12 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                         isSavingBalance = true;
                       });
 
-                      final message = await controller.addBalance(customer, selectedCurrency!, selectedPaymentType!, amount, selectedBank: selectedBank);
+                      final message = await controller.addBalance(customer, selectedCurrency!, selectedPaymentType!, amount, selectedBank: selectedBank, isDeposit: isDeposit);
 
                       if (mounted) {
                         if (message == null) {
                           scaffoldMessenger.showSnackBar(
-                            const SnackBar(content: Text('Balance added successfully'), backgroundColor: Colors.green),
+                            SnackBar(content: Text(isDeposit ? 'Deposit added successfully' : 'Balance added successfully'), backgroundColor: Colors.green),
                           );
                           Navigator.pop(dialogContext);
                         } else {
@@ -175,6 +164,111 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Text('Add'),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomerCard(BuildContext context, CustomerController controller, Customer customer) {
+    return Card(
+      margin: EdgeInsets.zero, // Let the parent Grid/List handle spacing
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        onTap: () async {
+          final scaffoldMessenger = ScaffoldMessenger.of(context);
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => CustomerStatementScreen(customer: customer)),
+          );
+          // After returning from statement screen, refresh data
+          final message = await controller.syncCustomers();
+          if (mounted && message != null) {
+            scaffoldMessenger.showSnackBar(
+              SnackBar(content: Text(message)),
+            );
+          }
+        },
+        leading: CircleAvatar(
+          backgroundColor: AppTheme.vimbikaBlue.withAlpha(26),
+          child: const Icon(Icons.person_outline, color: AppTheme.vimbikaBlue),
+        ),
+        title: Text(customer.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (customer.email != null && customer.email!.isNotEmpty)
+              Text(customer.email!),
+            if (customer.phoneNumber != null && customer.phoneNumber!.isNotEmpty)
+              Text(customer.phoneNumber!),
+            // Display currency balances
+            if (customer.currencyBalance != null && customer.currencyBalance!.isNotEmpty)
+              Wrap(
+                spacing: 8.0, // gap between adjacent chips
+                runSpacing: 4.0, // gap between lines
+                children: customer.currencyBalance!.map((cca) {
+                  return Chip(
+                    label: Text(
+                      '${cca.currency?.symbol ?? ''} ${cca.balance?.toStringAsFixed(2) ?? '0.00'}',
+                      style: const TextStyle(fontSize: 10),
+                    ),
+                    backgroundColor: AppTheme.lightText.withAlpha(26),
+                    padding: EdgeInsets.zero,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  );
+                }).toList(),
+              ),
+            if (!customer.isSynced) // Indicate unsynced status
+              const Padding(
+                padding: EdgeInsets.only(top: 4.0),
+                child: Text(
+                  'Unsynced (offline)',
+                  style: TextStyle(fontSize: 12, color: Colors.orange, fontStyle: FontStyle.italic),
+                ),
+              ),
+            if ((customer.currencyBalance == null || customer.currencyBalance!.isEmpty) && customer.isSynced)
+              const Padding(
+                padding: EdgeInsets.only(top: 4.0),
+                child: Text(
+                  'No balance records',
+                  style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
+                ),
+              ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.add_card, color: AppTheme.vimbikaBlue),
+              tooltip: 'Add Balance',
+              onPressed: () => _showAddBalanceDialog(context, customer, isDeposit: false),
+            ),
+            IconButton(
+              icon: const Icon(Icons.savings_outlined, color: Colors.green),
+              tooltip: 'Add Deposit',
+              onPressed: () => _showAddBalanceDialog(context, customer, isDeposit: true),
+            ),
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, color: AppTheme.grey),
+              onPressed: () async {
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => AddCustomerScreen(customer: customer)),
+                );
+                if (result != null) {
+                  final message = await controller.syncCustomers();
+                  if (mounted && message != null) {
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(content: Text(message)),
+                    );
+                  }
+                }
+              },
+            ),
+            const Icon(Icons.chevron_right, color: AppTheme.grey),
           ],
         ),
       ),
@@ -220,6 +314,9 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                         padding: const EdgeInsets.all(16.0),
                         child: TextField(
                           controller: _searchController,
+                          onChanged: (val) {
+                            controller.setSearchQuery(val);
+                          },
                           decoration: InputDecoration(
                             hintText: 'Search customers...',
                             prefixIcon: const Icon(Icons.search),
@@ -254,108 +351,39 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                                   ],
                                 ),
                               )
-                            : ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                itemCount: controller.filteredCustomers.length,
-                                itemBuilder: (context, index) {
-                                  final customer = controller.filteredCustomers[index];
-                                  return Card(
-                                    margin: const EdgeInsets.only(bottom: 12),
-                                    elevation: 2,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    child: ListTile(
-                                      onTap: () async {
-                                        final scaffoldMessenger = ScaffoldMessenger.of(context);
-                                        await Navigator.push(
-                                          context,
-                                          MaterialPageRoute(builder: (context) => CustomerStatementScreen(customer: customer)),
-                                        );
-                                        // After returning from statement screen, refresh data
-                                        final message = await controller.syncCustomers();
-                                        if (mounted && message != null) {
-                                          scaffoldMessenger.showSnackBar(
-                                            SnackBar(content: Text(message)),
-                                          );
-                                        }
+                            : LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final isWideScreen = constraints.maxWidth > 600;
+                                  
+                                  if (isWideScreen) {
+                                    int crossAxisCount = constraints.maxWidth > 1200 ? 3 : 2;
+                                    return GridView.builder(
+                                      padding: const EdgeInsets.all(16),
+                                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: crossAxisCount,
+                                        crossAxisSpacing: 16,
+                                        mainAxisSpacing: 16,
+                                        childAspectRatio: 2.5, // Adjust this ratio based on your content
+                                      ),
+                                      itemCount: controller.filteredCustomers.length,
+                                      itemBuilder: (context, index) {
+                                        final customer = controller.filteredCustomers[index];
+                                        return _buildCustomerCard(context, controller, customer);
                                       },
-                                      leading: CircleAvatar(
-                                        backgroundColor: AppTheme.vimbikaBlue.withAlpha(26),
-                                        child: const Icon(Icons.person_outline, color: AppTheme.vimbikaBlue),
-                                      ),
-                                      title: Text(customer.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                      subtitle: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          if (customer.email != null && customer.email!.isNotEmpty)
-                                            Text(customer.email!),
-                                          if (customer.phoneNumber != null && customer.phoneNumber!.isNotEmpty)
-                                            Text(customer.phoneNumber!),
-                                          // Display currency balances
-                                          if (customer.currencyBalance != null && customer.currencyBalance!.isNotEmpty)
-                                            Wrap(
-                                              spacing: 8.0, // gap between adjacent chips
-                                              runSpacing: 4.0, // gap between lines
-                                              children: customer.currencyBalance!.map((cca) {
-                                                return Chip(
-                                                  label: Text(
-                                                    '${cca.currency?.symbol ?? ''} ${cca.balance?.toStringAsFixed(2) ?? '0.00'}',
-                                                    style: const TextStyle(fontSize: 10),
-                                                  ),
-                                                  backgroundColor: AppTheme.lightText.withAlpha(26),
-                                                  padding: EdgeInsets.zero,
-                                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                                );
-                                              }).toList(),
-                                            ),
-                                          if (!customer.isSynced) // Indicate unsynced status
-                                            const Padding(
-                                              padding: EdgeInsets.only(top: 4.0),
-                                              child: Text(
-                                                'Unsynced (offline)',
-                                                style: TextStyle(fontSize: 12, color: Colors.orange, fontStyle: FontStyle.italic),
-                                              ),
-                                            ),
-                                          if ((customer.currencyBalance == null || customer.currencyBalance!.isEmpty) && customer.isSynced)
-                                            const Padding(
-                                              padding: EdgeInsets.only(top: 4.0),
-                                              child: Text(
-                                                'No balance records',
-                                                style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                      trailing: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.add_card, color: AppTheme.vimbikaBlue),
-                                            tooltip: 'Add Balance',
-                                            onPressed: () => _showAddBalanceDialog(context, customer),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.edit_outlined, color: AppTheme.grey),
-                                            onPressed: () async {
-                                              final scaffoldMessenger = ScaffoldMessenger.of(context);
-                                              final result = await Navigator.push(
-                                                context,
-                                                MaterialPageRoute(builder: (context) => AddCustomerScreen(customer: customer)),
-                                              );
-                                              if (result != null) {
-                                                final message = await controller.syncCustomers();
-                                                if (mounted && message != null) {
-                                                  scaffoldMessenger.showSnackBar(
-                                                    SnackBar(content: Text(message)),
-                                                  );
-                                                }
-                                              }
-                                            },
-                                          ),
-                                          const Icon(Icons.chevron_right, color: AppTheme.grey),
-                                        ],
-                                      ),
-                                    ),
-                                  );
+                                    );
+                                  } else {
+                                    return ListView.builder(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      itemCount: controller.filteredCustomers.length,
+                                      itemBuilder: (context, index) {
+                                        final customer = controller.filteredCustomers[index];
+                                        return Padding(
+                                          padding: const EdgeInsets.only(bottom: 12.0),
+                                          child: _buildCustomerCard(context, controller, customer),
+                                        );
+                                      },
+                                    );
+                                  }
                                 },
                               ),
                       ),

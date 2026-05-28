@@ -57,6 +57,7 @@ class MobilePosShiftService {
   }
 
   Future<void> _syncAndUpdateLocalShift(MobilePosShift shiftToSync) async {
+    print(shiftToSync.shiftCurrencyAmounts!.last.toJson());
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
@@ -68,6 +69,8 @@ class MobilePosShiftService {
       print('Starting background shift sync...');
       // Use the existing createShift method to talk to the API
       final syncedShift = await createShift(shiftToSync, syncOnly: true);
+
+      print(syncedShift.shiftCurrencyAmounts!.last.toJson());
 
       // If sync is successful, update the locally stored shift with server data (e.g., ID)
       await prefs.setString(AppConstants.keyCurrentOpenShift, syncedShift.toJson());

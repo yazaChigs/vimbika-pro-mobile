@@ -1,4 +1,4 @@
-# best_flutter_ui_templates
+# vimbika_business
 
 A new Flutter project.
 

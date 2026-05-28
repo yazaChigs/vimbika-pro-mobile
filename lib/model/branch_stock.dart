@@ -5,7 +5,7 @@ import 'inventory_item.dart';
 class BranchStock extends BaseEntity {
   final Branch? branch;
   final InventoryItem? item;
-  final double quantity;
+  final double stock;
 
   BranchStock({
     String? id,
@@ -16,7 +16,7 @@ class BranchStock extends BaseEntity {
     int? version,
     this.branch,
     this.item,
-    this.quantity = 0.0,
+    this.stock = 0.0,
   }) : super(
           id: id,
           dateCreated: dateCreated,
@@ -36,7 +36,7 @@ class BranchStock extends BaseEntity {
       version: json['version'],
       branch: json['branch'] != null ? Branch.fromJson(json['branch']) : null,
       item: json['item'] != null ? InventoryItem.fromJson(json['item']) : null,
-      quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
+      stock: (json['stock'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -50,7 +50,7 @@ class BranchStock extends BaseEntity {
       'version': version,
       'branch': branch?.toJson(),
       'item': item?.toJson(),
-      'quantity': quantity,
+      'stock': stock,
     };
   }
 }

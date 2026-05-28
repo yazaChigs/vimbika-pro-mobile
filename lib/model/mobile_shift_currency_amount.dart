@@ -12,13 +12,13 @@ class MobileShiftCurrencyAmount {
     this.amount = 0.0,
     this.notes,
     required this.amountType,
-    required this.ref,
-    required this.timeCreated,
-    required this.shiftReference,
+    this.ref,
+    this.timeCreated,
+    this.shiftReference,
     this.posReference,
     this.isCash = false,
     this.paymentType,
-    this.bankName, // Added bankName
+    this.bankName,
   });
   String? id;
   String? createdByName;
@@ -33,8 +33,8 @@ class MobileShiftCurrencyAmount {
   String? shiftReference;
   String? posReference;
   bool? isCash = false;
-  String timeCreated;
-  String? bankName; // Added bankName field
+  String? timeCreated;
+  String? bankName;
 
   factory MobileShiftCurrencyAmount.fromRawJson(String str) => MobileShiftCurrencyAmount.fromJson(json.decode(str));
 
@@ -55,7 +55,7 @@ class MobileShiftCurrencyAmount {
     posReference: json["posReference"],
     isCash: json["isCash"] ?? false,
     paymentType: json["paymentType"],
-    bankName: json["bankName"], // Deserialize bankName
+    bankName: json["bankName"],
   );
 
   Map<String, dynamic> toMap() => {
@@ -73,6 +73,6 @@ class MobileShiftCurrencyAmount {
     "posReference": posReference,
     "paymentType": paymentType,
     "isCash": isCash,
-    "bankName": bankName, // Include bankName in toMap
+    "bankName": bankName,
   };
 }

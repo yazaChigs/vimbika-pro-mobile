@@ -324,7 +324,11 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
         notes: notes,
         timeCreated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
         shiftReference: _currentShift!.shiftReference,
-        isCash: true, ref: '',
+        isCash: true,
+        ref: 'SL_${DateTime.now().millisecondsSinceEpoch}',
+        posReference:type == 'Cash In' ? 'CASH_IN${DateTime.now().millisecondsSinceEpoch}' : 'CASH_OUT${DateTime.now().millisecondsSinceEpoch}',
+        paymentType: 'CASH-${selectedCurrency.name}'
+
       );
 
       _currentShift!.shiftCurrencyAmounts ??= [];
@@ -626,7 +630,20 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     Map<String, Map<String, double>> currencyTotals = {};
     Map<String, Map<String, double>> paymentTypeBreakdown = {};
 
-    _currentShift!.shiftCurrencyAmounts?.forEach((activity) {
+    final sortedActivities = _currentShift!.shiftCurrencyAmounts != null
+        ? List<MobileShiftCurrencyAmount>.from(_currentShift!.shiftCurrencyAmounts!)
+        : <MobileShiftCurrencyAmount>[];
+
+    sortedActivities.sort((a, b) {
+      if (a.timeCreated == null || b.timeCreated == null) return 0;
+      try {
+        return DateTime.parse(a.timeCreated!).compareTo(DateTime.parse(b.timeCreated!));
+      } catch (e) {
+        return 0;
+      }
+    });
+
+    for (var activity in sortedActivities) {
       if (activity.currency.id != null) {
         currencyTotals.putIfAbsent(activity.currency.id!, () => {
           'CASH_IN': 0.0,
@@ -635,14 +652,14 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
           'OTHER_PAYMENT': 0.0,
         });
 
-        if (activity.amountType == 'CASH_IN') {
+        if (activity.amountType == 'CASH_IN' || activity.amountType == 'ACCOUNT_TOP_UP') {
           currencyTotals[activity.currency.id!]!['CASH_IN'] =
               (currencyTotals[activity.currency.id!]!['CASH_IN'] ?? 0.0) + activity.amount;
         } else if (activity.amountType == 'CASH_OUT') {
           currencyTotals[activity.currency.id!]!['CASH_OUT'] =
               (currencyTotals[activity.currency.id!]!['CASH_OUT'] ?? 0.0) + activity.amount;
         } else if (activity.amountType == 'SALE') {
-          if ((activity.isCash ?? false) || activity.paymentType!.toLowerCase().startsWith('cash') ) {
+          if ((activity.isCash ?? false) || (activity.paymentType?.toLowerCase().startsWith('cash') ?? false)) {
             currencyTotals[activity.currency.id!]!['CASH_PAYMENT'] =
                 (currencyTotals[activity.currency.id!]!['CASH_PAYMENT'] ?? 0.0) + activity.amount;
           } else {
@@ -661,7 +678,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
           );
         }
       }
-    });
+    }
 
     return Card(
       elevation: 2,
@@ -757,20 +774,23 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
               'Activities:',
               style: AppTheme.subtitle.copyWith(fontSize: 16),
             ),
-            if (_currentShift!.shiftCurrencyAmounts == null || _currentShift!.shiftCurrencyAmounts!.isEmpty)
+            if (sortedActivities.isEmpty)
               const Text('No activities recorded yet.')
             else
-              ..._currentShift!.shiftCurrencyAmounts!.map((activity) {
+              ...sortedActivities.map((activity) {
                 String activityLabel;
                 Color activityColor;
                 if (activity.amountType == 'CASH_IN') {
                   activityLabel = 'Cash In';
                   activityColor = Colors.green;
+                } else if (activity.amountType == 'ACCOUNT_TOP_UP') {
+                  activityLabel = 'Account Top Up';
+                  activityColor = Colors.blue;
                 } else if (activity.amountType == 'CASH_OUT') {
                   activityLabel = 'Cash Out';
                   activityColor = Colors.red;
                 } else if (activity.amountType == 'SALE') {
-                  activityLabel = activity.isCash == true ? 'Cash Sale' : 'Other Sale';
+                  activityLabel = (activity.isCash == true || (activity.paymentType?.toLowerCase().startsWith('cash') ?? false)) ? 'Cash Sale' : 'Other Sale';
                   activityColor = AppTheme.vimbikaBlue;
                 } else {
                   activityLabel = activity.amountType;

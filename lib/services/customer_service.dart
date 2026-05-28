@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vimbika_pro/model/currency.dart';
+import 'package:vimbika_pro/services/customer_sync_service.dart';
 import '../app_constants/app_constants.dart';
 import '../model/customer.dart';
 import '../model/user.dart';
@@ -72,6 +75,43 @@ class CustomerService {
     return savedCustomer.copyWith(isSynced: true); // Ensure returned customer is marked as synced
   }
 
+  // Updates a customer to the API
+  Future<Customer> updateCustomer(Customer customer) async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? userData = prefs.getString(AppConstants.keyOnlineUserData);
+      
+      if (userData == null) throw Exception('User not logged in');
+      final user = User.fromJson(jsonDecode(userData));
+      
+      final String? companyId = user.branch?.company?.id;
+      if (companyId == null) throw Exception('Company ID not found for user');
+
+      // Ensure the customer being sent to API has isSynced: true for consistency
+      final Customer customerToSend = customer.copyWith(isSynced: true);
+
+      final String jsonCustomer = jsonEncode(customerToSend.toJson());
+
+      final String responseStr = await _client.postAuthWithCompanyHeader(
+        '/customer/update',
+        jsonCustomer,
+        companyId,
+        'PUT'
+      );
+
+      final Customer updatedCustomer = Customer.fromJson(jsonDecode(responseStr));
+      final Customer syncedCustomer = updatedCustomer.copyWith(isSynced: true);
+      await saveCustomerLocally(syncedCustomer);
+      return syncedCustomer;
+    } catch (e) {
+      debugPrint('Failed to update customer to API, queueing for sync: $e');
+      final Customer unsyncedCustomer = customer.copyWith(isSynced: false);
+      await saveCustomerLocally(unsyncedCustomer);
+      CustomerSyncService().startSyncTimer();
+      return unsyncedCustomer;
+    }
+  }
+
   // Saves or updates a customer in local storage (SharedPreferences)
   Future<void> saveCustomerLocally(Customer customer) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -136,7 +176,7 @@ class CustomerService {
   // Fetches customer statements from the API
   Future<LedgerResponse> getCustomerStatements({
     required String currency,
-    String? accountId,
+    String? counterPartyId,
     String? startDate,
     String? endDate,
   }) async {
@@ -156,8 +196,8 @@ class CustomerService {
       ,
     };
 
-    if (accountId != null) {
-      requestBody['accountId'] = accountId;
+    if (counterPartyId != null) {
+      requestBody['counterPartyId'] = counterPartyId;
     }
     if (startDate != null) {
       requestBody['startDate'] = startDate;

@@ -205,7 +205,7 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
       // Download all default data
       try {
         final defaultDataService = DefaultDataService();
-        await defaultDataService.fetchAndSaveDefaultData();
+        await defaultDataService.fetchAndSaveDefaultData(widget.user);
       } catch (e) {
         debugPrint("Error fetching default data: $e");
         // We probably don't want to stop them if it fails, or maybe we do?

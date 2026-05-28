@@ -214,9 +214,9 @@ class _MoreBranchReportingScreenState extends State<MoreBranchReportingScreen> {
     final double totalExpenses = expenses.fold(0.0, (sum, e) => sum + e.amount);
 
     final filteredStock = _filteredStock;
-    final double stockValue = filteredStock.fold(0.0, (sum, s) => sum + (s.quantity * (s.item?.sellingPrice ?? 0.0)));
-    final int inStock = filteredStock.where((s) => s.quantity > 0).length;
-    final int outOfStock = filteredStock.where((s) => s.quantity <= 0).length;
+    final double stockValue = filteredStock.fold(0.0, (sum, s) => sum + (s.stock * (s.item?.sellingPrice ?? 0.0)));
+    final int inStock = filteredStock.where((s) => s.stock > 0).length;
+    final int outOfStock = filteredStock.where((s) => s.stock <= 0).length;
 
     Map<int, double> hourlySales = {};
     for (var sale in sales) {

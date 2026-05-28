@@ -9,9 +9,6 @@ import 'package:vimbika_pro/model/company.dart';
 import 'package:vimbika_pro/model/branch.dart';
 import 'package:vimbika_pro/model/user.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart'; // Added for debugPrint
-
-import '../model/customer_currency_amount.dart'; // Import connectivity_plus
 
 class AddCustomerScreen extends StatefulWidget {
   final Customer? customer;
@@ -80,6 +77,35 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
 
+      // Check for duplicate name and account number locally
+      List<Customer> allCustomers = await _customerService.getCustomersLocally();
+      
+      bool hasDuplicateName = allCustomers.any((c) => 
+        c.name.toLowerCase().trim() == _nameController.text.toLowerCase().trim() && 
+        c.id != widget.customer?.id
+      );
+      
+      bool hasDuplicateAccount = _accountNumberController.text.trim().isNotEmpty && allCustomers.any((c) => 
+        c.accountNumber?.trim() == _accountNumberController.text.trim() && 
+        c.id != widget.customer?.id
+      );
+
+      if (hasDuplicateName) {
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('A customer with this name already exists.'), backgroundColor: Colors.red));
+           setState(() => _isSaving = false);
+        }
+        return;
+      }
+
+      if (hasDuplicateAccount) {
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('A customer with this account number already exists.'), backgroundColor: Colors.red));
+           setState(() => _isSaving = false);
+        }
+        return;
+      }
+
       // Get the company from logged in user if possible
       Company? currentCompany = widget.customer?.company;
       Branch? currentBranch = widget.customer?.branch;
@@ -102,13 +128,13 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
       Customer customerToSave = Customer(
         id: widget.customer?.id, // Use existing ID if editing
-        name: _nameController.text,
-        email: _emailController.text,
-        phoneNumber: _phoneController.text,
-        address: _addressController.text,
-        accountNumber: _accountNumberController.text,
-        taxNumber: _taxNumberController.text,
-        tinNumber: _tinNumberController.text,
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        phoneNumber: _phoneController.text.trim(),
+        address: _addressController.text.trim(),
+        accountNumber: _accountNumberController.text.trim(),
+        taxNumber: _taxNumberController.text.trim(),
+        tinNumber: _tinNumberController.text.trim(),
         currencyBalance: widget.customer?.currencyBalance, // preserve existing balance
         company: currentCompany, // preserve or set company
         branch: currentBranch, // set branch
@@ -121,9 +147,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       );
 
       // Assign a local ID if it's a new customer
-      if (customerToSave.id == null) {
-        customerToSave = customerToSave.copyWith(id: 'local_${DateTime.now().millisecondsSinceEpoch}');
-      }
+      // if (customerToSave.id == null) {
+      //   customerToSave = customerToSave.copyWith(id: 'local_${DateTime.now().millisecondsSinceEpoch}');
+      // }
 
       // 1. Save locally first
       await _customerService.saveCustomerLocally(customerToSave);
@@ -147,7 +173,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('An unexpected error occurred: $e'), backgroundColor: Colors.red),
         );
-        print('An unexpected error occurred: $e');
+        debugPrint('An unexpected error occurred: $e');
       }
     } finally {
       if (mounted) {
@@ -169,7 +195,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       try {
         final savedCustomer = await _customerService.saveCustomer(customer);
         // Update local storage with the API-saved customer, marking as synced
-        await _customerService.saveCustomerLocally(savedCustomer.copyWith(isSynced: true));
+         _customerService.saveCustomerLocally(savedCustomer.copyWith(isSynced: true));
         debugPrint('Customer synced to API successfully: ${savedCustomer.id}');
       } catch (e) {
         debugPrint('Failed to sync customer ${customer.id} to API: $e');

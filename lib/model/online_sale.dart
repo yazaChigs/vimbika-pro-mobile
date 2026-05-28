@@ -55,6 +55,7 @@ class OnlineSale {
   final String? ticketName;
   final String? ticketComment;
   final String? totalQuantity;
+  final String? amtToAcc;
 
   // Added for compatibility with existing UI
   double get grandTotal => amountAfterDiscount ?? baseSaleAmount ?? 0.0;
@@ -108,6 +109,7 @@ class OnlineSale {
     this.ticketName,
     this.ticketComment,
     this.totalQuantity,
+    this.amtToAcc,
   });
 
   factory OnlineSale.fromJson(Map<String, dynamic> json) {
@@ -171,6 +173,7 @@ class OnlineSale {
       ticketName: json['ticketName']?.toString(),
       ticketComment: json['ticketComment']?.toString(),
       totalQuantity: json['totalQuantity']?.toString(),
+      amtToAcc: json['amtToAcc']?.toString(),
     );
   }
 
@@ -224,6 +227,7 @@ class OnlineSale {
       'ticketName': ticketName,
       'ticketComment': ticketComment,
       'totalQuantity': totalQuantity,
+      'amtToAcc': amtToAcc,
     };
   }
 }

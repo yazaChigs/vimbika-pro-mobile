@@ -1,5 +1,8 @@
-import 'package:vimbika_pro/app_constants/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:vimbika_pro/app_constants/app_theme.dart';
+import 'package:vimbika_pro/model/ecocash_charge_request.dart';
+import 'package:vimbika_pro/services/ecocash_service.dart';
+import 'package:uuid/uuid.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -11,21 +14,26 @@ class SubscriptionScreen extends StatefulWidget {
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   String _currentSubscription = 'Free Tier';
   String? _selectedSubscription;
+  final EcocashService _ecocashService = EcocashService();
+  final TextEditingController _phoneController = TextEditingController();
 
   final List<Map<String, dynamic>> _availableSubscriptions = [
     {
       'name': 'Free Tier',
-      'price': '\$0 / month',
+      'price': 0.0,
+      'displayPrice': '\$0 / month',
       'features': ['Basic POS', '1 User', 'Limited Reporting', 'Offline Mode'],
     },
     {
       'name': 'Standard Plan',
-      'price': '\$15 / month',
+      'price': 15.0,
+      'displayPrice': '\$15 / month',
       'features': ['Full POS', 'Up to 3 Users', 'Advanced Reporting', 'Offline/Online Sync'],
     },
     {
       'name': 'Premium Plan',
-      'price': '\$30 / month',
+      'price': 30.0,
+      'displayPrice': '\$30 / month',
       'features': ['Unlimited Users', 'Multi-Branch Support', 'Custom Integrations', 'Priority Support'],
     },
   ];
@@ -37,32 +45,116 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Payment'),
-        content: Text('Are you sure you want to subscribe to $_selectedSubscription?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _currentSubscription = _selectedSubscription!;
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Successfully subscribed to $_currentSubscription'),
-                  backgroundColor: Colors.green,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Confirm Payment'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Enter your EcoCash number to pay for the $_selectedSubscription plan.'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Phone Number (e.g., 263777222093)',
+                  border: OutlineInputBorder(),
                 ),
-              );
-            },
-            child: const Text('Pay Now'),
+              ),
+            ],
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                _initiatePayment();
+              },
+              child: const Text('Pay Now'),
+            ),
+          ],
+        );
+      },
     );
+  }
+
+  Future<void> _initiatePayment() async {
+    final selectedPlan = _availableSubscriptions.firstWhere((sub) => sub['name'] == _selectedSubscription);
+    final amount = selectedPlan['price'];
+    final clientCorrelator = const Uuid().v4();
+
+    final request = EcocashChargeRequest(
+      clientCorrelator: clientCorrelator,
+      notifyUrl: 'http://mysite.com/notifyURL',
+      referenceCode: 'VIMBIKA_${const Uuid().v4().substring(0, 8)}',
+      tranType: 'MER',
+      endUserId: _phoneController.text,
+      remarks: 'Vimbika Pro Subscription',
+      transactionOperationStatus: 'Charged',
+      paymentAmount: PaymentAmount(
+        charginginformation: ChargingInformation(
+          amount: amount,
+          currency: 'USD',
+          description: 'Vimbika Pro Subscription',
+        ),
+        chargeMetaData: ChargeMetaData(
+          channel: 'WEB',
+          purchaseCategoryCode: 'Online Payment',
+          onBeHalfOf: 'Vimbika Pro',
+        ),
+      ),
+      merchantCode: '8003',
+      merchantPin: '1234',
+      merchantNumber: '789111401',
+      currencyCode: 'USD',
+      countryCode: 'ZW',
+      terminalID: 'TERM123456',
+      location: 'HARARE',
+      superMerchantName: 'VIMBIKA',
+      merchantName: 'Vimbika Pro',
+    );
+
+    try {
+      final response = await _ecocashService.charge(request);
+      if (response.transactionOperationStatus == 'PENDING SUBSCRIBER VALIDATION') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please approve the transaction on your phone.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        // In a real app, you would poll a backend that listens for the notifyUrl callback.
+        // For this example, we'll just simulate success after a delay.
+        Future.delayed(const Duration(seconds: 10), () {
+          setState(() {
+            _currentSubscription = _selectedSubscription!;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Successfully subscribed to $_currentSubscription'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment failed: ${response.remarks}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('An error occurred: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -185,7 +277,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                sub['price'],
+                sub['displayPrice'],
                 style: const TextStyle(fontSize: 16, color: AppTheme.vimbikaBlue, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
