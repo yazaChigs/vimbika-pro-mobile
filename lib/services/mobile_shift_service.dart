@@ -37,9 +37,35 @@ class MobilePosShiftService {
     final List<MobileShiftCurrencyAmount> list = data.map((e) => MobileShiftCurrencyAmount.fromJson(e)).toList();
 
     // Save expenses to local storage
-    await prefs.setStringList(AppConstants.keyMobileShifts, list.map((e) => e.toJson()).toList());
+    await prefs.setStringList(AppConstants.keyMobileShifts, list.map((e) => jsonEncode(e.toJson())).toList());
 
     return list;
+  }
+
+  Future<List<MobilePosShift>> getShiftsByUserId(String userId) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? userData = prefs.getString(AppConstants.keyOnlineUserData);
+
+    if (userData == null) throw Exception('User not logged in');
+    final user = User.fromJson(jsonDecode(userData));
+
+    final String? companyId = user.branch?.company?.id;
+    if (companyId == null) throw Exception('Company ID not found for user');
+
+    final String responseStr = await _client.getAuthWithCompanyHeader(
+      '/mobile/pos/shift/user/$userId',
+      companyId,
+    );
+
+    final List<dynamic> data = jsonDecode(responseStr);
+    final List<MobilePosShift> shifts = data.map((e) => MobilePosShift.fromJson(e)).toList();
+
+    // Optionally, save these shifts to local storage if needed for offline access
+    // Example:
+    // final List<String> shiftStrings = shifts.map((s) => jsonEncode(s.toJson())).toList();
+    // await prefs.setStringList('past_shifts_$userId', shiftStrings);
+
+    return shifts;
   }
 
   Future<MobilePosShift> createShiftOfflineFirst(MobilePosShift shift) async {

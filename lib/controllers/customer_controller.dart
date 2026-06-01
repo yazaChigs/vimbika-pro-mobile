@@ -20,11 +20,13 @@ import '../services/customer_service.dart';
 import '../services/mobile_shift_service.dart';
 import '../services/payments_service.dart';
 import '../model/branch.dart'; // Import Branch model
+import '../services/excel_export_service.dart';
 
 class CustomerController extends ChangeNotifier {
   final CustomerService _customerService = CustomerService();
   final PaymentsService _paymentsService = PaymentsService();
   final MobilePosShiftService _shiftService = MobilePosShiftService();
+  final ExcelExportService _excelExportService = ExcelExportService();
 
   List<Customer> _customers = [];
   List<Customer> _filteredCustomers = [];
@@ -371,6 +373,9 @@ class CustomerController extends ChangeNotifier {
         );
         currentShift.shiftCurrencyAmounts ??= [];
         currentShift.shiftCurrencyAmounts!.add(shiftAmount);
+        
+        // Export the newly created activity
+        await _excelExportService.exportShiftCurrencyAmountsToExcel([shiftAmount]);
 
         await prefs.setString(AppConstants.keyCurrentOpenShift, currentShift.toJson());
         _shiftService.createShift(currentShift).catchError((e) {

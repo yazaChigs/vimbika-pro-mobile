@@ -7,7 +7,7 @@ import 'package:vimbika_pro/model/sale.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import 'app_constants/app_constants.dart';
+import '../app_constants/app_constants.dart';
 
 class SaleReceiptScreen extends StatefulWidget {
   final Sale sale;

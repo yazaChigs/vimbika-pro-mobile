@@ -206,4 +206,36 @@ class SaleSyncService {
       _isSyncing = false;
     }
   }
+
+  Future<List<Sale>> syncSelectedSales(List<Sale> sales, String companyId) async {
+    List<Sale> syncedSales = [];
+    for (var sale in sales) {
+      if (sale.isSynced == true && sale.id != null) {
+        syncedSales.add(sale);
+        continue;
+      }
+
+      try {
+        final Map<String, dynamic> saleJson = sale.toJson();
+        final String responseBody = await _client.postAuthWithCompanyHeader(
+          '/sale/save',
+          jsonEncode(saleJson),
+          companyId,
+          'POST'
+        );
+
+        final Map<String, dynamic> syncedSaleData = jsonDecode(responseBody);
+        final Map<String, dynamic> mergedSaleJson = Map<String, dynamic>.from(saleJson);
+        mergedSaleJson.addAll(syncedSaleData);
+        mergedSaleJson['isSynced'] = true;
+
+        syncedSales.add(Sale.fromJson(mergedSaleJson));
+        debugPrint('Successfully synced selected sale with new ID: ${mergedSaleJson["id"]}');
+      } catch (e) {
+        debugPrint('Failed to sync a selected sale: $e');
+        syncedSales.add(sale); // Add original if failed
+      }
+    }
+    return syncedSales;
+  }
 }

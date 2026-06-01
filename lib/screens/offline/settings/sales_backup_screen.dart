@@ -27,7 +27,11 @@ class _SalesBackupScreenState extends State<SalesBackupScreen> {
       _isLoading = true;
     });
     try {
-      final Directory? directory = await getExternalStorageDirectory();
+      Directory? directory;
+      directory = Directory('/storage/emulated/0/Download');
+      if (!await directory.exists()) {
+        directory = await getExternalStorageDirectory();
+      }
       if (directory != null) {
         final List<FileSystemEntity> entities = directory.listSync();
         final List<File> excelFiles = entities

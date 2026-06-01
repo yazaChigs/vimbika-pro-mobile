@@ -8,6 +8,8 @@ import 'package:vimbika_pro/screens/online/payments_received_list_screen.dart';
 import 'package:vimbika_pro/navigation_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'online_reports_controller.dart';
+import 'package:vimbika_pro/services/excel_export_service.dart'; // Import ExcelExportService
+import 'package:intl/intl.dart';
 
 class OnlineReportsScreen extends StatefulWidget {
   const OnlineReportsScreen({super.key});
@@ -23,6 +25,7 @@ class _OnlineReportsScreenState extends State<OnlineReportsScreen> {
   final GlobalKey _productsKey = GlobalKey();
   final GlobalKey _branchesKey = GlobalKey(); // Keep this key for the section, even if navigation changes
   int _currentIndex = -1;
+  final ExcelExportService _excelExportService = ExcelExportService(); // Instantiate ExcelExportService
 
   void _onScroll() {
     if (_scrollController.hasClients) {
@@ -96,6 +99,31 @@ class _OnlineReportsScreenState extends State<OnlineReportsScreen> {
             _scrollController.addListener(_onScroll);
           });
         });
+      }
+    }
+  }
+
+  Future<void> _exportShiftActivities() async {
+    if (_controller.mobileShifts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No shift activities to export.'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    try {
+      final String fileName = 'Shift_Activities_Export_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}';
+      await _excelExportService.exportShiftCurrencyAmountsToExcel(_controller.mobileShifts);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Shift activities exported as $fileName.xlsx'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to export shift activities: $e'), backgroundColor: Colors.red),
+        );
       }
     }
   }
@@ -283,9 +311,31 @@ class _OnlineReportsScreenState extends State<OnlineReportsScreen> {
                             const SizedBox(height: 16),
                             PerformanceChart(hourlySales: _controller.hourlySales),
                             const SizedBox(height: 16),
-                            ShiftActivitySection(
-                              shiftActivities: _controller.mobileShifts,
-                              selectedCurrency: _controller.selectedCurrency,
+                            Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                      child: ElevatedButton.icon(
+                                        onPressed: _exportShiftActivities,
+                                        icon: const Icon(Icons.file_download_outlined, size: 18),
+                                        label: const Text('Export Activities'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.primary,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                ShiftActivitySection(
+                                  shiftActivities: _controller.mobileShifts,
+                                  selectedCurrency: _controller.selectedCurrency,
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 16),
                             FinancialsTile(

@@ -9,7 +9,7 @@ import 'package:vimbika_pro/screens/offline/settings/invite_friend_screen.dart';
 import 'package:vimbika_pro/screens/offline/settings/settings_screen.dart';
 import 'package:vimbika_pro/customer/customer_management_screen.dart';
 import 'package:vimbika_pro/supplier/supplier_management_screen.dart';
-import 'package:vimbika_pro/sales_screen.dart';
+import 'package:vimbika_pro/sales/sales_screen.dart';
 import 'package:vimbika_pro/POS/pos_screen.dart';
 import 'package:vimbika_pro/purchases_screen.dart';
 import 'package:vimbika_pro/expenses_screen.dart';
@@ -18,7 +18,7 @@ import 'package:vimbika_pro/screens/online/online_reports_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart'; // Import provider
-import 'package:vimbika_pro/screens/offline/settings/shift_management_screen.dart';
+import 'package:vimbika_pro/shift/shift_management_screen.dart';
 
 import 'inventory/inventory_screen.dart';
 

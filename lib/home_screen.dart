@@ -33,6 +33,22 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   Future<void> _loadModeAndData() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? true;
+
+
+    // Check for subscription days remaining
+    final int? daysRemaining = prefs.getInt(AppConstants.keySubscriptionDaysRemaining);
+    if (daysRemaining != null && daysRemaining <= 5) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                "Your subscription will expire in $daysRemaining days. Please renew to avoid service interruption."),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 10),
+          ),
+        );
+      }
+    }
     
     // User role check
     final String? userDataJson = prefs.getString(AppConstants.keyOnlineUserData);

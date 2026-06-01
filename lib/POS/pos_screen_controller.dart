@@ -20,7 +20,7 @@ import 'package:vimbika_pro/model/mobile_pos_shift.dart';
 import 'package:vimbika_pro/model/mobile_shift_currency_amount.dart';
 import 'package:vimbika_pro/services/branch_stock_service.dart';
 import 'package:vimbika_pro/services/customer_service.dart';
-import 'package:vimbika_pro/screens/offline/settings/shift_management_screen.dart';
+import 'package:vimbika_pro/shift/shift_management_screen.dart';
 import 'package:vimbika_pro/services/mobile_shift_service.dart';
 import 'package:vimbika_pro/services/sale_service.dart';
 import 'package:vimbika_pro/services/printer_service.dart';
@@ -30,6 +30,7 @@ import 'package:vimbika_pro/services/bank_service.dart';
 import 'package:vimbika_pro/services/tax_service.dart';
 import 'package:vimbika_pro/services/category_service.dart';
 import 'package:vimbika_pro/model/tax.dart';
+import 'package:vimbika_pro/services/excel_export_service.dart'; // Import ExcelExportService
 
 /// Represents a pending update to a customer's balance, to be applied at sale completion.
 class PendingCustomerBalanceUpdate {
@@ -51,6 +52,7 @@ class POSScreenController extends ChangeNotifier {
   final PrinterService _printerService = PrinterService(); // Instantiate PrinterService
   final CustomerService _customerService = CustomerService();
   final PaymentsService _paymentsService = PaymentsService();
+  final ExcelExportService _excelExportService = ExcelExportService(); // Instantiate ExcelExportService
 
   POSScreenController(this.context) {
     _checkOpenShift();
@@ -699,6 +701,12 @@ class POSScreenController extends ChangeNotifier {
       final bool matchesCurrency = pt.currency == null || pt.currency?.id == _selectedCurrency?.id;
       final bool allowsCreditWithoutCustomer = !pt.isCredit || _selectedCustomer != null;
       final bool isAlreadySelected = _payments.any((p) => p.paymentType?.id == pt.id); // Check if already selected
+      
+      // If cart is empty, only show non-credit payment types
+      if (_cart.isEmpty) {
+        return matchesCurrency && allowsCreditWithoutCustomer && !isAlreadySelected && !pt.isCredit;
+      }
+
       return matchesCurrency && allowsCreditWithoutCustomer && !isAlreadySelected;
     }).toList();
 
@@ -1038,6 +1046,16 @@ class POSScreenController extends ChangeNotifier {
 
       final String generatedReference = 'POS-${DateTime.now().millisecondsSinceEpoch}';
 
+      // Convert cart items to the selected currency
+      final double exchangeRate = _selectedCurrency?.rate ?? 1.0;
+      final List<SaleItem> convertedCart = _cart.map((item) {
+        return item.copyWith(
+          sellingPrice: item.sellingPrice * exchangeRate,
+          taxAmount: item.taxAmount * exchangeRate,
+          discountAmount: item.discountAmount * exchangeRate,
+          total: item.total * exchangeRate,
+        );
+      }).toList();
 
       final newSale = Sale(
         id: null,
@@ -1046,15 +1064,15 @@ class POSScreenController extends ChangeNotifier {
         customer: _selectedCustomer,
         company: _selectedBranch!.company,
         branch: _selectedBranch,
-        items: _cart,
+        items: convertedCart, // Use converted items here
         paymentTypes: _payments,
         timeIniated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
         status: 'Fully Paid',
         currency: _selectedCurrency,
         baseCurrency: _selectedCurrency,
-        amountAfterDiscount: grandTotalBase,
-        baseSaleAmount: grandTotalBase,
-        totalTaxAmount: taxTotalBase,
+        amountAfterDiscount: grandTotalConverted,
+        baseSaleAmount: grandTotalBase, // Base sale amount should also be converted now that items are converted
+        totalTaxAmount: taxTotalBase * exchangeRate, // Tax should be converted
         isSynced: false,
         fiscalized: false,
         saleStatus: 'COMPLETE',
@@ -1107,6 +1125,8 @@ class POSScreenController extends ChangeNotifier {
       await prefs.setStringList(stockKey, allStocks.map((e) => jsonEncode(e.toJson())).toList());
 
       currentShift.shiftCurrencyAmounts ??= [];
+      final List<MobileShiftCurrencyAmount> newActivitiesToExport = []; // Track new activities
+
       for (var payment in _payments) {
         final MobileShiftCurrencyAmount paymentShiftAmount = MobileShiftCurrencyAmount(
           id:null,
@@ -1124,14 +1144,20 @@ class POSScreenController extends ChangeNotifier {
           paymentType: payment.paymentType!.name,
         );
         currentShift.shiftCurrencyAmounts!.add(paymentShiftAmount);
+        newActivitiesToExport.add(paymentShiftAmount);
       }
       
       for (var accountCredit in _pendingAccountCredits) {
         accountCredit.posReference = '${newSale.posReference}_CA';
         accountCredit.shiftReference = currentShift.shiftReference;
         currentShift.shiftCurrencyAmounts!.add(accountCredit);
+        newActivitiesToExport.add(accountCredit);
       }
       _pendingAccountCredits.clear();
+      
+      if (newActivitiesToExport.isNotEmpty) {
+          await _excelExportService.exportShiftCurrencyAmountsToExcel(newActivitiesToExport);
+      }
 
       _saveShift(currentShift); // Run in background
 
@@ -1226,7 +1252,7 @@ class POSScreenController extends ChangeNotifier {
           currencyBalance: updatedCurrencyBalance,
           company: currentLocalCustomer.company,
           branch: currentLocalCustomer.branch,
-          isSynced: false, // Important to mark as unsynced
+          // isSynced: false, // Important to mark as unsynced
         );
 
         _customers[customerIndex] = updatedCustomer;
@@ -1265,12 +1291,15 @@ class POSScreenController extends ChangeNotifier {
           ref: newPayment.id ?? 'payment_${DateTime.now().millisecondsSinceEpoch}',
           posReference: '${customer.name}${DateTime.now().microsecondsSinceEpoch}',
           shiftReference: currentShift.shiftReference,
-          isCash: selectedPaymentType.isCash,
+          isCash: selectedPaymentType.isCash == true || (selectedPaymentType.name.toLowerCase().startsWith('cash')),
           paymentType: selectedPaymentType.name,
           bankName: selectedBank?.name,
         );
         currentShift.shiftCurrencyAmounts ??= [];
         currentShift.shiftCurrencyAmounts!.add(shiftAmount);
+        
+        await _excelExportService.exportShiftCurrencyAmountsToExcel([shiftAmount]);
+
         await _saveShift(currentShift);
       }
       return savedPayment;
@@ -1359,6 +1388,7 @@ class POSScreenController extends ChangeNotifier {
 
     final MobilePosShift? currentShift = await _getCurrentShift();
 
+    final double exchangeRate = _selectedCurrency?.rate ?? 1.0;
     final heldSale = Sale(
       id: 'held_${DateTime.now().millisecondsSinceEpoch}',
       createdByName: currentShift?.createdByName,
@@ -1371,8 +1401,8 @@ class POSScreenController extends ChangeNotifier {
       status: 'On Hold',
       currency: _selectedCurrency,
       shiftReference: currentShift?.shiftReference,
-      totalTaxAmount: taxTotalBase,
-      amountAfterDiscount: grandTotalBase,
+      totalTaxAmount: taxTotalBase * exchangeRate,
+      amountAfterDiscount: grandTotalConverted,
       ticketName: ticketName, // Assign the entered ticket name
     );
 

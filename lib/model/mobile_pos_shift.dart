@@ -80,7 +80,7 @@ class MobilePosShift {
     "dateCreated": dateCreated,
     "active": active,
     "createdByName": createdByName,
-    "shiftCurrencyAmounts": shiftCurrencyAmounts != null ? List<dynamic>.from(shiftCurrencyAmounts!.map((x) => x.toMap())) : null,
+    "shiftCurrencyAmounts": shiftCurrencyAmounts != null ? List<dynamic>.from(shiftCurrencyAmounts!.map((x) => x.toJson())) : null,
     "company": company?.toMap(),
     "openingTime": openingTime,
     "closingTime": closingTime,

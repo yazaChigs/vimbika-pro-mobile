@@ -794,13 +794,23 @@ class PrinterService {
         currencyTotals.putIfAbsent(activity.currency.id!, () => {
           'CASH_IN': 0.0,
           'CASH_OUT': 0.0,
-          'CASH_PAYMENT': 0.0, // Payments made with cash
-          'OTHER_PAYMENT': 0.0, // Payments made with non-cash methods
+          'CASH_PAYMENT': 0.0,
+          'OTHER_PAYMENT': 0.0,
+          'CASH_ACCOUNT_TOP_UP': 0.0,
+          'OTHER_ACCOUNT_TOP_UP': 0.0,
         });
 
         if (activity.amountType == 'CASH_IN') {
           currencyTotals[activity.currency.id!]!['CASH_IN'] =
               (currencyTotals[activity.currency.id!]!['CASH_IN'] ?? 0.0) + activity.amount;
+        } else if (activity.amountType == 'ACCOUNT_TOP_UP') {
+          if (activity.isCash == true) {
+            currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] =
+                (currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] ?? 0.0) + activity.amount;
+          } else {
+            currencyTotals[activity.currency.id!]!['OTHER_ACCOUNT_TOP_UP'] =
+                (currencyTotals[activity.currency.id!]!['OTHER_ACCOUNT_TOP_UP'] ?? 0.0) + activity.amount;
+          }
         } else if (activity.amountType == 'CASH_OUT') {
           currencyTotals[activity.currency.id!]!['CASH_OUT'] =
               (currencyTotals[activity.currency.id!]!['CASH_OUT'] ?? 0.0) + activity.amount;
@@ -836,16 +846,24 @@ class PrinterService {
         final currency = availableCurrencies.firstWhere((c) => c.id == currencyId);
 
         final cashInTotal = totals['CASH_IN'] ?? 0.0;
+        final cashAccountTopUpTotal = totals['CASH_ACCOUNT_TOP_UP'] ?? 0.0;
+        final otherAccountTopUpTotal = totals['OTHER_ACCOUNT_TOP_UP'] ?? 0.0;
         final cashOutTotal = totals['CASH_OUT'] ?? 0.0;
         final cashPaymentTotal = totals['CASH_PAYMENT'] ?? 0.0;
         final otherPaymentTotal = totals['OTHER_PAYMENT'] ?? 0.0;
 
         final totalSales = cashPaymentTotal + otherPaymentTotal;
-        final totalCash = cashInTotal - cashOutTotal + cashPaymentTotal; // Assuming initial cash is 0 for now
+        final totalCash = cashInTotal + cashAccountTopUpTotal - cashOutTotal + cashPaymentTotal;
 
         buffer.writeln('\n--- ${currency.name} (${currency.symbol}) ---');
         buffer.writeln(_alignLeftRight('Initial Cash:', '${currency.symbol} 0.00')); // TODO: Get initial cash per currency
         buffer.writeln(_alignLeftRight('Total Cash In:', '${currency.symbol} ${cashInTotal.toStringAsFixed(2)}'));
+        if (cashAccountTopUpTotal > 0) {
+          buffer.writeln(_alignLeftRight('Cash Customer Deposits:', '${currency.symbol} ${cashAccountTopUpTotal.toStringAsFixed(2)}'));
+        }
+        if (otherAccountTopUpTotal > 0) {
+          buffer.writeln(_alignLeftRight('Other Customer Deposits:', '${currency.symbol} ${otherAccountTopUpTotal.toStringAsFixed(2)}'));
+        }
         buffer.writeln(_alignLeftRight('Total Cash Out:', '${currency.symbol} ${cashOutTotal.toStringAsFixed(2)}'));
         buffer.writeln(_alignLeftRight('Total Cash Sales:', '${currency.symbol} ${cashPaymentTotal.toStringAsFixed(2)}'));
         buffer.writeln(_alignLeftRight('Total Other Sales:', '${currency.symbol} ${otherPaymentTotal.toStringAsFixed(2)}'));
@@ -901,11 +919,21 @@ class PrinterService {
           'CASH_OUT': 0.0,
           'CASH_PAYMENT': 0.0,
           'OTHER_PAYMENT': 0.0,
+          'CASH_ACCOUNT_TOP_UP': 0.0,
+          'OTHER_ACCOUNT_TOP_UP': 0.0,
         });
 
         if (activity.amountType == 'CASH_IN') {
           currencyTotals[activity.currency.id!]!['CASH_IN'] =
               (currencyTotals[activity.currency.id!]!['CASH_IN'] ?? 0.0) + activity.amount;
+        } else if (activity.amountType == 'ACCOUNT_TOP_UP') {
+          if (activity.isCash == true) {
+            currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] =
+                (currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] ?? 0.0) + activity.amount;
+          } else {
+            currencyTotals[activity.currency.id!]!['OTHER_ACCOUNT_TOP_UP'] =
+                (currencyTotals[activity.currency.id!]!['OTHER_ACCOUNT_TOP_UP'] ?? 0.0) + activity.amount;
+          }
         } else if (activity.amountType == 'CASH_OUT') {
           currencyTotals[activity.currency.id!]!['CASH_OUT'] =
               (currencyTotals[activity.currency.id!]!['CASH_OUT'] ?? 0.0) + activity.amount;
@@ -940,16 +968,24 @@ class PrinterService {
         final currency = availableCurrencies.firstWhere((c) => c.id == currencyId);
 
         final cashInTotal = totals['CASH_IN'] ?? 0.0;
+        final cashAccountTopUpTotal = totals['CASH_ACCOUNT_TOP_UP'] ?? 0.0;
+        final otherAccountTopUpTotal = totals['OTHER_ACCOUNT_TOP_UP'] ?? 0.0;
         final cashOutTotal = totals['CASH_OUT'] ?? 0.0;
         final cashPaymentTotal = totals['CASH_PAYMENT'] ?? 0.0;
         final otherPaymentTotal = totals['OTHER_PAYMENT'] ?? 0.0;
 
         final totalSales = cashPaymentTotal + otherPaymentTotal;
-        final totalCash = cashInTotal - cashOutTotal + cashPaymentTotal;
+        final totalCash = cashInTotal + cashAccountTopUpTotal - cashOutTotal + cashPaymentTotal;
 
         buffer.writeln('\n--- ${currency.name} (${currency.symbol}) ---');
         buffer.writeln(_alignLeftRight('Initial Cash:', '${currency.symbol} 0.00'));
         buffer.writeln(_alignLeftRight('Total Cash In:', '${currency.symbol} ${cashInTotal.toStringAsFixed(2)}'));
+        if (cashAccountTopUpTotal > 0) {
+          buffer.writeln(_alignLeftRight('Cash Customer Deposits:', '${currency.symbol} ${cashAccountTopUpTotal.toStringAsFixed(2)}'));
+        }
+        if (otherAccountTopUpTotal > 0) {
+          buffer.writeln(_alignLeftRight('Other Customer Deposits:', '${currency.symbol} ${otherAccountTopUpTotal.toStringAsFixed(2)}'));
+        }
         buffer.writeln(_alignLeftRight('Total Cash Out:', '${currency.symbol} ${cashOutTotal.toStringAsFixed(2)}'));
         buffer.writeln(_alignLeftRight('Total Cash Sales:', '${currency.symbol} ${cashPaymentTotal.toStringAsFixed(2)}'));
         buffer.writeln(_alignLeftRight('Total Other Sales:', '${currency.symbol} ${otherPaymentTotal.toStringAsFixed(2)}'));
@@ -977,6 +1013,8 @@ class PrinterService {
         String amountPrefix = '';
         if (activity.amountType == 'CASH_IN') {
           activityLabel = 'Cash In';
+        } else if (activity.amountType == 'ACCOUNT_TOP_UP') {
+          activityLabel = 'Account Top Up';
         } else if (activity.amountType == 'CASH_OUT') {
           activityLabel = 'Cash Out';
           amountPrefix = '-';

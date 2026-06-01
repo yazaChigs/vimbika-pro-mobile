@@ -1,20 +1,21 @@
-import 'services/printer_service.dart';
+import '../services/printer_service.dart';
 import 'package:vimbika_pro/app_constants/app_theme.dart';
-import 'package:vimbika_pro/sale_receipt_screen.dart';
+import 'package:vimbika_pro/sales/sale_receipt_screen.dart';
 import 'package:vimbika_pro/model/branch.dart';
 import 'package:vimbika_pro/model/customer.dart';
 import 'package:vimbika_pro/model/mobile_pos_shift.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'app_constants/app_constants.dart';
-import 'model/sale.dart';
+import '../app_constants/app_constants.dart';
+import '../model/sale.dart';
 import 'package:intl/intl.dart';
-import 'services/excel_export_service.dart';
-import 'services/sale_service.dart'; // Import SaleService
+import '../services/excel_export_service.dart';
+import '../services/sale_service.dart'; // Import SaleService
 import 'package:provider/provider.dart'; // Import provider
-import 'custom_drawer/home_drawer.dart'; // Import DrawerIndex
-import 'navigation_home_screen.dart'; // Import NavigationProvider
+import '../custom_drawer/home_drawer.dart'; // Import DrawerIndex
+import '../navigation_home_screen.dart'; // Import NavigationProvider
+import 'imported_sales_preview_screen.dart'; // Import the new preview screen
 
 class SalesScreen extends StatefulWidget {
   const SalesScreen({super.key});
@@ -48,14 +49,15 @@ class _SalesScreenState extends State<SalesScreen> {
   final SaleService _saleService = SaleService(); // Initialize SaleService
   final ExcelExportService _excelExportService = ExcelExportService();
 
-  double get _totalRevenue {
-    double total = 0;
+  Map<String, double> get _totalRevenueByCurrency {
+    final Map<String, double> revenueByCurrency = {};
     for (var sale in _filteredSales) {
-      if (sale.status != 'Reversed') {
-        total += sale.grandTotal;
+      if (sale.status != 'Reversed' && sale.currency != null) {
+        final currencySymbol = sale.currency!.symbol ?? 'N/A';
+        revenueByCurrency[currencySymbol] = (revenueByCurrency[currencySymbol] ?? 0) + sale.grandTotal;
       }
     }
-    return total;
+    return revenueByCurrency;
   }
 
   @override
@@ -412,40 +414,58 @@ class _SalesScreenState extends State<SalesScreen> {
   Future<void> _importSales() async {
     if (mounted) setState(() => _isLoading = true);
     try {
-      final List<Sale> importedSales = await _excelExportService.importSalesFromExcel();
-      if (importedSales.isNotEmpty) {
-        final SharedPreferences prefs = await SharedPreferences.getInstance();
-        const String backupSalesKey = 'backup_sales';
-        
-        // Get existing backup sales
-        final List<String> existingBackupJson = prefs.getStringList(backupSalesKey) ?? [];
-        final Map<String, Sale> backupSalesMap = { 
-            for (var s in existingBackupJson.map((e) => Sale.fromJson(jsonDecode(e)))) 
-                (s.posReference ?? s.id)!: s 
-        };
+      final result = await _excelExportService.importSalesFromExcel();
+      if (result.isNotEmpty && result['sales'] != null) {
+        final List<Sale> importedSales = List<Sale>.from(result['sales']);
+        final String? filePath = result['filePath'];
 
-        // Add new imported sales, overwriting duplicates
-        for (var sale in importedSales) {
-            final String? key = sale.posReference ?? sale.id;
-            if (key != null) {
-                backupSalesMap[key] = sale;
-            }
+        final List<Sale>? selectedSales = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ImportedSalesPreviewScreen(
+              importedSales: importedSales,
+              excelFilePath: filePath,
+            ),
+          ),
+        );
+
+        if (selectedSales != null && selectedSales.isNotEmpty) {
+          final SharedPreferences prefs = await SharedPreferences.getInstance();
+          const String backupSalesKey = 'backup_sales';
+          
+          final List<String> existingBackupJson = prefs.getStringList(backupSalesKey) ?? [];
+          final Map<String, Sale> backupSalesMap = { 
+              for (var s in existingBackupJson.map((e) => Sale.fromJson(jsonDecode(e)))) 
+                  (s.posReference ?? s.id)!: s 
+          };
+
+          for (var sale in selectedSales) {
+              final String? key = sale.posReference ?? sale.id;
+              if (key != null) {
+                  backupSalesMap[key] = sale;
+              }
+          }
+
+          final List<String> combinedBackupJson = backupSalesMap.values.map((s) => jsonEncode(s.toJson())).toList();
+          await prefs.setStringList(backupSalesKey, combinedBackupJson);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('${selectedSales.length} sales imported successfully!'), backgroundColor: Colors.green),
+            );
+          }
+          await _loadData();
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No sales were selected for import.'), backgroundColor: Colors.orange),
+            );
+          }
         }
-
-        // Save the combined list back to SharedPreferences
-        final List<String> combinedBackupJson = backupSalesMap.values.map((s) => jsonEncode(s.toJson())).toList();
-        await prefs.setStringList(backupSalesKey, combinedBackupJson);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${importedSales.length} sales imported successfully!'), backgroundColor: Colors.green),
-          );
-        }
-        await _loadData(); // Reload all data
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No sales were imported.'), backgroundColor: Colors.orange),
+            const SnackBar(content: Text('No sales found in the selected file.'), backgroundColor: Colors.orange),
           );
         }
       }
@@ -472,25 +492,67 @@ class _SalesScreenState extends State<SalesScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: AppTheme.nearlyBlack),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.sync),
-            onPressed: _isLoading ? null : _syncUnsyncedSales,
-            tooltip: 'Sync Unsynced Sales',
-          ),
-          IconButton(
-            icon: const Icon(Icons.file_download_outlined),
-            onPressed: _isLoading ? null : _exportSales,
-            tooltip: 'Export Sales to Excel',
-          ),
-          IconButton(
-            icon: const Icon(Icons.file_upload_outlined),
-            onPressed: _isLoading ? null : _importSales,
-            tooltip: 'Import Sales from Excel',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _isLoading ? null : _loadData, // Refresh sales
-            tooltip: 'Refresh Sales',
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (_isLoading) return;
+              switch (value) {
+                case 'sync':
+                  _syncUnsyncedSales();
+                  break;
+                case 'export':
+                  _exportSales();
+                  break;
+                case 'import':
+                  _importSales();
+                  break;
+                case 'refresh':
+                  _loadData();
+                  break;
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              PopupMenuItem<String>(
+                value: 'sync',
+                enabled: !_isLoading,
+                child: const ListTile(
+                  leading: Icon(Icons.sync),
+                  title: Text('Sync Unsynced Sales'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'export',
+                enabled: !_isLoading,
+                child: const ListTile(
+                  leading: Icon(Icons.file_download_outlined),
+                  title: Text('Export Sales to Excel'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'import',
+                enabled: !_isLoading,
+                child: const ListTile(
+                  leading: Icon(Icons.file_upload_outlined),
+                  title: Text('Import Sales from Excel'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'refresh',
+                enabled: !_isLoading,
+                child: const ListTile(
+                  leading: Icon(Icons.refresh),
+                  title: Text('Refresh Sales'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -500,16 +562,26 @@ class _SalesScreenState extends State<SalesScreen> {
               children: [
                 _buildSearchAndFilters(),
                 Container(
-                    width: double.infinity,
-                    color: AppTheme.vimbikaBlue.withAlpha(20),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                            const Text('Total Revenue:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                            Text('\$${_totalRevenue.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.vimbikaBlue)),
-                        ],
-                    ),
+                  width: double.infinity,
+                  color: AppTheme.vimbikaBlue.withAlpha(20),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Total Revenue:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 4),
+                      ..._totalRevenueByCurrency.entries.map((entry) => Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('  ${entry.key}', style: const TextStyle(fontSize: 14)),
+                            Text('${entry.key} ${entry.value.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.vimbikaBlue)),
+                          ],
+                        ),
+                      )),
+                    ],
+                  ),
                 ),
                 Expanded(
                   child: _filteredSales.isEmpty
@@ -578,7 +650,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                             crossAxisAlignment: CrossAxisAlignment.end,
                                             children: [
                                               Text(
-                                                '\$${sale.grandTotal.toStringAsFixed(2)}',
+                                                '${sale.currency?.symbol ?? ''}${sale.grandTotal.toStringAsFixed(2)}',
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 16,

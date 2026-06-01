@@ -36,29 +36,25 @@ class MobileShiftCurrencyAmount {
   String? timeCreated;
   String? bankName;
 
-  factory MobileShiftCurrencyAmount.fromRawJson(String str) => MobileShiftCurrencyAmount.fromJson(json.decode(str));
-
-  String toJson() => json.encode(toMap());
-
   factory MobileShiftCurrencyAmount.fromJson(Map<String, dynamic> json) => MobileShiftCurrencyAmount(
-    id: json["id"],
-    dateCreated: json["dateCreated"],
-    active: json["active"],
-    createdByName: json["createdByName"],
-    amount: json["amount"],
-    currency: Currency.fromJson(json["currency"]),
-    notes: json["notes"],
-    amountType: json["amountType"],
-    ref: json["ref"],
-    timeCreated: json["timeCreated"],
-    shiftReference: json["shiftReference"],
-    posReference: json["posReference"],
-    isCash: json["isCash"] ?? false,
-    paymentType: json["paymentType"],
-    bankName: json["bankName"],
+    id: json["id"]?.toString(),
+    dateCreated: json["dateCreated"]?.toString(),
+    active: json["active"] == true || json["active"] == 'true',
+    createdByName: json["createdByName"]?.toString(),
+    amount: (json["amount"] as num?)?.toDouble() ?? 0.0,
+    currency: Currency.fromJson(json["currency"] is String ? jsonDecode(json["currency"]) : json["currency"]),
+    notes: json["notes"]?.toString(),
+    amountType: json["amountType"]?.toString() ?? 'UNKNOWN',
+    ref: json["ref"]?.toString(),
+    timeCreated: json["timeCreated"]?.toString(),
+    shiftReference: json["shiftReference"]?.toString(),
+    posReference: json["posReference"]?.toString(),
+    isCash: json["isCash"] == true || json["isCash"] == 'true',
+    paymentType: json["paymentType"]?.toString(),
+    bankName: json["bankName"]?.toString(),
   );
 
-  Map<String, dynamic> toMap() => {
+  Map<String, dynamic> toJson() => {
     "id": id,
     "active": active,
     "dateCreated": dateCreated,

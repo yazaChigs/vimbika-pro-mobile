@@ -155,7 +155,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       );
                     },
                   ),
-                  if (_isSuperAdmin())
+                  // if (_isSuperAdmin())
                     _buildSettingItem(
                       icon: Icons.backup_table,
                       title: 'Sales Backups',

@@ -3,9 +3,9 @@ import 'package:vimbika_pro/expenses_screen.dart';
 import 'package:vimbika_pro/POS/pos_screen.dart';
 import 'package:vimbika_pro/purchases_screen.dart';
 import 'package:vimbika_pro/reports_screen.dart';
-import 'package:vimbika_pro/sales_screen.dart';
+import 'package:vimbika_pro/sales/sales_screen.dart';
 import 'package:vimbika_pro/screens/offline/settings/settings_screen.dart';
-import 'package:vimbika_pro/screens/offline/settings/shift_management_screen.dart'; // Import ShiftManagementScreen
+import 'package:vimbika_pro/shift/shift_management_screen.dart'; // Import ShiftManagementScreen
 import 'package:flutter/widgets.dart';
 
 import '../inventory/inventory_screen.dart';

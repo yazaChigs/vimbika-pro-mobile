@@ -26,6 +26,38 @@ class SaleItem extends BaseEntity {
     this.isMobile,
   });
 
+  SaleItem copyWith({
+    String? id,
+    String? dateCreated,
+    String? dateModified,
+    String? createdByName,
+    String? modifiedByName,
+    int? version,
+    InventoryItem? inventoryItem,
+    double? quantity,
+    double? sellingPrice,
+    double? taxAmount,
+    double? discountAmount,
+    double? total,
+    bool? isMobile,
+  }) {
+    return SaleItem(
+      id: id ?? this.id,
+      dateCreated: dateCreated ?? this.dateCreated,
+      dateModified: dateModified ?? this.dateModified,
+      createdByName: createdByName ?? this.createdByName,
+      modifiedByName: modifiedByName ?? this.modifiedByName,
+      version: version ?? this.version,
+      inventoryItem: inventoryItem ?? this.inventoryItem,
+      quantity: quantity ?? this.quantity,
+      sellingPrice: sellingPrice ?? this.sellingPrice,
+      taxAmount: taxAmount ?? this.taxAmount,
+      discountAmount: discountAmount ?? this.discountAmount,
+      total: total ?? this.total,
+      isMobile: isMobile ?? this.isMobile,
+    );
+  }
+
   factory SaleItem.fromJson(Map<String, dynamic> json) {
 
     double? parseDouble(dynamic value) {

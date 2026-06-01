@@ -1,3 +1,4 @@
+import 'package:vimbika_pro/model/subscription.dart';
 import 'package:vimbika_pro/services/company_service.dart';
 import 'package:vimbika_pro/model/company.dart';
 import 'package:vimbika_pro/app_constants/app_constants.dart';
@@ -84,9 +85,9 @@ class LoginController extends ChangeNotifier {
 
     // Offline failed, attempt online login
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Local login failed. Attempting online login...')),
-      );
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(content: Text('Local login failed. Attempting online login...')),
+      // );
     }
 
     bool onlineSuccess = false;
@@ -188,16 +189,58 @@ class LoginController extends ChangeNotifier {
     }
   }
 
+  Future<bool> _hasLocalNetworkConnection() async {
+    try {
+      // Check for any non-loopback network interfaces.
+      final interfaces = await NetworkInterface.list(
+        includeLoopback: false,
+        type: InternetAddressType.any,
+      );
+
+      // Keywords often found in hotspot/tethering interface names
+      final hotspotKeywords = ['ap', 'hotspot', 'tether', 'bridge'];
+
+      for (var interface in interfaces) {
+        final name = interface.name.toLowerCase();
+        // Check if the interface name contains any of the hotspot keywords
+        final isHotspot = hotspotKeywords.any((keyword) => name.contains(keyword));
+
+        if (!isHotspot) {
+          return true; // Found a valid, non-hotspot connection
+        }
+      }
+
+      return false; // Only hotspot or no interfaces found
+    } catch (e) {
+      print('Could not check network interfaces: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _checkServerConnectivity() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+        return true;
+      }
+    } on SocketException catch (_) {
+      return false;
+    }
+    return false;
+  }
+
   Future<bool> _handleOnlineLogin(BuildContext context, String username, String password) async {
     try {
-      // Check internet connection
-      try {
-        final result = await InternetAddress.lookup('google.com');
-        if (result.isEmpty || result[0].rawAddress.isEmpty) {
-          throw const SocketException('No Internet connection');
-        }
-      } on SocketException catch (_) {
-        throw Exception('No internet connection. Please check your settings.');
+      // First, check for a local network connection (Wi-Fi or mobile data)
+      final hasLocalConnection = await _hasLocalNetworkConnection();
+      if (!hasLocalConnection) {
+        throw const SocketException('No active network connection found. Please check your Wi-Fi or Mobile Data.');
+      }
+
+      // If a local connection exists, then check if the server is reachable
+      final isServerReachable = await _checkServerConnectivity();
+      if (!isServerReachable) {
+        throw const SocketException('Unable to reach the server. Please check your internet connection.');
       }
 
       final jwtRequest = JwtRequestModel(
@@ -207,6 +250,20 @@ class LoginController extends ChangeNotifier {
 
       final responseStr = await _client.post('/authentication', jsonEncode(jwtRequest.toJson()));
       final Map<String, dynamic> data = jsonDecode(responseStr);
+
+      // Verify subscription FIRST before saving anything
+      bool isValidSubscription = false;
+      if (data['subscriptions'] != null) {
+        isValidSubscription = await _validateSubscriptionFromData(context, data['subscriptions']);
+      } else {
+        if (context.mounted) {
+            _showErrorDialog(context, "Subscription Error", "No subscription data found in server response.");
+        }
+      }
+
+      if (!isValidSubscription) {
+          return false; // Stop login process if subscription is invalid
+      }
 
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       
@@ -236,7 +293,7 @@ class LoginController extends ChangeNotifier {
       SaleSyncService().startSyncTimer();
 
       if (context.mounted) {
-        if (user.userRoles!.any((role)=> role.name =='ROLE_SUPER_ADMIN'))  {
+        if (user.userRoles!.any((role) => role.name == 'ROLE_SUPER_ADMIN')) {
           print('Super Admin');
           Navigator.pushReplacement(
             context,
@@ -251,11 +308,94 @@ class LoginController extends ChangeNotifier {
         }
       }
       return true;
+    } on SocketException catch(e) {
+      throw Exception(e.message);
     } catch (e) {
-      print('Online login failed: $e');
-      throw Exception('Online login failed: ${e.toString()}');
+      throw Exception('Online login failed: Username or Password incorrect...');
     }
   }
+
+  Future<bool> _validateSubscriptionFromData(BuildContext context, dynamic subscriptionsData) async {
+      try {
+        final List<Subscription> subscriptions = (subscriptionsData as List)
+            .map((data) => Subscription.fromMap(data as Map<String, dynamic>))
+            .toList();
+
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+        for (final subscription in subscriptions) {
+          if (subscription.active == true &&
+              subscription.renewalDate != null &&
+              subscription.renewalDate!.isAfter(DateTime.now())) {
+            final now = DateTime.now();
+            final startOfDay = DateTime(now.year, now.month, now.day);
+            final daysRemaining = subscription.renewalDate!.difference(startOfDay).inDays;
+
+            await prefs.setInt(AppConstants.keySubscriptionDaysRemaining, daysRemaining);
+
+            if (daysRemaining <= 5 && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("Your subscription will expire in $daysRemaining days"),
+                  backgroundColor: Colors.redAccent,
+                ),
+              );
+            }
+            return true;
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+            _showErrorDialog(context, "Subscription Error", "Failed to parse subscription data.");
+        }
+        return false;
+      }
+
+      if (context.mounted) {
+          _showErrorDialog(context, "Subscription Expired", "Your subscription has expired. Please contact your admin.");
+      }
+      return false;
+  }
+
+  // Still keeping this for potential other uses (e.g. checking later on)
+  Future<bool> hasValidSubscription(BuildContext context) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? subscriptionsJson = prefs.getString(AppConstants.keySubscriptions);
+
+    if (subscriptionsJson == null) {
+      _showErrorDialog(context, "Subscription Error", "No subscription data found.");
+      return false;
+    }
+
+    try {
+      final List<dynamic> subscriptionsData = jsonDecode(subscriptionsJson);
+      return await _validateSubscriptionFromData(context, subscriptionsData);
+    } catch (e) {
+      _showErrorDialog(context, "Subscription Error", "Failed to parse subscription data.");
+      return false;
+    }
+  }
+
+  void _showErrorDialog(BuildContext context, String title, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: <Widget>[
+            TextButton(
+              child: const Text("OK"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 
   void navigateToCreateCompany(BuildContext context) async {
     final Company? company = await CompanyService().getCompanyFromLocalStorage();

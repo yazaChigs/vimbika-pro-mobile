@@ -28,11 +28,21 @@ class ShiftSummaryPreviewScreen extends StatelessWidget {
           'CASH_OUT': 0.0,
           'CASH_PAYMENT': 0.0, // Payments made with cash
           'OTHER_PAYMENT': 0.0, // Payments made with non-cash methods
+          'CASH_ACCOUNT_TOP_UP': 0.0,
+          'OTHER_ACCOUNT_TOP_UP': 0.0,
         });
 
         if (activity.amountType == 'CASH_IN') {
           currencyTotals[activity.currency.id!]!['CASH_IN'] =
               (currencyTotals[activity.currency.id!]!['CASH_IN'] ?? 0.0) + activity.amount;
+        } else if (activity.amountType == 'ACCOUNT_TOP_UP') {
+          if (activity.isCash == true || (activity.paymentType?.toLowerCase().startsWith('cash') ?? false)) {
+            currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] =
+                (currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] ?? 0.0) + activity.amount;
+          } else {
+            currencyTotals[activity.currency.id!]!['OTHER_ACCOUNT_TOP_UP'] =
+                (currencyTotals[activity.currency.id!]!['OTHER_ACCOUNT_TOP_UP'] ?? 0.0) + activity.amount;
+          }
         } else if (activity.amountType == 'CASH_OUT') {
           currencyTotals[activity.currency.id!]!['CASH_OUT'] =
               (currencyTotals[activity.currency.id!]!['CASH_OUT'] ?? 0.0) + activity.amount;
@@ -97,12 +107,14 @@ class ShiftSummaryPreviewScreen extends StatelessWidget {
                   final currency = availableCurrencies.firstWhere((c) => c.id == currencyId);
 
                   final cashInTotal = totals['CASH_IN'] ?? 0.0;
+                  final cashAccountTopUpTotal = totals['CASH_ACCOUNT_TOP_UP'] ?? 0.0;
+                  final otherAccountTopUpTotal = totals['OTHER_ACCOUNT_TOP_UP'] ?? 0.0;
                   final cashOutTotal = totals['CASH_OUT'] ?? 0.0;
                   final cashPaymentTotal = totals['CASH_PAYMENT'] ?? 0.0;
                   final otherPaymentTotal = totals['OTHER_PAYMENT'] ?? 0.0;
 
                   final totalSales = cashPaymentTotal + otherPaymentTotal;
-                  final totalCash = cashInTotal - cashOutTotal + cashPaymentTotal;
+                  final totalCash = cashInTotal + cashAccountTopUpTotal - cashOutTotal + cashPaymentTotal;
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
@@ -116,6 +128,10 @@ class ShiftSummaryPreviewScreen extends StatelessWidget {
                         const SizedBox(height: 8),
                         _buildSummaryRow('Initial Cash:', '${currency.symbol} 0.00'),
                         _buildSummaryRow('Total Cash In:', '${currency.symbol} ${cashInTotal.toStringAsFixed(2)}'),
+                        if (cashAccountTopUpTotal > 0)
+                          _buildSummaryRow('Cash Customer Deposits:', '${currency.symbol} ${cashAccountTopUpTotal.toStringAsFixed(2)}'),
+                        if (otherAccountTopUpTotal > 0)
+                          _buildSummaryRow('Other Customer Deposits:', '${currency.symbol} ${otherAccountTopUpTotal.toStringAsFixed(2)}'),
                         _buildSummaryRow('Total Cash Out:', '${currency.symbol} ${cashOutTotal.toStringAsFixed(2)}'),
                         _buildSummaryRow('Total Cash Sales:', '${currency.symbol} ${cashPaymentTotal.toStringAsFixed(2)}'),
                         _buildSummaryRow('Total Other Sales:', '${currency.symbol} ${otherPaymentTotal.toStringAsFixed(2)}'),
@@ -159,6 +175,8 @@ class ShiftSummaryPreviewScreen extends StatelessWidget {
                     String activityLabel;
                     if (activity.amountType == 'CASH_IN') {
                       activityLabel = 'Cash In';
+                    } else if (activity.amountType == 'ACCOUNT_TOP_UP') {
+                      activityLabel = 'Account Top Up';
                     } else if (activity.amountType == 'CASH_OUT') {
                       activityLabel = 'Cash Out';
                     } else if (activity.amountType == 'SALE') {

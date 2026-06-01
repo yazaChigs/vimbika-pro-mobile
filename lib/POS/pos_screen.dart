@@ -804,11 +804,13 @@ class POSScreen extends StatelessWidget {
                       itemCount: heldSales.length,
                       itemBuilder: (context, index) {
                         final sale = heldSales[index];
+                        final double conversionRate = (sale.currency?.rate ?? 1.0);
+                        final String displaySymbol = sale.currency?.symbol ?? '';
                         return Card(
                           margin: const EdgeInsets.symmetric(vertical: 4),
                           child: ExpansionTile(
                             title: Text('Sale for ${sale.ticketName ?? 'Guest'}'),
-                            subtitle: Text('Items: ${sale.items.length}, Total: ${sale.currency?.symbol ?? ''}${sale.grandTotal.toStringAsFixed(2)}'),
+                            subtitle: Text('Items: ${sale.items.length}, Total: $displaySymbol${(sale.grandTotal).toStringAsFixed(2)}'),
                             children: [
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -828,7 +830,7 @@ class POSScreen extends StatelessWidget {
                                             ),
                                           ),
                                           Text(
-                                            '${sale.currency?.symbol ?? ''}${(item.total + item.taxAmount).toStringAsFixed(2)}',
+                                            '$displaySymbol${(item.total * conversionRate).toStringAsFixed(2)}',
                                             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                                           ),
                                         ],

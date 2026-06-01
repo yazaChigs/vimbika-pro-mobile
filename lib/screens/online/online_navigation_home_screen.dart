@@ -6,7 +6,7 @@ import 'package:vimbika_pro/home_screen.dart';
 import 'package:vimbika_pro/screens/offline/settings/invite_friend_screen.dart';
 import 'package:vimbika_pro/screens/offline/settings/settings_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:vimbika_pro/screens/offline/settings/shift_management_screen.dart';
+import 'package:vimbika_pro/shift/shift_management_screen.dart';
 
 import '../offline/settings/feedback_screen.dart';
 
