@@ -1,4 +1,4 @@
-import 'package:vimbika_pro/customer/customer_management_screen.dart';
+import 'package:vimbika_pro/customer/customer_list_screen.dart';
 import 'package:vimbika_pro/expenses_screen.dart';
 import 'package:vimbika_pro/POS/pos_screen.dart';
 import 'package:vimbika_pro/purchases_screen.dart';
@@ -50,7 +50,7 @@ class HomeList {
     HomeList(
       imagePath: 'assets/images/image_customers.png',
       title: 'Customers',
-      navigateScreen: const CustomerManagementScreen(),
+      navigateScreen: const CustomerListScreen(),
     ),
     HomeList(
       imagePath: 'assets/images/image_settings.png',

@@ -1077,6 +1077,7 @@ class POSScreenController extends ChangeNotifier {
         fiscalized: false,
         saleStatus: 'COMPLETE',
         taxInvoice: false,
+        totalQuantity: _cart.fold(0.0, (sum, item) => sum! + item.quantity),
         posReference: generatedReference,
         referenceNumber: generatedReference,
         shiftReference: currentShift.shiftReference,
@@ -1165,6 +1166,12 @@ class POSScreenController extends ChangeNotifier {
 
       await clearPOSScreen(); // Await clearPOSScreen
     } finally {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sale completed successfully!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
       _isProcessingSale = false;
       customerSelectFocus = false;
       notifyListeners();

@@ -12,6 +12,7 @@ import '../model/sale.dart';
 import 'package:intl/intl.dart';
 import '../services/excel_export_service.dart';
 import '../services/sale_service.dart'; // Import SaleService
+import '../services/mobile_shift_service.dart'; // Import MobileShiftService
 import 'package:provider/provider.dart'; // Import provider
 import '../custom_drawer/home_drawer.dart'; // Import DrawerIndex
 import '../navigation_home_screen.dart'; // Import NavigationProvider
@@ -48,6 +49,7 @@ class _SalesScreenState extends State<SalesScreen> {
 
   final SaleService _saleService = SaleService(); // Initialize SaleService
   final ExcelExportService _excelExportService = ExcelExportService();
+  final MobilePosShiftService _mobileShiftService = MobilePosShiftService(); // Initialize MobilePosShiftService
 
   Map<String, double> get _totalRevenueByCurrency {
     final Map<String, double> revenueByCurrency = {};
@@ -340,6 +342,17 @@ class _SalesScreenState extends State<SalesScreen> {
         // Run to API if synced and id is not null (which means it comes from API usually)
         if (sale.isSynced == true && sale.id != null) {
           await _saleService.reverseSale(sale.id!);
+        }
+
+        // Record the reversal activity in the current shift
+        if (_currentShift != null) {
+          await _mobileShiftService.recordSaleReversalActivity(sale, _currentShift!);
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Warning: No active shift found to record reversal activity.'), backgroundColor: Colors.orange),
+            );
+          }
         }
 
         if (mounted) {

@@ -47,6 +47,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
   }
 
   Future<void> _loadInitialData() async {
+    if (!mounted) return; // Added check
     setState(() {
       _isLoading = true;
     });
@@ -98,18 +99,49 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
 
   Future<void> _loadPastShifts() async {
     if (_currentUser?.id == null) return;
-    try {
-      final shifts = await _shiftService.getShiftsByUserId(_currentUser!.id!);
-      if(mounted) {
-        setState(() {
-          _pastShifts = shifts.where((s) => s.isShiftClosed == true).toList();
-        });
+
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? cachedPastShiftsJson = prefs.getString(AppConstants.keyCachedPastShifts);
+
+    if (cachedPastShiftsJson != null && cachedPastShiftsJson.isNotEmpty) {
+      try {
+        final List<dynamic> jsonList = jsonDecode(cachedPastShiftsJson);
+        final List<MobilePosShift> cachedShifts = jsonList
+            .map((json) => MobilePosShift.fromJson(json))
+            .toList();
+        if (!mounted) return; // Added check
+        if (mounted) {
+          setState(() {
+            _pastShifts = cachedShifts.where((s) => s.isShiftClosed == true).toList();
+          });
+        }
+        // If cached data is available and valid, use it and return.
+        return;
+      } catch (e) {
+        print('Error parsing cached past shifts JSON: $e');
+        await prefs.remove(AppConstants.keyCachedPastShifts); // Clear malformed cache
+        // If cache was malformed, proceed to fetch from network if not in offline mode.
       }
-    } catch (e) {
-      if(mounted) {
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   SnackBar(content: Text('Failed to load past shifts: $e')),
-        // );
+    }
+    // Fetch from API if not in offline mode AND cache was empty or malformed
+    if (!_isOfflineMode) {
+      try {
+        final shifts = await _shiftService.getShiftsByUserId(_currentUser!.id!);
+        if (!mounted) return; // Added check
+        if (mounted) {
+          setState(() {
+            _pastShifts = shifts.where((s) => s.isShiftClosed == true).toList();
+          });
+        }
+        // Cache the fetched shifts
+        final List<String> shiftsJsonList = _pastShifts.map((shift) => shift.toJson()).toList();
+        await prefs.setString(AppConstants.keyCachedPastShifts, jsonEncode(shiftsJsonList));
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to load past shifts from network: $e')),
+          );
+        }
       }
     }
   }
@@ -123,6 +155,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
       return;
     }
 
+    if (!mounted) return; // Added check
     setState(() {
       _isLoading = true;
     });
@@ -178,6 +211,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
   }
 
   Future<void> _closeShift() async {
+    if (!mounted) return; // Added check
     setState(() {
       _isLoading = true;
     });
@@ -224,6 +258,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
   }
 
   Future<void> _viewSavedShiftExcel() async {
+    if (!mounted) return; // Added check
     setState(() {
       _isLoading = true;
     });
@@ -261,6 +296,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
   }
 
   Future<void> _logout() async {
+    if (!mounted) return; // Added check
     setState(() {
       _isLoading = true;
     });
@@ -270,6 +306,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
       await prefs.remove(AppConstants.keyUserData);
       await prefs.setBool(AppConstants.keyHasUser, false);
       await prefs.setBool(AppConstants.keyIsOfflineMode, true); // Default to offline mode on logout
+      await prefs.remove(AppConstants.keyCachedPastShifts); // Clear cached past shifts on logout
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -377,6 +414,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
       return;
     }
 
+    if (!mounted) return; // Added check
     setState(() {
       _isLoading = true;
     });
@@ -435,6 +473,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
       );
       return;
     }
+    if (!mounted) return; // Added check
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -467,10 +506,12 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     }
     try {
       await _printerService.printShiftSummary(_currentShift!, _availableCurrencies, _currentUser!.branch!.company!);
+      if (!mounted) return; // Added check
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Shift summary sent to printer.')),
       );
     } catch (e) {
+      if (!mounted) return; // Added check
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to print shift summary: $e')),
       );
@@ -498,10 +539,12 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     }
     try {
       await _printerService.printFullShiftReport(_currentShift!, _availableCurrencies, _currentUser!.branch!.company!);
+      if (!mounted) return; // Added check
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Full shift report sent to printer.')),
       );
     } catch (e) {
+      if (!mounted) return; // Added check
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to print full shift report: $e')),
       );
@@ -517,6 +560,13 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
         backgroundColor: AppTheme.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppTheme.nearlyBlack),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long),
+            onPressed: _viewSavedShiftExcel,
+            tooltip: 'View Saved Shift Excel',
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -544,21 +594,10 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                             ElevatedButton.icon(
                               onPressed: _logout,
                               icon: const Icon(Icons.logout),
-                              label: const Text('Log Out'),
+                              label: const Text('Close Shift & Log Out'),
                               style: ElevatedButton.styleFrom(
                                 minimumSize: const Size.fromHeight(50),
                                 backgroundColor: AppTheme.vimbikaBlue,
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            ElevatedButton.icon(
-                              onPressed: _viewSavedShiftExcel,
-                              icon: const Icon(Icons.receipt_long),
-                              label: const Text('View Saved Shift Excel'),
-                              style: ElevatedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(50),
-                                backgroundColor: Colors.orange,
                                 foregroundColor: Colors.white,
                               ),
                             ),
@@ -566,37 +605,34 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                         )
                       : Column(
                           children: [
-                            ElevatedButton.icon(
-                              onPressed: _closeShift,
-                              icon: const Icon(Icons.stop),
-                              label: const Text('Close Current Shift'),
-                              style: ElevatedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(50),
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            ElevatedButton.icon(
-                              onPressed: _logout,
-                              icon: const Icon(Icons.logout),
-                              label: const Text('Log Out'),
-                              style: ElevatedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(50),
-                                backgroundColor: AppTheme.vimbikaBlue,
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            ElevatedButton.icon(
-                              onPressed: _viewSavedShiftExcel,
-                              icon: const Icon(Icons.receipt_long),
-                              label: const Text('View Saved Shift Excel'),
-                              style: ElevatedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(50),
-                                backgroundColor: Colors.orange,
-                                foregroundColor: Colors.white,
-                              ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: _closeShift,
+                                    icon: const Icon(Icons.stop),
+                                    label: const Text('Close Current Shift'),
+                                    style: ElevatedButton.styleFrom(
+                                      minimumSize: const Size.fromHeight(50),
+                                      backgroundColor: Colors.red,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: _logout,
+                                    icon: const Icon(Icons.logout),
+                                    label: const Text('Close Shift & Log Out'),
+                                    style: ElevatedButton.styleFrom(
+                                      minimumSize: const Size.fromHeight(50),
+                                      backgroundColor: AppTheme.vimbikaBlue,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 20),
                             _buildShiftActivityButtons(),
@@ -724,7 +760,8 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     sortedActivities.sort((a, b) {
       if (a.timeCreated == null || b.timeCreated == null) return 0;
       try {
-        return DateTime.parse(a.timeCreated!).compareTo(DateTime.parse(b.timeCreated!));
+        // Sort in descending order (latest on top)
+        return DateTime.parse(b.timeCreated!).compareTo(DateTime.parse(a.timeCreated!));
       } catch (e) {
         return 0;
       }
@@ -881,6 +918,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
               ),
               initiallyExpanded: _isActivitiesExpanded,
               onExpansionChanged: (bool expanded) {
+                if (!mounted) return; // Added check
                 setState(() {
                   _isActivitiesExpanded = expanded;
                 });
@@ -973,10 +1011,14 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                     subtitle: Text('Closed: ${shift.closingTime ?? 'N/A'}'),
                     trailing: const Icon(Icons.arrow_forward_ios),
                     onTap: () {
+                      if (!mounted) return; // Added check
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => ShiftDataScreen(shift: shift),
+                          builder: (context) => ShiftDataScreen(
+                            shift: shift,
+                            availableCurrencies: _availableCurrencies, // Pass availableCurrencies here
+                          ),
                         ),
                       );
                     },

@@ -47,7 +47,7 @@ class PaymentReceiptScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                _buildInfoRow('Receipt #:', payment.id ?? 'N/A'),
+                _buildInfoRow('Receipt #:', payment.reference ?? 'N/A'),
                 _buildInfoRow('Date:', DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())),
                 const Divider(height: 30),
                 _buildInfoRow('Received From:', payment.payer?.name ?? 'N/A'),

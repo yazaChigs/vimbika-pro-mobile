@@ -36,7 +36,7 @@ class PrinterService {
   BluetoothDevice? _selectedBluetoothDevice;
   bool _isConnected = false;
   bool _sunmiBound = false;
-  bool _alwaysPrintReceipt = false;
+  bool _alwaysPrintReceipt = true; // Changed default to true
   int _numberOfReceiptsPerSale = 1; // Added for the new setting
   bool _waScan = false;
 
@@ -67,7 +67,7 @@ class PrinterService {
     }
 
     // Load the new settings
-    _alwaysPrintReceipt = prefs.getBool(AppConstants.keyAlwaysPrintReceipt) ?? false;
+    _alwaysPrintReceipt = prefs.getBool(AppConstants.keyAlwaysPrintReceipt) ?? true; // Changed default to true
     _numberOfReceiptsPerSale = prefs.getInt(AppConstants.keyNumberOfReceiptsPerSale) ?? 1;
     final String? settings = prefs.getString(AppConstants.keyCompanySettings);
     if (settings != null) {

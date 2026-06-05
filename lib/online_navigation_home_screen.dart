@@ -5,7 +5,7 @@ import 'package:vimbika_pro/home_screen.dart';
 import 'package:vimbika_pro/screens/online/online_reports_screen.dart';
 import 'package:vimbika_pro/screens/offline/settings/settings_screen.dart';
 import 'package:vimbika_pro/POS/pos_screen.dart'; // Import POSScreen
-import 'package:vimbika_pro/customer/customer_management_screen.dart'; // Import CustomerManagementScreen
+import 'package:vimbika_pro/customer/customer_list_screen.dart'; // Import CustomerManagementScreen
 import 'package:vimbika_pro/supplier/supplier_management_screen.dart'; // Import SupplierManagementScreen
 import 'package:vimbika_pro/sales/sales_screen.dart'; // Import SalesScreen
 import 'package:vimbika_pro/inventory/inventory_screen.dart'; // Import InventoryScreen
@@ -89,7 +89,7 @@ class _OnlineNavigationHomeScreenState extends State<OnlineNavigationHomeScreen>
         case DrawerIndex.customers:
           setState(() {
             print('OnlineNavigationHomeScreen: Setting screenView to CustomerManagementScreen');
-            screenView = const CustomerManagementScreen();
+            screenView = const CustomerListScreen();
           });
           break;
         case DrawerIndex.suppliers:

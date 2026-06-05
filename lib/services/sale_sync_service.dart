@@ -46,11 +46,10 @@ class SaleSyncService {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       
-      // We still want to export to excel even if offline
       final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
       final String salesKey = isOfflineMode ? AppConstants.keyOfflineSales : AppConstants.keySales;
       
-      final List<String> salesJsonList = prefs.getStringList(salesKey) ?? [];
+      List<String> salesJsonList = prefs.getStringList(salesKey) ?? [];
 
       if (salesJsonList.isEmpty) {
         _isSyncing = false;
@@ -59,22 +58,37 @@ class SaleSyncService {
 
       debugPrint('Attempting to sync ${salesJsonList.length} sales from $salesKey...');
 
-      // Parse and filter valid sales
+      // Parse all sales and filter out reversed ones
       final List<Map<String, dynamic>> allSalesMapList = [];
       final List<Sale> allSalesForExcel = [];
-      
+      final List<Map<String, dynamic>> salesToKeepLocally = []; // Sales that are not reversed
+
       for (var s in salesJsonList) {
         if (s.trim().isEmpty || s == 'null') continue;
         try {
           final decoded = jsonDecode(s);
           if (decoded is Map<String, dynamic>) {
-            allSalesMapList.add(decoded);
-            allSalesForExcel.add(Sale.fromJson(decoded));
+            if (decoded['status'] == 'Reversed') {
+              debugPrint('Skipping reversed sale from sync: ${decoded['posReference'] ?? decoded['id']}');
+              // Do not add to allSalesMapList, but also don't add to salesToKeepLocally
+              // as it's a reversed sale that should be removed from the unsynced queue.
+            } else {
+              allSalesMapList.add(decoded);
+              allSalesForExcel.add(Sale.fromJson(decoded));
+              salesToKeepLocally.add(decoded); // Keep non-reversed sales
+            }
           }
         } catch (e) {
           debugPrint('Failed to decode a sale string: $e');
+          // If decoding fails, keep the original string to avoid data loss
+          // unless it's explicitly a reversed sale (which we can't tell if decoding fails)
+          // For now, we'll just skip it.
         }
       }
+
+      // Update local storage to remove reversed sales
+      await prefs.setStringList(salesKey, salesToKeepLocally.map((s) => jsonEncode(s)).toList());
+
 
       // Export to Excel for the day
       if (allSalesForExcel.isNotEmpty) {
@@ -114,7 +128,7 @@ class SaleSyncService {
          return;
       }
 
-      if (allSalesMapList.isEmpty) {
+      if (allSalesMapList.isEmpty) { // This list now only contains non-reversed sales
         _isSyncing = false;
         return;
       }

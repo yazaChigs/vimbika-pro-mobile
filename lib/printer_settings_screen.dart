@@ -12,7 +12,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
   final PrinterService _printerService = PrinterService();
   bool _isLoading = false;
   List<BluetoothDevice> _bluetoothDevices = [];
-  bool _alwaysPrintReceipt = false;
+  bool _alwaysPrintReceipt = true; // Initial state for the UI
   int _numberOfReceiptsPerSale = 1; // Added for the new setting
   final TextEditingController _receiptCountController = TextEditingController(); // Controller for the text field
 

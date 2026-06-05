@@ -15,6 +15,7 @@ class PaymentReceived extends BaseEntity {
   final String? transactionId;
   final String? paymentDate;
   final String? dateTime;
+  final String? reference;
   final String? notes;
   final String? paymentDescription;
   final Bank? bank; // Changed from bankName (String) to bank (Bank model)
@@ -41,7 +42,9 @@ class PaymentReceived extends BaseEntity {
     this.isMobile,
     this.isSynced, // Initialize isSynced
     this.dateTime,
+    this.reference,
     this.amountPaid = 0.0
+
   });
 
   factory PaymentReceived.fromJson(Map<String, dynamic> json) {
@@ -66,6 +69,7 @@ class PaymentReceived extends BaseEntity {
       isSynced: json['isSynced'] ?? true, // Default to true if not specified
       dateTime: json['dateTime'],
       amountPaid: (json['amountPaid'] as num?)?.toDouble() ?? 0.0,
+      reference: json['reference']?.toString(),
 
     );
   }
@@ -91,6 +95,7 @@ class PaymentReceived extends BaseEntity {
       'isMobile': isMobile,
       'isSynced': isSynced, // Include in toJson
       'dateTime': dateTime,
+      'reference': reference,
       'amountPaid': amountPaid,
     };
   }
@@ -117,6 +122,7 @@ class PaymentReceived extends BaseEntity {
     bool? isSynced,
     String? dateTime,
     double? amountPaid,
+    String? reference,
   }) {
     return PaymentReceived(
       id: id ?? this.id,
@@ -139,6 +145,7 @@ class PaymentReceived extends BaseEntity {
       isSynced: isSynced ?? this.isSynced,
       dateTime: dateTime ?? this.dateTime,
       amountPaid: amountPaid ?? this.amountPaid,
+      reference: reference ?? this.reference,
     );
   }
 }

@@ -1,11 +1,13 @@
 import 'dart:convert';
 
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_constants/app_constants.dart';
 import '../model/mobile_shift_currency_amount.dart';
 import '../model/mobile_pos_shift.dart';
 import '../model/user.dart';
+import '../model/sale.dart'; // Import the Sale model
 import 'base_http_client.dart';
 
 class MobilePosShiftService {
@@ -44,6 +46,23 @@ class MobilePosShiftService {
 
   Future<List<MobilePosShift>> getShiftsByUserId(String userId) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    // 1. Try to load from cache first
+    final List<String>? cachedShiftsJson = prefs.getStringList(AppConstants.keyCachedPastShifts);
+    if (cachedShiftsJson != null && cachedShiftsJson.isNotEmpty) {
+      try {
+        final List<MobilePosShift> cachedShifts = cachedShiftsJson
+            .map((jsonString) => MobilePosShift.fromJson(jsonDecode(jsonString)))
+            .toList();
+        print('Loaded shifts from cache.');
+        return cachedShifts;
+      } catch (e) {
+        print('Error decoding cached shifts: $e. Fetching from API.');
+        // If cached data is corrupted, proceed to fetch from API
+      }
+    }
+
+    // 2. If not in cache or cache is corrupted, fetch from API
     final String? userData = prefs.getString(AppConstants.keyOnlineUserData);
 
     if (userData == null) throw Exception('User not logged in');
@@ -60,10 +79,10 @@ class MobilePosShiftService {
     final List<dynamic> data = jsonDecode(responseStr);
     final List<MobilePosShift> shifts = data.map((e) => MobilePosShift.fromJson(e)).toList();
 
-    // Optionally, save these shifts to local storage if needed for offline access
-    // Example:
-    // final List<String> shiftStrings = shifts.map((s) => jsonEncode(s.toJson())).toList();
-    // await prefs.setStringList('past_shifts_$userId', shiftStrings);
+    // 3. Save fetched shifts to cache for future use
+    final List<String> shiftStrings = shifts.map((s) => jsonEncode(s.toJson())).toList();
+    await prefs.setStringList(AppConstants.keyCachedPastShifts, shiftStrings);
+    print('Fetched shifts from API and saved to cache.');
 
     return shifts;
   }
@@ -210,5 +229,66 @@ class MobilePosShiftService {
     }
 
     return updatedShift;
+  }
+
+  Future<void> recordSaleReversalActivity(Sale reversedSale, MobilePosShift currentShift) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
+
+    if (currentShift.shiftCurrencyAmounts == null) {
+      currentShift.shiftCurrencyAmounts = [];
+    }
+
+    // Find original SALE activities related to this reversed sale
+    // We assume that when a sale is recorded as a shift activity, its posReference (from the sale)
+    // is used for the posReference of the MobileShiftCurrencyAmount.
+    final List<MobileShiftCurrencyAmount> originalSaleActivities = currentShift.shiftCurrencyAmounts!
+        .where((activity) =>
+            activity.amountType == 'SALE' &&
+            (activity.posReference == reversedSale.posReference || activity.posReference == reversedSale.id))
+        .toList();
+
+    if (originalSaleActivities.isEmpty) {
+      print('No original SALE activities found in current shift for reversed sale: ${reversedSale.posReference ?? reversedSale.id}');
+      // If no matching activities are found, we can't create specific reversals.
+      // Depending on requirements, a generic reversal could be added here,
+      // but for now, we'll just log and return.
+      return;
+    }
+
+    for (var originalActivity in originalSaleActivities) {
+      final MobileShiftCurrencyAmount reversalActivity = MobileShiftCurrencyAmount(
+        id:null,
+        active: true,
+        amount: -originalActivity.amount, // Negative amount to reverse the original activity
+        currency: originalActivity.currency,
+        amountType: originalActivity.amountType, // Keep the same amountType ('SALE')
+        notes: 'Reversal of Sale: ${reversedSale.posReference ?? reversedSale.id} - ${originalActivity.notes ?? ''}',
+        timeCreated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
+        shiftReference: currentShift.shiftReference,
+        isCash: originalActivity.isCash, // Keep the same cash status
+        ref: 'REV_${originalActivity.ref ?? originalActivity.posReference}_${DateTime.now().millisecondsSinceEpoch}',
+        posReference: 'REV_POS_${originalActivity.posReference ?? originalActivity.ref}_${DateTime.now().millisecondsSinceEpoch}',
+        paymentType: originalActivity.paymentType, // Keep the same payment type
+      );
+      currentShift.shiftCurrencyAmounts!.add(reversalActivity);
+    }
+
+    // Persist the updated shift
+    if (isOfflineMode) {
+      await prefs.setString(AppConstants.keyCurrentOpenShift, currentShift.toJson());
+      print('Shift updated locally with sale reversal activity.');
+    } else {
+      try {
+        final updatedShift = await updateShift(currentShift);
+        await prefs.setString(AppConstants.keyCurrentOpenShift, updatedShift.toJson());
+        print('Shift updated on server and locally with sale reversal activity.');
+      } catch (e) {
+        print('Failed to update shift on server with sale reversal activity: $e');
+        // If online update fails, save locally as a fallback to ensure consistency for the user
+        await prefs.setString(AppConstants.keyCurrentOpenShift, currentShift.toJson());
+        print('Shift updated locally as a fallback.');
+      }
+    }
   }
 }

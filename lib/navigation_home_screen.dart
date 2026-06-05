@@ -2,18 +2,18 @@ import 'package:vimbika_pro/app_constants/app_constants.dart';
 import 'package:vimbika_pro/app_constants/app_theme.dart';
 import 'package:vimbika_pro/custom_drawer/drawer_user_controller.dart';
 import 'package:vimbika_pro/custom_drawer/home_drawer.dart';
+import 'package:vimbika_pro/reports_screen.dart';
 import 'package:vimbika_pro/screens/offline/settings/feedback_screen.dart';
 import 'package:vimbika_pro/screens/offline/settings/help_screen.dart';
 import 'package:vimbika_pro/home_screen.dart';
 import 'package:vimbika_pro/screens/offline/settings/invite_friend_screen.dart';
 import 'package:vimbika_pro/screens/offline/settings/settings_screen.dart';
-import 'package:vimbika_pro/customer/customer_management_screen.dart';
+import 'package:vimbika_pro/customer/customer_list_screen.dart';
 import 'package:vimbika_pro/supplier/supplier_management_screen.dart';
 import 'package:vimbika_pro/sales/sales_screen.dart';
 import 'package:vimbika_pro/POS/pos_screen.dart';
 import 'package:vimbika_pro/purchases_screen.dart';
 import 'package:vimbika_pro/expenses_screen.dart';
-import 'package:vimbika_pro/reports_screen.dart';
 import 'package:vimbika_pro/screens/online/online_reports_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -65,6 +65,7 @@ class _NavigationHomeScreenState extends State<NavigationHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print('Current drawerIndex: $drawerIndex'); // Debug print
     return ChangeNotifierProvider(
       create: (context) => NavigationProvider(changeIndex),
       child: Container(
@@ -155,7 +156,7 @@ class _NavigationHomeScreenState extends State<NavigationHomeScreen> {
           break;
         case DrawerIndex.customers:
           setState(() {
-            screenView = const CustomerManagementScreen();
+            screenView = const CustomerListScreen();
           });
           break;
         case DrawerIndex.suppliers:

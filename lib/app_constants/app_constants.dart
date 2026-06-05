@@ -67,6 +67,7 @@ class AppConstants {
   static const String keyCurrentOpenShift = 'current_open_shift'; // Added this
   static const String keyHeldSales = 'held_sales'; // Added for holding sales
   static const String keyUnsyncedReceivedPayments = 'unsynced_received_payments'; // Added for unsynced received payments
+  static const String keyCachedPastShifts = 'cached_past_shifts'; // Added for caching past shifts
   // Application Settings
   static const String keyAllowOutOfStockSales = 'allow_out_of_stock_sales';
   static const String keyIsOfflineMode = 'is_offline_mode';

@@ -240,7 +240,7 @@ class CustomerController extends ChangeNotifier {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final Branch? defaultBranch = await _getDefaultBranch();
-      final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
+      // final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false; // No longer needed directly here
       
       final newPayment = PaymentReceived(
         paymentType: selectedPaymentType,
@@ -342,15 +342,9 @@ class CustomerController extends ChangeNotifier {
       // by saving locally if the sync fails, but we can also just rely on it.
       final savedPayment = await _paymentsService.savePaymentReceived(newPayment);
       
-      if (!isOfflineMode) {
-         // We are online. Delegate directly to the service to handle the API call.
-         // Wait a tiny bit just in case we need the local customer save to finish
-        // Refresh customer list from API to get updated balance if we successfully synced.
-        // Even if we fail, local is updated, but syncCustomers will fetch from API and overwrite local.
-        // It's probably better to call _startPeriodicSyncCheck here and let background sync handle it,
-        // but if we want instant feedback, we can call syncCustomers.
-        await syncCustomers(); 
-      }
+      // Trigger the periodic sync check to attempt syncing the new payment
+      // immediately if online, or queue it for later if offline.
+      _startPeriodicSyncCheck();
 
       final MobilePosShift? currentShift = await _getCurrentShift();
       if (currentShift != null && !(currentShift.isShiftClosed ?? true)) {

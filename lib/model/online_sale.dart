@@ -54,7 +54,7 @@ class OnlineSale {
   final bool? isWalkInCustomer;
   final String? ticketName;
   final String? ticketComment;
-  final String? totalQuantity;
+  final double? totalQuantity;
   final String? amtToAcc;
 
   // Added for compatibility with existing UI
@@ -172,7 +172,7 @@ class OnlineSale {
       isWalkInCustomer: json['isWalkInCustomer'],
       ticketName: json['ticketName']?.toString(),
       ticketComment: json['ticketComment']?.toString(),
-      totalQuantity: json['totalQuantity']?.toString(),
+      totalQuantity: parseDouble(json['totalQuantity']),
       amtToAcc: json['amtToAcc']?.toString(),
     );
   }

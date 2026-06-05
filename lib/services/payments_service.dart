@@ -200,7 +200,12 @@ class PaymentsService {
           companyId,
           'POST',
         );
-        return PaymentReceived.fromJson(jsonDecode(responseStr));
+        final Map<String, dynamic> responseData = jsonDecode(responseStr);
+        if (responseData.containsKey('item')) {
+          return PaymentReceived.fromJson(responseData['item']);
+        } else {
+          throw Exception('Invalid response format: "item" key not found.');
+        }
       } on SocketException catch (e) {
         debugPrint('SocketException during savePaymentReceived: $e. Saving locally.');
         return await savePaymentReceivedLocally(payment);
@@ -296,17 +301,22 @@ class PaymentsService {
 
     try {
       final String jsonPayment = jsonEncode(payment.toJson());
-      await _client.postAuthWithCompanyHeader( // Removed unused variable assignment
+      final String responseStr = await _client.postAuthWithCompanyHeader( // Removed unused variable assignment
         '/payments/received/receive-payment',
         jsonPayment,
         companyId,
         'POST',
       );
-      
-      // If successful, remove from local unsynced list
-      await removeUnsyncedReceivedPaymentLocally(payment.id!);
-      debugPrint('Payment ${payment.id} synced successfully.');
-      return true;
+      final Map<String, dynamic> responseData = jsonDecode(responseStr);
+      if (responseData.containsKey('item')) {
+        // If successful, remove from local unsynced list
+        await removeUnsyncedReceivedPaymentLocally(payment.id!);
+        debugPrint('Payment ${payment.id} synced successfully.');
+        return true;
+      } else {
+        debugPrint('Invalid response format during syncReceivedPayment: "item" key not found.');
+        return false;
+      }
     } on SocketException catch (e) {
       debugPrint('SocketException during syncReceivedPayment for ${payment.id}: $e');
       return false;

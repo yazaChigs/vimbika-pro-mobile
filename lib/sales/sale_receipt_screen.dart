@@ -133,7 +133,7 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           const Text('RECEIPT #', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
-                          Text(widget.sale.id?.substring(0, 8).toUpperCase() ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text(widget.sale.referenceNumber?? widget.sale.posReference!, style: const TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ],

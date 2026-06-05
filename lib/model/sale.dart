@@ -55,7 +55,7 @@ class Sale extends BaseEntity {
   final bool? isWalkInCustomer;
   final String? ticketName;
   final String? ticketComment;
-  final String? totalQuantity;
+  final double? totalQuantity;
   final String? amtToAcc;
 
 
@@ -173,7 +173,7 @@ class Sale extends BaseEntity {
     bool? isWalkInCustomer,
     String? ticketName,
     String? ticketComment,
-    String? totalQuantity,
+    double? totalQuantity,
     String? amtToAcc,
   }) {
     return Sale(
@@ -299,7 +299,7 @@ class Sale extends BaseEntity {
       isWalkInCustomer: json['isWalkInCustomer'] as bool?,
       ticketName: json['ticketName']?.toString(),
       ticketComment: json['ticketComment']?.toString(),
-      totalQuantity: json['totalQuantity']?.toString(),
+      totalQuantity: parseDouble(json['totalQuantity']),
       amtToAcc: json['amtToAcc']?.toString(),
     );
   }

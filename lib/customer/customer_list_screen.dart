@@ -13,14 +13,14 @@ import 'customer_statement_screen.dart'; // Import the new controller
 import '../custom_drawer/home_drawer.dart'; // Import DrawerIndex
 import '../navigation_home_screen.dart'; // Import NavigationProvider
 
-class CustomerManagementScreen extends StatefulWidget {
-  const CustomerManagementScreen({super.key});
+class CustomerListScreen extends StatefulWidget {
+  const CustomerListScreen({super.key});
 
   @override
-  State<CustomerManagementScreen> createState() => _CustomerManagementScreenState();
+  State<CustomerListScreen> createState() => _CustomerListScreenState();
 }
 
-class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
+class _CustomerListScreenState extends State<CustomerListScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -151,6 +151,10 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                             SnackBar(content: Text(isDeposit ? 'Deposit added successfully' : 'Balance added successfully'), backgroundColor: Colors.green),
                           );
                           Navigator.pop(dialogContext); // Close the dialog
+                          print(payment.reference);
+                          print(payment.payer!.name);
+                          print(payment.amount);
+                          print(payment.paymentType!.name);
                           navigator.push(
                             MaterialPageRoute(
                               builder: (context) => PaymentReceiptScreen(payment: payment),
@@ -253,11 +257,11 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
               tooltip: 'Add Balance',
               onPressed: () => _showAddBalanceDialog(context, customer, isDeposit: false),
             ),
-            IconButton(
-              icon: const Icon(Icons.savings_outlined, color: Colors.green),
-              tooltip: 'Add Deposit',
-              onPressed: () => _showAddBalanceDialog(context, customer, isDeposit: true),
-            ),
+            // IconButton(
+            //   icon: const Icon(Icons.savings_outlined, color: Colors.green),
+            //   tooltip: 'Add Deposit',
+            //   onPressed: () => _showAddBalanceDialog(context, customer, isDeposit: true),
+            // ),
             IconButton(
               icon: const Icon(Icons.edit_outlined, color: AppTheme.grey),
               onPressed: () async {
