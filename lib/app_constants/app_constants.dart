@@ -1,11 +1,11 @@
 class AppConstants {
   static const String appName = 'Vimbika Lite';
-  static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
+  // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
   // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.africa/vimbika-africa/api";
   // static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
   // static const VIMBIKA_BACKEND_URL = "https://mashwede.vimbika.africa/mashwede/api";
   //     static const VIMBIKA_BACKEND_URL = "http://192.168.1.99:8080/vimbika-pro/api";
-  //         static const VIMBIKA_BACKEND_URL = "http://192.168.1.148:8080/vimbika-pro/api";
+          static const VIMBIKA_BACKEND_URL = "http://192.168.1.148:8080/vimbika-pro/api";
   // static const VIMBIKA_BACKEND_URL = "http://172.20.10.12:8080/vimbika-pro/api";
   static const int defaultTimeout = 30000;
   static const CACHED_ACCESS_TOKEN = "CACHED_ACCESS_TOKEN";
