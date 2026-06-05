@@ -79,5 +79,7 @@ class AppConstants {
   static const String keyPrinterMacAddress = 'printer_mac_address';
   static const String keyPrinterName = 'printer_name';
   static const String keyAlwaysPrintReceipt = 'always_print_receipt'; // Added for printer settings
-  static const String keyNumberOfReceiptsPerSale = 'number_of_receipts_per_sale'; // Added for number of receipts
+  static const String keyNumberOfReceiptsPerSale = 'number_of_receipts_per_sale';
+
+  static String get keyUsbPrinterDevice => 'usb_printer_device'; // Added for number of receipts
 }

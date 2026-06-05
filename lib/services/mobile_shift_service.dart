@@ -87,6 +87,24 @@ class MobilePosShiftService {
     return shifts;
   }
 
+  Future<Map<String, dynamic>> getOpenShift(String userId) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? userData = prefs.getString(AppConstants.keyOnlineUserData);
+
+    if (userData == null) throw Exception('User not logged in');
+    final user = User.fromJson(jsonDecode(userData));
+
+    final String? companyId = user.branch?.company?.id;
+    if (companyId == null) throw Exception('Company ID not found for user');
+
+    final String responseStr = await _client.getAuthWithCompanyHeader(
+      '/mobile/pos/shift/opened_shift/$userId',
+      companyId,
+    );
+
+    return jsonDecode(responseStr);
+  }
+
   Future<MobilePosShift> createShiftOfflineFirst(MobilePosShift shift) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 

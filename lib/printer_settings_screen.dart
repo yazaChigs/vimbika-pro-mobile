@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import 'package:vimbika_pro/services/printer_service.dart';
 import 'app_constants/app_theme.dart';
+import 'package:flutter_pos_printer_platform_image_3/flutter_pos_printer_platform_image_3.dart' hide BluetoothPrinterDevice; // Hide to avoid collision
 
 class PrinterSettingsScreen extends StatefulWidget {
   @override
@@ -11,7 +11,8 @@ class PrinterSettingsScreen extends StatefulWidget {
 class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
   final PrinterService _printerService = PrinterService();
   bool _isLoading = false;
-  List<BluetoothDevice> _bluetoothDevices = [];
+  List<BluetoothPrinterDeviceModel> _bluetoothDevices = [];
+  List<UsbPrinterDevice> _usbDevices = []; // List to hold discovered USB devices
   bool _alwaysPrintReceipt = true; // Initial state for the UI
   int _numberOfReceiptsPerSale = 1; // Added for the new setting
   final TextEditingController _receiptCountController = TextEditingController(); // Controller for the text field
@@ -32,6 +33,8 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
       _isLoading = false;
       if (_printerService.printerType == PrinterTypes.bluetooth) {
         _getBondedBluetoothDevices();
+      } else if (_printerService.printerType == PrinterTypes.usb) {
+        _getUsbDevices();
       }
     });
   }
@@ -39,14 +42,32 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
   Future<void> _getBondedBluetoothDevices() async {
     setState(() => _isLoading = true);
     try {
-      List<BluetoothDevice> devices = await BlueThermalPrinter.instance.getBondedDevices();
+      // The PrinterService now handles discovery.
+      await _printerService.init(); 
       setState(() {
-        _bluetoothDevices = devices;
+        _bluetoothDevices = _printerService.bluetoothDevices;
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      _showSnackBar('Error fetching devices: $e');
+      _showSnackBar('Error fetching Bluetooth devices: $e');
+    }
+  }
+
+  Future<void> _getUsbDevices() async {
+    setState(() => _isLoading = true);
+    try {
+      _usbDevices.clear(); // Clear previous list
+      // The PrinterService already handles discovery and updates its internal list.
+      // We just need to trigger it and then get the updated list.
+      await _printerService.init(); // Re-initialize to trigger discovery if not already running
+      setState(() {
+        _usbDevices = _printerService.usbDevices;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showSnackBar('Error fetching USB devices: $e');
     }
   }
 
@@ -56,6 +77,8 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
       setState(() {});
       if (type == PrinterTypes.bluetooth) {
         _getBondedBluetoothDevices();
+      } else if (type == PrinterTypes.usb) {
+        _getUsbDevices();
       }
     }
   }
@@ -85,7 +108,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
     }
   }
 
-  void _connectBluetooth(BluetoothDevice device) async {
+  void _connectBluetooth(BluetoothPrinterDeviceModel device) async {
     setState(() => _isLoading = true);
     try {
       await _printerService.setSelectedBluetoothDevice(device);
@@ -97,7 +120,19 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
     }
   }
 
-  void _disconnectBluetooth() async {
+  void _connectUsb(UsbPrinterDevice device) async {
+    setState(() => _isLoading = true);
+    try {
+      await _printerService.setSelectedUsbDevice(device);
+      _showSnackBar('Connected to ${device.name ?? 'USB Printer'}');
+    } catch (e) {
+      _showSnackBar('Connection failed: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _disconnectPrinter() async {
     setState(() => _isLoading = true);
     await _printerService.disconnect();
     setState(() => _isLoading = false);
@@ -173,6 +208,12 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                             groupValue: printerType,
                             onChanged: _onPrinterTypeChanged,
                           ),
+                          RadioListTile<PrinterTypes>(
+                            title: const Text('USB Printer (Windows/Android)'),
+                            value: PrinterTypes.usb,
+                            groupValue: printerType,
+                            onChanged: _onPrinterTypeChanged,
+                          ),
                         ],
                       ),
                     ),
@@ -219,6 +260,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                   SizedBox(height: 16),
                   if (printerType == PrinterTypes.bluetooth) _buildBluetoothSettings(),
                   if (printerType == PrinterTypes.sunmi) _buildSunmiSettings(),
+                  if (printerType == PrinterTypes.usb) _buildUsbSettings(),
                   
                   if (connected) ...[
                     Padding(
@@ -231,6 +273,18 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                           padding: EdgeInsets.symmetric(vertical: 16),
                         ),
                         child: Text('Print Test Page', style: TextStyle(fontSize: 16)),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: ElevatedButton(
+                        onPressed: _disconnectPrinter,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: AppTheme.white,
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: Text('Disconnect Printer', style: TextStyle(fontSize: 16)),
                       ),
                     ),
                   ],
@@ -277,15 +331,6 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                     : null,
               ),
             )),
-        if (connected)
-          Padding(
-            padding: const EdgeInsets.only(top: 16.0),
-            child: ElevatedButton(
-              onPressed: _disconnectBluetooth,
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-              child: Text('Disconnect'),
-            ),
-          ),
       ],
     );
   }
@@ -310,6 +355,49 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildUsbSettings() {
+    final selectedDevice = _printerService.selectedUsbDevice;
+    final connected = _printerService.isConnected;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (selectedDevice != null)
+          Card(
+            elevation: 2,
+            child: ListTile(
+              title: Text(selectedDevice.name ?? 'Unknown USB Device'),
+              subtitle: Text('Vendor ID: ${selectedDevice.vendorId}, Product ID: ${selectedDevice.productId}'),
+              trailing: connected
+                  ? Icon(Icons.check_circle, color: Colors.green)
+                  : Icon(Icons.cancel, color: Colors.red),
+            ),
+          ),
+        SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: _getUsbDevices,
+          child: Text('Refresh USB Devices'),
+        ),
+        SizedBox(height: 16),
+        Text('Available USB Devices:', style: Theme.of(context).textTheme.titleMedium),
+        SizedBox(height: 8),
+        ..._usbDevices.map((device) => Card(
+              elevation: 1,
+              child: ListTile(
+                title: Text(device.name ?? 'Unknown USB Device'),
+                subtitle: Text('Vendor ID: ${device.vendorId}, Product ID: ${device.productId}'),
+                onTap: () => _connectUsb(device),
+                trailing: selectedDevice?.vendorId == device.vendorId &&
+                          selectedDevice?.productId == device.productId &&
+                          connected
+                    ? Icon(Icons.check, color: Colors.green)
+                    : null,
+              ),
+            )),
+      ],
     );
   }
 }

@@ -42,7 +42,7 @@ dependencies:
     connectivity_plus: ^6.0.3 # Added for network connectivity check
     collection: ^1.18.0 # Added for collection utilities
     uuid: ^4.0.0 # Added for generating unique IDs
-    image: ^4.2.0 # Added for image processing
+    image: ^3.3.0 # Added for image processing
     image_picker: ^1.1.2 # Added for profile picture upload
     file_picker: ^8.0.0+1
     share_plus: ^10.1.0
@@ -50,7 +50,8 @@ dependencies:
     blue_thermal_printer: ^1.2.3
     sunmi_printer_plus: ^3.0.1
     qr_flutter: ^4.0.0
-
+    flutter_pos_printer_platform_image_3: ^1.0.0 # Changed to flutter_pos_printer_platform_image_3
+    esc_pos_utils_plus: ^2.0.0 # Added for ESC/POS command generation
 
 dependency_overrides:
   archive: ^3.4.9

@@ -187,43 +187,99 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
 
     try {
       final shiftService = MobilePosShiftService();
-      
-      final newShift = MobilePosShift(
-        userId: widget.user.id,
-        company: BaseNameModel(id: _selectedCompany?.id,name: _selectedCompany?.name),
-        shiftReference: 'SF${DateTime.now().millisecondsSinceEpoch}',
-        openingTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
-        isShiftClosed: false,
-        userFullName: '${widget.user.firstName ?? ''} ${widget.user.lastName ?? ''}'.trim(),
-        synced: false,
-        stopSync: false,
-        active: true
-      );
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
 
-      await shiftService.createShift(newShift);
+      // 1. Check for an existing open shift
+      final openShiftResponse = await shiftService.getOpenShift(widget.user.id!);
+      final bool isShiftAvailable = openShiftResponse['available'] ?? false;
 
-      // Download all default data
-      try {
-        final defaultDataService = DefaultDataService();
-        await defaultDataService.fetchAndSaveDefaultData(widget.user);
-      } catch (e) {
-        debugPrint("Error fetching default data: $e");
-        // We probably don't want to stop them if it fails, or maybe we do?
-        // Let's just log it and proceed for now.
+      if (isShiftAvailable) {
+        final MobilePosShift existingShift = MobilePosShift.fromJson(openShiftResponse['item']);
+        final DateTime openingDateTime = DateFormat(AppConstants.APP_DATE_TIME_FMT).parse(existingShift.openingTime!);
+        final bool isSameDay = openingDateTime.year == DateTime.now().year &&
+                               openingDateTime.month == DateTime.now().month &&
+                               openingDateTime.day == DateTime.now().day;
+
+        if (isSameDay) {
+          // Prompt to log into existing shift
+          await showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Open Shift Found'),
+                content: const Text('An open shift from today was found. Do you want to continue with it?'),
+                actions: <Widget>[
+                  TextButton(
+                    onPressed: () async {
+                      await prefs.setString(AppConstants.keyCurrentOpenShift, existingShift.toJson());
+                      if (mounted) {
+                        Navigator.of(context).pop(); // Close dialog
+                        _navigateToHomeScreen();
+                      }
+                    },
+                    child: const Text('Continue with Shift'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Close dialog
+                      // User chose not to continue, stay on this screen or handle as needed
+                      setState(() { _isLoading = false; });
+                    },
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              );
+            },
+          );
+          return; // Exit if user chose to continue with existing shift or cancelled
+        } else {
+          // Prompt to close previous day's shift
+          await showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Previous Day\'s Shift Found'),
+                content: const Text('An open shift from a previous day was found. Please close it to continue.'),
+                actions: <Widget>[
+                  TextButton(
+                    onPressed: () async {
+                      // Close the existing shift
+                      existingShift.closingTime = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
+                      existingShift.isShiftClosed = true;
+                      await shiftService.updateShift(existingShift);
+                      if (mounted) {
+                        Navigator.of(context).pop(); // Close dialog
+                        // After closing, proceed to create a new shift
+                        _createNewShiftAndNavigate(shiftService);
+                      }
+                    },
+                    child: const Text('Close Shift and Continue'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Close dialog
+                      // User chose not to close, stay on this screen or handle as needed
+                      setState(() { _isLoading = false; });
+                    },
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              );
+            },
+          );
+          return; // Exit if user chose to close shift or cancelled
+        }
       }
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const OnlineNavigationHomeScreen(isOnline: true)),
-        );
-      }
+      // If no open shift is found, proceed to create a new one
+      _createNewShiftAndNavigate(shiftService);
+
     } catch (e) {
-      debugPrint("Error creating shift: $e");
+      debugPrint("Error in _createShiftAndContinue: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to create shift: $e'),
+            content: Text('Operation failed: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -234,6 +290,54 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _createNewShiftAndNavigate(MobilePosShiftService shiftService) async {
+    if (!mounted) return;
+    try {
+      final newShift = MobilePosShift(
+        userId: widget.user.id,
+        company: BaseNameModel(id: _selectedCompany?.id, name: _selectedCompany?.name),
+        shiftReference: 'SF${DateTime.now().millisecondsSinceEpoch}',
+        openingTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
+        isShiftClosed: false,
+        userFullName: '${widget.user.firstName ?? ''} ${widget.user.lastName ?? ''}'.trim(),
+        synced: false,
+        stopSync: false,
+        active: true,
+      );
+
+      await shiftService.createShift(newShift);
+
+      // Download all default data
+      try {
+        final defaultDataService = DefaultDataService();
+        await defaultDataService.fetchAndSaveDefaultData(widget.user);
+      } catch (e) {
+        debugPrint("Error fetching default data: $e");
+      }
+
+      _navigateToHomeScreen();
+    } catch (e) {
+      debugPrint("Error creating new shift: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create new shift: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _navigateToHomeScreen() {
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const OnlineNavigationHomeScreen(isOnline: true)),
+      );
     }
   }
 

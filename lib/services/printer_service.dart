@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui';
 
-import 'package:blue_thermal_printer/blue_thermal_printer.dart';
+import 'package:blue_thermal_printer/blue_thermal_printer.dart' as bt;
 import 'package:image/image.dart' as img;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,8 +19,78 @@ import 'package:vimbika_pro/model/company.dart'; // Import the Company model
 import 'package:intl/intl.dart';
 import 'package:vimbika_pro/services/default_data_service.dart';
 import 'package:vimbika_pro/model/payment_received.dart';
+import 'package:flutter_pos_printer_platform_image_3/flutter_pos_printer_platform_image_3.dart'; // Import the USB/BT printer plugin
+import 'package:esc_pos_utils_plus/esc_pos_utils.dart'; // Corrected import for Generator, PaperSize, PosStyles etc.
 
-enum PrinterTypes { bluetooth, sunmi }
+enum PrinterTypes { bluetooth, sunmi, usb }
+
+// Class to hold Bluetooth device information
+class BluetoothPrinterDeviceModel {
+  final String? name;
+  final String? address;
+  final bool? isBle;
+  final bool? autoConnect;
+
+  BluetoothPrinterDeviceModel({this.name, this.address, this.isBle = false, this.autoConnect = true});
+
+  // For saving/loading from SharedPreferences
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'address': address,
+        'isBle': isBle,
+        'autoConnect': autoConnect,
+      };
+
+  factory BluetoothPrinterDeviceModel.fromJson(Map<String, dynamic> json) => BluetoothPrinterDeviceModel(
+        name: json['name'] as String?,
+        address: json['address'] as String?,
+        isBle: json['isBle'] as bool? ?? false,
+        autoConnect: json['autoConnect'] as bool? ?? true,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BluetoothPrinterDeviceModel &&
+          runtimeType == other.runtimeType &&
+          address == other.address;
+
+  @override
+  int get hashCode => address.hashCode;
+}
+
+// Class to hold USB device information, similar to BluetoothDevice
+class UsbPrinterDevice {
+  final int? vendorId;
+  final int? productId;
+  final String? name;
+
+  UsbPrinterDevice({this.vendorId, this.productId, this.name});
+
+  // For saving/loading from SharedPreferences
+  Map<String, dynamic> toJson() => {
+        'vendorId': vendorId,
+        'productId': productId,
+        'name': name,
+      };
+
+  factory UsbPrinterDevice.fromJson(Map<String, dynamic> json) => UsbPrinterDevice(
+        vendorId: json['vendorId'] as int?,
+        productId: json['productId'] as int?,
+        name: json['name'] as String?,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UsbPrinterDevice &&
+          runtimeType == other.runtimeType &&
+          vendorId == other.vendorId &&
+          productId == other.productId;
+
+  @override
+  int get hashCode => vendorId.hashCode ^ productId.hashCode;
+}
 
 class PrinterService {
   static final PrinterService _instance = PrinterService._internal();
@@ -32,18 +102,29 @@ class PrinterService {
   PrinterService._internal();
 
   PrinterTypes _printerType = PrinterTypes.bluetooth;
-  BlueThermalPrinter _bluetooth = BlueThermalPrinter.instance;
-  BluetoothDevice? _selectedBluetoothDevice;
+  // Unified Printer Manager from flutter_pos_printer_platform_image_3
+  final PrinterManager _printerManager = PrinterManager.instance;
+  
+  BluetoothPrinterDeviceModel? _selectedBluetoothDevice;
+  final List<BluetoothPrinterDeviceModel> _bluetoothDevices = [];
+  
   bool _isConnected = false;
   bool _sunmiBound = false;
   bool _alwaysPrintReceipt = true; // Changed default to true
   int _numberOfReceiptsPerSale = 1; // Added for the new setting
   bool _waScan = false;
 
+  // USB Printer specific variables
+  UsbPrinterDevice? _selectedUsbDevice;
+  final List<UsbPrinterDevice> _usbDevices = [];
+
   // Getters for current printer status
   PrinterTypes get printerType => _printerType;
   bool get isConnected => _isConnected;
-  BluetoothDevice? get selectedBluetoothDevice => _selectedBluetoothDevice;
+  BluetoothPrinterDeviceModel? get selectedBluetoothDevice => _selectedBluetoothDevice;
+  List<BluetoothPrinterDeviceModel> get bluetoothDevices => _bluetoothDevices;
+  UsbPrinterDevice? get selectedUsbDevice => _selectedUsbDevice;
+  List<UsbPrinterDevice> get usbDevices => _usbDevices;
 
   Future<void> init() async {
     await _loadPrinterSettings();
@@ -63,7 +144,12 @@ class PrinterService {
     final savedBluetoothName = prefs.getString(AppConstants.keyPrinterName);
 
     if (_printerType == PrinterTypes.bluetooth && savedBluetoothAddress != null && savedBluetoothName != null) {
-      _selectedBluetoothDevice = BluetoothDevice(savedBluetoothName, savedBluetoothAddress);
+      _selectedBluetoothDevice = BluetoothPrinterDeviceModel(name: savedBluetoothName, address: savedBluetoothAddress);
+    }
+
+    final savedUsbDeviceJson = prefs.getString(AppConstants.keyUsbPrinterDevice);
+    if (_printerType == PrinterTypes.usb && savedUsbDeviceJson != null) {
+      _selectedUsbDevice = UsbPrinterDevice.fromJson(jsonDecode(savedUsbDeviceJson));
     }
 
     // Load the new settings
@@ -80,12 +166,17 @@ class PrinterService {
   Future<void> _savePrinterSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.keyPrinterType, _printerType.toString());
+
+    // Clear previous printer type settings
+    await prefs.remove(AppConstants.keyPrinterMacAddress);
+    await prefs.remove(AppConstants.keyPrinterName);
+    await prefs.remove(AppConstants.keyUsbPrinterDevice);
+
     if (_printerType == PrinterTypes.bluetooth && _selectedBluetoothDevice != null) {
       await prefs.setString(AppConstants.keyPrinterMacAddress, _selectedBluetoothDevice!.address!);
       await prefs.setString(AppConstants.keyPrinterName, _selectedBluetoothDevice!.name!);
-    } else {
-      await prefs.remove(AppConstants.keyPrinterMacAddress);
-      await prefs.remove(AppConstants.keyPrinterName);
+    } else if (_printerType == PrinterTypes.usb && _selectedUsbDevice != null) {
+      await prefs.setString(AppConstants.keyUsbPrinterDevice, jsonEncode(_selectedUsbDevice!.toJson()));
     }
     // Save the new settings
     await prefs.setBool(AppConstants.keyAlwaysPrintReceipt, _alwaysPrintReceipt);
@@ -97,28 +188,40 @@ class PrinterService {
       await _initBluetooth();
     } else if (_printerType == PrinterTypes.sunmi) {
       await _initSunmi();
+    } else if (_printerType == PrinterTypes.usb) {
+      await _initUsb();
     }
   }
 
   Future<void> _initBluetooth() async {
-    if (Platform.isAndroid || Platform.isIOS) { // Add platform check
-      bool? isAvailable = await _bluetooth.isAvailable;
-      if (isAvailable == true && _selectedBluetoothDevice != null) {
+    if (Platform.isAndroid || Platform.isIOS) {
+      _printerManager.discovery(type: PrinterType.bluetooth).listen((device) {
+        final btDevice = BluetoothPrinterDeviceModel(
+          name: device.name,
+          address: device.address,
+        );
+        if (!_bluetoothDevices.contains(btDevice)) {
+          _bluetoothDevices.add(btDevice);
+        }
+      });
+
+      if (_selectedBluetoothDevice != null) {
         try {
-          _isConnected = (await _bluetooth.isConnected) ?? false;
-          if (!_isConnected) {
-            await _bluetooth.connect(_selectedBluetoothDevice!);
-            _isConnected = true;
-          }
+          _isConnected = await _printerManager.connect(
+            type: PrinterType.bluetooth,
+            model: BluetoothPrinterInput(
+              name: _selectedBluetoothDevice!.name ?? "BT Printer",
+              address: _selectedBluetoothDevice!.address ?? "",
+              isBle: _selectedBluetoothDevice!.isBle ?? false,
+              autoConnect: _selectedBluetoothDevice!.autoConnect ?? true,
+            ),
+          );
         } catch (e) {
           print('Bluetooth auto-connect failed: $e');
           _isConnected = false;
         }
-      } else {
-        _isConnected = false;
       }
     } else {
-      // For unsupported platforms, ensure _isConnected is false
       _isConnected = false;
       print('Bluetooth printing is not supported on this platform.');
     }
@@ -129,6 +232,42 @@ class PrinterService {
     _isConnected = _sunmiBound;
   }
 
+  Future<void> _initUsb() async {
+    if (Platform.isWindows || Platform.isAndroid) {
+      _printerManager.discovery(type: PrinterType.usb).listen((device) {
+        if (device.vendorId != null && device.productId != null) {
+          final usbDevice = UsbPrinterDevice(
+            vendorId: device.vendorId as int?,
+            productId: device.productId as int?,
+            name: device.name,
+          );
+          if (!_usbDevices.contains(usbDevice)) {
+            _usbDevices.add(usbDevice);
+          }
+        }
+      });
+
+      if (_selectedUsbDevice != null) {
+        try {
+          _isConnected = await _printerManager.connect(
+            type: PrinterType.usb,
+            model: UsbPrinterInput(
+              name: _selectedUsbDevice!.name ?? "USB Printer",
+              vendorId: _selectedUsbDevice!.vendorId?.toString() ?? "",
+              productId: _selectedUsbDevice!.productId?.toString() ?? "",
+            ),
+          );
+        } catch (e) {
+          print('USB auto-connect failed: $e');
+          _isConnected = false;
+        }
+      }
+    } else {
+      _isConnected = false;
+      print('USB printing is not supported on this platform.');
+    }
+  }
+
   Future<void> setPrinterType(PrinterTypes type) async {
     if (_printerType == type) return;
 
@@ -136,12 +275,13 @@ class PrinterService {
     _printerType = type;
     _isConnected = false; // Reset connection status
     _selectedBluetoothDevice = null; // Clear selected BT device
+    _selectedUsbDevice = null; // Clear selected USB device
 
     await _savePrinterSettings();
     await init(); // Re-initialize with new type
   }
 
-  Future<void> setSelectedBluetoothDevice(BluetoothDevice device) async {
+  Future<void> setSelectedBluetoothDevice(BluetoothPrinterDeviceModel device) async {
     if (_selectedBluetoothDevice?.address == device.address) return;
 
     await disconnect();
@@ -151,18 +291,64 @@ class PrinterService {
     await init(); // Attempt to connect
   }
 
-  Future<void> connectBluetooth(BluetoothDevice device) async {
+  Future<void> setSelectedUsbDevice(UsbPrinterDevice device) async {
+    if (_selectedUsbDevice?.vendorId == device.vendorId && _selectedUsbDevice?.productId == device.productId) return;
+
+    await disconnect();
+    _selectedUsbDevice = device;
+    _printerType = PrinterTypes.usb; // Ensure type is USB
+    await _savePrinterSettings();
+    await init(); // Attempt to connect
+  }
+
+  Future<void> connectBluetooth(BluetoothPrinterDeviceModel device) async {
     if (!(Platform.isAndroid || Platform.isIOS)) { // Add platform check
       print('Bluetooth printing is not supported on this platform.');
       throw Exception('Bluetooth printing is not supported on this platform.');
     }
     try {
-      await _bluetooth.connect(device);
-      _selectedBluetoothDevice = device;
-      _isConnected = true;
-      await _savePrinterSettings();
+      _isConnected = await _printerManager.connect(
+        type: PrinterType.bluetooth,
+        model: BluetoothPrinterInput(
+          name: device.name ?? "BT Printer",
+          address: device.address ?? "",
+          isBle: device.isBle ?? false,
+          autoConnect: device.autoConnect ?? true,
+        ),
+      );
+      if (_isConnected) {
+        _selectedBluetoothDevice = device;
+        await _savePrinterSettings();
+      }
     } catch (e) {
       print('Bluetooth connection failed: $e');
+      _isConnected = false;
+      rethrow;
+    }
+  }
+
+  Future<void> connectUsb(UsbPrinterDevice device) async {
+    if (!(Platform.isWindows || Platform.isAndroid)) {
+      print('USB printing is not supported on this platform.');
+      throw Exception('USB printing is not supported on this platform.');
+    }
+    try {
+      _isConnected = await _printerManager.connect(
+        type: PrinterType.usb,
+        model: UsbPrinterInput(
+          name: device.name ?? "USB Printer",
+          vendorId: device.vendorId?.toString() ?? "",
+          productId: device.productId?.toString() ?? "",
+        ),
+      );
+      if (_isConnected) {
+        _selectedUsbDevice = device;
+        await _savePrinterSettings();
+      } else {
+        throw Exception('Failed to connect to USB printer.');
+      }
+    } catch (e) {
+      print('USB connection failed: $e');
       _isConnected = false;
       rethrow;
     }
@@ -171,13 +357,16 @@ class PrinterService {
   Future<void> disconnect() async {
     if (_printerType == PrinterTypes.bluetooth && _isConnected) {
       if (Platform.isAndroid || Platform.isIOS) { // Add platform check
-        await _bluetooth.disconnect();
+        await _printerManager.disconnect(type: PrinterType.bluetooth);
       }
       _isConnected = false;
     } else if (_printerType == PrinterTypes.sunmi && _isConnected) {
       // Sunmi doesn't usually require explicit disconnect in this context
       // but we can unbind if necessary, though it's often managed by the system.
       // For now, just update internal state.
+      _isConnected = false;
+    } else if (_printerType == PrinterTypes.usb && _isConnected) {
+      await _printerManager.disconnect(type: PrinterType.usb);
       _isConnected = false;
     }
     // Do not clear saved settings on disconnect, only on type change
@@ -216,6 +405,8 @@ class PrinterService {
           await _printBluetoothReceipt(content);
         } else if (_printerType == PrinterTypes.sunmi) {
           await _printSunmiReceipt(content);
+        } else if (_printerType == PrinterTypes.usb) {
+          await _printUsbReceipt(content);
         }
         if (i < _numberOfReceiptsPerSale - 1) {
           await Future.delayed(const Duration(milliseconds: 500));
@@ -265,6 +456,8 @@ class PrinterService {
           await _printBluetoothSale(sale);
         } else if (_printerType == PrinterTypes.sunmi) {
           await _printSunmiSale(sale);
+        } else if (_printerType == PrinterTypes.usb) {
+          await _printUsbSale(sale);
         }
         if (i < _numberOfReceiptsPerSale - 1) {
           // Add a small delay between prints for multiple copies
@@ -282,75 +475,63 @@ class PrinterService {
       print('Bluetooth printing is not supported on this platform.');
       return;
     }
+    if (_selectedBluetoothDevice == null || !_isConnected) {
+      throw Exception('Bluetooth printer not selected or not connected.');
+    }
+
+    List<int> bytes = [];
+    final profile = await CapabilityProfile.load();
+    final Generator generator = Generator(PaperSize.mm58, profile);
+
     // Get image
     if (sale.company?.id != null) {
       final DefaultDataService defaultDataService = DefaultDataService();
       final File? logoFile = await defaultDataService.getImage(sale.company!.id!);
       if (logoFile != null && await logoFile.exists()) {
         try {
-          // Most BlueThermalPrinter versions use printImage for local file paths.
-          // For thermal printers, adding a clear line and small delay helps avoid buffer issues.
-          // Using printImageBytes can sometimes be more reliable than path if the plugin has issues reading the file.
-           _bluetooth.printNewLine();
-           await Future.delayed(const Duration(milliseconds: 200));
-           Uint8List imageBytes = await logoFile.readAsBytes();
-           
-           try {
-             // Resize and convert to grayscale to ensure compatibility with most thermal printers
-             img.Image? image = img.decodeImage(imageBytes);
-             if (image != null) {
-               // Standard thermal printer width is often 384 pixels for 58mm printers
-               // We resize to 200 to be even safer and ensure it fits well
-               img.Image resized = img.copyResize(image, width: 200);
-               // Convert to grayscale/black and white for better thermal printing
-               img.Image grayscale = img.grayscale(resized);
-               // Use PNG instead of JPG as it's often more reliably decoded by the Android plugin
-               imageBytes = Uint8List.fromList(img.encodePng(grayscale));
-             }
-           } catch (imageError) {
-             print('Error processing image: $imageError');
-             // Fallback to original bytes if processing fails
-           }
-
-           // Use printImageBytes after processing.
-           // Note: printImageBytes decodes the bytes into a Bitmap on Android,
-           // then converts that Bitmap to ESC/POS commands (GS v 0).
-           _bluetooth.printImageBytes(imageBytes); 
-           await Future.delayed(const Duration(milliseconds: 1000));
+          Uint8List imageBytes = await logoFile.readAsBytes();
+          img.Image? image = img.decodeImage(imageBytes);
+          if (image != null) {
+            img.Image resized = img.copyResize(image, width: 200);
+            img.Image grayscale = img.grayscale(resized);
+            imageBytes = Uint8List.fromList(img.encodePng(grayscale));
+            bytes += generator.image(
+              img.decodeImage(imageBytes)!,
+              align: PosAlign.center,
+            );
+            await Future.delayed(const Duration(milliseconds: 500));
+          }
         } catch (e) {
-           print('Could not print BT image $e');
+          print('Could not print BT image $e');
         }
       }
     }
-    _bluetooth.printNewLine();
-    _bluetooth.printCustom(sale.company?.name ?? "Vimbika Pro", 3, 1);
-    await Future.delayed(const Duration(milliseconds: 200));
-    _bluetooth.printCustom(sale.branch?.name ?? "", 1, 1);
-    await Future.delayed(const Duration(milliseconds: 100));
-    _bluetooth.printCustom(sale.branch?.address ?? "", 1, 1);
-    
-    // Add company/branch contact details
+
+    bytes += generator.text(sale.company?.name ?? "Vimbika Pro", styles: PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+    bytes += generator.text(sale.branch?.name ?? "", styles: PosStyles(align: PosAlign.center));
+    bytes += generator.text(sale.branch?.address ?? "", styles: PosStyles(align: PosAlign.center));
+
     if (sale.branch?.phoneNumber != null && sale.branch!.phoneNumber!.isNotEmpty) {
-      _bluetooth.printCustom("Tel: ${sale.branch!.phoneNumber!}", 1, 1);
+      bytes += generator.text("Tel: ${sale.branch!.phoneNumber!}", styles: PosStyles(align: PosAlign.center));
     } else if (sale.company?.phoneNumber != null && sale.company!.phoneNumber!.isNotEmpty) {
-      _bluetooth.printCustom("Tel: ${sale.company!.phoneNumber!}", 1, 1);
+      bytes += generator.text("Tel: ${sale.company!.phoneNumber!}", styles: PosStyles(align: PosAlign.center));
     }
     if (sale.branch?.email != null && sale.branch!.email!.isNotEmpty) {
-      _bluetooth.printCustom("Email: ${sale.branch!.email!}", 1, 1);
+      bytes += generator.text("Email: ${sale.branch!.email!}", styles: PosStyles(align: PosAlign.center));
     } else if (sale.company?.email != null && sale.company!.email!.isNotEmpty) {
-      _bluetooth.printCustom("Email: ${sale.company!.email!}", 1, 1);
+      bytes += generator.text("Email: ${sale.company!.email!}", styles: PosStyles(align: PosAlign.center));
     }
 
-    _bluetooth.printNewLine();
-    _bluetooth.printCustom("Receipt #: ${sale.posReference ?? sale.posReference}", 1, 0);
-    _bluetooth.printCustom("Date: ${sale.timeIniated}", 1, 0);
+    bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
+    bytes += generator.text("Receipt #: ${sale.posReference ?? sale.posReference}", styles: PosStyles(align: PosAlign.left));
+    bytes += generator.text("Date: ${sale.timeIniated}", styles: PosStyles(align: PosAlign.left));
     if (sale.customer != null) {
-      _bluetooth.printCustom("Customer: ${sale.customer!.name}", 1, 0);
+      bytes += generator.text("Customer: ${sale.customer!.name}", styles: PosStyles(align: PosAlign.left));
     }
-    _bluetooth.printCustom("--------------------------------", 1, 1);
-    _bluetooth.printCustom("Item            Qty    Total", 1, 0);
-    _bluetooth.printCustom("--------------------------------", 1, 1);
-    
+    bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
+    bytes += generator.text("Item            Qty    Total", styles: PosStyles(align: PosAlign.left));
+    bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
+
     String symbol = sale.currency?.symbol ?? "";
     num totalItems = 0;
     for (var item in sale.items) {
@@ -358,54 +539,80 @@ class PrinterService {
       String name = (item.inventoryItem?.name ?? "Item").padRight(15).substring(0, 15);
       String qty = item.quantity.toStringAsFixed(0).padLeft(3);
       String total = "$symbol${item.total.toStringAsFixed(2)}".padLeft(10);
-      _bluetooth.printCustom("$name $qty $total", 1, 0);
+      bytes += generator.text("$name $qty $total", styles: PosStyles(align: PosAlign.left));
     }
-    
-    _bluetooth.printCustom("--------------------------------", 1, 1);
-    _bluetooth.printCustom("Total Items: \t $totalItems", 1, 0);
-    _bluetooth.printCustom("Net Amount: \t $symbol${(sale.baseSaleAmount ?? 0.0).toStringAsFixed(2)}", 1, 0);
-    _bluetooth.printCustom("VAT Amount: \t $symbol${(sale.totalTaxAmount ?? 0.0).toStringAsFixed(2)}", 1, 0);
-    _bluetooth.printCustom("TOTAL: $symbol${sale.grandTotal.toStringAsFixed(2)}", 2, 2);
-    _bluetooth.printCustom("--------------------------------", 1, 1);
+
+    bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
+    bytes += generator.text("Total Items: \t $totalItems", styles: PosStyles(align: PosAlign.left));
+    bytes += generator.text("Net Amount: \t $symbol${(sale.baseSaleAmount ?? 0.0).toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+    bytes += generator.text("VAT Amount: \t $symbol${(sale.totalTaxAmount ?? 0.0).toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+    bytes += generator.text("TOTAL: $symbol${sale.grandTotal.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+    bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
 
     // Payment Details
     if (sale.paymentTypes != null && sale.paymentTypes!.isNotEmpty) {
-      _bluetooth.printCustom("Payment Details:", 1, 0);
+      bytes += generator.text("Payment Details:", styles: PosStyles(align: PosAlign.left));
       for (var payment in sale.paymentTypes!) {
-        _bluetooth.printCustom("${payment.paymentType?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", 1, 0);
+        bytes += generator.text("${payment.paymentType?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
       }
-      _bluetooth.printCustom("--------------------------------", 1, 1);
+      bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     }
 
     Currency? cur = sale.currency;
-    // Account Balance (if ACC- payment type is used) - unique to Sunmi, now added to Telpo
     if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty) {
-      _bluetooth.printCustom("Account Balance: ${cur?.symbol ?? ''} ${sale.customer!.currencyBalance!.firstWhere((cb) => cb.currency?.id == cur?.id, orElse: () => sale.customer!.currencyBalance!.first).balance!.toStringAsFixed(2)}",1,0);
-      _bluetooth.printCustom("--------------------------------\n", 1, 1);
+      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${sale.customer!.currencyBalance!.firstWhere((cb) => cb.currency?.id == cur?.id, orElse: () => sale.customer!.currencyBalance!.first).balance!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+      bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     }
 
     // qr code
     if(sale.receiptQrCode != null){
-      _bluetooth.printQRcode(sale.receiptQrCode!, 200, 200, 1);
-      _bluetooth.printCustom("Scan the QR Code above", 1, 1);
-      _bluetooth.printCustom(sale.receiptQrData!, 1, 1);
-      _bluetooth.printCustom("You can verify this receipt manually at ", 1, 1);
-      _bluetooth.printCustom(sale.receiptQrCode!, 1, 1);
+      final qrValidationResult = QrValidator.validate(
+        data: sale.receiptQrCode!,
+        version: QrVersions.auto,
+        errorCorrectionLevel: QrErrorCorrectLevel.L,
+      );
+      if (qrValidationResult.status == QrValidationStatus.valid) {
+        final qrCodeImage = qrValidationResult.qrCode;
+        final painter = QrPainter.withQr(
+          qr: qrCodeImage!,
+          eyeStyle: const QrEyeStyle(
+            eyeShape: QrEyeShape.square,
+            color: Color(0xFF000000),
+          ),
+          dataModuleStyle: const QrDataModuleStyle(
+            dataModuleShape: QrDataModuleShape.square,
+            color: Color(0xFF000000),
+          ),
+          gapless: true,
+        );
+        final picData = await painter.toImageData(200);
+        final img.Image baseSizeImage = img.decodeImage(picData!.buffer.asUint8List())!;
+        final img.Image grayscaleImage = img.grayscale(baseSizeImage);
+        final Uint8List qrImageBytes = Uint8List.fromList(img.encodePng(grayscaleImage));
+
+        bytes += generator.image(
+          img.decodeImage(qrImageBytes)!,
+          align: PosAlign.center,
+        );
+        bytes += generator.text("Scan the QR Code above", styles: PosStyles(align: PosAlign.center));
+        bytes += generator.text(sale.receiptQrData!, styles: PosStyles(align: PosAlign.center));
+        bytes += generator.text("You can verify this receipt manually at ", styles: PosStyles(align: PosAlign.center));
+        bytes += generator.text(sale.receiptQrCode!, styles: PosStyles(align: PosAlign.center));
+      }
     } else if(sale.receiptQrCode==null && _waScan){
       Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
-      _bluetooth.printImageBytes(waImageBytes);
-      _bluetooth.printNewLine();
+      bytes += generator.image(
+        img.decodeImage(waImageBytes)!,
+        align: PosAlign.center,
+      );
     }
 
-    _bluetooth.printNewLine();
-    _bluetooth.printCustom("Thank you for your purchase!", 1, 1);
-    _bluetooth.printNewLine();
-    _bluetooth.printCustom("Powered by Vimbika", 1, 1); // Powered by Vimbika
-    _bluetooth.printNewLine();
-    _bluetooth.printNewLine();
-    await Future.delayed(const Duration(milliseconds: 300));
-    _bluetooth.paperCut();
-    await Future.delayed(const Duration(milliseconds: 500));
+    bytes += generator.text("Thank you for your purchase!", styles: PosStyles(align: PosAlign.center));
+    bytes += generator.text("Powered by Vimbika", styles: PosStyles(align: PosAlign.center));
+    bytes += generator.feed(2);
+    bytes += generator.cut();
+
+    await _printerManager.send(type: PrinterType.bluetooth, bytes: bytes);
   }
 
   Future<void> _printSunmiSale(Sale sale) async {
@@ -529,6 +736,151 @@ class PrinterService {
     await SunmiPrinter.exitTransactionPrint(true);
   }
 
+  Future<void> _printUsbSale(Sale sale) async {
+    if (!(Platform.isWindows || Platform.isAndroid)) {
+      print('USB printing is not supported on this platform.');
+      return;
+    }
+    if (_selectedUsbDevice == null || !_isConnected) {
+      throw Exception('USB printer not selected or not connected.');
+    }
+
+    List<int> bytes = [];
+    final profile = await CapabilityProfile.load();
+    final Generator generator = Generator(PaperSize.mm58, profile);
+
+    // Get image
+    if (sale.company?.id != null) {
+      final DefaultDataService defaultDataService = DefaultDataService();
+      final File? logoFile = await defaultDataService.getImage(sale.company!.id!);
+      if (logoFile != null && await logoFile.exists()) {
+        try {
+          Uint8List imageBytes = await logoFile.readAsBytes();
+          img.Image? image = img.decodeImage(imageBytes);
+          if (image != null) {
+            img.Image resized = img.copyResize(image, width: 200);
+            img.Image grayscale = img.grayscale(resized);
+            imageBytes = Uint8List.fromList(img.encodePng(grayscale));
+            bytes += generator.image(
+              img.decodeImage(imageBytes)!,
+              align: PosAlign.center,
+            );
+            await Future.delayed(const Duration(milliseconds: 1000));
+          }
+        } catch (e) {
+          print('Could not print USB image $e');
+        }
+      }
+    }
+
+    bytes += generator.text(sale.company?.name ?? "Vimbika Pro", styles: PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+    bytes += generator.text(sale.branch?.name ?? "", styles: PosStyles(align: PosAlign.center));
+    bytes += generator.text(sale.branch?.address ?? "", styles: PosStyles(align: PosAlign.center));
+
+    if (sale.branch?.phoneNumber != null && sale.branch!.phoneNumber!.isNotEmpty) {
+      bytes += generator.text("Tel: ${sale.branch!.phoneNumber!}", styles: PosStyles(align: PosAlign.center));
+    } else if (sale.company?.phoneNumber != null && sale.company!.phoneNumber!.isNotEmpty) {
+      bytes += generator.text("Tel: ${sale.company!.phoneNumber!}", styles: PosStyles(align: PosAlign.center));
+    }
+    if (sale.branch?.email != null && sale.branch!.email!.isNotEmpty) {
+      bytes += generator.text("Email: ${sale.branch!.email!}", styles: PosStyles(align: PosAlign.center));
+    } else if (sale.company?.email != null && sale.company!.email!.isNotEmpty) {
+      bytes += generator.text("Email: ${sale.company!.email!}", styles: PosStyles(align: PosAlign.center));
+    }
+
+    bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
+    bytes += generator.text("Receipt #: ${sale.posReference ?? sale.posReference}", styles: PosStyles(align: PosAlign.left));
+    bytes += generator.text("Date: ${sale.timeIniated}", styles: PosStyles(align: PosAlign.left));
+    if (sale.customer != null) {
+      bytes += generator.text("Customer: ${sale.customer!.name}", styles: PosStyles(align: PosAlign.left));
+    }
+    bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
+    bytes += generator.text("Item            Qty    Total", styles: PosStyles(align: PosAlign.left));
+    bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
+    
+    String symbol = sale.currency?.symbol ?? "";
+    num totalItems = 0;
+    for (var item in sale.items) {
+      totalItems += item.quantity;
+      String name = (item.inventoryItem?.name ?? "Item").padRight(15).substring(0, 15);
+      String qty = item.quantity.toStringAsFixed(0).padLeft(3);
+      String total = "$symbol${item.total.toStringAsFixed(2)}".padLeft(10);
+      bytes += generator.text("$name $qty $total", styles: PosStyles(align: PosAlign.left));
+    }
+    
+    bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
+    bytes += generator.text("Total Items: \t $totalItems", styles: PosStyles(align: PosAlign.left));
+    bytes += generator.text("Net Amount: \t $symbol${(sale.baseSaleAmount ?? 0.0).toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+    bytes += generator.text("VAT Amount: \t $symbol${(sale.totalTaxAmount ?? 0.0).toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+    bytes += generator.text("TOTAL: $symbol${sale.grandTotal.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+    bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
+
+    // Payment Details
+    if (sale.paymentTypes != null && sale.paymentTypes!.isNotEmpty) {
+      bytes += generator.text("Payment Details:", styles: PosStyles(align: PosAlign.left));
+      for (var payment in sale.paymentTypes!) {
+        bytes += generator.text("${payment.paymentType?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+      }
+      bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
+    }
+
+    Currency? cur = sale.currency;
+    if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty) {
+      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${sale.customer!.currencyBalance!.firstWhere((cb) => cb.currency?.id == cur?.id, orElse: () => sale.customer!.currencyBalance!.first).balance!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+      bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
+    }
+
+    // qr code
+    if(sale.receiptQrCode != null){
+      final qrValidationResult = QrValidator.validate(
+        data: sale.receiptQrCode!,
+        version: QrVersions.auto,
+        errorCorrectionLevel: QrErrorCorrectLevel.L,
+      );
+      if (qrValidationResult.status == QrValidationStatus.valid) {
+        final qrCodeImage = qrValidationResult.qrCode;
+        final painter = QrPainter.withQr(
+          qr: qrCodeImage!,
+          eyeStyle: const QrEyeStyle(
+            eyeShape: QrEyeShape.square,
+            color: Color(0xFF000000),
+          ),
+          dataModuleStyle: const QrDataModuleStyle(
+            dataModuleShape: QrDataModuleShape.square,
+            color: Color(0xFF000000),
+          ),
+          gapless: true,
+        );
+        final picData = await painter.toImageData(200);
+        final img.Image baseSizeImage = img.decodeImage(picData!.buffer.asUint8List())!;
+        final img.Image grayscaleImage = img.grayscale(baseSizeImage);
+        final Uint8List qrImageBytes = Uint8List.fromList(img.encodePng(grayscaleImage));
+        
+        bytes += generator.image(
+          img.decodeImage(qrImageBytes)!,
+          align: PosAlign.center,
+        );
+        bytes += generator.text("Scan the QR Code above", styles: PosStyles(align: PosAlign.center));
+        bytes += generator.text(sale.receiptQrData!, styles: PosStyles(align: PosAlign.center));
+        bytes += generator.text("You can verify this receipt manually at ", styles: PosStyles(align: PosAlign.center));
+        bytes += generator.text(sale.receiptQrCode!, styles: PosStyles(align: PosAlign.center));
+      }
+    } else if(sale.receiptQrCode==null && _waScan){
+      Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
+      bytes += generator.image(
+        img.decodeImage(waImageBytes)!,
+        align: PosAlign.center,
+      );
+    }
+
+    bytes += generator.text("Thank you for your purchase!", styles: PosStyles(align: PosAlign.center));
+    bytes += generator.text("Powered by Vimbika", styles: PosStyles(align: PosAlign.center));
+    bytes += generator.feed(2);
+    bytes += generator.cut();
+
+    await _printerManager.send(type: PrinterType.usb, bytes: bytes);
+  }
+
   /// Prints a pre-formatted receipt content string to the currently selected printer.
   /// The `receiptContent` should be a string already formatted with line breaks
   /// and any necessary ESC/POS commands for advanced formatting (for Bluetooth printers).
@@ -546,6 +898,8 @@ class PrinterService {
           await _printBluetoothReceipt(receiptContent);
         } else if (_printerType == PrinterTypes.sunmi) {
           await _printSunmiReceipt(receiptContent);
+        } else if (_printerType == PrinterTypes.usb) {
+          await _printUsbReceipt(receiptContent);
         }
         if (i < _numberOfReceiptsPerSale - 1) {
           await Future.delayed(const Duration(milliseconds: 500)); // Small delay between prints
@@ -592,8 +946,14 @@ class PrinterService {
     // final qrImage = img.Image(width: 300, height: 300); // 300x300 QR code image size
     final painter = QrPainter.withQr(
       qr: qrCodeImage!,
-      color: const Color(0xFF000000),
-      emptyColor: const Color(0xFFFFFFFF),
+      eyeStyle: const QrEyeStyle(
+        eyeShape: QrEyeShape.square,
+        color: Color(0xFF000000),
+      ),
+      dataModuleStyle: const QrDataModuleStyle(
+        dataModuleShape: QrDataModuleShape.square,
+        color: Color(0xFF000000),
+      ),
       gapless: true,
     );
 
@@ -639,28 +999,22 @@ class PrinterService {
       print('Bluetooth printing is not supported on this platform.');
       return;
     }
-    await _bluetooth.printNewLine();
-    await Future.delayed(const Duration(milliseconds: 200));
-    
-    // Instead of printing the whole chunk at once (which might cause issues with center alignment
-    // trying to center the block instead of interpreting spaces), print line by line
+    if (_selectedBluetoothDevice == null || !_isConnected) {
+      throw Exception('Bluetooth printer not selected or not connected.');
+    }
+
+    List<int> bytes = [];
+    final profile = await CapabilityProfile.load();
+    final Generator generator = Generator(PaperSize.mm58, profile);
+
     final lines = content.split('\n');
     for (String line in lines) {
-      // If a line is empty, skip printing or print new line,
-      // here we just use printCustom which handles basic strings
-      if (line.isNotEmpty) {
-        // Size 1, Align 0 (Left) to respect the spaces we added for right-alignment
-        await _bluetooth.printCustom(line, 1, 0); 
-      } else {
-        await _bluetooth.printNewLine();
-      }
+      bytes += generator.text(line, styles: PosStyles(align: PosAlign.left));
     }
-    
-    await _bluetooth.printNewLine();
-    await _bluetooth.printNewLine();
-    await Future.delayed(const Duration(milliseconds: 300));
-    await _bluetooth.paperCut();
-    await Future.delayed(const Duration(milliseconds: 500));
+    bytes += generator.feed(2);
+    bytes += generator.cut();
+
+    await _printerManager.send(type: PrinterType.bluetooth, bytes: bytes);
   }
 
   Future<void> _printSunmiReceipt(String content) async {
@@ -679,6 +1033,29 @@ class PrinterService {
     await SunmiPrinter.cut();
     await SunmiPrinter.submitTransactionPrint();
     await SunmiPrinter.exitTransactionPrint(true);
+  }
+
+  Future<void> _printUsbReceipt(String content) async {
+    if (!(Platform.isWindows || Platform.isAndroid)) {
+      print('USB printing is not supported on this platform.');
+      return;
+    }
+    if (_selectedUsbDevice == null || !_isConnected) {
+      throw Exception('USB printer not selected or not connected.');
+    }
+
+    List<int> bytes = [];
+    final profile = await CapabilityProfile.load();
+    final Generator generator = Generator(PaperSize.mm58, profile);
+
+    final lines = content.split('\n');
+    for (String line in lines) {
+      bytes += generator.text(line, styles: PosStyles(align: PosAlign.left));
+    }
+    bytes += generator.feed(2);
+    bytes += generator.cut();
+
+    await _printerManager.send(type: PrinterType.usb, bytes: bytes);
   }
 
   String _formatReceiptContent(Map<String, dynamic> saleData) {
@@ -767,6 +1144,8 @@ class PrinterService {
       await _printBluetoothReceipt(content);
     } else if (_printerType == PrinterTypes.sunmi) {
       await _printSunmiReceipt(content);
+    } else if (_printerType == PrinterTypes.usb) {
+      await _printUsbReceipt(content);
     }
   }
 
@@ -779,6 +1158,8 @@ class PrinterService {
       await _printBluetoothReceipt(content);
     } else if (_printerType == PrinterTypes.sunmi) {
       await _printSunmiReceipt(content);
+    } else if (_printerType == PrinterTypes.usb) {
+      await _printUsbReceipt(content);
     }
   }
 
