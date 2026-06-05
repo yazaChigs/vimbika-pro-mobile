@@ -101,20 +101,26 @@ class PrinterService {
   }
 
   Future<void> _initBluetooth() async {
-    bool? isAvailable = await _bluetooth.isAvailable;
-    if (isAvailable == true && _selectedBluetoothDevice != null) {
-      try {
-        _isConnected = (await _bluetooth.isConnected) ?? false;
-        if (!_isConnected) {
-          await _bluetooth.connect(_selectedBluetoothDevice!);
-          _isConnected = true;
+    if (Platform.isAndroid || Platform.isIOS) { // Add platform check
+      bool? isAvailable = await _bluetooth.isAvailable;
+      if (isAvailable == true && _selectedBluetoothDevice != null) {
+        try {
+          _isConnected = (await _bluetooth.isConnected) ?? false;
+          if (!_isConnected) {
+            await _bluetooth.connect(_selectedBluetoothDevice!);
+            _isConnected = true;
+          }
+        } catch (e) {
+          print('Bluetooth auto-connect failed: $e');
+          _isConnected = false;
         }
-      } catch (e) {
-        print('Bluetooth auto-connect failed: $e');
+      } else {
         _isConnected = false;
       }
     } else {
+      // For unsupported platforms, ensure _isConnected is false
       _isConnected = false;
+      print('Bluetooth printing is not supported on this platform.');
     }
   }
 
@@ -146,6 +152,10 @@ class PrinterService {
   }
 
   Future<void> connectBluetooth(BluetoothDevice device) async {
+    if (!(Platform.isAndroid || Platform.isIOS)) { // Add platform check
+      print('Bluetooth printing is not supported on this platform.');
+      throw Exception('Bluetooth printing is not supported on this platform.');
+    }
     try {
       await _bluetooth.connect(device);
       _selectedBluetoothDevice = device;
@@ -160,7 +170,9 @@ class PrinterService {
 
   Future<void> disconnect() async {
     if (_printerType == PrinterTypes.bluetooth && _isConnected) {
-      await _bluetooth.disconnect();
+      if (Platform.isAndroid || Platform.isIOS) { // Add platform check
+        await _bluetooth.disconnect();
+      }
       _isConnected = false;
     } else if (_printerType == PrinterTypes.sunmi && _isConnected) {
       // Sunmi doesn't usually require explicit disconnect in this context
@@ -266,6 +278,10 @@ class PrinterService {
   }
 
   Future<void> _printBluetoothSale(Sale sale) async {
+    if (!(Platform.isAndroid || Platform.isIOS)) { // Add platform check
+      print('Bluetooth printing is not supported on this platform.');
+      return;
+    }
     // Get image
     if (sale.company?.id != null) {
       final DefaultDataService defaultDataService = DefaultDataService();
@@ -619,6 +635,10 @@ class PrinterService {
   }
 
   Future<void> _printBluetoothReceipt(String content) async {
+    if (!(Platform.isAndroid || Platform.isIOS)) { // Add platform check
+      print('Bluetooth printing is not supported on this platform.');
+      return;
+    }
     await _bluetooth.printNewLine();
     await Future.delayed(const Duration(milliseconds: 200));
     
