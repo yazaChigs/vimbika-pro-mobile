@@ -11,6 +11,7 @@ import 'package:vimbika_pro/model/currency.dart';
 import 'package:vimbika_pro/model/payment_type.dart';
 import 'package:vimbika_pro/model/payment_received.dart';
 import 'package:vimbika_pro/model/sale.dart';
+import 'package:vimbika_pro/model/sale_status.dart';
 import 'package:vimbika_pro/model/customer.dart';
 import 'package:vimbika_pro/model/branch.dart';
 import 'package:vimbika_pro/model/bank.dart';
@@ -662,17 +663,30 @@ class POSScreenController extends ChangeNotifier {
         amountChange: -balanceDueConverted, // Debit from customer account
       ));
 
-      _payments.add(PaymentReceived(
-          amount: balanceDueConverted,
-          paymentType: accountPaymentType,
-          currency: _selectedCurrency,
-          branch: _selectedBranch,
-          paymentDescription: 'SALE',
-          paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
-          dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
-          isMobile: true,
-          bank: _getCorrectBank(accountPaymentType, _selectedCurrency),
-      ));
+      // Check if this payment type already exists
+      final existingPaymentIndex = _payments.indexWhere((p) => p.paymentType?.name == accountPaymentType.name);
+
+      if (existingPaymentIndex != -1) {
+        // Update existing payment
+        final existingPayment = _payments[existingPaymentIndex];
+        _payments[existingPaymentIndex] = existingPayment.copyWith(
+          amount: existingPayment.amount + balanceDueConverted,
+        );
+      } else {
+        // Add new payment
+        _payments.add(PaymentReceived(
+            id: 'local_payment_${DateTime.now().millisecondsSinceEpoch}', // Unique ID
+            amount: balanceDueConverted,
+            paymentType: accountPaymentType,
+            currency: _selectedCurrency,
+            branch: _selectedBranch,
+            paymentDescription: 'SALE',
+            paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
+            dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
+            isMobile: true,
+            bank: _getCorrectBank(accountPaymentType, _selectedCurrency),
+        ));
+      }
       
       notifyListeners();
   }
@@ -700,14 +714,15 @@ class POSScreenController extends ChangeNotifier {
     final List<PaymentType> filteredPaymentTypes = _paymentTypes.where((pt) {
       final bool matchesCurrency = pt.currency == null || pt.currency?.id == _selectedCurrency?.id;
       final bool allowsCreditWithoutCustomer = !pt.isCredit || _selectedCustomer != null;
-      final bool isAlreadySelected = _payments.any((p) => p.paymentType?.id == pt.id); // Check if already selected
+      // Removed the `isAlreadySelected` check here, as we will handle aggregation
+      // instead of preventing selection.
       
       // If cart is empty, only show non-credit payment types
       if (_cart.isEmpty) {
-        return matchesCurrency && allowsCreditWithoutCustomer && !isAlreadySelected && !pt.isCredit;
+        return matchesCurrency && allowsCreditWithoutCustomer && !pt.isCredit;
       }
 
-      return matchesCurrency && allowsCreditWithoutCustomer && !isAlreadySelected;
+      return matchesCurrency && allowsCreditWithoutCustomer;
     }).toList();
 
     bool dialogResult = await showDialog(
@@ -878,41 +893,65 @@ class POSScreenController extends ChangeNotifier {
 
                 // Add payment for the sale
                 if(paymentForSale > 0) {
-                  _payments.add(PaymentReceived(
-                    id: _payments.length.toString(),
-                    amount: paymentForSale, // Use paymentForSale here
-                    paymentType: selectedPaymentType,
-                    currency: _selectedCurrency,
-                    branch: _selectedBranch,
-                    payer: _selectedCustomer,
-                    paymentDescription: _cart.isEmpty ? 'ACCOUNT_TOP_UP' : 'SALE',
-                    paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
-                    dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
-                    isMobile: true,
-                    bank: _getCorrectBank(selectedPaymentType, _selectedCurrency),
-                  ));
+                  // Check if this payment type already exists
+                  final existingPaymentIndex = _payments.indexWhere((p) => p.paymentType?.name == selectedPaymentType?.name);
+
+                  if (existingPaymentIndex != -1) {
+                    // Update existing payment
+                    final existingPayment = _payments[existingPaymentIndex];
+                    _payments[existingPaymentIndex] = existingPayment.copyWith(
+                      amount: existingPayment.amount + paymentForSale,
+                    );
+                  } else {
+                    // Add new payment
+                    _payments.add(PaymentReceived(
+                      id: 'local_payment_${DateTime.now().millisecondsSinceEpoch}', // Unique ID
+                      amount: paymentForSale, // Use paymentForSale here
+                      paymentType: selectedPaymentType,
+                      currency: _selectedCurrency,
+                      branch: _selectedBranch,
+                      payer: _selectedCustomer,
+                      paymentDescription: _cart.isEmpty ? 'ACCOUNT_TOP_UP' : 'SALE',
+                      paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
+                      dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
+                      isMobile: true,
+                      bank: _getCorrectBank(selectedPaymentType, _selectedCurrency),
+                    ));
+                  }
                 }
 
 
-                print('amountToCreditCustomer: $amountToCreditCustomer');
+                print('amountToCreditCustomer: ${_payments.first.toJson()}');
                 // We DO NOT save payments to the shift here to avoid duplicates.
                 // We track account credits separately to be processed in completeSale.
                 if (amountToCreditCustomer > 0) {
-                  final MobileShiftCurrencyAmount accountCreditShiftAmount = MobileShiftCurrencyAmount(
-                    id:null,
-                    timeCreated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
-                    active: true,
-                    currency: _selectedCurrency!,
-                    amount: amountToCreditCustomer,
-                    notes: _cart.isEmpty ? 'Account top up' : 'Change added to customer account',
-                    amountType: 'ACCOUNT_TOP_UP', // Recorded as Cash In
-                    ref: 'CA_${DateTime.now().millisecondsSinceEpoch}',
-                    posReference: null, // Will be set in completeSale
-                    shiftReference: null, // Will be set in completeSale
-                    isCash: selectedPaymentType?.isCash == true || (selectedPaymentType?.name.toLowerCase().startsWith('cash') ?? false),
-                    paymentType: selectedPaymentType!.name,
-                  );
-                  _pendingAccountCredits.add(accountCreditShiftAmount);
+                  // Check if this account credit type already exists
+                  final existingAccountCreditIndex = _pendingAccountCredits.indexWhere((ac) => ac.paymentType == selectedPaymentType?.name);
+
+                  if (existingAccountCreditIndex != -1) {
+                    // Update existing account credit
+                    final existingAccountCredit = _pendingAccountCredits[existingAccountCreditIndex];
+                    _pendingAccountCredits[existingAccountCreditIndex] = existingAccountCredit.copyWith(
+                      amount: existingAccountCredit.amount + amountToCreditCustomer,
+                    );
+                  } else {
+                    // Add new account credit
+                    final MobileShiftCurrencyAmount accountCreditShiftAmount = MobileShiftCurrencyAmount(
+                      id:null,
+                      timeCreated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
+                      active: true,
+                      currency: _selectedCurrency!,
+                      amount: amountToCreditCustomer,
+                      notes: _cart.isEmpty ? 'Account top up' : 'Change added to customer account',
+                      amountType: 'ACCOUNT_TOP_UP', // Recorded as Cash In
+                      ref: 'CA_${DateTime.now().millisecondsSinceEpoch}',
+                      posReference: null, // Will be set in completeSale
+                      shiftReference: null, // Will be set in completeSale
+                      isCash: selectedPaymentType?.isCash == true || (selectedPaymentType?.name.toLowerCase().startsWith('cash') ?? false),
+                      paymentType: selectedPaymentType!.name,
+                    );
+                    _pendingAccountCredits.add(accountCreditShiftAmount);
+                  }
                 }
 
                 // Removed notifyListeners() from here
@@ -1067,7 +1106,6 @@ class POSScreenController extends ChangeNotifier {
         items: convertedCart, // Use converted items here
         paymentTypes: _payments,
         timeIniated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
-        status: 'Fully Paid',
         currency: _selectedCurrency,
         baseCurrency: _selectedCurrency,
         amountAfterDiscount: grandTotalConverted,
@@ -1083,6 +1121,7 @@ class POSScreenController extends ChangeNotifier {
         shiftReference: currentShift.shiftReference,
         ticketName: _ticketName, // Include ticket name in the completed sale
         amtToAcc: totalAmtToAcc > 0 ? totalAmtToAcc.toStringAsFixed(2) : null,
+          customerAccBankType:null
       );
       
       _saleService.saveSale(newSale).catchError((e) {
@@ -1129,6 +1168,7 @@ class POSScreenController extends ChangeNotifier {
       final List<MobileShiftCurrencyAmount> newActivitiesToExport = []; // Track new activities
 
       for (var payment in _payments) {
+        print('payment: ${payment.toJson()}');
         final MobileShiftCurrencyAmount paymentShiftAmount = MobileShiftCurrencyAmount(
           id:null,
           dateCreated:null,
@@ -1405,7 +1445,7 @@ class POSScreenController extends ChangeNotifier {
       items: List.from(_cart),
       paymentTypes: List.from(_payments),
       timeIniated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
-      status: 'On Hold',
+      saleStatus: SaleStatus.ON_HOLD,
       currency: _selectedCurrency,
       shiftReference: currentShift?.shiftReference,
       totalTaxAmount: taxTotalBase * exchangeRate,
@@ -1490,17 +1530,30 @@ class POSScreenController extends ChangeNotifier {
           orElse: () => PaymentType(id: 'cash_default', name: 'Cash', isCash: true),
         );
 
-        _payments.add(PaymentReceived(
-          amount: balanceDueConverted,
-          paymentType: cashPaymentType,
-          currency: _selectedCurrency,
-          branch: _selectedBranch, // Add the selected branch here
-          paymentDescription: 'SALE',
-          paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
-          dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
-          isMobile: true,
-          bank: _getCorrectBank(cashPaymentType, _selectedCurrency),
-        ));
+        // Check if this payment type already exists
+        final existingPaymentIndex = _payments.indexWhere((p) => p.paymentType?.name == cashPaymentType.name);
+
+        if (existingPaymentIndex != -1) {
+          // Update existing payment
+          final existingPayment = _payments[existingPaymentIndex];
+          _payments[existingPaymentIndex] = existingPayment.copyWith(
+            amount: existingPayment.amount + balanceDueConverted,
+          );
+        } else {
+          // Add new payment
+          _payments.add(PaymentReceived(
+            id: 'local_payment_${DateTime.now().millisecondsSinceEpoch}', // Unique ID
+            amount: balanceDueConverted,
+            paymentType: cashPaymentType,
+            currency: _selectedCurrency,
+            branch: _selectedBranch, // Add the selected branch here
+            paymentDescription: 'SALE',
+            paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
+            dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
+            isMobile: true,
+            bank: _getCorrectBank(cashPaymentType, _selectedCurrency),
+          ));
+        }
 
         // We no longer save payments to the shift here to avoid duplicates.
         // It will be done in completeSale.

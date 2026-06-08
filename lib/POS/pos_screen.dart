@@ -332,9 +332,10 @@ class POSScreen extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.all(8), // Reduced padding
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Added vertical padding
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min, // Use min size
         children: [
           const Text('Current Order', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), // Reduced font size
           _buildCustomerSelector(context, controller),
@@ -353,7 +354,7 @@ class POSScreen extends StatelessWidget {
                 : ListView.builder(
               itemCount: controller.cart.length,
               itemBuilder: (context, index) {
-                final item = controller.cart[index];
+                final item = controller.cart[controller.cart.length - 1 - index]; // Display last added on top
                 // final taxRate = item.inventoryItem?.tax?.taxPercentage ?? 0.0; // Removed taxRate as it's not used for display
                 final rate = controller.selectedCurrency?.rate ?? 1.0;
                 double displayTotal = (item.total ) * rate;
@@ -394,45 +395,46 @@ class POSScreen extends StatelessWidget {
                 }
 
                 return Card(
-                  margin: const EdgeInsets.only(bottom: 4),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0), // Reduced vertical padding
+                  margin: const EdgeInsets.only(bottom: 1),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Expanded(
                               child: Text(
                                 item.inventoryItem?.name ?? '',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             Text(
                               '${controller.selectedCurrency?.symbol ?? ''}${displayTotal.toStringAsFixed(2)}',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppTheme.vimbikaBlue),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: AppTheme.vimbikaBlue),
                             ),
                           ],
                         ),
                         Row(
                           children: [
-                            Text(
+                            const Text(
                               'Qty: ',
-                              style: const TextStyle(fontSize: 10, color: AppTheme.grey),
+                              style: TextStyle(fontSize: 8, color: AppTheme.grey),
                             ),
                             SizedBox(
-                              width: 40,
+                              width: 35,
+                              height: 16,
                               child: TextField(
                                 controller: quantityController,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                                 decoration: const InputDecoration(
                                   isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 0),
+                                  contentPadding: EdgeInsets.zero,
                                   border: UnderlineInputBorder(),
                                 ),
                                 onTap: () {
@@ -440,16 +442,16 @@ class POSScreen extends StatelessWidget {
                                 },
                                 onChanged: (value) {
                                   final val = double.tryParse(value);
-                                  if (val != null) controller.updateCartItemDetails(index, quantity: val);
+                                  if (val != null) controller.updateCartItemDetails(controller.cart.length - 1 - index, quantity: val);
                                 },
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 4),
                             Expanded(
                               child: Text(
                                 '${controller.selectedCurrency?.symbol ?? ''}${(item.sellingPrice * rate).toStringAsFixed(2)} '
                                     '${item.discountAmount > 0 ? "(-${controller.selectedCurrency?.symbol ?? ''}${(item.discountAmount * rate).toStringAsFixed(2)})" : ""}',
-                                style: const TextStyle(fontSize: 9, color: AppTheme.grey),
+                                style: const TextStyle(fontSize: 7, color: AppTheme.grey),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -457,27 +459,28 @@ class POSScreen extends StatelessWidget {
                             PopupMenuButton<String>(
                               icon: const Icon(Icons.edit, size: 14, color: AppTheme.vimbikaBlue),
                               padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                               itemBuilder: (context) => [
-                                const PopupMenuItem(value: 'price', child: Text('Edit Price', style: TextStyle(fontSize: 12))),
-                                const PopupMenuItem(value: 'discount', child: Text('Edit Discount', style: TextStyle(fontSize: 12))),
+                                const PopupMenuItem(value: 'price', child: Text('Edit Price', style: TextStyle(fontSize: 11))),
+                                const PopupMenuItem(value: 'discount', child: Text('Edit Discount', style: TextStyle(fontSize: 11))),
                               ],
                               onSelected: (value) {
                                 if (value == 'price') {
                                   _showEditDialog(context, 'Edit Price', priceController!, controller, (val) {
-                                    controller.updateCartItemDetails(index, sellingPrice: val);
+                                    controller.updateCartItemDetails(controller.cart.length - 1 - index, sellingPrice: val);
                                   });
                                 } else if (value == 'discount') {
                                   _showEditDialog(context, 'Edit Discount', discountController!, controller, (val) {
-                                    controller.updateCartItemDetails(index, discountAmount: val);
+                                    controller.updateCartItemDetails(controller.cart.length - 1 - index, discountAmount: val);
                                   }, item: item);
                                 }
                               },
                             ),
                             IconButton(
                               icon: const Icon(Icons.close, size: 14, color: Colors.red),
-                              onPressed: () => controller.removeFromCart(index),
+                              onPressed: () => controller.removeFromCart(controller.cart.length - 1 - index),
                               padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                             ),
                           ],
                         ),

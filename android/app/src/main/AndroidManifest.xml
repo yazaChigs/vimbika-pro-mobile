@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-feature android:name="android.hardware.usb.host" android:required="true" />
 
     <application
         android:label="Vimbika Business"

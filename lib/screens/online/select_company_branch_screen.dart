@@ -207,21 +207,31 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
             builder: (BuildContext context) {
               return AlertDialog(
                 title: const Text('Open Shift Found'),
-                content: const Text('An open shift from today was found. Do you want to continue with it?'),
+                content: Text('An open shift from today was found ${existingShift.shiftReference}. Do you want to continue with it?'),
                 actions: <Widget>[
                   TextButton(
                     onPressed: () async {
                       await prefs.setString(AppConstants.keyCurrentOpenShift, existingShift.toJson());
                       if (mounted) {
-                        Navigator.of(context).pop(); // Close dialog
-                        _navigateToHomeScreen();
+                        // Download all default data
+                        try {
+                          _isLoading = true;
+                          final defaultDataService = DefaultDataService();
+                          await defaultDataService.fetchAndSaveDefaultData(widget.user);
+                          Navigator.of(context).pop(); // Close dialog
+                          _navigateToHomeScreen();
+                        } catch (e) {
+                          debugPrint("Error fetching default data: $e");
+                        }
                       }
                     },
                     child: const Text('Continue with Shift'),
                   ),
                   TextButton(
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.of(context).pop(); // Close dialog
+                      _isLoading = true;
+                      await _createNewShiftAndNavigate(shiftService);
                       // User chose not to continue, stay on this screen or handle as needed
                       setState(() { _isLoading = false; });
                     },
@@ -258,7 +268,7 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
                   TextButton(
                     onPressed: () async {
                       Navigator.of(context).pop(); // Close dialog
-                      _isLoading = false;
+                      _isLoading = true;
                       await _createNewShiftAndNavigate(shiftService);
                       // User chose not to close, stay on this screen or handle as needed
                       setState(() { _isLoading = false; });

@@ -47,8 +47,11 @@ class MobilePosShift {
     final dynamic decoded = json.decode(str);
     if (decoded is Map<String, dynamic>) {
       return MobilePosShift.fromJson(decoded);
+    } else if (decoded is String) {
+      // Handle double-encoded JSON
+      return MobilePosShift.fromRawJson(decoded);
     } else {
-      throw FormatException("Invalid JSON for MobilePosShift: Expected a JSON object, but got a ${decoded.runtimeType}");
+      throw FormatException("Invalid JSON for MobilePosShift: Expected a JSON object or String, but got a ${decoded.runtimeType}");
     }
   }
   String toJson() => json.encode(toMap());
@@ -61,9 +64,12 @@ class MobilePosShift {
     kotNumber: json["kotNumber"], // Fixed typo here
     createdByName: json["createdByName"],
     active: json["active"],
-    shiftCurrencyAmounts: json["shiftCurrencyAmounts"] != null
-        ? List<MobileShiftCurrencyAmount>.from(json["shiftCurrencyAmounts"].map((x) => MobileShiftCurrencyAmount.fromJson(x)))
-        : null,
+    shiftCurrencyAmounts: json["shiftCurrencyAmounts"] is List
+        ? List<MobileShiftCurrencyAmount>.from(
+            (json["shiftCurrencyAmounts"] as List)
+                .where((x) => x != null)
+                .map((x) => MobileShiftCurrencyAmount.fromJson(x is String ? jsonDecode(x) : x)))
+        : [],
     company: json["company"] != null ? BaseNameModel.fromJson(json["company"]) : null,
     openingTime: json["openingTime"],
     closingTime: json["closingTime"],

@@ -44,6 +44,8 @@ class Currency {
     return Currency.fromMap(json);
   }
 
+  factory Currency.fromRawJson(String str) => Currency.fromJson(json.decode(str));
+
   /// Returns a Map for JSON serialization (not a String)
   Map<String, dynamic> toJson() => toMap();
 

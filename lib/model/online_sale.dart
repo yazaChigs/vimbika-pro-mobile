@@ -5,6 +5,7 @@ import 'sale_item.dart';
 import 'payment_received.dart';
 import 'company.dart';
 import 'payment_type.dart';
+import 'sale_status.dart';
 
 class OnlineSale {
   final String? id;
@@ -56,6 +57,7 @@ class OnlineSale {
   final String? ticketComment;
   final double? totalQuantity;
   final String? amtToAcc;
+  final String? customerAccBankType;
 
   // Added for compatibility with existing UI
   double get grandTotal => amountAfterDiscount ?? baseSaleAmount ?? 0.0;
@@ -110,6 +112,7 @@ class OnlineSale {
     this.ticketComment,
     this.totalQuantity,
     this.amtToAcc,
+    this.customerAccBankType,
   });
 
   factory OnlineSale.fromJson(Map<String, dynamic> json) {
@@ -148,7 +151,7 @@ class OnlineSale {
       orderNumber: json['orderNumber']?.toString(),
       dateCreated: json['dateCreated'] ,
       deliveryDate: json['deliveryDate'] != null ? DateTime.parse(json['deliveryDate']) : null,
-      saleStatus: json['saleStatus']?.toString(),
+      saleStatus: SaleStatus.fromJson(json['saleStatus']?.toString()),
       hasReturns: json['hasReturns'],
       isRefunded: json['isRefunded'],
       isReversible: json['isReversible'],
@@ -174,6 +177,7 @@ class OnlineSale {
       ticketComment: json['ticketComment']?.toString(),
       totalQuantity: parseDouble(json['totalQuantity']),
       amtToAcc: json['amtToAcc']?.toString(),
+      customerAccBankType: json['customerAccBankType']?.toString(),
     );
   }
 
@@ -228,6 +232,7 @@ class OnlineSale {
       'ticketComment': ticketComment,
       'totalQuantity': totalQuantity,
       'amtToAcc': amtToAcc,
+      'customerAccBankType': customerAccBankType,
     };
   }
 }

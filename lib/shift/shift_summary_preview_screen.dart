@@ -104,7 +104,10 @@ class ShiftSummaryPreviewScreen extends StatelessWidget {
                 ...currencyTotals.entries.map((entry) {
                   final currencyId = entry.key;
                   final totals = entry.value;
-                  final currency = availableCurrencies.firstWhere((c) => c.id == currencyId);
+                  final currency = availableCurrencies.firstWhere(
+                    (c) => c.id == currencyId,
+                    orElse: () => Currency(id: currencyId, name: 'Unknown', symbol: '?'),
+                  );
 
                   final cashInTotal = totals['CASH_IN'] ?? 0.0;
                   final cashAccountTopUpTotal = totals['CASH_ACCOUNT_TOP_UP'] ?? 0.0;

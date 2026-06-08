@@ -42,7 +42,11 @@ class MobileShiftCurrencyAmount {
     active: json["active"] == true || json["active"] == 'true',
     createdByName: json["createdByName"]?.toString(),
     amount: (json["amount"] as num?)?.toDouble() ?? 0.0,
-    currency: Currency.fromJson(json["currency"] is String ? jsonDecode(json["currency"]) : json["currency"]),
+    currency: json["currency"] != null
+        ? (json["currency"] is String
+            ? Currency.fromRawJson(json["currency"])
+            : Currency.fromJson(json["currency"] as Map<String, dynamic>))
+        : Currency(), // Fallback to empty currency if null
     notes: json["notes"]?.toString(),
     amountType: json["amountType"]?.toString() ?? 'UNKNOWN',
     ref: json["ref"]?.toString(),
@@ -71,4 +75,40 @@ class MobileShiftCurrencyAmount {
     "isCash": isCash,
     "bankName": bankName,
   };
+
+  MobileShiftCurrencyAmount copyWith({
+    String? id,
+    String? createdByName,
+    String? dateCreated,
+    bool? active,
+    Currency? currency,
+    double? amount,
+    String? notes,
+    String? amountType,
+    String? ref,
+    String? timeCreated,
+    String? shiftReference,
+    String? posReference,
+    bool? isCash,
+    String? paymentType,
+    String? bankName,
+  }) {
+    return MobileShiftCurrencyAmount(
+      id: id ?? this.id,
+      createdByName: createdByName ?? this.createdByName,
+      dateCreated: dateCreated ?? this.dateCreated,
+      active: active ?? this.active,
+      currency: currency ?? this.currency,
+      amount: amount ?? this.amount,
+      notes: notes ?? this.notes,
+      amountType: amountType ?? this.amountType,
+      ref: ref ?? this.ref,
+      timeCreated: timeCreated ?? this.timeCreated,
+      shiftReference: shiftReference ?? this.shiftReference,
+      posReference: posReference ?? this.posReference,
+      isCash: isCash ?? this.isCash,
+      paymentType: paymentType ?? this.paymentType,
+      bankName: bankName ?? this.bankName,
+    );
+  }
 }

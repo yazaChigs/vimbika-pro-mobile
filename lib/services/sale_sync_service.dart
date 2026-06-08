@@ -148,13 +148,8 @@ class SaleSyncService {
 
       List<Map<String, dynamic>> successfullySyncedSales = [];
       List<Map<String, dynamic>> failedToSyncSales = [];
-      bool syncCycleFailed = false;
 
       for (var saleJson in unsyncedSalesToProcess) {
-        if (syncCycleFailed) {
-          failedToSyncSales.add(saleJson);
-          continue;
-        }
         print('syncing: $saleJson');
 
         try {
@@ -179,7 +174,6 @@ class SaleSyncService {
           
         } catch (e) {
           debugPrint('Failed to sync a sale: $e');
-          syncCycleFailed = true;
           failedToSyncSales.add(saleJson);
         }
       }

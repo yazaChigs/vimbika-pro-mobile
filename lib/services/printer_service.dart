@@ -246,8 +246,8 @@ class PrinterService {
     _usbDiscoverySubscription = _printerManager.discovery(type: PrinterType.usb).listen((device) {
       if (device.vendorId != null && device.productId != null) {
         final usbDevice = UsbPrinterDevice(
-          vendorId: device.vendorId as int?,
-          productId: device.productId as int?,
+          vendorId: int.tryParse(device.vendorId.toString()),
+          productId: int.tryParse(device.productId.toString()),
           name: device.name,
         );
         if (!_usbDevices.contains(usbDevice)) {
@@ -590,7 +590,11 @@ class PrinterService {
 
     Currency? cur = sale.currency;
     if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty) {
-      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${sale.customer!.currencyBalance!.firstWhere((cb) => cb.currency?.id == cur?.id, orElse: () => sale.customer!.currencyBalance!.first).balance!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+      final balanceItem = sale.customer!.currencyBalance!.firstWhere(
+        (cb) => cb.currency?.id == cur?.id,
+        orElse: () => sale.customer!.currencyBalance!.first,
+      );
+      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${balanceItem.balance!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
       bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     }
 
@@ -671,7 +675,7 @@ class PrinterService {
         }
       }
     }
-    await SunmiPrinter.printText(sale.company?.name ?? "Vimbika Pro", style: SunmiStyle(fontSize: SunmiFontSize.XL, align: SunmiPrintAlign.CENTER, bold: true));
+    await SunmiPrinter.printText('\n${sale.company?.name??''}' ?? "Vimbika Pro", style: SunmiStyle(fontSize: SunmiFontSize.XL, align: SunmiPrintAlign.CENTER, bold: true));
     if (sale.branch != null) {
       await SunmiPrinter.printText("${sale.branch!.name}\n${sale.branch!.address ?? ''}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
@@ -722,14 +726,14 @@ class PrinterService {
     }
 
     Currency? cur = sale.currency;
-    if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false))
+    if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty)
     {
+      final balanceItem = sale.customer!.currencyBalance!.firstWhere(
+        (cb) => cb.currency?.id == cur?.id,
+        orElse: () => sale.customer!.currencyBalance!.first,
+      );
       await SunmiPrinter.printText(
-          "Account Balance: ${cur?.symbol ?? ''} ${sale.customer!
-              .currencyBalance!
-              .firstWhere((cb) => cb.currency == cur)
-              .balance!
-              .toStringAsFixed(2)}");
+          "Account Balance: ${cur?.symbol ?? ''} ${balanceItem.balance!.toStringAsFixed(2)}");
       await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
     await SunmiPrinter.printText("\n");
@@ -856,7 +860,11 @@ class PrinterService {
 
     Currency? cur = sale.currency;
     if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty) {
-      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${sale.customer!.currencyBalance!.firstWhere((cb) => cb.currency?.id == cur?.id, orElse: () => sale.customer!.currencyBalance!.first).balance!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+      final balanceItem = sale.customer!.currencyBalance!.firstWhere(
+        (cb) => cb.currency?.id == cur?.id,
+        orElse: () => sale.customer!.currencyBalance!.first,
+      );
+      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${balanceItem.balance!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
       bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     }
 
@@ -1274,7 +1282,10 @@ class PrinterService {
       currencyTotals.entries.forEach((entry) {
         final currencyId = entry.key;
         final totals = entry.value;
-        final currency = availableCurrencies.firstWhere((c) => c.id == currencyId);
+        final currency = availableCurrencies.firstWhere(
+          (c) => c.id == currencyId,
+          orElse: () => Currency(id: currencyId, name: 'Unknown', symbol: '?'),
+        );
 
         final cashInTotal = totals['CASH_IN'] ?? 0.0;
         final cashAccountTopUpTotal = totals['CASH_ACCOUNT_TOP_UP'] ?? 0.0;
@@ -1396,7 +1407,10 @@ class PrinterService {
       currencyTotals.entries.forEach((entry) {
         final currencyId = entry.key;
         final totals = entry.value;
-        final currency = availableCurrencies.firstWhere((c) => c.id == currencyId);
+        final currency = availableCurrencies.firstWhere(
+          (c) => c.id == currencyId,
+          orElse: () => Currency(id: currencyId, name: 'Unknown', symbol: '?'),
+        );
 
         final cashInTotal = totals['CASH_IN'] ?? 0.0;
         final cashAccountTopUpTotal = totals['CASH_ACCOUNT_TOP_UP'] ?? 0.0;

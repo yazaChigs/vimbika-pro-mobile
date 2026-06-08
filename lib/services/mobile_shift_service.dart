@@ -48,11 +48,17 @@ class MobilePosShiftService {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 
     // 1. Try to load from cache first
-    final List<String>? cachedShiftsJson = prefs.getStringList(AppConstants.keyCachedPastShifts);
-    if (cachedShiftsJson != null && cachedShiftsJson.isNotEmpty) {
+    final String? cachedPastShiftsJson = prefs.getString(AppConstants.keyCachedPastShifts);
+    if (cachedPastShiftsJson != null && cachedPastShiftsJson.isNotEmpty) {
       try {
-        final List<MobilePosShift> cachedShifts = cachedShiftsJson
-            .map((jsonString) => MobilePosShift.fromJson(jsonDecode(jsonString)))
+        final List<dynamic> jsonList = jsonDecode(cachedPastShiftsJson);
+        final List<MobilePosShift> cachedShifts = jsonList
+            .map((json) {
+              if (json is String) {
+                return MobilePosShift.fromRawJson(json);
+              }
+              return MobilePosShift.fromJson(json);
+            })
             .toList();
         print('Loaded shifts from cache.');
         return cachedShifts;
@@ -80,8 +86,8 @@ class MobilePosShiftService {
     final List<MobilePosShift> shifts = data.map((e) => MobilePosShift.fromJson(e)).toList();
 
     // 3. Save fetched shifts to cache for future use
-    final List<String> shiftStrings = shifts.map((s) => jsonEncode(s.toJson())).toList();
-    await prefs.setStringList(AppConstants.keyCachedPastShifts, shiftStrings);
+    final List<Map<String, dynamic>> shiftMaps = shifts.map((s) => s.toMap()).toList();
+    await prefs.setString(AppConstants.keyCachedPastShifts, jsonEncode(shiftMaps));
     print('Fetched shifts from API and saved to cache.');
 
     return shifts;
@@ -120,7 +126,6 @@ class MobilePosShiftService {
   }
 
   Future<void> _syncAndUpdateLocalShift(MobilePosShift shiftToSync) async {
-    print(shiftToSync.shiftCurrencyAmounts!.last.toJson());
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
@@ -132,8 +137,6 @@ class MobilePosShiftService {
       print('Starting background shift sync...');
       // Use the existing createShift method to talk to the API
       final syncedShift = await createShift(shiftToSync, syncOnly: true);
-
-      print(syncedShift.shiftCurrencyAmounts!.last.toJson());
 
       // If sync is successful, update the locally stored shift with server data (e.g., ID)
       await prefs.setString(AppConstants.keyCurrentOpenShift, syncedShift.toJson());
@@ -201,11 +204,10 @@ class MobilePosShiftService {
     // Extract the list of items
     final List<dynamic> items = responseMap['items'];
 
-    if (items.isEmpty) {
-      throw Exception('No shift returned from the server.');
-    }
-
     // Assuming the first item in the list is the created shift
+    if (items.isEmpty) {
+       throw Exception('No shift returned from the server.');
+    }
     final MobilePosShift createdShift = MobilePosShift.fromJson(items.first);
     print(createdShift.toJson());
     

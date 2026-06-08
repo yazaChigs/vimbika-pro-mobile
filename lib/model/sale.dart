@@ -7,6 +7,7 @@ import 'payment_received.dart';
 import 'online_sale.dart'; // Import OnlineSale
 import 'company.dart'; // Import Company
 import 'payment_type.dart'; // Import PaymentType
+import 'sale_status.dart';
 
 class Sale extends BaseEntity {
   final String? referenceNumber;
@@ -17,7 +18,6 @@ class Sale extends BaseEntity {
   final List<SaleItem> items;
   final List<PaymentReceived>? paymentTypes;
   final String timeIniated;
-  final String? status; // This maps to OnlineSale.status
   final String? notes;
   final bool? isSynced;
   final double? amountAfterDiscount;
@@ -57,6 +57,7 @@ class Sale extends BaseEntity {
   final String? ticketComment;
   final double? totalQuantity;
   final String? amtToAcc;
+  final String? customerAccBankType;
 
 
   // Added for compatibility with existing UI
@@ -78,7 +79,6 @@ class Sale extends BaseEntity {
     required this.items,
     this.paymentTypes,
     required this.timeIniated,
-    this.status,
     this.notes,
     this.isSynced,
     this.amountAfterDiscount,
@@ -117,7 +117,8 @@ class Sale extends BaseEntity {
     this.ticketName,
     this.ticketComment,
     this.totalQuantity,
-    this.amtToAcc
+    this.amtToAcc,
+    this.customerAccBankType
   });
 
   Sale copyWith({
@@ -135,7 +136,6 @@ class Sale extends BaseEntity {
     List<SaleItem>? items,
     List<PaymentReceived>? paymentTypes,
     String? timeIniated,
-    String? status,
     String? notes,
     bool? isSynced,
     double? amountAfterDiscount,
@@ -175,6 +175,7 @@ class Sale extends BaseEntity {
     String? ticketComment,
     double? totalQuantity,
     String? amtToAcc,
+    String? customerAccBankType,
   }) {
     return Sale(
       id: id ?? this.id,
@@ -191,7 +192,6 @@ class Sale extends BaseEntity {
       items: items ?? this.items,
       paymentTypes: paymentTypes ?? this.paymentTypes,
       timeIniated: timeIniated ?? this.timeIniated,
-      status: status ?? this.status,
       notes: notes ?? this.notes,
       isSynced: isSynced ?? this.isSynced,
       amountAfterDiscount: amountAfterDiscount ?? this.amountAfterDiscount,
@@ -231,6 +231,7 @@ class Sale extends BaseEntity {
       ticketComment: ticketComment ?? this.ticketComment,
       totalQuantity: totalQuantity ?? this.totalQuantity,
       amtToAcc: amtToAcc ?? this.amtToAcc,
+      customerAccBankType: customerAccBankType ?? this.customerAccBankType,
     );
   }
 
@@ -261,7 +262,6 @@ class Sale extends BaseEntity {
           ? (json['paymentTypes'] as List).map((i) => PaymentReceived.fromJson(i)).toList()
           : null,
       timeIniated: json['timeIniated'].toString(),
-      status: json['status']?.toString(),
       notes: json['notes']?.toString(),
       isSynced: json['isSynced'] as bool?,
       amountAfterDiscount: parseDouble(json['amountAfterDiscount']),
@@ -276,7 +276,7 @@ class Sale extends BaseEntity {
       isProformaInvoice: json['isProformaInvoice'] as bool?,
       orderNumber: json['orderNumber']?.toString(),
       deliveryDate: json['deliveryDate'] != null ? DateTime.parse(json['deliveryDate']) : null,
-      saleStatus: json['saleStatus']?.toString(),
+      saleStatus: json['saleStatus'],
       hasReturns: json['hasReturns'] as bool?,
       isRefunded: json['isRefunded'] as bool?,
       isReversible: json['isReversible'] as bool?,
@@ -301,6 +301,7 @@ class Sale extends BaseEntity {
       ticketComment: json['ticketComment']?.toString(),
       totalQuantity: parseDouble(json['totalQuantity']),
       amtToAcc: json['amtToAcc']?.toString(),
+      customerAccBankType: json['customerAccBankType']?.toString(),
     );
   }
 
@@ -323,7 +324,6 @@ class Sale extends BaseEntity {
       items: onlineSale.items ?? [],
       paymentTypes: onlineSale.paymentTypes,
       timeIniated: onlineSale.timeIniated!,
-      status: onlineSale.status,
       isSynced: true,
       referenceNumber: onlineSale.referenceNumber,
       baseCurrency: onlineSale.baseCurrency,
@@ -364,6 +364,7 @@ class Sale extends BaseEntity {
       ticketComment: onlineSale.ticketComment,
       totalQuantity: onlineSale.totalQuantity,
       amtToAcc: onlineSale.amtToAcc,
+      customerAccBankType: onlineSale.customerAccBankType,
     );
   }
 
@@ -383,7 +384,6 @@ class Sale extends BaseEntity {
       'items': items.map((i) => i.toJson()).toList(),
       'paymentTypes': paymentTypes?.map((i) => i.toJson()).toList(),
       'timeIniated': timeIniated,
-      'status': status,
       'notes': notes,
       'isSynced': isSynced,
       'amountAfterDiscount': amountAfterDiscount,
@@ -423,6 +423,7 @@ class Sale extends BaseEntity {
       'ticketComment': ticketComment,
       'totalQuantity': totalQuantity,
       'amtToAcc': amtToAcc,
+      'customerAccBankType': customerAccBankType,
     };
   }
 }

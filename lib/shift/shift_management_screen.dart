@@ -107,7 +107,12 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
       try {
         final List<dynamic> jsonList = jsonDecode(cachedPastShiftsJson);
         final List<MobilePosShift> cachedShifts = jsonList
-            .map((json) => MobilePosShift.fromJson(json))
+            .map((json) {
+              if (json is String) {
+                return MobilePosShift.fromRawJson(json);
+              }
+              return MobilePosShift.fromJson(json);
+            })
             .toList();
         if (!mounted) return; // Added check
         if (mounted) {
@@ -134,7 +139,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
           });
         }
         // Cache the fetched shifts
-        final List<String> shiftsJsonList = _pastShifts.map((shift) => shift.toJson()).toList();
+        final List<Map<String, dynamic>> shiftsJsonList = _pastShifts.map((shift) => shift.toMap()).toList();
         await prefs.setString(AppConstants.keyCachedPastShifts, jsonEncode(shiftsJsonList));
       } catch (e) {
         if (mounted) {
@@ -854,7 +859,10 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
               ...currencyTotals.entries.map((entry) {
                 final currencyId = entry.key;
                 final totals = entry.value;
-                final currency = _availableCurrencies.firstWhere((c) => c.id == currencyId);
+                final currency = _availableCurrencies.firstWhere(
+                  (c) => c.id == currencyId,
+                  orElse: () => Currency(id: currencyId, name: 'Unknown', symbol: '?'),
+                );
 
                 final cashInTotal = totals['CASH_IN'] ?? 0.0;
                 final cashAccountTopUpTotal = totals['CASH_ACCOUNT_TOP_UP'] ?? 0.0;

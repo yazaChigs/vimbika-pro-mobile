@@ -1,3 +1,5 @@
+import 'package:vimbika_pro/model/sale_status.dart';
+
 import '../services/printer_service.dart';
 import 'package:vimbika_pro/app_constants/app_theme.dart';
 import 'package:vimbika_pro/sales/sale_receipt_screen.dart';
@@ -35,7 +37,7 @@ class _SalesScreenState extends State<SalesScreen> {
   String _searchQuery = '';
   Branch? _selectedBranch;
   Customer? _selectedCustomer;
-  String _selectedStatus = 'All'; // All, Fully Paid, Partially Paid
+  String _selectedStatus = SaleStatus.COMPLETE.toString(); // All, Fully Paid, Partially Paid
   bool _currentShiftOnly = false;
   
   bool _isLoading = true;
@@ -54,7 +56,7 @@ class _SalesScreenState extends State<SalesScreen> {
   Map<String, double> get _totalRevenueByCurrency {
     final Map<String, double> revenueByCurrency = {};
     for (var sale in _filteredSales) {
-      if (sale.status != 'Reversed' && sale.currency != null) {
+      if ((sale.saleStatus != SaleStatus.REVERSED && sale.saleStatus != SaleStatus.CREDIT_NOTE) && sale.currency != null) {
         final currencySymbol = sale.currency!.symbol ?? 'N/A';
         revenueByCurrency[currencySymbol] = (revenueByCurrency[currencySymbol] ?? 0) + sale.grandTotal;
       }
@@ -70,6 +72,7 @@ class _SalesScreenState extends State<SalesScreen> {
     _loadLocalData().then((_) {
       _syncOnlineSales();
     });
+    print(_allSales.length);
   }
 
   void _sortSales(List<Sale> sales) {
@@ -268,7 +271,7 @@ class _SalesScreenState extends State<SalesScreen> {
           final matchesCustomer = _selectedCustomer == null || sale.customer?.id == _selectedCustomer!.id;
 
           // 4. Status Filter
-          final matchesStatus = _selectedStatus == 'All' || sale.status == _selectedStatus;
+          final matchesStatus = _selectedStatus == 'All' || sale.saleStatus == _selectedStatus;
 
           // 5. Shift Filter
           bool matchesShift = true;
@@ -335,7 +338,7 @@ class _SalesScreenState extends State<SalesScreen> {
         // Update local status
         int localIndex = localSales.indexWhere((s) => s.id == sale.id || s.posReference == sale.posReference);
         if (localIndex != -1) {
-          localSales[localIndex] = localSales[localIndex].copyWith(status: 'Reversed');
+          localSales[localIndex] = localSales[localIndex].copyWith(saleStatus: SaleStatus.CREDIT_NOTE.toString());
           await prefs.setStringList(salesKey, localSales.map((s) => jsonEncode(s.toJson())).toList());
         }
 
@@ -611,6 +614,7 @@ class _SalesScreenState extends State<SalesScreen> {
                               margin: const EdgeInsets.only(bottom: 12),
                               elevation: 1,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              color: (sale.saleStatus == SaleStatus.REVERSED.toString() || sale.saleStatus == SaleStatus.CREDIT_NOTE.toString()) ? Colors.grey.shade100 : AppTheme.white, // Added this line
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(12),
                                 onTap: () {
@@ -620,7 +624,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                   );
                                 },
                                 onLongPress: () {
-                                  if (sale.status != 'Reversed') {
+                                  if (sale.saleStatus != SaleStatus.REVERSED.toString() && sale.saleStatus != SaleStatus.CREDIT_NOTE.toString()) {
                                     _reverseSale(sale);
                                   }
                                 },
@@ -667,8 +671,8 @@ class _SalesScreenState extends State<SalesScreen> {
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 16,
-                                                  color: sale.status == 'Reversed' ? Colors.grey : AppTheme.vimbikaBlue,
-                                                  decoration: sale.status == 'Reversed' ? TextDecoration.lineThrough : null,
+                                                  color: (sale.saleStatus == SaleStatus.REVERSED.toString() || sale.saleStatus == SaleStatus.CREDIT_NOTE.toString()) ? Colors.grey : AppTheme.vimbikaBlue,
+                                                  decoration: (sale.saleStatus == SaleStatus.REVERSED.toString() || sale.saleStatus == SaleStatus.CREDIT_NOTE.toString()) ? TextDecoration.lineThrough : null,
                                                 ),
                                               ),
                                               if (sale.referenceNumber != null && sale.referenceNumber!.isNotEmpty)
@@ -691,19 +695,19 @@ class _SalesScreenState extends State<SalesScreen> {
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                                   decoration: BoxDecoration(
-                                                    color: (sale.status == 'Reversed')
+                                                    color: (sale.saleStatus == SaleStatus.REVERSED.toString() || sale.saleStatus == SaleStatus.CREDIT_NOTE.toString())
                                                         ? Colors.grey.withAlpha(30)
-                                                        : ((sale.status == 'Fully Paid' || sale.status == 'Completed')
+                                                        : ((sale.saleStatus == SaleStatus.COMPLETE.toString() || sale.saleStatus == SaleStatus.PENDING.toString())
                                                             ? Colors.green.withAlpha(30)
                                                             : Colors.orange.withAlpha(30)),
                                                     borderRadius: BorderRadius.circular(4),
                                                   ),
                                                   child: Text(
-                                                    sale.status ?? 'Completed',
+                                                    '${sale.saleStatus}' ?? 'COMPLETE',
                                                     style: TextStyle(
-                                                      color: (sale.status == 'Reversed')
+                                                      color: (sale.saleStatus == SaleStatus.REVERSED.toString() || sale.saleStatus == SaleStatus.CREDIT_NOTE.toString())
                                                           ? Colors.grey
-                                                          : ((sale.status == 'Fully Paid' || sale.status == 'Completed')
+                                                          : ((sale.saleStatus == SaleStatus.COMPLETE.toString() || sale.saleStatus == SaleStatus.PENDING.toString())
                                                               ? Colors.green
                                                                 : Colors.orange),
                                                       fontSize: 10,
@@ -716,6 +720,11 @@ class _SalesScreenState extends State<SalesScreen> {
                                                     padding: EdgeInsets.only(left: 8.0),
                                                     child: Icon(Icons.cloud_off, size: 14, color: Colors.red),
                                                   ),
+                                                if (sale.isSynced == true)
+                                                  const Padding(
+                                                    padding: EdgeInsets.only(left: 8.0),
+                                                    child: Icon(Icons.check_circle, size: 14, color: Colors.green),
+                                                  ),
                                                 const SizedBox(width: 8),
                                                 Expanded(
                                                   child: Text(
@@ -727,7 +736,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                               ],
                                             ),
                                           ),
-                                          if (sale.status != 'Reversed')
+                                          if (sale.saleStatus != SaleStatus.REVERSED.toString() && sale.saleStatus != SaleStatus.CREDIT_NOTE.toString())
                                             IconButton(
                                               constraints: const BoxConstraints(),
                                               padding: EdgeInsets.zero,
@@ -860,7 +869,7 @@ class _SalesScreenState extends State<SalesScreen> {
                        }
                    ),
                 const SizedBox(width: 8),
-                _buildFilterChip('Status', ['All', 'Fully Paid', 'Partially Paid', 'Reversed'], _selectedStatus, (val) {
+                _buildFilterChip('Status', [SaleStatus.COMPLETE.toString(), SaleStatus.PENDING.toString(), SaleStatus.REVERSED.toString(), SaleStatus.CREDIT_NOTE.toString(), SaleStatus.COMPLETE.toString()], _selectedStatus, (val) {
                   if (mounted) setState(() => _selectedStatus = val);
                   _applyFilters();
                 }),
@@ -961,7 +970,8 @@ class _SalesScreenState extends State<SalesScreen> {
                   _searchQuery = '';
                   _selectedBranch = null;
                   _selectedCustomer = null;
-                  _selectedStatus = 'All';
+                  _selectedStatus = SaleStatus.COMPLETE.toString();
+                  _selectedStatus = SaleStatus.COMPLETE.toString();
                   _currentShiftOnly = false;
                   _filterStartDate = null;
                   _filterEndDate = null;
