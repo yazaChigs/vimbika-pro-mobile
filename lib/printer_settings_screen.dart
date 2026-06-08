@@ -63,6 +63,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
       await _printerService.init(); // Re-initialize to trigger discovery if not already running
       setState(() {
         _usbDevices = _printerService.usbDevices;
+        print('USB Devices: ${_usbDevices.length}');
         _isLoading = false;
       });
     } catch (e) {

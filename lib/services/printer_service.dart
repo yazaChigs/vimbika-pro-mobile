@@ -1,3 +1,4 @@
+import 'dart:async'; // Import for StreamSubscription
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -117,6 +118,7 @@ class PrinterService {
   // USB Printer specific variables
   UsbPrinterDevice? _selectedUsbDevice;
   final List<UsbPrinterDevice> _usbDevices = [];
+  StreamSubscription<PrinterDevice>? _usbDiscoverySubscription; // Added StreamSubscription
 
   // Getters for current printer status
   PrinterTypes get printerType => _printerType;
@@ -232,39 +234,61 @@ class PrinterService {
     _isConnected = _sunmiBound;
   }
 
-  Future<void> _initUsb() async {
-    if (Platform.isWindows || Platform.isAndroid) {
-      _printerManager.discovery(type: PrinterType.usb).listen((device) {
-        if (device.vendorId != null && device.productId != null) {
-          final usbDevice = UsbPrinterDevice(
-            vendorId: device.vendorId as int?,
-            productId: device.productId as int?,
-            name: device.name,
-          );
-          if (!_usbDevices.contains(usbDevice)) {
-            _usbDevices.add(usbDevice);
-          }
-        }
-      });
+  Future<void> _startUsbDiscovery() async {
+    if (!(Platform.isWindows || Platform.isAndroid)) {
+      print('USB printing is not supported on this platform.');
+      return;
+    }
 
-      if (_selectedUsbDevice != null) {
-        try {
-          _isConnected = await _printerManager.connect(
-            type: PrinterType.usb,
-            model: UsbPrinterInput(
-              name: _selectedUsbDevice!.name ?? "USB Printer",
-              vendorId: _selectedUsbDevice!.vendorId?.toString() ?? "",
-              productId: _selectedUsbDevice!.productId?.toString() ?? "",
-            ),
-          );
-        } catch (e) {
-          print('USB auto-connect failed: $e');
-          _isConnected = false;
+    _usbDiscoverySubscription?.cancel(); // Cancel any previous subscription
+    _usbDevices.clear(); // Clear existing devices
+
+    _usbDiscoverySubscription = _printerManager.discovery(type: PrinterType.usb).listen((device) {
+      if (device.vendorId != null && device.productId != null) {
+        final usbDevice = UsbPrinterDevice(
+          vendorId: device.vendorId as int?,
+          productId: device.productId as int?,
+          name: device.name,
+        );
+        if (!_usbDevices.contains(usbDevice)) {
+          _usbDevices.add(usbDevice);
         }
       }
+    });
+  }
+
+  Future<void> _stopUsbDiscovery() async {
+    await _usbDiscoverySubscription?.cancel();
+    _usbDiscoverySubscription = null;
+    _usbDevices.clear();
+  }
+
+  Future<void> _initUsb() async {
+    await _startUsbDiscovery(); // Start discovery when initializing USB
+    if (_selectedUsbDevice != null) {
+      try {
+        _isConnected = await _printerManager.connect(
+          type: PrinterType.usb,
+          model: UsbPrinterInput(
+            name: _selectedUsbDevice!.name ?? "USB Printer",
+            vendorId: _selectedUsbDevice!.vendorId?.toString() ?? "",
+            productId: _selectedUsbDevice!.productId?.toString() ?? "",
+          ),
+        );
+      } catch (e) {
+        print('USB auto-connect failed: $e');
+        _isConnected = false;
+      }
+    }
+  }
+
+  // Public method to refresh USB devices
+  Future<void> refreshUsbDevices() async {
+    if (_printerType == PrinterTypes.usb) {
+      await _stopUsbDiscovery(); // Stop current discovery
+      await _startUsbDiscovery(); // Start a new one
     } else {
-      _isConnected = false;
-      print('USB printing is not supported on this platform.');
+      print('Cannot refresh USB devices when printer type is not USB.');
     }
   }
 
@@ -276,6 +300,11 @@ class PrinterService {
     _isConnected = false; // Reset connection status
     _selectedBluetoothDevice = null; // Clear selected BT device
     _selectedUsbDevice = null; // Clear selected USB device
+
+    // Stop USB discovery if changing away from USB
+    if (type != PrinterTypes.usb) {
+      await _stopUsbDiscovery();
+    }
 
     await _savePrinterSettings();
     await init(); // Re-initialize with new type
@@ -368,6 +397,7 @@ class PrinterService {
     } else if (_printerType == PrinterTypes.usb && _isConnected) {
       await _printerManager.disconnect(type: PrinterType.usb);
       _isConnected = false;
+      await _stopUsbDiscovery(); // Stop discovery on disconnect for USB
     }
     // Do not clear saved settings on disconnect, only on type change
   }
@@ -902,7 +932,7 @@ class PrinterService {
           await _printUsbReceipt(receiptContent);
         }
         if (i < _numberOfReceiptsPerSale - 1) {
-          await Future.delayed(const Duration(milliseconds: 500)); // Small delay between prints
+          await Future.delayed(const Duration(milliseconds: 500));
         }
       }
     } catch (e) {
@@ -1442,5 +1472,10 @@ class PrinterService {
     buffer.writeln('       Powered by Vimbika');
     buffer.writeln('--------------------------------');
     return buffer.toString();
+  }
+
+  // Dispose method to clean up resources
+  void dispose() {
+    _usbDiscoverySubscription?.cancel();
   }
 }

@@ -256,8 +256,10 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
                     child: const Text('Close Shift and Continue'),
                   ),
                   TextButton(
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.of(context).pop(); // Close dialog
+                      _isLoading = false;
+                      await _createNewShiftAndNavigate(shiftService);
                       // User chose not to close, stay on this screen or handle as needed
                       setState(() { _isLoading = false; });
                     },
