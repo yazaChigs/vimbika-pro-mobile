@@ -9,6 +9,7 @@ class EcocashService {
   static const String _password = 'mobiquity';
 
   Future<EcocashChargeResponse> charge(EcocashChargeRequest request) async {
+    print('request: ${request.toJson()}');
     final response = await http.post(
       Uri.parse(_baseUrl),
       headers: {

@@ -116,6 +116,7 @@ class BaseHttpClient {
   //POST
   Future<dynamic> post(String api, dynamic payload) async {
     var uri = Uri.parse(BASE_URL + api);
+    print(uri.toString());
     try {
       var response = await http.post(uri, body: payload, headers: {"Content-Type": "application/json"}).timeout(Duration(seconds: TIME_OUT_DURATION));
       return _processResponse(response);

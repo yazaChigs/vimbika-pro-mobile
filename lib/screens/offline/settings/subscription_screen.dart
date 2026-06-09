@@ -88,7 +88,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
     final request = EcocashChargeRequest(
       clientCorrelator: clientCorrelator,
-      notifyUrl: 'http://mysite.com/notifyURL',
+      notifyUrl: 'https://demo.vimbika.africa/uat-vimbika/api/payments/ecocash/notification',
       referenceCode: 'VIMBIKA_${const Uuid().v4().substring(0, 8)}',
       tranType: 'MER',
       endUserId: _phoneController.text,
@@ -119,6 +119,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
     try {
       final response = await _ecocashService.charge(request);
+      print('Response: ${response.responseCode}');
+
       if (response.transactionOperationStatus == 'PENDING SUBSCRIBER VALIDATION') {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
