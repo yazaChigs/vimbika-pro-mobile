@@ -196,8 +196,6 @@ class MobilePosShiftService {
       'POST'
     );
 
-    print(responseStr);
-
 
     // Parse the response as a map
     final Map<String, dynamic> responseMap = jsonDecode(responseStr);
@@ -209,7 +207,6 @@ class MobilePosShiftService {
        throw Exception('No shift returned from the server.');
     }
     final MobilePosShift createdShift = MobilePosShift.fromJson(items.first);
-    print(createdShift.toJson());
     
     // Save current open shift to shared prefs
     if (!(createdShift.isShiftClosed ?? false)) {
@@ -229,16 +226,28 @@ class MobilePosShiftService {
     final String? companyId = user.branch?.company?.id;
     if (companyId == null) throw Exception('Company ID not found for user');
     
-    String jsonShift = json.encode(shift.toMap());
+    // Wrap the single shift object in a list to match the backend's expected input
+    List<MobilePosShift> shiftList = [];
+    shiftList.add(shift);
+    String jsonShiftItems = json.encode(shiftList.map((s) => s.toMap()).toList());
 
     final String responseStr = await _client.postAuthWithCompanyHeader(
       '/mobile/pos/shift/save', // Assuming the same endpoint for create and update
-      jsonShift,
+      jsonShiftItems,
       companyId,
       'POST'
     );
 
-    final MobilePosShift updatedShift = MobilePosShift.fromRawJson(responseStr);
+    // Parse the response as a map
+    final Map<String, dynamic> responseMap = jsonDecode(responseStr);
+    // Extract the list of items
+    final List<dynamic> items = responseMap['items'];
+
+    // Assuming the first item in the list is the updated shift
+    if (items.isEmpty) {
+       throw Exception('No shift returned from the server.');
+    }
+    final MobilePosShift updatedShift = MobilePosShift.fromJson(items.first);
     
     // Update current open shift in shared prefs
     if (!(updatedShift.isShiftClosed ?? false)) {

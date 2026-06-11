@@ -70,7 +70,7 @@ class POSScreenController extends ChangeNotifier {
   List<PaymentType> _paymentTypes = [];
   List<Customer> _customers = [];
   List<model.Category> _categories = [];
-  
+
   Currency? _selectedCurrency;
   Customer? _selectedCustomer;
   Branch? _selectedBranch;
@@ -78,21 +78,24 @@ class POSScreenController extends ChangeNotifier {
   final List<PaymentReceived> _payments = [];
   final List<MobileShiftCurrencyAmount> _pendingAccountCredits = []; // Added to track account credits
   final List<PendingCustomerBalanceUpdate> _pendingCustomerBalanceUpdates = []; // New list for deferred customer balance updates
-  
+
   bool _isLoading = true;
   String _searchQuery = '';
   bool _allowOutOfStockSales = false;
   bool _isBarcodeSearchMode = false;
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _scanController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode(); // Declare FocusNode
+  final FocusNode _scanFocusNode = FocusNode();
   final TextEditingController _customerSearchController = TextEditingController();
   final Map<String, TextEditingController> _quantityControllers = {};
   final Map<String, TextEditingController> _priceControllers = {};
   final Map<String, TextEditingController> _discountControllers = {};
-  
+
   bool _isDownloadingStock = false;
   bool _isProcessingSale = false;
   bool _isOnline = false; // Added for offline/online mode
-  
+
   int _heldSalesCount = 0;
   String? _ticketName; // New property for held sale ticket name
   bool _printReceiptForThisSale = false; // New setting for individual sale printing
@@ -108,18 +111,21 @@ class POSScreenController extends ChangeNotifier {
   List<PaymentType> get paymentTypes => _paymentTypes;
   List<Customer> get customers => _customers;
   List<model.Category> get categories => _categories;
-  
+
   Currency? get selectedCurrency => _selectedCurrency;
   Customer? get selectedCustomer => _selectedCustomer;
   Branch? get selectedBranch => _selectedBranch;
   model.Category? get selectedCategory => _selectedCategory;
   List<PaymentReceived> get payments => _payments;
-  
+
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
   bool get allowOutOfStockSales => _allowOutOfStockSales;
   bool get isBarcodeSearchMode => _isBarcodeSearchMode;
   TextEditingController get searchController => _searchController;
+  TextEditingController get scanController => _scanController;
+  FocusNode get searchFocusNode => _searchFocusNode; // Getter for FocusNode
+  FocusNode get scanFocusNode => _scanFocusNode;
   TextEditingController get customerSearchController => _customerSearchController;
   Map<String, TextEditingController> get quantityControllers => _quantityControllers;
   Map<String, TextEditingController> get priceControllers => _priceControllers;
@@ -178,15 +184,26 @@ class POSScreenController extends ChangeNotifier {
 
   void toggleBarcodeSearchMode() {
     _isBarcodeSearchMode = !_isBarcodeSearchMode;
-    _searchController.clear();
-    _searchQuery = '';
-    _applyFilters();
+    if (_isBarcodeSearchMode) {
+      _searchController.clear();
+      _searchQuery = '';
+      _applyFilters();
+      _scanFocusNode.requestFocus();
+    } else {
+      _scanController.clear();
+      _searchQuery = '';
+      _applyFilters();
+      _searchFocusNode.requestFocus();
+    }
     notifyListeners();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scanController.dispose();
+    _searchFocusNode.dispose(); // Dispose FocusNode
+    _scanFocusNode.dispose();
     _customerSearchController.removeListener(_onCustomerSearchChanged);
     _customerSearchController.dispose();
     _disposeQuantityControllers();
@@ -237,7 +254,7 @@ class POSScreenController extends ChangeNotifier {
       if (context.mounted) {
         String titleText = 'Open Shift Required';
         String contentText = 'You need an open shift to use the POS. Would you like to open one now?';
-        
+
         if (isPreviousDay) {
           titleText = 'Shift from Previous Day';
           contentText = 'Your current open shift is from a previous day. Please manage your shifts to continue.';
@@ -283,7 +300,7 @@ class POSScreenController extends ChangeNotifier {
     notifyListeners();
 
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    
+
     // Determine online/offline mode
     _isOnline = !(prefs.getBool(AppConstants.keyIsOfflineMode) ?? false);
 
@@ -297,7 +314,7 @@ class POSScreenController extends ChangeNotifier {
     final List<String> paymentTypeJson = _isOnline
         ? (prefs.getStringList(AppConstants.keyPaymentTypes) ?? [])
         : (prefs.getStringList(AppConstants.keyOfflinePaymentTypes) ?? []);
-    
+
     final List<String> customerJson = _isOnline
         ? (prefs.getStringList(AppConstants.keyCustomers) ?? [])
         : (prefs.getStringList(AppConstants.keyOfflineCustomers) ?? []);
@@ -308,7 +325,7 @@ class POSScreenController extends ChangeNotifier {
 
     Branch? defaultBranch;
     final String? dBranchJson = _isOnline
-    ?prefs.getString(AppConstants.keyDefaultBranch):
+        ?prefs.getString(AppConstants.keyDefaultBranch):
     prefs.getString(AppConstants.keyOfflineBranch);
     if (dBranchJson != null) {
       defaultBranch = Branch.fromJson(jsonDecode(dBranchJson));
@@ -316,13 +333,13 @@ class POSScreenController extends ChangeNotifier {
 
     _allBranchStocks = stockJson.map((item) => BranchStock.fromJson(jsonDecode(item))).toList();
     _currencies = currencyJson.map((e) => Currency.fromJson(jsonDecode(e))).toList();
-    
+
     // Only load active payment types and exclude those containing "Credit" in their name
     _paymentTypes = paymentTypeJson
         .map((e) => PaymentType.fromJson(jsonDecode(e)))
         .where((pt) => pt.active && !pt.name.toLowerCase().contains('credit'))
         .toList();
-        
+
     _customers = customerJson.map((e) => Customer.fromJson(jsonDecode(e))).toList();
     _categories = catJson.map((e) => model.Category.fromJson(jsonDecode(e))).toList();
 
@@ -368,7 +385,7 @@ class POSScreenController extends ChangeNotifier {
     } catch (e) {
       debugPrint("Failed to download branch stock: $e");
       if (context.mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to download stock: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to download stock: $e')));
       }
     } finally {
       _isDownloadingStock = false;
@@ -431,10 +448,14 @@ class POSScreenController extends ChangeNotifier {
 
       bool matchesSearch;
       if (_isBarcodeSearchMode) {
-        matchesSearch = s.item?.itemCode == _searchQuery;
+        if (_searchQuery.isEmpty) { // Added condition
+          matchesSearch = true; // Show all items if barcode search is active but query is empty
+        } else {
+          matchesSearch = s.item?.itemCode == _searchQuery;
+        }
       } else {
         matchesSearch = (s.item?.name.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-                        (s.item?.itemCode?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+            (s.item?.itemCode?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
       }
 
       return matchesBranch && matchesCategory && matchesSearch;
@@ -471,7 +492,6 @@ class POSScreenController extends ChangeNotifier {
   }
 
   void addToCart(BranchStock stock) {
-    print('adding to cart: ${stock.item?.name}');
     final product = stock.item!;
 
     if (!_allowOutOfStockSales && !product.isService) {
@@ -500,8 +520,8 @@ class POSScreenController extends ChangeNotifier {
       final double newQty = existingItem.quantity + 1;
       final double taxRate = product.tax?.taxPercentage ?? 0.0;
       double itemTaxAmount;
-        double totalInclusive = newQty * product.sellingPrice;
-        itemTaxAmount = totalInclusive - (totalInclusive / (1 + taxRate / 100));
+      double totalInclusive = newQty * product.sellingPrice;
+      itemTaxAmount = totalInclusive - (totalInclusive / (1 + taxRate / 100));
 
       _cart[index] = SaleItem(
         inventoryItem: product,
@@ -515,8 +535,8 @@ class POSScreenController extends ChangeNotifier {
     } else {
       final double taxRate = product.tax?.taxPercentage ?? 0.0;
       double itemTaxAmount;
-        double totalInclusive = 1 * product.sellingPrice;
-        itemTaxAmount = totalInclusive - (totalInclusive / (1 + taxRate / 100));
+      double totalInclusive = 1 * product.sellingPrice;
+      itemTaxAmount = totalInclusive - (totalInclusive / (1 + taxRate / 100));
 
       _cart.add(SaleItem(
         id: _cart.length.toString(),
@@ -566,7 +586,7 @@ class POSScreenController extends ChangeNotifier {
     }
 
     final BranchStock stock = _allBranchStocks.firstWhere(
-      (s) => s.item?.id == product.id && s.branch?.id == _selectedBranch?.id,
+          (s) => s.item?.id == product.id && s.branch?.id == _selectedBranch?.id,
       orElse: () => BranchStock(id: '', item: null, branch: null, stock: 0),
     );
 
@@ -590,7 +610,7 @@ class POSScreenController extends ChangeNotifier {
     double itemTaxAmount;
     double subtotalAfterDiscount = (newQuantity * newSellingPrice) - newDiscountAmount;
     if (subtotalAfterDiscount < 0) subtotalAfterDiscount = 0;
-      itemTaxAmount = subtotalAfterDiscount - (subtotalAfterDiscount / (1 + taxRate / 100));
+    itemTaxAmount = subtotalAfterDiscount - (subtotalAfterDiscount / (1 + taxRate / 100));
 
     _cart[index] = SaleItem(
       id: index.toString(),
@@ -602,7 +622,7 @@ class POSScreenController extends ChangeNotifier {
       taxAmount: itemTaxAmount,
       isMobile: true,
     );
-    
+
     notifyListeners();
   }
 
@@ -631,7 +651,7 @@ class POSScreenController extends ChangeNotifier {
     await prefs.setString(AppConstants.keyCurrentOpenShift, shift.toJson());
 
     if (!_isOnline) {
-       _shiftService.createShiftOfflineFirst(shift);
+      _shiftService.createShiftOfflineFirst(shift);
       return;
     }
 
@@ -643,28 +663,28 @@ class POSScreenController extends ChangeNotifier {
   }
 
   Future<void> payFromAccount(BuildContext context) async {
-      if (grandTotalConverted <= 0) return;
-      if (_selectedCustomer == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Please select a customer to pay from account.'), backgroundColor: Colors.red),
-          );
-          return;
-      }
-
-      final accountPaymentType = _paymentTypes.firstWhere(
-        (pt) => pt.name == 'ACC-${_selectedCurrency?.name}' && (pt.currency == null || pt.currency?.id == _selectedCurrency?.id),
-        orElse: () => PaymentType(id: 'acc_default', name: 'ACC-${_selectedCurrency?.name}', isCredit: true, currency: _selectedCurrency),
+    if (grandTotalConverted <= 0) return;
+    if (_selectedCustomer == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a customer to pay from account.'), backgroundColor: Colors.red),
       );
+      return;
+    }
 
-      // Defer customer balance update
-      _pendingCustomerBalanceUpdates.add(PendingCustomerBalanceUpdate(
-        customerId: _selectedCustomer!.id!,
-        currency: _selectedCurrency!,
-        amountChange: -balanceDueConverted, // Debit from customer account
-      ));
+    final accountPaymentType = _paymentTypes.firstWhere(
+          (pt) => pt.name == 'ACC-${_selectedCurrency?.name}' && (pt.currency == null || pt.currency?.id == _selectedCurrency?.id),
+      orElse: () => PaymentType(id: 'acc_default', name: 'ACC-${_selectedCurrency?.name}', isCredit: true, currency: _selectedCurrency),
+    );
 
-      // Check if this payment type already exists
-      final existingPaymentIndex = _payments.indexWhere((p) => p.paymentType?.name == accountPaymentType.name);
+    // Defer customer balance update
+    _pendingCustomerBalanceUpdates.add(PendingCustomerBalanceUpdate(
+      customerId: _selectedCustomer!.id!,
+      currency: _selectedCurrency!,
+      amountChange: -balanceDueConverted, // Debit from customer account
+    ));
+
+    // Check if this payment type already exists
+    final existingPaymentIndex = _payments.indexWhere((p) => p.paymentType?.name == accountPaymentType.name);
 
       if (existingPaymentIndex != -1) {
         // Update existing payment
@@ -716,7 +736,7 @@ class POSScreenController extends ChangeNotifier {
       final bool allowsCreditWithoutCustomer = !pt.isCredit || _selectedCustomer != null;
       // Removed the `isAlreadySelected` check here, as we will handle aggregation
       // instead of preventing selection.
-      
+
       // If cart is empty, only show non-credit payment types
       if (_cart.isEmpty) {
         return matchesCurrency && allowsCreditWithoutCustomer && !pt.isCredit;
@@ -773,10 +793,10 @@ class POSScreenController extends ChangeNotifier {
                     value: addToAccount,
                     onChanged: (double.tryParse(amountController.text) ?? 0.0) > balanceDueConverted || _cart.isEmpty
                         ? (bool? newValue) {
-                            setDialogState(() {
-                              addToAccount = newValue ?? false;
-                            });
-                          }
+                      setDialogState(() {
+                        addToAccount = newValue ?? false;
+                      });
+                    }
                         : null, // Disable if amount is not greater than balance due and cart is not empty
                   ),
               ],
@@ -804,7 +824,7 @@ class POSScreenController extends ChangeNotifier {
                     );
                     return;
                   }
-                  
+
                   setDialogState(() {
                     isProcessingDeposit = true;
                   });
@@ -843,11 +863,11 @@ class POSScreenController extends ChangeNotifier {
                       const SnackBar(content: Text('Failed to add deposit'), backgroundColor: Colors.red),
                     );
                   }
-                  
+
                   setDialogState(() {
                     isProcessingDeposit = false;
                   });
-                  return; 
+                  return;
                 }
 
                 // Handle credit payment type (customer paying *from* credit)
@@ -970,7 +990,7 @@ class POSScreenController extends ChangeNotifier {
     if (dialogResult && _cart.isEmpty) {
       await clearPOSScreen();
     }
-    
+
     notifyListeners(); // This notifyListeners() is sufficient after the dialog closes
     customerSelectFocus = false;
   }
@@ -1004,14 +1024,14 @@ class POSScreenController extends ChangeNotifier {
       if (balanceDueConverted > 0.01 && _cart.isNotEmpty) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Incomplete payment. Please pay the full balance before completing the sale.'),
-            backgroundColor: Colors.red,
-          )
+            const SnackBar(
+              content: Text('Incomplete payment. Please pay the full balance before completing the sale.'),
+              backgroundColor: Colors.red,
+            )
         );
         return;
       }
-      
+
       final MobilePosShift? currentShift = await _getCurrentShift();
       if (currentShift == null || (currentShift.isShiftClosed ?? true)) {
         if (!context.mounted) return;
@@ -1028,8 +1048,8 @@ class POSScreenController extends ChangeNotifier {
       // --- Apply pending customer balance updates BEFORE saving the sale ---
       if (_pendingCustomerBalanceUpdates.isNotEmpty) {
         List<Customer> currentCustomers = (_isOnline
-                ? (prefs.getStringList(AppConstants.keyCustomers) ?? [])
-                : (prefs.getStringList(AppConstants.keyOfflineCustomers) ?? []))
+            ? (prefs.getStringList(AppConstants.keyCustomers) ?? [])
+            : (prefs.getStringList(AppConstants.keyOfflineCustomers) ?? []))
             .map((e) => Customer.fromJson(jsonDecode(e)))
             .toList();
 
@@ -1060,10 +1080,13 @@ class POSScreenController extends ChangeNotifier {
             // --- Send updated customer to API ---
             if (_isOnline && totalAmtToAcc == 0.0) {
               print('Updating customer balance to API: ${customerToUpdate.toJson()}');
-              _customerService.updateCustomer(customerToUpdate).catchError((e) {
+              try {
+                await _customerService.updateCustomer(customerToUpdate);
+              } catch (e) {
                 debugPrint('Failed to update customer balance to API: $e');
-                return customerToUpdate;
-              });
+                // Decide if this error should stop the sale or just log it.
+                // For now, we'll log and continue, assuming local persistence is primary.
+              }
             }
           } else {
             debugPrint('Error: Customer with ID ${update.customerId} not found for balance update.');
@@ -1097,36 +1120,49 @@ class POSScreenController extends ChangeNotifier {
       }).toList();
 
       final newSale = Sale(
-        id: null,
-        createdByName: currentShift.createdByName,
-        cashierFullName: currentShift.userFullName,
-        customer: _selectedCustomer,
-        company: _selectedBranch!.company,
-        branch: _selectedBranch,
-        items: convertedCart, // Use converted items here
-        paymentTypes: _payments,
-        timeIniated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
-        currency: _selectedCurrency,
-        baseCurrency: _selectedCurrency,
-        amountAfterDiscount: grandTotalConverted,
-        baseSaleAmount: grandTotalBase, // Base sale amount should also be converted now that items are converted
-        totalTaxAmount: taxTotalBase * exchangeRate, // Tax should be converted
-        isSynced: false,
-        fiscalized: false,
-        saleStatus: 'COMPLETE',
-        taxInvoice: false,
-        totalQuantity: _cart.fold(0.0, (sum, item) => sum! + item.quantity),
-        posReference: generatedReference,
-        referenceNumber: generatedReference,
-        shiftReference: currentShift.shiftReference,
-        ticketName: _ticketName, // Include ticket name in the completed sale
-        amtToAcc: totalAmtToAcc > 0 ? totalAmtToAcc.toStringAsFixed(2) : null,
+          id: null,
+          createdByName: currentShift.createdByName,
+          cashierFullName: currentShift.userFullName,
+          customer: _selectedCustomer,
+          company: _selectedBranch!.company,
+          branch: _selectedBranch,
+          items: convertedCart, // Use converted items here
+          paymentTypes: _payments,
+          timeIniated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
+          currency: _selectedCurrency,
+          baseCurrency: _selectedCurrency,
+          amountAfterDiscount: grandTotalConverted,
+          baseSaleAmount: grandTotalBase, // Base sale amount should also be converted now that items are converted
+          totalTaxAmount: taxTotalBase * exchangeRate, // Tax should be converted
+          isSynced: false,
+          fiscalized: false,
+          saleStatus: 'COMPLETE',
+          taxInvoice: false,
+          totalQuantity: _cart.fold(0.0, (sum, item) => sum! + item.quantity),
+          posReference: generatedReference,
+          referenceNumber: generatedReference,
+          shiftReference: currentShift.shiftReference,
+          ticketName: _ticketName, // Include ticket name in the completed sale
+          amtToAcc: totalAmtToAcc > 0 ? totalAmtToAcc.toStringAsFixed(2) : null,
           customerAccBankType:null
       );
-      
-      _saleService.saveSale(newSale).catchError((e) {
-        debugPrint('Failed to save or sync sale in background: $e');
-      });
+
+      try {
+        await _saleService.saveSale(newSale);
+      } catch (e) {
+        debugPrint('Failed to save sale locally: $e');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to save sale: $e. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        _isProcessingSale = false; // Reset processing state
+        notifyListeners();
+        return; // Stop the sale process if local save fails
+      }
 
       // Print receipt based on selected printer and new setting
       try {
@@ -1145,10 +1181,10 @@ class POSScreenController extends ChangeNotifier {
 
       for (var cartItem in _cart) {
         if (cartItem.inventoryItem?.isService == true) continue;
-        
-        final stockIndex = allStocks.indexWhere((s) => 
-          s.item?.id == cartItem.inventoryItem?.id &&
-          s.branch?.id == _selectedBranch?.id
+
+        final stockIndex = allStocks.indexWhere((s) =>
+        s.item?.id == cartItem.inventoryItem?.id &&
+            s.branch?.id == _selectedBranch?.id
         );
 
         if (stockIndex != -1) {
@@ -1187,7 +1223,7 @@ class POSScreenController extends ChangeNotifier {
         currentShift.shiftCurrencyAmounts!.add(paymentShiftAmount);
         newActivitiesToExport.add(paymentShiftAmount);
       }
-      
+
       for (var accountCredit in _pendingAccountCredits) {
         accountCredit.posReference = '${newSale.posReference}_CA';
         accountCredit.shiftReference = currentShift.shiftReference;
@@ -1195,9 +1231,9 @@ class POSScreenController extends ChangeNotifier {
         newActivitiesToExport.add(accountCredit);
       }
       _pendingAccountCredits.clear();
-      
+
       if (newActivitiesToExport.isNotEmpty) {
-          await _excelExportService.exportShiftCurrencyAmountsToExcel(newActivitiesToExport);
+        await _excelExportService.exportShiftCurrencyAmountsToExcel(newActivitiesToExport);
       }
 
       _saveShift(currentShift); // Run in background
@@ -1222,7 +1258,7 @@ class POSScreenController extends ChangeNotifier {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final bool isOfflineMode = !(prefs.getBool(AppConstants.keyIsOfflineMode) ?? false);
-      
+
       final newPayment = PaymentReceived(
         paymentType: selectedPaymentType,
         payer: customer,
@@ -1247,10 +1283,10 @@ class POSScreenController extends ChangeNotifier {
         CustomerCurrencyAmount? existingCca;
         if (currentLocalCustomer.currencyBalance != null) {
           existingCca = currentLocalCustomer.currencyBalance!.firstWhereOrNull(
-            (cca) => cca.currency?.id == selectedCurrency.id,
+                (cca) => cca.currency?.id == selectedCurrency.id,
           );
           updatedCurrencyBalance.addAll(currentLocalCustomer.currencyBalance!.where(
-            (cca) => cca.currency?.id != selectedCurrency.id,
+                (cca) => cca.currency?.id != selectedCurrency.id,
           ));
         }
 
@@ -1320,7 +1356,7 @@ class POSScreenController extends ChangeNotifier {
           return false;
         });
       }
-      
+
       // Reload data to reflect changes.
       await _loadData();
 
@@ -1344,7 +1380,7 @@ class POSScreenController extends ChangeNotifier {
         );
         currentShift.shiftCurrencyAmounts ??= [];
         currentShift.shiftCurrencyAmounts!.add(shiftAmount);
-        
+
         await _excelExportService.exportShiftCurrencyAmountsToExcel([shiftAmount]);
 
         await _saveShift(currentShift);
@@ -1526,7 +1562,7 @@ class POSScreenController extends ChangeNotifier {
 
       if (balanceDueConverted > 0.01) {
         final cashPaymentType = _paymentTypes.firstWhere(
-          (pt) => (pt.isCash == true || pt.name.toLowerCase().startsWith('cash')) && (pt.currency == null || pt.currency?.id == _selectedCurrency?.id),
+              (pt) => (pt.isCash == true || pt.name.toLowerCase().startsWith('cash')) && (pt.currency == null || pt.currency?.id == _selectedCurrency?.id),
           orElse: () => PaymentType(id: 'cash_default', name: 'Cash', isCash: true),
         );
 

@@ -19,6 +19,7 @@ import 'package:provider/provider.dart'; // Import provider
 import '../custom_drawer/home_drawer.dart'; // Import DrawerIndex
 import '../navigation_home_screen.dart'; // Import NavigationProvider
 import 'imported_sales_preview_screen.dart'; // Import the new preview screen
+import '../model/user.dart'; // Import User model
 
 class SalesScreen extends StatefulWidget {
   const SalesScreen({super.key});
@@ -42,6 +43,8 @@ class _SalesScreenState extends State<SalesScreen> {
   
   bool _isLoading = true;
   MobilePosShift? _currentShift;
+  String? _loggedInUserId; 
+  String? _loggedInUserName; // Added to store the logged-in user's username
 
   DateTime? _filterStartDate;
   DateTime? _filterEndDate;
@@ -99,11 +102,24 @@ class _SalesScreenState extends State<SalesScreen> {
     
     _currentShift = await _getCurrentShift();
 
+    // Load logged-in user ID and username
+    final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
+    final String userKey = isOfflineMode ? AppConstants.keyOfflineUserData : AppConstants.keyOnlineUserData;
+    final String? userJson = prefs.getString(userKey);
+    if (userJson != null) {
+      try {
+        final User loggedInUser = User.fromJson(jsonDecode(userJson));
+        _loggedInUserId = loggedInUser.id;
+        _loggedInUserName = loggedInUser.userName; // Store username
+      } catch (e) {
+        print('Error decoding user data: $e');
+      }
+    }
+
     // Load Branches
     final List<String> branchJson = prefs.getStringList('branches') ?? [];
     final List<Branch> loadedBranches = branchJson.map((e) => Branch.fromJson(jsonDecode(e))).toList();
 
-    final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
     
     // Initialize selected branch from default branch
     final String defaultBranchKey = isOfflineMode ? AppConstants.keyOfflineBranch : AppConstants.keyDefaultBranch;
@@ -179,6 +195,7 @@ class _SalesScreenState extends State<SalesScreen> {
         startDate: _apiStartDate,
         endDate: _apiEndDate,
         branchId: _selectedBranch?.id,
+        userId: _loggedInUserId, // Pass logged-in user ID
       );
       List<Sale> onlineSales = fetchedOnlineSales.map((s) => Sale.fromOnlineSale(s)).toList();
 
@@ -290,7 +307,16 @@ class _SalesScreenState extends State<SalesScreen> {
               }
           }
 
-          return matchesSearch && matchesBranch && matchesCustomer && matchesStatus && matchesShift && matchesDate;
+          // 7. User Filter (by userId, already applied in _loadLocalData and _syncOnlineSales)
+          // final matchesUserId = _loggedInUserId == null || sale.userId == _loggedInUserId;
+
+          // 8. User Filter (by createdByName matching loggedInUserName)
+          final matchesCreatedByName = _loggedInUserName == null || (sale.createdByName != null && sale.createdByName == _loggedInUserName);
+
+
+          return matchesSearch && matchesBranch && matchesCustomer && matchesStatus && matchesShift && matchesDate
+              // && matchesUserId
+              && matchesCreatedByName;
         }).toList();
       });
     }
@@ -911,7 +937,10 @@ class _SalesScreenState extends State<SalesScreen> {
   Widget _buildFilterChip(String label, List<String> options, String selectedValue, Function(String) onSelected) {
     return PopupMenuButton<String>(
       onSelected: onSelected,
-      itemBuilder: (context) => options.map((opt) => PopupMenuItem(value: opt, child: Text(opt))).toList(),
+      itemBuilder: (context) => [
+        PopupMenuItem(value: 'All', child: const Text('All')), // Added 'All' option
+        ...options.map((opt) => PopupMenuItem(value: opt, child: Text(opt))).toList(),
+      ],
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
@@ -921,7 +950,7 @@ class _SalesScreenState extends State<SalesScreen> {
         ),
         child: Row(
           children: [
-            Text('$label: $selectedValue', style: TextStyle(fontSize: 12, fontWeight: selectedValue == 'All' ? FontWeight.normal : FontWeight.bold)),
+            Text('$label: ${selectedValue == 'All' ? 'All' : selectedValue}', style: TextStyle(fontSize: 12, fontWeight: selectedValue == 'All' ? FontWeight.normal : FontWeight.bold)),
             const Icon(Icons.arrow_drop_down, size: 16),
           ],
         ),
@@ -970,8 +999,7 @@ class _SalesScreenState extends State<SalesScreen> {
                   _searchQuery = '';
                   _selectedBranch = null;
                   _selectedCustomer = null;
-                  _selectedStatus = SaleStatus.COMPLETE.toString();
-                  _selectedStatus = SaleStatus.COMPLETE.toString();
+                  _selectedStatus = 'All'; // Changed to 'All'
                   _currentShiftOnly = false;
                   _filterStartDate = null;
                   _filterEndDate = null;

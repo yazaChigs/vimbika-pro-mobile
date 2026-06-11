@@ -71,8 +71,7 @@ class SaleService {
       print('Error during immediate excel export: $e');
     }
 
-    // Trigger sync
-    await _saleSyncService.syncSales();
+    // No longer trigger sync here. Sync will be triggered by POSScreenController.
   }
 
   Future<void> syncSales() async {
@@ -84,6 +83,7 @@ class SaleService {
     required DateTime endDate,
     String? categoryId,
     String? branchId,
+    String? userId, // Added userId parameter
   }) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? userData = prefs.getString(AppConstants.keyOnlineUserData);

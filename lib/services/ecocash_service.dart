@@ -2,13 +2,14 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:vimbika_pro/model/ecocash_charge_request.dart';
 import 'package:vimbika_pro/model/ecocash_charge_response.dart';
+import 'package:vimbika_pro/services/base_http_client.dart';
 
 class EcocashService {
   static const String _baseUrl = 'https://payonline.ecocash.co.zw/ecocashGateway-preprod/payment/v1/transactions/amount';
   static const String _username = 'ecocash';
   static const String _password = 'mobiquity';
 
-  Future<EcocashChargeResponse> charge(EcocashChargeRequest request) async {
+  Future<EcocashChargeResponse> chargeDirect(EcocashChargeRequest request) async {
     print('request: ${request.toJson()}');
     final response = await http.post(
       Uri.parse(_baseUrl),
@@ -24,5 +25,19 @@ class EcocashService {
     } else {
       throw Exception('Failed to make charge request: ${response.body}');
     }
+  }
+
+
+  final BaseHttpClient _client = BaseHttpClient();
+
+  Future<EcocashChargeResponse> charge(EcocashChargeRequest request) async {
+    final responseStr = await _client.post('/payments/ecocash/charge', jsonEncode(request.toJson()));
+    return EcocashChargeResponse.fromJson(jsonDecode(responseStr));
+  }
+
+  Future<EcocashChargeResponse> checkStatus(String clientCorrelator) async {
+    final responseStr = await _client.get('/payments/ecocash/status/$clientCorrelator');
+    print('responseStr: $responseStr');
+    return EcocashChargeResponse.fromJson(jsonDecode(responseStr));
   }
 }

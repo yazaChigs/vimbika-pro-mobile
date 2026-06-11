@@ -146,6 +146,9 @@ class BaseHttpClient {
     switch (response.statusCode) {
       case 200:
       case 201:
+        if (response.bodyBytes.isEmpty) {
+          return '{}'; // Return an empty JSON object string for empty bodies
+        }
         return utf8.decode(response.bodyBytes);
       case 400:
         throw BadRequestException(utf8.decode(response.bodyBytes), response.request!.url.toString());

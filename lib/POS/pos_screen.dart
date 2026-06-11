@@ -202,44 +202,70 @@ class POSScreen extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: controller.searchController,
-                      onChanged: (val) {
-                        controller.setSearchQuery(val);
-                        if (controller.isBarcodeSearchMode && val.isNotEmpty) {
-                          final stock = controller.filteredBranchStocks.firstWhere(
-                                (s) => s.item?.itemCode == val,
-                            orElse: () => BranchStock(id: '', item: null, branch: null, stock: 0),
-                          );
-                          if (stock.item != null) {
-                            controller.addToCart(stock);
-                            controller.searchController.clear();
-                            controller.setSearchQuery('');
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('${stock.item!.name} added to cart.'),
-                                  duration: const Duration(seconds: 1),
-                                ),
-                              );
-                            }
-                          }
-                        }
-                      },
-                      decoration: InputDecoration(
-                        hintText: controller.isBarcodeSearchMode ? 'Scan barcode...' : 'Search products...',
-                        prefixIcon: Icon(controller.isBarcodeSearchMode ? Icons.barcode_reader : Icons.search),
-                        suffixIcon: IconButton(
-                          icon: Icon(controller.isBarcodeSearchMode ? Icons.text_fields : Icons.barcode_reader),
-                          tooltip: controller.isBarcodeSearchMode ? 'Switch to Text Search' : 'Switch to Barcode Search',
-                          onPressed: controller.toggleBarcodeSearchMode,
-                        ),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        filled: true,
-                        fillColor: AppTheme.white,
-                      ),
-                      keyboardType: controller.isBarcodeSearchMode ? TextInputType.number : TextInputType.text,
-                    ),
+                    child: controller.isBarcodeSearchMode
+                        ? TextField(
+                            controller: controller.scanController,
+                            focusNode: controller.scanFocusNode,
+                            onSubmitted: (_) {
+                              controller.scanFocusNode.requestFocus();
+                            },
+                            onEditingComplete: () {
+                              // Prevent default focus movement
+                            },
+                            onChanged: (val) {
+                              if (val.isNotEmpty) {
+                                final stock = controller.filteredBranchStocks.firstWhere(
+                                  (s) => s.item?.itemCode == val,
+                                  orElse: () => BranchStock(id: '', item: null, branch: null, stock: 0),
+                                );
+                                if (stock.item != null) {
+                                  controller.addToCart(stock);
+                                  controller.scanController.clear();
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('${stock.item!.name} added to cart.'),
+                                        duration: const Duration(seconds: 1),
+                                      ),
+                                    );
+                                  }
+                                }
+                              }
+                            },
+                            decoration: InputDecoration(
+                              hintText: 'Scan barcode...',
+                              prefixIcon: const Icon(Icons.barcode_reader),
+                              suffixIcon: IconButton(
+                                icon: const Icon(Icons.search),
+                                tooltip: 'Switch to Text Search',
+                                onPressed: controller.toggleBarcodeSearchMode,
+                              ),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              filled: true,
+                              fillColor: AppTheme.white,
+                            ),
+                            keyboardType: TextInputType.number,
+                          )
+                        : TextField(
+                            controller: controller.searchController,
+                            focusNode: controller.searchFocusNode,
+                            onChanged: (val) {
+                              controller.setSearchQuery(val);
+                            },
+                            decoration: InputDecoration(
+                              hintText: 'Search products...',
+                              prefixIcon: const Icon(Icons.search),
+                              suffixIcon: IconButton(
+                                icon: const Icon(Icons.barcode_reader),
+                                tooltip: 'Switch to Barcode Search',
+                                onPressed: controller.toggleBarcodeSearchMode,
+                              ),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              filled: true,
+                              fillColor: AppTheme.white,
+                            ),
+                            keyboardType: TextInputType.text,
+                          ),
                   ),
                 ],
               ),

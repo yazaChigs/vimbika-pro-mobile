@@ -32,6 +32,7 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
   Branch? _selectedBranch;
 
   bool _isLoading = false;
+  bool _dialogLoading = false; // Added this variable
 
   @override
   void initState() {
@@ -98,39 +99,54 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Select Company'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: _companies.length,
-              itemBuilder: (BuildContext context, int index) {
-                final company = _companies[index];
-                return ListTile(
-                  title: Text(company.name),
-                  leading: const Icon(Icons.business),
-                  trailing: _selectedCompany?.id == company.id
-                      ? const Icon(Icons.check, color: AppTheme.vimbikaBlue)
-                      : null,
-                  onTap: () {
-                    setState(() {
-                      _selectedCompany = company;
-                    });
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Select Company'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _companies.length,
+                  itemBuilder: (BuildContext context, int index) {
+                    final company = _companies[index];
+                    return ListTile(
+                      title: Text(company.name),
+                      leading: const Icon(Icons.business),
+                      trailing: _selectedCompany?.id == company.id
+                          ? const Icon(Icons.check, color: AppTheme.vimbikaBlue)
+                          : null,
+                      onTap: _dialogLoading ? null : () {
+                        setDialogState(() {
+                          _dialogLoading = true;
+                        });
+                        setState(() {
+                          _selectedCompany = company;
+                        });
+                        Navigator.of(context).pop();
+                      },
+                    );
+                  },
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: _dialogLoading ? null : () {
                     Navigator.of(context).pop();
                   },
-                );
-              },
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-          ],
+                  child: _dialogLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text('Cancel'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -140,39 +156,54 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Select Branch'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: _branches.length,
-              itemBuilder: (BuildContext context, int index) {
-                final branch = _branches[index];
-                return ListTile(
-                  title: Text(branch.name),
-                  leading: const Icon(Icons.store),
-                  trailing: _selectedBranch?.id == branch.id
-                      ? const Icon(Icons.check, color: AppTheme.vimbikaBlue)
-                      : null,
-                  onTap: () {
-                    setState(() {
-                      _selectedBranch = branch;
-                    });
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Select Branch'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _branches.length,
+                  itemBuilder: (BuildContext context, int index) {
+                    final branch = _branches[index];
+                    return ListTile(
+                      title: Text(branch.name),
+                      leading: const Icon(Icons.store),
+                      trailing: _selectedBranch?.id == branch.id
+                          ? const Icon(Icons.check, color: AppTheme.vimbikaBlue)
+                          : null,
+                      onTap: _dialogLoading ? null : () {
+                        setDialogState(() {
+                          _dialogLoading = true;
+                        });
+                        setState(() {
+                          _selectedBranch = branch;
+                        });
+                        Navigator.of(context).pop();
+                      },
+                    );
+                  },
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: _dialogLoading ? null : () {
                     Navigator.of(context).pop();
                   },
-                );
-              },
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-          ],
+                  child: _dialogLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text('Cancel'),
+                ),
+              ],
+            );
+          },
         );
       },
     );

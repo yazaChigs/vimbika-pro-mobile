@@ -491,7 +491,7 @@ class PrinterService {
         }
         if (i < _numberOfReceiptsPerSale - 1) {
           // Add a small delay between prints for multiple copies
-          await Future.delayed(const Duration(milliseconds: 500));
+          await Future.delayed(const Duration(seconds: 2));
         }
       }
     } catch (e) {

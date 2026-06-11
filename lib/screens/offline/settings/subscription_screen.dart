@@ -26,14 +26,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     },
     {
       'name': 'Standard Plan',
-      'price': 15.0,
-      'displayPrice': '\$15 / month',
+      'price': 3.0,
+      'displayPrice': '\$3 / month',
       'features': ['Full POS', 'Up to 3 Users', 'Advanced Reporting', 'Offline/Online Sync'],
     },
     {
       'name': 'Premium Plan',
-      'price': 30.0,
-      'displayPrice': '\$30 / month',
+      'price': 5.0,
+      'displayPrice': '\$5 / month',
       'features': ['Unlimited Users', 'Multi-Branch Support', 'Custom Integrations', 'Priority Support'],
     },
   ];
@@ -118,7 +118,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
 
     try {
-      final response = await _ecocashService.charge(request);
+      final response = await _ecocashService.chargeDirect(request);
       print('Response: ${response.responseCode}');
 
       if (response.transactionOperationStatus == 'PENDING SUBSCRIBER VALIDATION') {
@@ -128,19 +128,57 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             backgroundColor: Colors.orange,
           ),
         );
-        // In a real app, you would poll a backend that listens for the notifyUrl callback.
-        // For this example, we'll just simulate success after a delay.
-        Future.delayed(const Duration(seconds: 10), () {
-          setState(() {
-            _currentSubscription = _selectedSubscription!;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Successfully subscribed to $_currentSubscription'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        });
+
+        bool paymentCompleted = false;
+        int attempts = 0;
+        const maxAttempts = 30; // 5 minutes (30 * 10 seconds)
+
+        while (!paymentCompleted && attempts < maxAttempts) {
+          await Future.delayed(const Duration(seconds: 10));
+          attempts++;
+          try {
+            final statusResponse = await _ecocashService.checkStatus(clientCorrelator);
+            print('Status Response: ${statusResponse.transactionOperationStatus}');
+            if (statusResponse.transactionOperationStatus == 'COMPLETED') {
+              paymentCompleted = true;
+              if (mounted) {
+                setState(() {
+                  _currentSubscription = _selectedSubscription!;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Successfully subscribed to $_currentSubscription'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            } else if (statusResponse.transactionOperationStatus == 'FAILED' ||
+                statusResponse.transactionOperationStatus == 'CANCELLED') {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Payment ${statusResponse.transactionOperationStatus.toLowerCase()}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+              break;
+            }
+          } catch (e) {
+            debugPrint('Error checking status: $e');
+          }
+        }
+
+        if (!paymentCompleted && attempts >= maxAttempts) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Payment timed out. Please check your EcoCash app.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
