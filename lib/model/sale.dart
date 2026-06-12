@@ -118,7 +118,8 @@ class Sale extends BaseEntity {
     this.ticketComment,
     this.totalQuantity,
     this.amtToAcc,
-    this.customerAccBankType
+    this.customerAccBankType,
+
   });
 
   Sale copyWith({

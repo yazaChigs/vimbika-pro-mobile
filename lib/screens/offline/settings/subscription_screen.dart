@@ -1,8 +1,16 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:vimbika_pro/app_constants/app_constants.dart';
 import 'package:vimbika_pro/app_constants/app_theme.dart';
 import 'package:vimbika_pro/model/ecocash_charge_request.dart';
+import 'package:vimbika_pro/model/inventory_item.dart';
+import 'package:vimbika_pro/model/user.dart';
 import 'package:vimbika_pro/services/ecocash_service.dart';
+import 'package:vimbika_pro/services/subscription_service.dart';
 import 'package:uuid/uuid.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../../model/customer.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -15,28 +23,71 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   String _currentSubscription = 'Free Tier';
   String? _selectedSubscription;
   final EcocashService _ecocashService = EcocashService();
+  final SubscriptionService _subscriptionService = SubscriptionService();
   final TextEditingController _phoneController = TextEditingController();
+  bool _isLoading = false; // Added loading state
+  bool _isFetchingSubscriptions = false;
+  User? _loggedInUser;
 
-  final List<Map<String, dynamic>> _availableSubscriptions = [
-    {
-      'name': 'Free Tier',
-      'price': 0.0,
-      'displayPrice': '\$0 / month',
-      'features': ['Basic POS', '1 User', 'Limited Reporting', 'Offline Mode'],
-    },
-    {
-      'name': 'Standard Plan',
-      'price': 3.0,
-      'displayPrice': '\$3 / month',
-      'features': ['Full POS', 'Up to 3 Users', 'Advanced Reporting', 'Offline/Online Sync'],
-    },
-    {
-      'name': 'Premium Plan',
-      'price': 5.0,
-      'displayPrice': '\$5 / month',
-      'features': ['Unlimited Users', 'Multi-Branch Support', 'Custom Integrations', 'Priority Support'],
-    },
-  ];
+  List<Map<String, dynamic>> _availableSubscriptions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+    _fetchSubscriptions();
+  }
+
+  Future<void> _loadUser() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? userData = prefs.getString(AppConstants.keyOfflineUserData) ?? prefs.getString(AppConstants.keyOnlineUserData);
+    if (userData != null) {
+      setState(() {
+        _loggedInUser = User.fromJson(jsonDecode(userData));
+      });
+    }
+  }
+
+  Future<void> _fetchSubscriptions() async {
+    setState(() {
+      _isFetchingSubscriptions = true;
+    });
+    try {
+      final subscriptions = await _subscriptionService.getAvailableSubscriptions('OFFLINE');
+      setState(() {
+        _availableSubscriptions = subscriptions.map((item) {
+          return {
+            'name': item.name,
+            'price': item.sellingPrice,
+            'displayPrice': '\$${item.sellingPrice} / month',
+            'features': item.description?.split(',') ?? ['Basic POS'],
+            'item': item,
+          };
+        }).toList();
+
+        // If currently empty, you might want to add a default Free Tier if not returned by API
+        if (_availableSubscriptions.isEmpty) {
+           _availableSubscriptions = [
+            {
+              'name': 'Free Tier',
+              'price': 0.0,
+              'displayPrice': '\$0 / month',
+              'features': ['Basic POS', '1 User', 'Limited Reporting', 'Offline Mode'],
+            }
+          ];
+        }
+      });
+    } catch (e) {
+      debugPrint('Error fetching subscriptions: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load subscriptions: $e')),
+      );
+    } finally {
+      setState(() {
+        _isFetchingSubscriptions = false;
+      });
+    }
+  }
 
   void _handlePayment() {
     if (_selectedSubscription == null || _selectedSubscription == _currentSubscription) {
@@ -82,6 +133,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Future<void> _initiatePayment() async {
+    setState(() {
+      _isLoading = true; // Set loading to true
+    });
+
     final selectedPlan = _availableSubscriptions.firstWhere((sub) => sub['name'] == _selectedSubscription);
     final amount = selectedPlan['price'];
     final clientCorrelator = const Uuid().v4();
@@ -115,6 +170,15 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       location: 'HARARE',
       superMerchantName: 'VIMBIKA',
       merchantName: 'Vimbika Pro',
+      customer: Customer(
+        name: '${_loggedInUser?.firstName ?? ''} ${_loggedInUser?.lastName ?? ''}'.trim().isNotEmpty 
+            ? '${_loggedInUser?.firstName ?? ''} ${_loggedInUser?.lastName ?? ''}'.trim() 
+            : 'Subscriber', 
+        phoneNumber: _phoneController.text,
+        company: _loggedInUser?.branch?.company,
+        branch: _loggedInUser?.branch,
+      ),
+      subscriptionItem: selectedPlan['item'] as InventoryItem?,
     );
 
     try {
@@ -128,18 +192,18 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             backgroundColor: Colors.orange,
           ),
         );
+        _ecocashService.charge(request);
 
         bool paymentCompleted = false;
         int attempts = 0;
         const maxAttempts = 30; // 5 minutes (30 * 10 seconds)
 
         while (!paymentCompleted && attempts < maxAttempts) {
-          await Future.delayed(const Duration(seconds: 10));
+          await Future.delayed(const Duration(seconds: 5));
           attempts++;
           try {
             final statusResponse = await _ecocashService.checkStatus(clientCorrelator);
-            print('Status Response: ${statusResponse.transactionOperationStatus}');
-            if (statusResponse.transactionOperationStatus == 'COMPLETED') {
+            if (statusResponse == 'COMPLETED') {
               paymentCompleted = true;
               if (mounted) {
                 setState(() {
@@ -152,12 +216,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   ),
                 );
               }
-            } else if (statusResponse.transactionOperationStatus == 'FAILED' ||
-                statusResponse.transactionOperationStatus == 'CANCELLED') {
+            } else if (statusResponse == 'FAILED' ||
+                statusResponse == 'CANCELLED') {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Payment ${statusResponse.transactionOperationStatus.toLowerCase()}'),
+                    content: Text('Payment $statusResponse'),
                     backgroundColor: Colors.red,
                   ),
                 );
@@ -194,6 +258,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           backgroundColor: Colors.red,
         ),
       );
+    } finally {
+      setState(() {
+        _isLoading = false; // Set loading to false
+      });
     }
   }
 
@@ -246,23 +314,33 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            ..._availableSubscriptions.map((sub) => _buildSubscriptionCard(sub)).toList(),
+            _isFetchingSubscriptions
+                ? const Center(child: CircularProgressIndicator())
+                : _availableSubscriptions.isEmpty
+                    ? const Center(child: Text('No subscription plans available.'))
+                    : Column(
+                        children: _availableSubscriptions.map((sub) => _buildSubscriptionCard(sub)).toList(),
+                      ),
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: (_selectedSubscription != null && _selectedSubscription != _currentSubscription)
+                onPressed: (_selectedSubscription != null && _selectedSubscription != _currentSubscription && !_isLoading)
                     ? _handlePayment
                     : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.vimbikaBlue,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text(
-                  'Make Payment & Switch Plan',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      )
+                    : const Text(
+                        'Make Payment & Switch Plan',
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
               ),
             ),
           ],
@@ -276,7 +354,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final isCurrent = _currentSubscription == sub['name'];
 
     return GestureDetector(
-      onTap: isCurrent
+      onTap: isCurrent || _isLoading // Disable tap if loading
           ? null
           : () {
               setState(() {

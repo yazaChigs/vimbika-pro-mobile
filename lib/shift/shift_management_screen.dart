@@ -89,7 +89,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     }
 
     // Load past shifts
-    await _loadPastShifts();
+     _loadPastShifts();
 
     if (!mounted) return;
     setState(() {

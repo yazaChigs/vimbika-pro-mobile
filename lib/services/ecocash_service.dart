@@ -10,7 +10,6 @@ class EcocashService {
   static const String _password = 'mobiquity';
 
   Future<EcocashChargeResponse> chargeDirect(EcocashChargeRequest request) async {
-    print('request: ${request.toJson()}');
     final response = await http.post(
       Uri.parse(_baseUrl),
       headers: {
@@ -35,9 +34,8 @@ class EcocashService {
     return EcocashChargeResponse.fromJson(jsonDecode(responseStr));
   }
 
-  Future<EcocashChargeResponse> checkStatus(String clientCorrelator) async {
+  Future<String> checkStatus(String clientCorrelator) async {
     final responseStr = await _client.get('/payments/ecocash/status/$clientCorrelator');
-    print('responseStr: $responseStr');
-    return EcocashChargeResponse.fromJson(jsonDecode(responseStr));
+    return responseStr;
   }
 }

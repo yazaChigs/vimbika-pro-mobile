@@ -554,10 +554,17 @@ class POSScreen extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Paid: ${controller.selectedCurrency?.symbol ?? ''}${controller.amountPaidConverted.toStringAsFixed(2)}',
+            Text('Paid: ${controller.selectedCurrency?.symbol ?? ''}${controller.amountTendered.toStringAsFixed(2)}',
                 style: const TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.bold)),
-            Text('Balance: ${controller.selectedCurrency?.symbol ?? ''}${controller.balanceDueConverted.toStringAsFixed(2)}',
-                style: const TextStyle(color: Colors.red, fontSize: 13, fontWeight: FontWeight.bold)),
+            Text(
+              controller.balanceDueConverted <= 0.0
+                  ? 'Change: ${controller.selectedCurrency?.symbol ?? ''}${(controller.balanceDueConverted * -1).toStringAsFixed(2)}'
+                  : 'Balance Due: ${controller.selectedCurrency?.symbol ?? ''}${controller.balanceDueConverted.toStringAsFixed(2)}',
+              style: TextStyle(
+                  color: controller.balanceDueConverted <= 0.0 ? Colors.green : Colors.red,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         const SizedBox(height: 8), // Reduced height

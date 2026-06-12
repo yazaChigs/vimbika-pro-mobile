@@ -541,15 +541,18 @@ class PrinterService {
     bytes += generator.text(sale.branch?.name ?? "", styles: PosStyles(align: PosAlign.center));
     bytes += generator.text(sale.branch?.address ?? "", styles: PosStyles(align: PosAlign.center));
 
-    if (sale.branch?.phoneNumber != null && sale.branch!.phoneNumber!.isNotEmpty) {
-      bytes += generator.text("Tel: ${sale.branch!.phoneNumber!}", styles: PosStyles(align: PosAlign.center));
-    } else if (sale.company?.phoneNumber != null && sale.company!.phoneNumber!.isNotEmpty) {
+
+    // Company Phone Number
+    if (sale.company?.phoneNumber != null && sale.company!.phoneNumber!.isNotEmpty) {
       bytes += generator.text("Tel: ${sale.company!.phoneNumber!}", styles: PosStyles(align: PosAlign.center));
     }
-    if (sale.branch?.email != null && sale.branch!.email!.isNotEmpty) {
-      bytes += generator.text("Email: ${sale.branch!.email!}", styles: PosStyles(align: PosAlign.center));
-    } else if (sale.company?.email != null && sale.company!.email!.isNotEmpty) {
-      bytes += generator.text("Email: ${sale.company!.email!}", styles: PosStyles(align: PosAlign.center));
+    // Company VAT Number
+    if (sale.company?.vatNumber != null && sale.company!.vatNumber!.isNotEmpty) {
+      bytes += generator.text("VAT: ${sale.company!.vatNumber!}", styles: PosStyles(align: PosAlign.center));
+    }
+    // Company TIN Number
+    if (sale.company?.taxNumber != null && sale.company!.taxNumber!.isNotEmpty) {
+      bytes += generator.text("TIN: ${sale.company!.taxNumber!}", styles: PosStyles(align: PosAlign.center));
     }
 
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
@@ -559,17 +562,27 @@ class PrinterService {
       bytes += generator.text("Customer: ${sale.customer!.name}", styles: PosStyles(align: PosAlign.left));
     }
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
-    bytes += generator.text("Item            Qty    Total", styles: PosStyles(align: PosAlign.left));
+    bytes += generator.text("Item", styles: PosStyles(align: PosAlign.left)); // Simpler header
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
 
     String symbol = sale.currency?.symbol ?? "";
     num totalItems = 0;
     for (var item in sale.items) {
       totalItems += item.quantity;
-      String name = (item.inventoryItem?.name ?? "Item").padRight(15).substring(0, 15);
-      String qty = item.quantity.toStringAsFixed(0).padLeft(3);
-      String total = "$symbol${item.total.toStringAsFixed(2)}".padLeft(10);
-      bytes += generator.text("$name $qty $total", styles: PosStyles(align: PosAlign.left));
+      String name = (item.inventoryItem?.name ?? "Item");
+      // Split name into multiple lines if it's too long
+      List<String> nameLines = [];
+      int chunkSize = 30; // Max characters per line for item name
+      for (int i = 0; i < name.length; i += chunkSize) {
+        nameLines.add(name.substring(i, (i + chunkSize < name.length) ? i + chunkSize : name.length));
+      }
+      for (String line in nameLines) {
+        bytes += generator.text(line, styles: PosStyles(align: PosAlign.left));
+      }
+      
+      String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
+      String total = "Total: $symbol${item.total.toStringAsFixed(2)}";
+      bytes += generator.text(_alignLeftRight(qty, total), styles: PosStyles(align: PosAlign.left));
     }
 
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
@@ -681,15 +694,14 @@ class PrinterService {
     }
 
     // Add company/branch contact details
-    if (sale.branch?.phoneNumber != null && sale.branch!.phoneNumber!.isNotEmpty) {
-      await SunmiPrinter.printText("Tel: ${sale.branch!.phoneNumber!}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
-    } else if (sale.company?.phoneNumber != null && sale.company!.phoneNumber!.isNotEmpty) {
+    if (sale.company?.phoneNumber != null && sale.company!.phoneNumber!.isNotEmpty) {
       await SunmiPrinter.printText("Tel: ${sale.company!.phoneNumber!}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
-    if (sale.branch?.email != null && sale.branch!.email!.isNotEmpty) {
-      await SunmiPrinter.printText("Email: ${sale.branch!.email!}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
-    } else if (sale.company?.email != null && sale.company!.email!.isNotEmpty) {
-      await SunmiPrinter.printText("Email: ${sale.company!.email!}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    if (sale.company?.vatNumber != null && sale.company!.vatNumber!.isNotEmpty) {
+      await SunmiPrinter.printText("VAT: ${sale.company!.vatNumber!}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    }
+    if (sale.company?.taxNumber != null && sale.company!.taxNumber!.isNotEmpty) {
+      await SunmiPrinter.printText("TIN: ${sale.company!.taxNumber!}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
 
     await SunmiPrinter.lineWrap(1);
@@ -701,12 +713,24 @@ class PrinterService {
     
     String symbol = sale.currency?.symbol ?? "";
     num totalItems = 0;
+    await SunmiPrinter.printText("Item", style: SunmiStyle(align: SunmiPrintAlign.LEFT)); // Simpler header
+    await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     for (var item in sale.items) {
       totalItems += item.quantity;
-      String name = (item.inventoryItem?.name ?? "Item").padRight(15).substring(0, 15);
-      String qty = "x${item.quantity.toStringAsFixed(0)}".padLeft(5);
-      String total = "$symbol${item.total.toStringAsFixed(2)}".padLeft(10);
-      await SunmiPrinter.printText("$name$qty$total");
+      String name = (item.inventoryItem?.name ?? "Item");
+      // Split name into multiple lines if it's too long
+      List<String> nameLines = [];
+      int chunkSize = 30; // Max characters per line for item name
+      for (int i = 0; i < name.length; i += chunkSize) {
+        nameLines.add(name.substring(i, (i + chunkSize < name.length) ? i + chunkSize : name.length));
+      }
+      for (String line in nameLines) {
+        await SunmiPrinter.printText(line, style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+      }
+      
+      String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
+      String total = "Total: $symbol${item.total.toStringAsFixed(2)}";
+      await SunmiPrinter.printText(_alignLeftRight(qty, total), style: SunmiStyle(align: SunmiPrintAlign.LEFT));
     }
     
     await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
@@ -811,15 +835,17 @@ class PrinterService {
     bytes += generator.text(sale.branch?.name ?? "", styles: PosStyles(align: PosAlign.center));
     bytes += generator.text(sale.branch?.address ?? "", styles: PosStyles(align: PosAlign.center));
 
-    if (sale.branch?.phoneNumber != null && sale.branch!.phoneNumber!.isNotEmpty) {
-      bytes += generator.text("Tel: ${sale.branch!.phoneNumber!}", styles: PosStyles(align: PosAlign.center));
-    } else if (sale.company?.phoneNumber != null && sale.company!.phoneNumber!.isNotEmpty) {
+    // Company Phone Number
+    if (sale.company?.phoneNumber != null && sale.company!.phoneNumber!.isNotEmpty) {
       bytes += generator.text("Tel: ${sale.company!.phoneNumber!}", styles: PosStyles(align: PosAlign.center));
     }
-    if (sale.branch?.email != null && sale.branch!.email!.isNotEmpty) {
-      bytes += generator.text("Email: ${sale.branch!.email!}", styles: PosStyles(align: PosAlign.center));
-    } else if (sale.company?.email != null && sale.company!.email!.isNotEmpty) {
-      bytes += generator.text("Email: ${sale.company!.email!}", styles: PosStyles(align: PosAlign.center));
+    // Company VAT Number
+    if (sale.company?.vatNumber != null && sale.company!.vatNumber!.isNotEmpty) {
+      bytes += generator.text("VAT: ${sale.company!.vatNumber!}", styles: PosStyles(align: PosAlign.center));
+    }
+    // Company TIN Number
+    if (sale.company?.taxNumber != null && sale.company!.taxNumber!.isNotEmpty) {
+      bytes += generator.text("TIN: ${sale.company!.taxNumber!}", styles: PosStyles(align: PosAlign.center));
     }
 
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
@@ -829,17 +855,27 @@ class PrinterService {
       bytes += generator.text("Customer: ${sale.customer!.name}", styles: PosStyles(align: PosAlign.left));
     }
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
-    bytes += generator.text("Item            Qty    Total", styles: PosStyles(align: PosAlign.left));
+    bytes += generator.text("Item", styles: PosStyles(align: PosAlign.left)); // Simpler header
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     
     String symbol = sale.currency?.symbol ?? "";
     num totalItems = 0;
     for (var item in sale.items) {
       totalItems += item.quantity;
-      String name = (item.inventoryItem?.name ?? "Item").padRight(15).substring(0, 15);
-      String qty = item.quantity.toStringAsFixed(0).padLeft(3);
-      String total = "$symbol${item.total.toStringAsFixed(2)}".padLeft(10);
-      bytes += generator.text("$name $qty $total", styles: PosStyles(align: PosAlign.left));
+      String name = (item.inventoryItem?.name ?? "Item");
+      // Split name into multiple lines if it's too long
+      List<String> nameLines = [];
+      int chunkSize = 30; // Max characters per line for item name
+      for (int i = 0; i < name.length; i += chunkSize) {
+        nameLines.add(name.substring(i, (i + chunkSize < name.length) ? i + chunkSize : name.length));
+      }
+      for (String line in nameLines) {
+        bytes += generator.text(line, styles: PosStyles(align: PosAlign.left));
+      }
+      
+      String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
+      String total = "Total: $symbol${item.total.toStringAsFixed(2)}";
+      bytes += generator.text(_alignLeftRight(qty, total), styles: PosStyles(align: PosAlign.left));
     }
     
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
@@ -1243,7 +1279,7 @@ class PrinterService {
           currencyTotals[activity.currency.id!]!['CASH_IN'] =
               (currencyTotals[activity.currency.id!]!['CASH_IN'] ?? 0.0) + activity.amount;
         } else if (activity.amountType == 'ACCOUNT_TOP_UP') {
-          if (activity.isCash == true) {
+          if (activity.isCash == true|| (activity.paymentType?.toLowerCase().startsWith('cash') ?? false)) {
             currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] =
                 (currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] ?? 0.0) + activity.amount;
           } else {

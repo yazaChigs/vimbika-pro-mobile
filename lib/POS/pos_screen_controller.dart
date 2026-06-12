@@ -101,6 +101,9 @@ class POSScreenController extends ChangeNotifier {
   bool _printReceiptForThisSale = false; // New setting for individual sale printing
   bool _customerSelectFocus = true;
 
+  double _amountTendered = 0.0; // New variable for amount tendered
+  TextEditingController _amountTenderedController = TextEditingController(); // Controller for tendered amount
+
   double totalAmtToAcc = 0.0;
 
   // Getters for accessing state
@@ -136,6 +139,8 @@ class POSScreenController extends ChangeNotifier {
   String? get ticketName => _ticketName; // Getter for ticket name
   bool get printReceiptForThisSale => _printReceiptForThisSale; // Getter for new setting
   bool get customerSelectFocus => _customerSelectFocus; // Getter for new setting
+  double get amountTendered => _amountTendered; // Getter for amount tendered
+  TextEditingController get amountTenderedController => _amountTenderedController; // Getter for amount tendered controller
 
   // Setter for new setting
   set printReceiptForThisSale(bool value) {
@@ -146,6 +151,13 @@ class POSScreenController extends ChangeNotifier {
   // Setter for new setting
   set customerSelectFocus(bool value) {
     _customerSelectFocus = value;
+    notifyListeners();
+  }
+
+  // Setter for amount tendered
+  set amountTendered(double value) {
+    _amountTendered = value;
+    _amountTenderedController.text = value.toStringAsFixed(2);
     notifyListeners();
   }
 
@@ -162,6 +174,8 @@ class POSScreenController extends ChangeNotifier {
     // Clear payments when currency changes as payments are in the selected currency
     _payments.clear();
     _pendingCustomerBalanceUpdates.clear(); // Clear pending balance updates
+    _amountTendered = 0.0; // Reset tendered amount
+    _amountTenderedController.clear(); // Clear tendered amount controller
     notifyListeners();
   }
 
@@ -206,6 +220,7 @@ class POSScreenController extends ChangeNotifier {
     _scanFocusNode.dispose();
     _customerSearchController.removeListener(_onCustomerSearchChanged);
     _customerSearchController.dispose();
+    _amountTenderedController.dispose(); // Dispose tendered amount controller
     _disposeQuantityControllers();
     super.dispose();
   }
@@ -471,7 +486,14 @@ class POSScreenController extends ChangeNotifier {
 
   double get grandTotalConverted => grandTotalBase * (_selectedCurrency?.rate ?? 1.0);
   double get amountPaidConverted => _payments.fold(0, (sum, item) => sum + item.amount);
-  double get balanceDueConverted => grandTotalConverted - amountPaidConverted;
+  
+  // Adjusted balanceDueConverted to consider amountTendered
+  double get balanceDueConverted {
+    if (_amountTendered > 0) {
+      return grandTotalConverted - _amountTendered;
+    }
+    return grandTotalConverted - amountPaidConverted;
+  }
 
   Bank? _getCorrectBank(PaymentType? paymentType, Currency? currency) {
     if (currency != null && paymentType != null) {
@@ -548,6 +570,8 @@ class POSScreenController extends ChangeNotifier {
         isMobile: true,
       ));
     }
+    _amountTendered = 0.0; // Reset tendered amount on cart change
+    _amountTenderedController.clear(); // Clear tendered amount controller
     notifyListeners();
   }
 
@@ -561,6 +585,8 @@ class POSScreenController extends ChangeNotifier {
     _priceControllers.remove(itemId);
     _discountControllers[itemId]?.dispose();
     _discountControllers.remove(itemId);
+    _amountTendered = 0.0; // Reset tendered amount on cart change
+    _amountTenderedController.clear(); // Clear tendered amount controller
     notifyListeners();
   }
 
@@ -622,7 +648,8 @@ class POSScreenController extends ChangeNotifier {
       taxAmount: itemTaxAmount,
       isMobile: true,
     );
-
+    _amountTendered = 0.0; // Reset tendered amount on cart change
+    _amountTenderedController.clear(); // Clear tendered amount controller
     notifyListeners();
   }
 
@@ -707,7 +734,8 @@ class POSScreenController extends ChangeNotifier {
             bank: _getCorrectBank(accountPaymentType, _selectedCurrency),
         ));
       }
-      
+      _amountTendered = 0.0; // Reset tendered amount on payment
+      _amountTenderedController.clear(); // Clear tendered amount controller
       notifyListeners();
   }
 
@@ -791,7 +819,7 @@ class POSScreenController extends ChangeNotifier {
                   CheckboxListTile(
                     title: const Text('Add remaining to customer account'),
                     value: addToAccount,
-                    onChanged: (double.tryParse(amountController.text) ?? 0.0) > balanceDueConverted || _cart.isEmpty
+                    onChanged: (double.tryParse(amountController.text) ?? 0.0) > grandTotalConverted || _cart.isEmpty
                         ? (bool? newValue) {
                       setDialogState(() {
                         addToAccount = newValue ?? false;
@@ -815,6 +843,7 @@ class POSScreenController extends ChangeNotifier {
                 }
                 final amt = double.tryParse(amountController.text) ?? 0.0;
                 if (amt <= 0) return;
+                _amountTendered += amt;
 
                 if (_cart.isEmpty) {
                   if (_selectedCustomer == null) {
@@ -940,8 +969,6 @@ class POSScreenController extends ChangeNotifier {
                   }
                 }
 
-
-                print('amountToCreditCustomer: ${_payments.first.toJson()}');
                 // We DO NOT save payments to the shift here to avoid duplicates.
                 // We track account credits separately to be processed in completeSale.
                 if (amountToCreditCustomer > 0) {
@@ -990,15 +1017,19 @@ class POSScreenController extends ChangeNotifier {
     if (dialogResult && _cart.isEmpty) {
       await clearPOSScreen();
     }
-
+    // _amountTendered = 0.0; // Reset tendered amount on payment
+    // _amountTenderedController.clear(); // Clear tendered amount controller
     notifyListeners(); // This notifyListeners() is sufficient after the dialog closes
     customerSelectFocus = false;
   }
 
   void updatePaymentAmount(int index, double newAmount) {
+    _amountTendered = 0;
     if (index >= 0 && index < _payments.length) {
       final oldPayment = _payments[index];
       _payments[index] = oldPayment.copyWith(amount: newAmount);
+      _amountTendered += newAmount; // Reset tendered amount on payment update
+      _amountTenderedController.clear(); // Clear tendered amount controller
       notifyListeners();
     }
   }
@@ -1006,11 +1037,14 @@ class POSScreenController extends ChangeNotifier {
   void removePayment(int index) {
     if (index >= 0 && index < _payments.length) {
       _payments.removeAt(index);
+      _amountTendered = 0.0; // Reset tendered amount on payment removal
+      _amountTenderedController.clear(); // Clear tendered amount controller
       notifyListeners();
     }
   }
 
   Future<void> completeSale() async {
+    print('_payments: ${_payments.length}');
     if (_isProcessingSale) return;
     _isProcessingSale = true;
     notifyListeners();
@@ -1021,7 +1055,9 @@ class POSScreenController extends ChangeNotifier {
     try {
       if (_cart.isEmpty && _pendingAccountCredits.isEmpty) return;
 
-      if (balanceDueConverted > 0.01 && _cart.isNotEmpty) {
+      // Check if the total amount paid (including tendered amount if applicable) covers the grand total
+      double effectiveAmountPaid = _amountTendered > 0 ? _amountTendered : amountPaidConverted;
+      if (effectiveAmountPaid < grandTotalConverted && _cart.isNotEmpty) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -1050,8 +1086,7 @@ class POSScreenController extends ChangeNotifier {
         List<Customer> currentCustomers = (_isOnline
             ? (prefs.getStringList(AppConstants.keyCustomers) ?? [])
             : (prefs.getStringList(AppConstants.keyOfflineCustomers) ?? []))
-            .map((e) => Customer.fromJson(jsonDecode(e)))
-            .toList();
+            .map((e) => Customer.fromJson(jsonDecode(e))).toList();
 
         for (var update in _pendingCustomerBalanceUpdates) {
           final int customerIndex = currentCustomers.indexWhere((c) => c.id == update.customerId);
@@ -1144,7 +1179,10 @@ class POSScreenController extends ChangeNotifier {
           shiftReference: currentShift.shiftReference,
           ticketName: _ticketName, // Include ticket name in the completed sale
           amtToAcc: totalAmtToAcc > 0 ? totalAmtToAcc.toStringAsFixed(2) : null,
-          customerAccBankType:null
+          customerAccBankType:null,
+          amountPaid: amountTendered,
+          change:balanceDueConverted * -1,
+
       );
 
       try {
@@ -1167,7 +1205,7 @@ class POSScreenController extends ChangeNotifier {
       // Print receipt based on selected printer and new setting
       try {
         // Only print if the individual sale setting is true, OR if the global "always print" setting is true.
-        if (_printerService.isConnected && (_printReceiptForThisSale || _printerService.getAlwaysPrintReceipt())) {
+        if (_printerService.isConnected && (_printReceiptForThisSale)) {
           await _printerService.printSale(newSale);
         }
       } catch (e) {
@@ -1204,7 +1242,6 @@ class POSScreenController extends ChangeNotifier {
       final List<MobileShiftCurrencyAmount> newActivitiesToExport = []; // Track new activities
 
       for (var payment in _payments) {
-        print('payment: ${payment.toJson()}');
         final MobileShiftCurrencyAmount paymentShiftAmount = MobileShiftCurrencyAmount(
           id:null,
           dateCreated:null,
@@ -1214,7 +1251,7 @@ class POSScreenController extends ChangeNotifier {
           amount: payment.amount,
           notes: _cart.isEmpty ? 'Account top up via ${payment.paymentType!.name}' : 'Payment for sale ${newSale.posReference} via ${payment.paymentType!.name}',
           amountType: _cart.isEmpty ? 'ACCOUNT_TOP_UP' : 'SALE',
-          ref: newSale.posReference, // Changed to use posReference as ID is null initially
+          ref: 'SL_${DateTime.now().millisecondsSinceEpoch}${_payments.indexOf(payment)}', // Changed to use posReference as ID is null initially
           posReference: newSale.posReference,
           shiftReference: currentShift.shiftReference,
           isCash: payment.paymentType!.isCash == true || (payment.paymentType!.name.toLowerCase().startsWith('cash')),
@@ -1400,6 +1437,8 @@ class POSScreenController extends ChangeNotifier {
       _pendingCustomerBalanceUpdates.clear(); // Clear pending balance updates
       _selectedCustomer = null;
       _ticketName = null; // Clear ticket name
+      _amountTendered = 0.0; // Clear tendered amount
+      _amountTenderedController.clear(); // Clear tendered amount controller
       _disposeQuantityControllers();
     } else {
       _selectedCustomer = newCustomer;
@@ -1520,6 +1559,8 @@ class POSScreenController extends ChangeNotifier {
     _selectedCustomer = heldSale.customer;
     _selectedCurrency = heldSale.currency;
     _ticketName = heldSale.ticketName; // Load ticket name
+    _amountTendered = 0.0; // Reset tendered amount when loading held sale
+    _amountTenderedController.clear(); // Clear tendered amount controller
 
     for (var item in _cart) {
       if (item.inventoryItem?.id != null) {
@@ -1560,26 +1601,32 @@ class POSScreenController extends ChangeNotifier {
         return;
       }
 
-      if (balanceDueConverted > 0.01) {
+      // Set amountTendered to grandTotalConverted for quick cash
+      _amountTendered = grandTotalConverted;
+      _amountTenderedController.text = _amountTendered.toStringAsFixed(2);
+
+      // if (balanceDueConverted > 0.01) {
         final cashPaymentType = _paymentTypes.firstWhere(
               (pt) => (pt.isCash == true || pt.name.toLowerCase().startsWith('cash')) && (pt.currency == null || pt.currency?.id == _selectedCurrency?.id),
           orElse: () => PaymentType(id: 'cash_default', name: 'Cash', isCash: true),
         );
 
-        // Check if this payment type already exists
-        final existingPaymentIndex = _payments.indexWhere((p) => p.paymentType?.name == cashPaymentType.name);
-
-        if (existingPaymentIndex != -1) {
-          // Update existing payment
-          final existingPayment = _payments[existingPaymentIndex];
-          _payments[existingPaymentIndex] = existingPayment.copyWith(
-            amount: existingPayment.amount + balanceDueConverted,
-          );
-        } else {
+        // // Check if this payment type already exists
+        // final existingPaymentIndex = _payments.indexWhere((p) => p.paymentType?.name == cashPaymentType.name);
+        //
+        // if (existingPaymentIndex != -1) {
+        //   // Update existing payment
+        //   final existingPayment = _payments[existingPaymentIndex];
+        //   _payments[existingPaymentIndex] = existingPayment.copyWith(
+        //     amount: existingPayment.amount + grandTotalConverted, // Use grandTotalConverted for quick cash
+        //   );
+        // } else {
+      _payments.clear();
           // Add new payment
-          _payments.add(PaymentReceived(
+          _payments.add(
+              PaymentReceived(
             id: 'local_payment_${DateTime.now().millisecondsSinceEpoch}', // Unique ID
-            amount: balanceDueConverted,
+            amount: grandTotalConverted, // Use grandTotalConverted for quick cash
             paymentType: cashPaymentType,
             currency: _selectedCurrency,
             branch: _selectedBranch, // Add the selected branch here
@@ -1588,12 +1635,14 @@ class POSScreenController extends ChangeNotifier {
             dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
             isMobile: true,
             bank: _getCorrectBank(cashPaymentType, _selectedCurrency),
-          ));
-        }
+          )
+          );
+
+        // }
 
         // We no longer save payments to the shift here to avoid duplicates.
         // It will be done in completeSale.
-      }
+      // }
 
       // Need to unset _isProcessingSale before calling completeSale
       // because completeSale checks it too.

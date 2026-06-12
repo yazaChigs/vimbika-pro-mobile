@@ -103,99 +103,101 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
           child: Card(
             elevation: 4,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_logoFile != null)
-                    Image.file(
-                      _logoFile!,
-                      height: 100,
-                      width: 100,
-                    ),
-                  Text('${widget.sale.company?.name ?? 'Vimbika'}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                  const Text('Official Sales Receipt', style: TextStyle(fontSize: 12, color: AppTheme.grey)),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('DATE', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
-                          Text(
-                            DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(widget.sale.timeIniated))
-                              , style: const TextStyle(fontWeight: FontWeight.bold)),
-                        ],
+            child: SingleChildScrollView( // Added SingleChildScrollView here
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_logoFile != null)
+                      Image.file(
+                        _logoFile!,
+                        height: 100,
+                        width: 100,
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Text('RECEIPT #', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
-                          Text(widget.sale.referenceNumber?? widget.sale.posReference!, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 32),
-                  if (widget.sale.customer != null) ...[
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('CUSTOMER', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
-                          Text(widget.sale.customer!.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          if (widget.sale.customer!.phoneNumber != null) Text(widget.sale.customer!.phoneNumber!, style: const TextStyle(fontSize: 12)),
-                        ],
-                      ),
+                    Text('${widget.sale.company?.name ?? 'Vimbika'}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                    const Text('Official Sales Receipt', style: TextStyle(fontSize: 12, color: AppTheme.grey)),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('DATE', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
+                            Text(
+                              DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(widget.sale.timeIniated))
+                                , style: const TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            const Text('RECEIPT #', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
+                            Text(widget.sale.referenceNumber?? widget.sale.posReference!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ],
                     ),
                     const Divider(height: 32),
-                  ],
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('ITEMS', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
-                  ),
-                  const SizedBox(height: 8),
-                  ...widget.sale.items.map((item) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text('${item.inventoryItem?.name} (x${item.quantity.toStringAsFixed(0)})'),
+                    if (widget.sale.customer != null) ...[
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('CUSTOMER', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
+                            Text(widget.sale.customer!.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            if (widget.sale.customer!.phoneNumber != null) Text(widget.sale.customer!.phoneNumber!, style: const TextStyle(fontSize: 12)),
+                          ],
                         ),
-                        Text('\$${item.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  )),
-                  const Divider(height: 32),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('TOTAL', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text('\$${widget.sale.grandTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.vimbikaBlue)),
+                      ),
+                      const Divider(height: 32),
                     ],
-                  ),
-                  const SizedBox(height: 24),
-                  if (widget.sale.paymentTypes != null && widget.sale.paymentTypes!.isNotEmpty) ...[
                     const Align(
                       alignment: Alignment.centerLeft,
-                      child: Text('PAYMENT DETAILS', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
+                      child: Text('ITEMS', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
                     ),
-                    const SizedBox(height: 4),
-                    ...widget.sale.paymentTypes!.map((p) => Row(
+                    const SizedBox(height: 8),
+                    ...widget.sale.items.map((item) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text('${item.inventoryItem?.name} (x${item.quantity.toStringAsFixed(0)})'),
+                          ),
+                          Text('\$${item.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    )),
+                    const Divider(height: 32),
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(p.paymentType?.name ?? 'Method', style: const TextStyle(fontSize: 12)),
-                        Text('\$${p.amount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                        const Text('TOTAL', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text('\$${widget.sale.grandTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.vimbikaBlue)),
                       ],
-                    )),
+                    ),
+                    const SizedBox(height: 24),
+                    if (widget.sale.paymentTypes != null && widget.sale.paymentTypes!.isNotEmpty) ...[
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('PAYMENT DETAILS', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
+                      ),
+                      const SizedBox(height: 4),
+                      ...widget.sale.paymentTypes!.map((p) => Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(p.paymentType?.name ?? 'Method', style: const TextStyle(fontSize: 12)),
+                          Text('\$${p.amount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                        ],
+                      )),
+                    ],
+                    const SizedBox(height: 40),
+                    const Text('Thank you for your business!', style: TextStyle(fontStyle: FontStyle.italic, color: AppTheme.grey)),
                   ],
-                  const SizedBox(height: 40),
-                  const Text('Thank you for your business!', style: TextStyle(fontStyle: FontStyle.italic, color: AppTheme.grey)),
-                ],
+                ),
               ),
             ),
           ),

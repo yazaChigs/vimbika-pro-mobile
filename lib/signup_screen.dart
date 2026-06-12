@@ -15,6 +15,8 @@ import 'model/bank.dart';
 import 'model/unit.dart';
 import 'model/expense_category.dart';
 import 'model/mobile_pos_shift.dart';
+import 'model/subscription.dart';
+import 'model/inventory_item.dart';
 import 'quick_start_screen.dart'; // Import the new quick start screen
 
 class SignupScreen extends StatefulWidget {
@@ -320,6 +322,42 @@ class _SignupScreenState extends State<SignupScreen> {
         AppConstants.keyExpenseCategories,
         defaultExpenseCategories.map((ec) => jsonEncode(ec.toJson())).toList()
       );
+    }
+
+    if (!prefs.containsKey(AppConstants.keySubscriptions)) {
+      // Find base currency or use USD from the list
+      final baseCurrency = defaultCurrencies.firstWhere(
+        (c) => c.isBaseCurrency == true,
+        orElse: () => defaultCurrencies.first,
+      );
+
+      final trialPackage = InventoryItem(
+        id: _uuid.v4(),
+        name: '7-Day Trial',
+        description: 'Initial 7-day free trial package',
+        isService: true,
+        sellingPrice: 0.0,
+        dateCreated: DateTime.now().toIso8601String(),
+      );
+
+      final trialSubscription = Subscription(
+        id: _uuid.v4(),
+        name: '7-Day Trial',
+        active: true,
+        currency: baseCurrency,
+        renewalAmount: 0.0,
+        renewalDate: DateTime.now().add(const Duration(days: 7)),
+        subscription: trialPackage,
+        dateCreated: DateTime.now().toIso8601String(),
+      );
+
+      await prefs.setString(
+        AppConstants.keySubscriptions,
+        jsonEncode([trialSubscription.toMap()])
+      );
+      
+      // Also update remaining days for UI
+      await prefs.setInt(AppConstants.keySubscriptionDaysRemaining, 7);
     }
   }
 

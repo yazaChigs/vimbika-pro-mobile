@@ -7,6 +7,7 @@ class Company extends BaseNameEntity {
   final String? website;
   final String? logo;
   final String? taxNumber;
+  final String? vatNumber;
 
   Company({
     String? id,
@@ -23,6 +24,7 @@ class Company extends BaseNameEntity {
     this.website,
     this.logo,
     this.taxNumber,
+    this.vatNumber,
   }) : super(
           id: id,
           dateCreated: dateCreated,
@@ -50,6 +52,7 @@ class Company extends BaseNameEntity {
       website: json['website']?.toString(),
       logo: json['logo']?.toString(),
       taxNumber: json['taxNumber']?.toString(),
+      vatNumber: json['vatNumber']?.toString(),
     );
   }
 
@@ -69,6 +72,7 @@ class Company extends BaseNameEntity {
       'website': website,
       'logo': logo,
       'taxNumber': taxNumber,
+      'vatNumber': vatNumber,
     };
   }
 }

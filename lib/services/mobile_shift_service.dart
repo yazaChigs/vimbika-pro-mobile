@@ -145,7 +145,7 @@ class MobilePosShiftService {
       // Also, if it was in a pending queue, remove it.
       final List<String>? offlineShiftsJson = prefs.getStringList(AppConstants.keyOfflineMobileShifts);
       if (offlineShiftsJson != null) {
-        List<MobilePosShift> offlineShifts = offlineShiftsJson.map((s) => MobilePosShift.fromJson(jsonDecode(s))).toList();
+        List<MobilePosShift> offlineShifts = offlineShiftsJson.map((s) => MobilePosShift.fromRawJson(s)).toList();
         offlineShifts.removeWhere((s) => s.shiftReference == syncedShift.shiftReference);
         await prefs.setStringList(AppConstants.keyOfflineMobileShifts, offlineShifts.map((s) => jsonEncode(s.toJson())).toList());
       }
@@ -158,7 +158,7 @@ class MobilePosShiftService {
       List<MobilePosShift> offlineShifts = [];
       if (offlineShiftsJsonList != null) {
         try {
-            offlineShifts = offlineShiftsJsonList.map((s) => MobilePosShift.fromJson(jsonDecode(s))).toList();
+            offlineShifts = offlineShiftsJsonList.map((s) => MobilePosShift.fromRawJson(s)).toList();
         } catch (jsonErr) {
             print('Could not decode offline shifts json: $jsonErr');
         }
@@ -173,6 +173,8 @@ class MobilePosShiftService {
   }
 
   Future<MobilePosShift> createShift(MobilePosShift shift, {bool syncOnly = false}) async {
+    print('syncOnly: ${syncOnly}');
+    print('items: ${shift.shiftCurrencyAmounts!.length}') ;
     if (!syncOnly) {
       return createShiftOfflineFirst(shift);
     }

@@ -50,7 +50,6 @@ class SaleService {
         }
       }
 
-      print('allSalesForExcel: ${allSalesForExcel.length}');
       if (allSalesForExcel.isNotEmpty) {
         final now = DateTime.now();
         final todaySales = allSalesForExcel.where((s) {
@@ -60,7 +59,6 @@ class SaleService {
                  saleDate.day == now.day;
         }).toList();
 
-        print('todaySales: ${todaySales.length}');
         if (todaySales.isNotEmpty) {
           final fileName = 'sales_backup_${DateFormat('yyyy_MM_dd').format(now)}';
           await _excelExportService.exportSalesToExcel(todaySales, fileName);
