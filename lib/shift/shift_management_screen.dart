@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart'; // Import for DateFormat
+import 'package:connectivity_plus/connectivity_plus.dart'; // Import connectivity_plus
 import '../app_constants/app_constants.dart';
 import '../model/mobile_pos_shift.dart';
 import '../model/mobile_shift_currency_amount.dart';
@@ -151,6 +152,61 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     }
   }
 
+  Future<void> _refreshCurrentShift() async {
+    if (!mounted) return;
+    if (_currentUser?.id == null || _isOfflineMode) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot refresh shift in offline mode or without user ID.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final openShiftResponse = await _shiftService.getOpenShift(_currentUser!.id!);
+      final bool isShiftAvailable = openShiftResponse['available'] ?? false;
+
+      if (isShiftAvailable) {
+        final MobilePosShift fetchedShift = MobilePosShift.fromJson(openShiftResponse['item']);
+        await prefs.setString(AppConstants.keyCurrentOpenShift, fetchedShift.toJson());
+        if (mounted) {
+          setState(() {
+            _currentShift = fetchedShift;
+          });
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Current shift updated from server.')),
+        );
+      } else {
+        await prefs.remove(AppConstants.keyCurrentOpenShift);
+        if (mounted) {
+          setState(() {
+            _currentShift = null;
+          });
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No open shift found on server. Local shift cleared.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to refresh current shift: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _openShift() async {
     if (_currentUser == null || _currentUser!.branch?.company == null) {
       if (!mounted) return;
@@ -215,39 +271,44 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     }
   }
 
+  // New helper function for core shift closing logic
+  Future<void> _performCloseShiftLogic() async {
+    if (_currentShift == null || (_currentShift?.isShiftClosed ?? true)) {
+      // No active shift to close, or already closed.
+      // This is not an error, just means nothing to do.
+      return;
+    }
+
+    // Stop the sale sync timer
+    _saleSyncService.stopSyncTimer();
+
+    // Sync all unsynced items
+    await _saleSyncService.syncSales();
+
+    _currentShift!.closingTime = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
+    _currentShift!.isShiftClosed = true;
+
+    // Save or update shift based on mode
+    if (_isOfflineMode) {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString(AppConstants.keyCurrentOpenShift, _currentShift!.toJson());
+    } else {
+      await _shiftService.createShift(_currentShift!); // Assuming createShift also handles updates if ID exists
+    }
+  }
+
   Future<void> _closeShift() async {
-    if (!mounted) return; // Added check
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
     try {
-      if (_currentShift == null || (_currentShift?.isShiftClosed ?? true)) {
-        throw Exception('No active shift to close.');
-      }
-
-      // Stop the sale sync timer
-      _saleSyncService.stopSyncTimer();
-
-      // Sync all unsynced items
-      await _saleSyncService.syncSales();
-
-      _currentShift!.closingTime = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
-      _currentShift!.isShiftClosed = true;
-
-      // Save or update shift based on mode
-      if (_isOfflineMode) {
-        final SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString(AppConstants.keyCurrentOpenShift, _currentShift!.toJson());
-      } else {
-        await _shiftService.createShift(_currentShift!);
-      }
-
+      await _performCloseShiftLogic();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Shift closed successfully!')),
       );
       await _loadInitialData(); // Reload data to update UI after closing shift
-
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -301,17 +362,80 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
   }
 
   Future<void> _logout() async {
-    if (!mounted) return; // Added check
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
     try {
-      // Clear user preferences
+      // Check internet connection
+      final connectivityResult = await (Connectivity().checkConnectivity());
+      final bool isConnected = connectivityResult != ConnectivityResult.none;
+
+      // If there's an active shift
+      if (_currentShift != null && !(_currentShift?.isShiftClosed ?? true)) {
+        if (isConnected) {
+          // Internet available, close shift and then logout
+          await _performCloseShiftLogic();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Shift closed and synced successfully before logging out!')),
+          );
+        } else {
+          // No internet, prompt user
+          final bool? continueOffline = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false, // User must tap a button
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('No Internet Connection'),
+                content: const Text(
+                    'The current shift will be closed locally but cannot be synced to the server immediately. '
+                    'It will be queued for synchronization when internet is restored. '
+                    'Do you want to continue logging out?'),
+                actions: <Widget>[
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false), // User cancels
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true), // User continues offline
+                    child: const Text('Continue Offline'),
+                  ),
+                ],
+              );
+            },
+          );
+
+          if (continueOffline == null || !continueOffline) {
+            // User cancelled the logout
+            if (!mounted) return;
+            setState(() {
+              _isLoading = false;
+            });
+            return;
+          }
+
+          // User chose to continue offline
+          await _performCloseShiftLogic(); // This will close the shift locally
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Shift closed locally and queued for server sync. Logging out...')),
+          );
+
+          // Store the locally closed shift for later server sync attempt
+          final SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setString(AppConstants.keyUnsyncedClosedShift, _currentShift!.toJson());
+          print('Shift ${_currentShift!.shiftReference} saved for later sync.');
+        }
+      }
+
+      // Clear user preferences (common to both online and offline logout)
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.remove(AppConstants.keyUserData);
       await prefs.setBool(AppConstants.keyHasUser, false);
       await prefs.setBool(AppConstants.keyIsOfflineMode, true); // Default to offline mode on logout
       await prefs.remove(AppConstants.keyCachedPastShifts); // Clear cached past shifts on logout
+      await prefs.remove(AppConstants.keyCurrentOpenShift); // Ensure current shift is cleared from prefs
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -566,6 +690,11 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: AppTheme.nearlyBlack),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _refreshCurrentShift,
+            tooltip: 'Refresh Current Shift',
+          ),
           IconButton(
             icon: const Icon(Icons.receipt_long),
             onPressed: _viewSavedShiftExcel,

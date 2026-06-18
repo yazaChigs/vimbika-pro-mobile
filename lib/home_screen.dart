@@ -5,6 +5,7 @@ import 'package:vimbika_pro/app_constants/app_constants.dart';
 import 'package:vimbika_pro/screens/online/online_reports_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'login/login_screen.dart';
 import 'model/homelist.dart';
 import 'package:vimbika_pro/services/default_data_service.dart';
 
@@ -37,7 +38,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
     // Check for subscription days remaining
     final int? daysRemaining = prefs.getInt(AppConstants.keySubscriptionDaysRemaining);
-    if (daysRemaining != null && daysRemaining <= 5) {
+    if (daysRemaining != null && daysRemaining <= 5 && daysRemaining > 0) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -48,6 +49,26 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           ),
         );
       }
+    }
+    else if(daysRemaining != null && daysRemaining < 1 ){
+      // Logout if subscription has expired
+      String usersKey = isOfflineMode ? AppConstants.keyOfflineUserData : AppConstants.keyOnlineUserData;
+      await prefs.remove(usersKey); // Clear user data
+      await prefs.remove(AppConstants.keySubscriptionDaysRemaining); // Clear subscription days remaining
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Your subscription has expired. Please log in again."),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
+          ),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()), // Navigate to login screen
+        );
+      }
+      return; // Stop further processing if logged out
     }
     
     // User role check
@@ -162,7 +183,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                             ),
                             gridDelegate:
                                 SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: multiple ? 2 : 1,
+                              crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : (multiple ? 2 : 1),
                               mainAxisSpacing: 12.0,
                               crossAxisSpacing: 12.0,
                               childAspectRatio: 1.5,
@@ -355,7 +376,7 @@ class HomeListView extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
+                ),
             ),
           ),
         );

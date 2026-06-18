@@ -324,7 +324,7 @@ class _SignupScreenState extends State<SignupScreen> {
       );
     }
 
-    if (!prefs.containsKey(AppConstants.keySubscriptions)) {
+    if (!prefs.containsKey(AppConstants.keyOfflineSubscriptions)) {
       // Find base currency or use USD from the list
       final baseCurrency = defaultCurrencies.firstWhere(
         (c) => c.isBaseCurrency == true,
@@ -352,7 +352,7 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       await prefs.setString(
-        AppConstants.keySubscriptions,
+        AppConstants.keyOfflineSubscriptions,
         jsonEncode([trialSubscription.toMap()])
       );
       

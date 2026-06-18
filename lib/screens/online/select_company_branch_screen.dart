@@ -235,40 +235,103 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
           // Prompt to log into existing shift
           await showDialog(
             context: context,
+            barrierDismissible: false, // Prevent dialog from closing on outside tap
             builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('Open Shift Found'),
-                content: Text('An open shift from today was found ${existingShift.shiftReference}. Do you want to continue with it?'),
-                actions: <Widget>[
-                  TextButton(
-                    onPressed: () async {
-                      await prefs.setString(AppConstants.keyCurrentOpenShift, existingShift.toJson());
-                      if (mounted) {
-                        // Download all default data
-                        try {
-                          _isLoading = true;
-                          final defaultDataService = DefaultDataService();
-                          await defaultDataService.fetchAndSaveDefaultData(widget.user);
-                          Navigator.of(context).pop(); // Close dialog
-                          _navigateToHomeScreen();
-                        } catch (e) {
-                          debugPrint("Error fetching default data: $e");
-                        }
-                      }
-                    },
-                    child: const Text('Continue with Shift'),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      Navigator.of(context).pop(); // Close dialog
-                      _isLoading = true;
-                      await _createNewShiftAndNavigate(shiftService);
-                      // User chose not to continue, stay on this screen or handle as needed
-                      setState(() { _isLoading = false; });
-                    },
-                    child: const Text('Cancel'),
-                  ),
-                ],
+              bool dialogButtonLoading = false; // Local loading state for dialog buttons
+              return StatefulBuilder(
+                builder: (context, setDialogState) {
+                  return AlertDialog(
+                    title: const Text('Open Shift Found'),
+                    content: Text('An open shift from today was found ${existingShift.shiftReference}. Do you want to continue with it?'),
+                    actions: <Widget>[
+                      TextButton(
+                        onPressed: dialogButtonLoading ? null : () async {
+                          setDialogState(() {
+                            dialogButtonLoading = true;
+                          });
+                          try {
+                            await prefs.setString(AppConstants.keyCurrentOpenShift, existingShift.toJson());
+                            if (mounted) {
+                              // Check if default data needs to be fetched
+                              final String? lastFetchedUserId = prefs.getString(AppConstants.keyLastFetchedUserId);
+                              if (lastFetchedUserId != widget.user.id) {
+                                final defaultDataService = DefaultDataService();
+                                await defaultDataService.fetchAndSaveDefaultData(widget.user);
+                                await prefs.setString(AppConstants.keyLastFetchedUserId, widget.user.id!);
+                              }
+                              Navigator.of(context).pop(); // Close dialog
+                              _navigateToHomeScreen();
+                            }
+                          } catch (e) {
+                            debugPrint("Error fetching default data: $e");
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to continue with shift: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          } finally {
+                            setDialogState(() {
+                              dialogButtonLoading = false;
+                            });
+                          }
+                        },
+                        child: dialogButtonLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Continue with Shift'),
+                      ),
+                      TextButton(
+                        onPressed: dialogButtonLoading ? null : () async {
+                          setDialogState(() {
+                            dialogButtonLoading = true;
+                          });
+                          try {
+                            // Close the existing shift
+                            existingShift.closingTime = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
+                            existingShift.isShiftClosed = true;
+                            await shiftService.updateShift(existingShift);
+                            if (mounted) {
+                              Navigator.of(context).pop(); // Close dialog
+                              // After closing, proceed to create a new shift
+                              await _createNewShiftAndNavigate(shiftService);
+                            }
+                          } catch (e) {
+                            debugPrint("Error closing shift and creating new one: $e");
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to close shift and create new one: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          } finally {
+                            setDialogState(() {
+                              dialogButtonLoading = false;
+                            });
+                          }
+                        },
+                        child: dialogButtonLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Close shift & Open New'),
+                      ),
+                    ],
+                  );
+                },
               );
             },
           );
@@ -278,9 +341,10 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
           await showDialog(
             context: context,
             builder: (BuildContext context) {
+              final formattedOpeningDate = DateFormat('yyyy-MM-dd').format(openingDateTime);
               return AlertDialog(
                 title: const Text('Previous Day\'s Shift Found'),
-                content: const Text('An open shift from a previous day was found. Please close it to continue.'),
+                content: Text('An open shift from a previous day ($formattedOpeningDate, Shift: ${existingShift.shiftReference}) was found. Please close it to continue.'),
                 actions: <Widget>[
                   TextButton(
                     onPressed: () async {
@@ -294,15 +358,14 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
                         _createNewShiftAndNavigate(shiftService);
                       }
                     },
-                    child: const Text('Close Shift and Continue'),
+                    child: const Text('Close shift & Open New'),
                   ),
                   TextButton(
-                    onPressed: () async {
+                    onPressed: () {
                       Navigator.of(context).pop(); // Close dialog
-                      _isLoading = true;
-                      await _createNewShiftAndNavigate(shiftService);
-                      // User chose not to close, stay on this screen or handle as needed
-                      setState(() { _isLoading = false; });
+                      if (mounted) {
+                        setState(() { _isLoading = false; });
+                      }
                     },
                     child: const Text('Cancel'),
                   ),
@@ -355,8 +418,13 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
 
       // Download all default data
       try {
-        final defaultDataService = DefaultDataService();
-        await defaultDataService.fetchAndSaveDefaultData(widget.user);
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        final String? lastFetchedUserId = prefs.getString(AppConstants.keyLastFetchedUserId);
+        if (lastFetchedUserId != widget.user.id) {
+          final defaultDataService = DefaultDataService();
+          await defaultDataService.fetchAndSaveDefaultData(widget.user);
+          await prefs.setString(AppConstants.keyLastFetchedUserId, widget.user.id!);
+        }
       } catch (e) {
         debugPrint("Error fetching default data: $e");
       }

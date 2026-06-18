@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vimbika_pro/app_constants/app_constants.dart';
-import 'package:vimbika_pro/customer/payment_receipt_screen.dart';
 import 'package:vimbika_pro/model/branch_stock.dart';
 import 'package:vimbika_pro/model/sale_item.dart';
 import 'package:vimbika_pro/model/currency.dart';
@@ -28,19 +27,19 @@ import 'package:vimbika_pro/services/printer_service.dart';
 import 'package:vimbika_pro/services/currency_service.dart';
 import 'package:vimbika_pro/services/payments_service.dart';
 import 'package:vimbika_pro/services/bank_service.dart';
-import 'package:vimbika_pro/services/tax_service.dart';
 import 'package:vimbika_pro/services/category_service.dart';
-import 'package:vimbika_pro/model/tax.dart';
 import 'package:vimbika_pro/services/excel_export_service.dart'; // Import ExcelExportService
 
 /// Represents a pending update to a customer's balance, to be applied at sale completion.
 class PendingCustomerBalanceUpdate {
   final String customerId;
+  final String customerName;
   final Currency currency;
   final double amountChange; // Positive for credit, negative for debit
 
   PendingCustomerBalanceUpdate({
     required this.customerId,
+    required this.customerName,
     required this.currency,
     required this.amountChange,
   });
@@ -705,8 +704,9 @@ class POSScreenController extends ChangeNotifier {
 
     // Defer customer balance update
     _pendingCustomerBalanceUpdates.add(PendingCustomerBalanceUpdate(
-      customerId: _selectedCustomer!.id!,
+      customerId: _selectedCustomer!.id??'',
       currency: _selectedCurrency!,
+      customerName: _selectedCustomer!.name,
       amountChange: -balanceDueConverted, // Debit from customer account
     ));
 
@@ -914,6 +914,7 @@ class POSScreenController extends ChangeNotifier {
                   _pendingCustomerBalanceUpdates.add(PendingCustomerBalanceUpdate(
                     customerId: _selectedCustomer!.id!,
                     currency: _selectedCurrency!,
+                    customerName: _selectedCustomer!.name,
                     amountChange: -amt, // Debit from customer account
                   ));
                 }
@@ -930,6 +931,7 @@ class POSScreenController extends ChangeNotifier {
                     // Defer customer balance update (credit to customer account)
                     _pendingCustomerBalanceUpdates.add(PendingCustomerBalanceUpdate(
                       customerId: _selectedCustomer!.id!,
+                      customerName: _selectedCustomer!.name,
                       currency: _selectedCurrency!,
                       amountChange: amountToCreditCustomer, // Credit to customer account
                     ));
@@ -1089,7 +1091,7 @@ class POSScreenController extends ChangeNotifier {
             .map((e) => Customer.fromJson(jsonDecode(e))).toList();
 
         for (var update in _pendingCustomerBalanceUpdates) {
-          final int customerIndex = currentCustomers.indexWhere((c) => c.id == update.customerId);
+          final int customerIndex = currentCustomers.indexWhere((c) => c.id == update.customerId || c.name == update.customerName);
 
           if (customerIndex != -1) {
             Customer customerToUpdate = currentCustomers[customerIndex];

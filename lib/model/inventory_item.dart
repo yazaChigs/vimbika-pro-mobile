@@ -16,6 +16,7 @@ class InventoryItem extends BaseNameEntity {
   final bool isService;
   final String? imageUrl;
   final String? itemType;
+  final String? renewalInterval;
   final Company? company; // Added company field
   final bool isSynced; // Added isSynced field
 
@@ -41,6 +42,7 @@ class InventoryItem extends BaseNameEntity {
     this.itemType,
     this.company,
     this.isSynced = false, // Default to false
+    this.renewalInterval,
   });
 
   factory InventoryItem.fromJson(Map<String, dynamic> json) {
@@ -66,6 +68,7 @@ class InventoryItem extends BaseNameEntity {
       itemType: json['itemType'],
       company: json['company'] != null ? Company.fromJson(json['company']) : null,
       isSynced: json['isSynced'] as bool? ?? false, // Parse isSynced
+      renewalInterval: json['renewalInterval'],
     );
   }
 
@@ -92,6 +95,7 @@ class InventoryItem extends BaseNameEntity {
       'itemType': itemType,
       'company': company?.toJson(),
       'isSynced': isSynced, // Include isSynced in toJson
+      'renewalInterval': renewalInterval,
     };
   }
 
@@ -118,6 +122,7 @@ class InventoryItem extends BaseNameEntity {
     String? itemType,
     Company? company,
     bool? isSynced,
+    String? renewalInterval,
   }) {
     return InventoryItem(
       id: id ?? this.id,
@@ -141,6 +146,7 @@ class InventoryItem extends BaseNameEntity {
       itemType: itemType ?? this.itemType,
       company: company ?? this.company,
       isSynced: isSynced ?? this.isSynced,
+      renewalInterval: renewalInterval ?? this.renewalInterval,
     );
   }
 }

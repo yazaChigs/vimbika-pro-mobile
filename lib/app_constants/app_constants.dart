@@ -1,11 +1,11 @@
 class AppConstants {
   static const String appName = 'Vimbika Lite';
-  static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
+  // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
   // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.africa/vimbika-africa/api";
   // static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
   // static const VIMBIKA_BACKEND_URL = "https://mashwede.vimbika.africa/mashwede/api";
-  //     static const VIMBIKA_BACKEND_URL = "http://192.168.1.131:8080/vimbika-pro/api";
-  //         static const VIMBIKA_BACKEND_URL = "http://192.168.1.148:8080/vimbika-pro/api";
+  //     static const VIMBIKA_BACKEND_URL = "http://192.168.1.108:8080/vimbika-pro/api";
+          static const VIMBIKA_BACKEND_URL = "http://192.168.1.148:8080/vimbika-pro/api";
   // static const VIMBIKA_BACKEND_URL = "http://172.20.10.4:8080/vimbika-pro/api";
   static const int defaultTimeout = 30000;
   static const CACHED_ACCESS_TOKEN = "CACHED_ACCESS_TOKEN";
@@ -27,9 +27,13 @@ class AppConstants {
   static const String keyOfflineBranches = 'offline_branches'; // Added
   static const String keyUserRoles = 'user_roles';
   static const String keySubscriptions = 'subscriptions';
+  static const String keyOfflineSubscriptions = 'offline_subscriptions';
   static const String keySubscriptionDaysRemaining = 'subscription_days_remaining'; // Added for subscription days remaining
+  static const String keySelectedSubscription = 'selected_subscription'; // Added
+  static const String keySubscriptionEndDate = 'subscription_end_date'; // Added
   static const String keyConfig = 'config';
-  
+  static const String keyUnsyncedClosedShift = 'unsynced_closed_shift'; // Added';
+
   static const String keyCurrencies = 'currencies';
   static const String keyOfflineCurrencies = 'offline_currencies'; // Added
   static const String keyTaxes = 'taxes';
@@ -68,6 +72,7 @@ class AppConstants {
   static const String keyHeldSales = 'held_sales'; // Added for holding sales
   static const String keyUnsyncedReceivedPayments = 'unsynced_received_payments'; // Added for unsynced received payments
   static const String keyCachedPastShifts = 'cached_past_shifts'; // Added for caching past shifts
+  static const String keyLastFetchedUserId = 'last_fetched_user_id'; // Added for tracking last fetched user
   // Application Settings
   static const String keyAllowOutOfStockSales = 'allow_out_of_stock_sales';
   static const String keyIsOfflineMode = 'is_offline_mode';

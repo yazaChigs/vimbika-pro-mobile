@@ -74,11 +74,21 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
       }
     }
 
-    // 4. Load Payment Types - Start with empty list for quick start as per requirements
-    _paymentTypes = [];
+    // 4. Load Payment Types - Do not clear existing ones
+    final List<String> paymentTypeJson = prefs.getStringList(AppConstants.keyOfflinePaymentTypes) ?? [];
+    if (paymentTypeJson.isNotEmpty) {
+      _paymentTypes = paymentTypeJson.map((e) => PaymentType.fromJson(jsonDecode(e))).toList();
+    } else {
+      _paymentTypes = []; // Initialize as empty if no saved data
+    }
 
-    // 5. Load Banks - Start with empty list for quick start as per requirements
-    _banks = [];
+    // 5. Load Banks - Do not clear existing ones
+    final List<String> bankJson = prefs.getStringList(AppConstants.keyOfflineBanks) ?? [];
+    if (bankJson.isNotEmpty) {
+      _banks = bankJson.map((e) => Bank.fromJson(jsonDecode(e))).toList();
+    } else {
+      _banks = []; // Initialize as empty if no saved data
+    }
 
     // 6. Load allow out of stock sales setting
     _allowOutOfStockSales = prefs.getBool(AppConstants.keyAllowOutOfStockSales) ?? false;

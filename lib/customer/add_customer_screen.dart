@@ -146,10 +146,6 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         isSynced: false, // Initially false, will be updated after successful API sync
       );
 
-      // Assign a local ID if it's a new customer
-      // if (customerToSave.id == null) {
-      //   customerToSave = customerToSave.copyWith(id: 'local_${DateTime.now().millisecondsSinceEpoch}');
-      // }
 
       // 1. Save locally first
       await _customerService.saveCustomerLocally(customerToSave);

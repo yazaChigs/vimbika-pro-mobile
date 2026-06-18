@@ -173,8 +173,6 @@ class MobilePosShiftService {
   }
 
   Future<MobilePosShift> createShift(MobilePosShift shift, {bool syncOnly = false}) async {
-    print('syncOnly: ${syncOnly}');
-    print('items: ${shift.shiftCurrencyAmounts!.length}') ;
     if (!syncOnly) {
       return createShiftOfflineFirst(shift);
     }
@@ -239,7 +237,6 @@ class MobilePosShiftService {
       companyId,
       'POST'
     );
-
     // Parse the response as a map
     final Map<String, dynamic> responseMap = jsonDecode(responseStr);
     // Extract the list of items

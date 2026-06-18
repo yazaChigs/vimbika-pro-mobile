@@ -14,6 +14,7 @@ import '../model/mobile_pos_shift.dart';
 import '../online_navigation_home_screen.dart';
 import 'package:vimbika_pro/screens/online/online_reports_screen.dart';
 import '../create_company_screen.dart';
+import '../screens/offline/settings/subscription_screen.dart';
 import '../screens/online/select_company_branch_screen.dart';
 import '../signup_screen.dart';
 import 'package:vimbika_pro/services/sale_sync_service.dart';
@@ -130,6 +131,30 @@ class LoginController extends ChangeNotifier {
       }
 
       if (foundUser != null) {
+        // --- Start of new code for subscription check ---
+        final String? subscriptionsJson = prefs.getString(AppConstants.keyOfflineSubscriptions);
+        bool isValidSubscription = false;
+
+        if (subscriptionsJson != null) {
+          final List<dynamic> offlineSubscriptionsData = jsonDecode(subscriptionsJson);
+          isValidSubscription = await _validateSubscriptionFromData(context, offlineSubscriptionsData);
+        } else {
+          if (context.mounted) {
+              _showErrorDialog(context, "Subscription Error", "No offline subscription data found.");
+          }
+        }
+
+        if (!isValidSubscription) {
+            if (context.mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const SubscriptionScreen()),
+              );
+            }
+            return false; // Stop login process if subscription is invalid
+        }
+        // --- End of new code for subscription check ---
+
         await prefs.setString(AppConstants.keyOfflineUserData, jsonEncode(foundUser.toJson()));
         await prefs.setString(AppConstants.keyUserData, jsonEncode(foundUser.toJson()));
         if (foundUser.branch?.company != null) {
