@@ -19,8 +19,6 @@ class EcocashChargeRequest {
   final String location;
   final String superMerchantName;
   final String merchantName;
-  final Customer customer;
-  final InventoryItem? subscriptionItem;
 
   EcocashChargeRequest({
     required this.clientCorrelator,
@@ -40,8 +38,6 @@ class EcocashChargeRequest {
     required this.location,
     required this.superMerchantName,
     required this.merchantName,
-    required this.customer,
-    this.subscriptionItem,
   });
 
   Map<String, dynamic> toJson() {
@@ -63,8 +59,6 @@ class EcocashChargeRequest {
       'location': location,
       'superMerchantName': superMerchantName,
       'merchantName': merchantName,
-      'customer': customer.toJson(),
-      'subscriptionItem': subscriptionItem?.toJson(),
 
     };
   }

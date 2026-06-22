@@ -72,10 +72,13 @@ class _SalesScreenState extends State<SalesScreen> {
     super.initState();
     _filterStartDate = DateTime.now().copyWith(hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0);
     _filterEndDate = DateTime.now().copyWith(hour: 23, minute: 59, second: 59, millisecond: 999, microsecond: 999);
+    
     _loadLocalData().then((_) {
-      _syncOnlineSales();
+      if (mounted) {
+        _syncOnlineSales();
+      }
     });
-    print(_allSales.length);
+    print('SalesScreen initState: _loadLocalData initiated');
   }
 
   void _sortSales(List<Sale> sales) {
@@ -92,6 +95,7 @@ class _SalesScreenState extends State<SalesScreen> {
   }
 
   Future<void> _loadLocalData() async {
+    // print('SalesScreen: _loadLocalData starting, mounted: $mounted'); // Removed noisy log
     if (mounted) {
       setState(() {
         _isLoading = true;
@@ -108,9 +112,13 @@ class _SalesScreenState extends State<SalesScreen> {
     final String? userJson = prefs.getString(userKey);
     if (userJson != null) {
       try {
-        final User loggedInUser = User.fromJson(jsonDecode(userJson));
+        final Map<String, dynamic> userMap = jsonDecode(userJson);
+        final User loggedInUser = User.fromJson(userMap);
         _loggedInUserId = loggedInUser.id;
-        _loggedInUserName = loggedInUser.userName; // Store username
+        
+        // Use userName from model if available, fallback to 'username' from map, 
+        // and finally fallback to 'full_name' or similar if needed.
+        _loggedInUserName = loggedInUser.userName ?? userMap['username'] ?? userMap['userName'];
       } catch (e) {
         print('Error decoding user data: $e');
       }
@@ -173,6 +181,13 @@ class _SalesScreenState extends State<SalesScreen> {
     List<Sale> combinedSales = combinedSalesMap.values.toList();
     _sortSales(combinedSales);
 
+    print('SalesScreen: _loadLocalData finished loading, combinedSales count: ${combinedSales.length}, mounted: $mounted');
+    // print('SalesScreen: _loggedInUserName: $_loggedInUserName'); // Removed noisy log
+    // if (combinedSales.isNotEmpty) {
+    //   print('SalesScreen: First sale createdByName: ${combinedSales.first.createdByName}');
+    //   print('SalesScreen: First sale timeIniated: ${combinedSales.first.timeIniated}');
+    // }
+
     if (mounted) {
       setState(() {
         _branches = loadedBranches;
@@ -182,6 +197,16 @@ class _SalesScreenState extends State<SalesScreen> {
         _isLoading = false;
         _applyFilters();
       });
+    } else {
+      // If not mounted, we still update the fields so that if it's currently being built
+      // or about to be built, it has the data. 
+      // NOTE: In Flutter, usually you shouldn't call setState if not mounted.
+      // But if this is called during initState, 'mounted' should be true.
+      _branches = loadedBranches;
+      _selectedBranch ??= initialSelectedBranch;
+      _customers = loadedCustomers;
+      _allSales = combinedSales;
+      _isLoading = false;
     }
   }
 
@@ -219,6 +244,8 @@ class _SalesScreenState extends State<SalesScreen> {
           _allSales = combinedSales;
           _applyFilters();
         });
+      } else {
+        _allSales = combinedSales;
       }
     } catch (e) {
       if (mounted) {
@@ -300,9 +327,19 @@ class _SalesScreenState extends State<SalesScreen> {
           bool matchesDate = true;
           if (_filterStartDate != null && _filterEndDate != null) {
               try {
-                  DateTime saleDate = DateTime.parse(sale.timeIniated);
+                  DateTime saleDate;
+                  try {
+                    saleDate = DateTime.parse(sale.timeIniated);
+                  } catch (e) {
+                    // Try parsing with the custom format if ISO fails
+                    saleDate = DateFormat(AppConstants.APP_DATE_TIME_FMT).parse(sale.timeIniated);
+                  }
                   matchesDate = saleDate.isAfter(_filterStartDate!) && saleDate.isBefore(_filterEndDate!);
+                  // if (!matchesDate) {
+                  //   print('SalesScreen: sale ${sale.posReference ?? sale.id} filtered out by date: $saleDate not between $_filterStartDate and $_filterEndDate');
+                  // }
               } catch (e) {
+                  print('SalesScreen: Error parsing date ${sale.timeIniated}: $e');
                   matchesDate = false;
               }
           }
@@ -311,9 +348,21 @@ class _SalesScreenState extends State<SalesScreen> {
           // final matchesUserId = _loggedInUserId == null || sale.userId == _loggedInUserId;
 
           // 8. User Filter (by createdByName matching loggedInUserName)
-          final matchesCreatedByName = _loggedInUserName == null || (sale.createdByName != null && sale.createdByName == _loggedInUserName);
+          bool matchesCreatedByName = _loggedInUserName == null || (sale.createdByName != null && sale.createdByName == _loggedInUserName);
 
+          // Workaround: if it's a local unsynced sale, we might want to be more lenient if createdByName is missing
+          if (sale.isSynced != true && sale.createdByName == null) {
+            matchesCreatedByName = true;
+          }
 
+          // if (!matchesCreatedByName) {
+          //    print('SalesScreen: sale ${sale.posReference ?? sale.id} filtered out by createdByName: expected $_loggedInUserName, got ${sale.createdByName}');
+          // }
+
+          // If it's a local sale (not synced), we definitely want to see it regardless of some filters?
+          // No, filters should apply. But maybe createdByName is not set for local sales?
+          // In pos_screen_controller.dart, it is set from currentShift.createdByName.
+          
           return matchesSearch && matchesBranch && matchesCustomer && matchesStatus && matchesShift && matchesDate
               // && matchesUserId
               && matchesCreatedByName;
@@ -324,7 +373,12 @@ class _SalesScreenState extends State<SalesScreen> {
   
   String _formatDate(String dateString) {
     try {
-      DateTime date = DateTime.parse(dateString);
+      DateTime date;
+      try {
+        date = DateTime.parse(dateString);
+      } catch (e) {
+        date = DateFormat(AppConstants.APP_DATE_TIME_FMT).parse(dateString);
+      }
       return DateFormat('MMM dd, yyyy').format(date);
     } catch (e) {
       return dateString; // fallback

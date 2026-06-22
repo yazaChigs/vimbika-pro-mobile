@@ -131,7 +131,7 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
 
     bool isDuplicateName = localItems.any((item) => 
         item.id != currentId && 
-        item.name?.toLowerCase().trim() == newName.toLowerCase());
+        item.name.toLowerCase().trim() == newName.toLowerCase());
     
     bool isDuplicateCode = newCode.isNotEmpty && localItems.any((item) => 
         item.id != currentId && 
@@ -169,7 +169,6 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
       purchasePrice: double.tryParse(_costPriceController.text) ?? 0.0,
       sellingPrice: double.tryParse(_sellingPriceController.text) ?? 0.0,
       reorderLevel: double.tryParse(_reorderLevelController.text) ?? 0.0,
-      quantity: existingItem?.quantity ?? 0.0,
       isService: _isService,
       isSynced: false, // Default to not synced
     );
@@ -205,13 +204,11 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
       final String branchStockKey = _isOnline ? AppConstants.keyBranchStock : AppConstants.keyOfflineBranchStock;
       List<String> branchStocksJsonList = prefs.getStringList(branchStockKey) ?? [];
       List<BranchStock> localBranchStocks = branchStocksJsonList.map((e) => BranchStock.fromJson(jsonDecode(e))).toList();
-      print('Local Branch Stocks: ${localBranchStocks.length}');
 
       BranchStock branchStock = BranchStock(
         id: widget.branchStock?.id ?? '${newItem.id}_bs', // Use existing ID or generate new one
         item: newItem,
         branch: _selectedBranch,
-        stock: newItem.quantity,
       );
 
       final int branchStockIndex = localBranchStocks.indexWhere((element) => element.id == branchStock.id);
@@ -220,7 +217,6 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
       } else {
         localBranchStocks.add(branchStock);
       }
-      print('Saving updated branch stocks: ${localBranchStocks.length}');
       await prefs.setStringList(branchStockKey, localBranchStocks.map((e) => jsonEncode(e.toJson())).toList());
 
       if (context.mounted) Navigator.pop(context, true);

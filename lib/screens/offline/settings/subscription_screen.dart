@@ -231,19 +231,20 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       location: 'HARARE',
       superMerchantName: 'VIMBIKA',
       merchantName: 'Vimbika Pro',
-      customer: Customer(
-        name: (_loggedInUser?.userName ?? '').trim().isNotEmpty
-            ? (_loggedInUser?.userName ?? '').trim()
-            : 'Ecocash Subscriber',
-        phoneNumber: _phoneController.text,
-        company: _loggedInUser?.branch?.company,
-        branch: _loggedInUser?.branch,
-      ),
-      subscriptionItem: selectedPlan['item'] as InventoryItem?,
     );
 
     try {
-      final response = await _ecocashService.initiatePayment(request);
+      final requestDto = {
+        "ecocashChargeRequest": request,
+        "subscriptionName": _selectedSubscription,
+        "customer":Customer(
+          name: (_loggedInUser?.userName ?? '').trim().isNotEmpty
+              ? (_loggedInUser?.userName ?? '').trim()
+              : 'Ecocash Subscriber',
+          phoneNumber: _phoneController.text,
+        ),
+      };
+      final response = await _ecocashService.initiatePayment(requestDto);
 
       if (response['transactionOperationStatus'] == 'PENDING SUBSCRIBER VALIDATION') {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -254,7 +255,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         );
         // _ecocashService.charge(request);
 
-        return;
         // Await the final status from the backend
         final statusResponse = await _ecocashService.checkStatus(clientCorrelator);
 

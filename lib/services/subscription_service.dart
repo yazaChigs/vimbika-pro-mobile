@@ -9,18 +9,8 @@ class SubscriptionService {
   final BaseHttpClient _client = BaseHttpClient();
 
   Future<List<InventoryItem>> getAvailableSubscriptions(String availability) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? userData = prefs.getString(AppConstants.keyOnlineUserData);
-    
-    if (userData == null) throw Exception('User not logged in');
-    final user = User.fromJson(jsonDecode(userData));
-    
-    final String? companyId = user.branch?.company?.id;
-    if (companyId == null) throw Exception('Company ID not found for user');
-
-    final String responseStr = await _client.getAuthWithCompanyHeader(
+    final String responseStr = await _client.get(
       '/inventory/billing-package/get-by-availability/$availability',
-      companyId
     );
 
     final List<dynamic> data = jsonDecode(responseStr);

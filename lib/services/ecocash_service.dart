@@ -33,8 +33,9 @@ class EcocashService {
   final BaseHttpClient _client = BaseHttpClient();
 
   // New method to initiate payment via your backend
-  Future<Map<String, dynamic>> initiatePayment(EcocashChargeRequest request) async {
-    final responseStr = await _client.post('/payments/ecocash/initiate', jsonEncode(request.toJson()));
+  Future<Map<String, dynamic>> initiatePayment(Map<String, dynamic> request) async {
+    final responseStr = await _client.post('/payments/ecocash/initiate', jsonEncode(request));
+    print('Response from backend: $responseStr');
     // Assuming your backend returns EcocashChargeResponse directly
     return jsonDecode(responseStr);
   }

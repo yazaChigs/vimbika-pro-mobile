@@ -216,6 +216,29 @@ class MobilePosShiftService {
     return createdShift;
   }
 
+  Future<List<MobileShiftCurrencyAmount>> saveShiftCurrencyAmounts(List<MobileShiftCurrencyAmount> amounts) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? userData = prefs.getString(AppConstants.keyOnlineUserData);
+
+    if (userData == null) throw Exception('User not logged in');
+    final user = User.fromJson(jsonDecode(userData));
+
+    final String? companyId = user.branch?.company?.id;
+    if (companyId == null) throw Exception('Company ID not found for user');
+
+    String jsonAmounts = json.encode(amounts.map((e) => e.toJson()).toList());
+
+    final String responseStr = await _client.postAuthWithCompanyHeader(
+      '/mobile/pos/shift/currency-amounts/save',
+      jsonAmounts,
+      companyId,
+      'POST'
+    );
+
+    final List<dynamic> data = jsonDecode(responseStr);
+    return data.map((e) => MobileShiftCurrencyAmount.fromJson(e)).toList();
+  }
+
   Future<MobilePosShift> updateShift(MobilePosShift shift) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? userData = prefs.getString(AppConstants.keyOnlineUserData);
