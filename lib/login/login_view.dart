@@ -21,6 +21,16 @@ class LoginView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<LoginController>(
       builder: (context, controller, child) {
+        // Auto-login if initial credentials are provided
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (controller.identifierController.text.isNotEmpty && 
+              controller.passwordController.text.isNotEmpty && 
+              !controller.isLoading &&
+              !controller.hasLoggedInAttempted) { // Need to add this flag to controller
+            controller.handleLogin(context);
+          }
+        });
+
         return Scaffold(
           backgroundColor: AppTheme.nearlyWhite,
           body: SingleChildScrollView(

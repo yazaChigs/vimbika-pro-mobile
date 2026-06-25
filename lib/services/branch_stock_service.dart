@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:vimbika_pro/app_constants/app_constants.dart';
-import 'package:vimbika_pro/model/base_name_model.dart';
 import 'package:vimbika_pro/model/branch.dart';
 import 'package:vimbika_pro/model/branch_stock.dart';
+import 'package:vimbika_pro/model/expense_category.dart';
+import 'package:vimbika_pro/model/company.dart';
 import 'package:vimbika_pro/model/inventory_item.dart';
 import 'package:vimbika_pro/model/user.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -154,5 +155,33 @@ class BranchStockService {
     });
 
     return summary;
+  }
+
+  Future<void> saveAllBranchStock({
+    required List<InventoryItem> list,
+    Branch? branch,
+    ExpenseCategory? expenseCategory,
+    Company? company,
+  }) async {
+    final Map<String, dynamic> payload = {
+      'list': list.map((item) {
+        final itemWithCompany = item.copyWith(company: company);
+        final itemJson = itemWithCompany.toJson();
+        itemJson['id'] = null;
+        return itemJson;
+      }).toList(),
+      'branch': branch,
+      'expenseCategory': expenseCategory ,
+      'company': company,
+    };
+
+    print(payload['list']);
+
+    await _client.postAuthWithCompanyHeader(
+      '/inventory/item/bulk-offline/save',
+      jsonEncode(payload),
+      company?.id ?? '',
+      'POST',
+    );
   }
 }

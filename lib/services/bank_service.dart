@@ -32,4 +32,32 @@ class BankService {
     
     return banks;
   }
+
+  Future<Bank?> saveBank(Bank bank) async {
+    final String responseStr = await _client.post(
+      '/bank/save',
+      jsonEncode(bank.toJson()),
+    );
+
+    final Map<String, dynamic> response = jsonDecode(responseStr);
+    if (response.containsKey('item') && response['item'] != null) {
+      return Bank.fromJson(response['item']);
+    }
+    return null;
+  }
+
+  Future<Bank?> saveBankWithCompany(Bank bank, String companyId) async {
+    final String responseStr = await _client.postAuthWithCompanyHeader(
+      '/bank/save',
+      jsonEncode(bank.toJson()),
+      companyId,
+      'POST'
+    );
+
+    final Map<String, dynamic> response = jsonDecode(responseStr);
+    if (response.containsKey('item') && response['item'] != null) {
+      return Bank.fromJson(response['item']);
+    }
+    return null;
+  }
 }

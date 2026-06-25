@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vimbika_pro/app_constants/app_constants.dart';
 import 'package:vimbika_pro/model/branch_stock.dart';
+import 'package:vimbika_pro/model/inventory_item.dart';
 import 'package:vimbika_pro/model/sale_item.dart';
 import 'package:vimbika_pro/model/currency.dart';
 import 'package:vimbika_pro/model/payment_type.dart';
@@ -960,7 +961,7 @@ class POSScreenController extends ChangeNotifier {
                       amount: paymentForSale, // Use paymentForSale here
                       paymentType: selectedPaymentType,
                       currency: _selectedCurrency,
-                      branch: _selectedBranch,
+                      branch: Branch(id: _selectedBranch!.id, name: _selectedBranch!.name),
                       payer: _selectedCustomer,
                       paymentDescription: _cart.isEmpty ? 'ACCOUNT_TOP_UP' : 'SALE',
                       paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
@@ -1046,14 +1047,10 @@ class POSScreenController extends ChangeNotifier {
   }
 
   Future<void> completeSale() async {
-    print('_payments: ${_payments.length}');
     if (_isProcessingSale) return;
     _isProcessingSale = true;
     notifyListeners();
 
-    if (_payments.isEmpty) {
-      _payments.map((toElement)=>print(toElement.bank!.toJson()));
-    }
     try {
       if (_cart.isEmpty && _pendingAccountCredits.isEmpty) return;
 
@@ -1153,6 +1150,11 @@ class POSScreenController extends ChangeNotifier {
           taxAmount: item.taxAmount * exchangeRate,
           discountAmount: item.discountAmount * exchangeRate,
           total: item.total * exchangeRate,
+          inventoryItem: InventoryItem(
+              name: item.inventoryItem!.name,
+              id: item.inventoryItem!.id,
+              itemType: item.inventoryItem!.itemType
+          )
         );
       }).toList();
 
@@ -1162,7 +1164,7 @@ class POSScreenController extends ChangeNotifier {
           cashierFullName: currentShift.userFullName,
           customer: _selectedCustomer,
           company: _selectedBranch!.company,
-          branch: _selectedBranch,
+          branch: Branch(id: _selectedBranch!.id, name: _selectedBranch!.name),
           items: convertedCart, // Use converted items here
           paymentTypes: _payments,
           timeIniated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),

@@ -58,9 +58,12 @@ class CustomerService {
     final String? companyId = user.branch?.company?.id;
     if (companyId == null) throw Exception('Company ID not found for user');
 
-    // Ensure the customer being sent to API has isSynced: true for consistency
-    // The API doesn't care about this flag, but it's good practice for the model.
-    final Customer customerToSend = customer.copyWith(isSynced: true);
+    // Ensure the customer being sent to API has branch and company set if missing
+    final Customer customerToSend = customer.copyWith(
+      isSynced: true,
+      company: customer.company ?? user.branch?.company,
+      branch: customer.branch ?? user.branch,
+    );
 
     final String jsonCustomer = jsonEncode(customerToSend.toJson());
 
@@ -75,6 +78,24 @@ class CustomerService {
     return savedCustomer.copyWith(isSynced: true); // Ensure returned customer is marked as synced
   }
 
+  // Saves a customer to the API with specific company ID
+  Future<Customer> saveCustomerWithCompany(Customer customer, String companyId) async {
+    // Ensure the customer being sent to API has isSynced: true for consistency
+    final Customer customerToSend = customer.copyWith(isSynced: true);
+
+    final String jsonCustomer = jsonEncode(customerToSend.toJson());
+
+    final String responseStr = await _client.postAuthWithCompanyHeader(
+      '/customer/save',
+      jsonCustomer,
+      companyId,
+      'POST'
+    );
+
+    final Customer savedCustomer = Customer.fromJson(jsonDecode(responseStr));
+    return savedCustomer.copyWith(isSynced: true);
+  }
+
   // Updates a customer to the API
   Future<Customer> updateCustomer(Customer customer) async {
     try {
@@ -87,8 +108,12 @@ class CustomerService {
       final String? companyId = user.branch?.company?.id;
       if (companyId == null) throw Exception('Company ID not found for user');
 
-      // Ensure the customer being sent to API has isSynced: true for consistency
-      final Customer customerToSend = customer.copyWith(isSynced: true);
+      // Ensure the customer being sent to API has branch and company set if missing
+      final Customer customerToSend = customer.copyWith(
+        isSynced: true,
+        company: customer.company ?? user.branch?.company,
+        branch: customer.branch ?? user.branch,
+      );
 
       final String jsonCustomer = jsonEncode(customerToSend.toJson());
 

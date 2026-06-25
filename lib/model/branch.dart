@@ -31,6 +31,36 @@ class Branch extends BaseNameEntity {
           description: description,
         );
 
+  Branch copyWith({
+    String? id,
+    String? dateCreated,
+    String? dateModified,
+    String? createdByName,
+    String? modifiedByName,
+    int? version,
+    String? name,
+    String? description,
+    String? address,
+    String? phoneNumber,
+    String? email,
+    Company? company,
+  }) {
+    return Branch(
+      id: id ?? this.id,
+      dateCreated: dateCreated ?? this.dateCreated,
+      dateModified: dateModified ?? this.dateModified,
+      createdByName: createdByName ?? this.createdByName,
+      modifiedByName: modifiedByName ?? this.modifiedByName,
+      version: version ?? this.version,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      address: address ?? this.address,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      email: email ?? this.email,
+      company: company ?? this.company,
+    );
+  }
+
   factory Branch.fromJson(Map<String, dynamic> json) {
     return Branch(
       id: json['id']?.toString(),

@@ -2,6 +2,7 @@ import 'base_name_entity.dart';
 import 'category.dart';
 import 'unit.dart';
 import 'tax.dart';
+import 'currency.dart'; // Import Currency
 import 'company.dart'; // Import Company
 
 class InventoryItem extends BaseNameEntity {
@@ -9,6 +10,7 @@ class InventoryItem extends BaseNameEntity {
   final Category? category;
   final Unit? unit;
   final Tax? tax;
+  final Currency? currency; // Added currency field
   final double purchasePrice;
   final double sellingPrice;
   final double quantity;
@@ -33,6 +35,7 @@ class InventoryItem extends BaseNameEntity {
     this.category,
     this.unit,
     this.tax,
+    this.currency,
     this.purchasePrice = 0.0,
     this.sellingPrice = 0.0,
     this.quantity = 0.0,
@@ -59,6 +62,7 @@ class InventoryItem extends BaseNameEntity {
       category: json['category'] != null ? Category.fromJson(json['category']) : null,
       unit: json['unit'] != null ? Unit.fromJson(json['unit']) : null,
       tax: json['tax'] != null ? Tax.fromJson(json['tax']) : null,
+      currency: json['currency'] != null ? Currency.fromJson(json['currency']) : null,
       purchasePrice: (json['purchasePrice'] as num?)?.toDouble() ?? 0.0,
       sellingPrice: (json['sellingPrice'] as num?)?.toDouble() ?? 0.0,
       quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
@@ -86,6 +90,7 @@ class InventoryItem extends BaseNameEntity {
       'category': category?.toJson(),
       'unit': unit?.toJson(),
       'tax': tax?.toJson(),
+      'currency': currency?.toJson(),
       'purchasePrice': purchasePrice,
       'sellingPrice': sellingPrice,
       'quantity': quantity,
@@ -113,9 +118,10 @@ class InventoryItem extends BaseNameEntity {
     Category? category,
     Unit? unit,
     Tax? tax,
-    double? purchasePrice,
+    Currency? currency,
     double? sellingPrice,
     double? quantity,
+    double? purchasePrice,
     double? reorderLevel,
     bool? isService,
     String? imageUrl,
@@ -137,6 +143,7 @@ class InventoryItem extends BaseNameEntity {
       category: category ?? this.category,
       unit: unit ?? this.unit,
       tax: tax ?? this.tax,
+      currency: currency ?? this.currency,
       purchasePrice: purchasePrice ?? this.purchasePrice,
       sellingPrice: sellingPrice ?? this.sellingPrice,
       quantity: quantity ?? this.quantity,

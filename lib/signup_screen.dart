@@ -1,7 +1,9 @@
+import 'package:intl/intl.dart';
 import 'package:vimbika_pro/app_constants/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:vimbika_pro/model/user_role.dart';
 import 'dart:convert';
 import 'app_constants/app_constants.dart';
 import 'login/login_screen.dart';
@@ -97,10 +99,11 @@ class _SignupScreenState extends State<SignupScreen> {
       if (isFirstUser) {
         finalRole = 'ROLE_SUPER_ADMIN';
       }
+      final userRole = UserRole(name: 'ROLE_SUPER_ADMIN');
 
       final newUser = User(
-        id: _uuid.v4(), // Assign a unique ID
-        userName: _usernameController.text,
+        // id: _uuid.v4(), // Assign a unique ID
+        userName: _usernameController.text.trim(),
         firstName: _firstNameController.text.isNotEmpty ? _firstNameController.text : null,
         lastName: _lastNameController.text.isNotEmpty ? _lastNameController.text : null,
         phoneNumber: _phoneController.text.isNotEmpty ? _phoneController.text : null,
@@ -108,6 +111,8 @@ class _SignupScreenState extends State<SignupScreen> {
         branch: defaultBranch,
         isActive: true,
         pin: _pinController.text,
+        password: _passwordController.text,
+        userRoles: [userRole]
       );
 
       await prefs.setString(AppConstants.keyOfflineUserData, jsonEncode(newUser.toJson()));
@@ -123,18 +128,31 @@ class _SignupScreenState extends State<SignupScreen> {
 
       if (mounted) {
         final String savedUsername = _usernameController.text;
+        final String savedPassword = _passwordController.text.isNotEmpty 
+            ? _passwordController.text 
+            : _pinController.text;
         
         if (isFirstUser) {
           // If this is the first user, take them to the quick start setup
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => QuickStartScreen(savedUsername: savedUsername)),
+            MaterialPageRoute(
+              builder: (context) => QuickStartScreen(
+                savedUsername: savedUsername,
+                savedPassword: savedPassword,
+              ),
+            ),
           );
         } else {
           // Otherwise, just go straight to login
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => LoginScreen(initialUsername: savedUsername)),
+            MaterialPageRoute(
+              builder: (context) => LoginScreen(
+                initialUsername: savedUsername,
+                initialPassword: savedPassword,
+              ),
+            ),
           );
         }
       }
@@ -346,7 +364,7 @@ class _SignupScreenState extends State<SignupScreen> {
         active: true,
         currency: baseCurrency,
         renewalAmount: 0.0,
-        renewalDate: DateTime.now().add(const Duration(days: 7)),
+        renewalDate: DateFormat('yyyy-MM-dd').format(DateTime.now().add(const Duration(days: 7))),
         subscription: trialPackage,
         dateCreated: DateTime.now().toIso8601String(),
       );

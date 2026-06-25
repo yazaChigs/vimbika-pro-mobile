@@ -324,6 +324,11 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please add items to the purchase')));
       return;
     }
+    if (_selectedStatus == 'Complete' && _payments.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please add at least one payment for a completed purchase')));
+      return;
+    }
 
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final bool isOffline = prefs.getBool(AppConstants.keyIsOfflineMode) ?? widget.isOfflineMode;
@@ -337,7 +342,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
       branch: _selectedBranch,
       currency: _selectedCurrency,
       items: _cartItems,
-      payments: _selectedStatus == 'Draft' ? [] : _payments,
+      payments: _payments,
       subTotal: _subTotalBase,
       taxTotal: _taxTotalBase,
       grandTotal: _grandTotalBase,

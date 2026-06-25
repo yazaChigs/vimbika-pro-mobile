@@ -10,7 +10,7 @@ class Currency {
     this.symbol,
     this.rate,
     this.isBaseCurrency,
-    bool? isSystemCreated,
+    this.isSystemCreated = false,
   });
 
   String? id;

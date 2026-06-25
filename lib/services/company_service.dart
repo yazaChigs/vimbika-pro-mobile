@@ -89,6 +89,19 @@ class CompanyService {
     await prefs.remove(AppConstants.keyCompanyData);
   }
 
+  Future<Map<String, dynamic>?> saveCompany(Company company) async {
+    final String responseStr = await BaseHttpClient().post(
+      '/company/save',
+      jsonEncode(company.toJson()),
+    );
+
+    final Map<String, dynamic> response = jsonDecode(responseStr);
+    if (response.containsKey('item') && response['item'] != null) {
+      return response;
+    }
+    return null;
+  }
+
   Future<List<Company>> getUserCompanies(User user) async {
     try {
       var response = await BaseHttpClient()

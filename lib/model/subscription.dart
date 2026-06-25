@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:vimbika_pro/model/company.dart';
+
 import 'base_name_entity.dart';
 import 'currency.dart';
 import 'inventory_item.dart';
@@ -21,6 +23,7 @@ class Subscription extends BaseNameEntity {
     this.renewalAmount,
     this.renewalDate,
     this.subscription,
+    this.company,
   }) : super(
           id: id,
           dateCreated: dateCreated,
@@ -35,12 +38,25 @@ class Subscription extends BaseNameEntity {
   final bool? active;
   final Currency? currency;
   final double? renewalAmount;
-  final DateTime? renewalDate;
+  final String? renewalDate;
   final InventoryItem? subscription;
+  final Company? company;
 
   DateTime? getRenewalDate() {
-    if (renewalDate != null) return renewalDate;
-    if (dateCreated != null) return DateTime.parse(dateCreated!);
+    if (renewalDate != null) {
+      try {
+        return DateTime.parse(renewalDate!);
+      } catch (e) {
+        print('Error parsing renewalDate: $e');
+      }
+    }
+    if (dateCreated != null) {
+      try {
+        return DateTime.parse(dateCreated!);
+      } catch (e) {
+        print('Error parsing dateCreated for renewalDate: $e');
+      }
+    }
     return null;
   }
 
@@ -56,8 +72,9 @@ class Subscription extends BaseNameEntity {
     bool? active,
     Currency? currency,
     double? renewalAmount,
-    DateTime? renewalDate,
+    String? renewalDate,
     InventoryItem? subscription,
+    Company? company
   }) {
     return Subscription(
       id: id ?? this.id,
@@ -73,6 +90,7 @@ class Subscription extends BaseNameEntity {
       renewalAmount: renewalAmount ?? this.renewalAmount,
       renewalDate: renewalDate ?? this.renewalDate,
       subscription: subscription ?? this.subscription,
+      company: company ?? this.company,
     );
   }
 
@@ -94,8 +112,9 @@ class Subscription extends BaseNameEntity {
         active: json["active"] == true || json["active"] == 'true',
         currency: json['currency'] != null ? Currency.fromJson(json['currency']) : null,
         renewalAmount: (json["renewalAmount"] as num?)?.toDouble() ?? 0.0,
-        renewalDate: json["renewalDate"] != null ? DateTime.parse(json["renewalDate"]) : null,
+        renewalDate: json["renewalDate"]?.toString(),
         subscription: json['subscription'] != null ? InventoryItem.fromJson(json['subscription']) : null,
+    company: json['company'] != null ? Company.fromJson(json['company']) : null,
       );
 
   Map<String, dynamic> toMap() => {
@@ -110,8 +129,9 @@ class Subscription extends BaseNameEntity {
         "active": active,
         "currency": currency?.toMap(),
         "renewalAmount": renewalAmount,
-        "renewalDate": renewalDate?.toIso8601String(),
+        "renewalDate": renewalDate,
         "subscription": subscription?.toJson(),
+        "company": company?.toJson(),
       };
 
   @override
@@ -125,7 +145,8 @@ class Subscription extends BaseNameEntity {
           currency == other.currency &&
           renewalAmount == other.renewalAmount &&
           renewalDate == other.renewalDate &&
-          subscription == other.subscription;
+          subscription == other.subscription &&
+          company == other.company;
 
   @override
   int get hashCode =>
@@ -135,5 +156,6 @@ class Subscription extends BaseNameEntity {
       currency.hashCode ^
       renewalAmount.hashCode ^
       renewalDate.hashCode ^
-      subscription.hashCode;
+      subscription.hashCode^
+      company.hashCode;
 }

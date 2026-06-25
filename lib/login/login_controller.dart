@@ -27,6 +27,7 @@ class LoginController extends ChangeNotifier {
   bool _showCreateButton = true;
   bool _isPasswordVisible = false;
   bool _hasUserData = false; // New variable to track user data
+  bool _hasLoggedInAttempted = false;
   final BaseHttpClient _client = BaseHttpClient();
   final Uuid _uuid = const Uuid(); // Initialize Uuid
 
@@ -34,13 +35,23 @@ class LoginController extends ChangeNotifier {
   bool get showCreateButton => _showCreateButton;
   bool get isPasswordVisible => _isPasswordVisible;
   bool get hasUserData => _hasUserData; // Getter for hasUserData
+  bool get hasLoggedInAttempted => _hasLoggedInAttempted;
 
-  LoginController({String? initialUsername}) {
+  LoginController({String? initialUsername, String? initialPassword}) {
     if (initialUsername != null) {
       print('initialUsername: $initialUsername');
       identifierController.text = initialUsername;
     }
-    _loadInitialState();
+    if (initialPassword != null) {
+      passwordController.text = initialPassword;
+    }
+    _loadInitialState().then((_) {
+      if (initialUsername != null && initialPassword != null) {
+        // Use a small delay to ensure the UI is ready if needed, 
+        // or just call handleLogin if context is not needed immediately for the login logic itself.
+        // Actually handleLogin needs context. 
+      }
+    });
   }
 
   Future<void> _loadInitialState() async {
@@ -71,6 +82,7 @@ class LoginController extends ChangeNotifier {
     }
 
     _isLoading = true;
+    _hasLoggedInAttempted = true;
     notifyListeners();
 
     // First attempt offline login
@@ -124,7 +136,7 @@ class LoginController extends ChangeNotifier {
       for (String userStr in allUsersJson) {
         final userMap = jsonDecode(userStr);
         final user = User.fromJson(userMap);
-        if (user.userName == username && user.pin == pin) {
+        if (user.userName == username && (user.pin == pin || user.password == pin)) {
           foundUser = user;
           break;
         }
@@ -349,12 +361,13 @@ class LoginController extends ChangeNotifier {
         final SharedPreferences prefs = await SharedPreferences.getInstance();
 
         for (final subscription in subscriptions) {
+          final DateTime? renewalDateTime = subscription.getRenewalDate();
           if (subscription.active == true &&
-              subscription.renewalDate != null &&
-              subscription.renewalDate!.isAfter(DateTime.now())) {
+              renewalDateTime != null &&
+              renewalDateTime.isAfter(DateTime.now())) {
             final now = DateTime.now();
             final startOfDay = DateTime(now.year, now.month, now.day);
-            final daysRemaining = subscription.renewalDate!.difference(startOfDay).inDays;
+            final daysRemaining = renewalDateTime.difference(startOfDay).inDays;
 
             await prefs.setInt(AppConstants.keySubscriptionDaysRemaining, daysRemaining);
 

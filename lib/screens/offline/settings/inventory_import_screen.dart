@@ -118,7 +118,7 @@ class InventoryImportScreen extends BaseImportScreen {
       }
 
       final inventoryItem = InventoryItem(
-        id: '${nowStr}_$i',
+        id: null,
         name: name,
         description: row[1]?.value?.toString().trim() ?? '',
         itemCode: code,

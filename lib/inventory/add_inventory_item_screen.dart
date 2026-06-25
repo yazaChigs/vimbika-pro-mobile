@@ -9,7 +9,9 @@ import 'package:vimbika_pro/model/unit.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:vimbika_pro/services/inventory_item_service.dart'; // Import the new service
+import 'package:vimbika_pro/services/inventory_item_service.dart';
+
+import '../model/currency.dart'; // Import the new service
 
 class AddInventoryItemScreen extends StatefulWidget {
   final InventoryItem? item;
@@ -37,6 +39,7 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
   Unit? _selectedUnit;
   Tax? _selectedTax;
   Branch? _selectedBranch;
+  Currency? _baseCurrency;
   
   List<Category> _categories = [];
   List<Unit> _units = [];
@@ -106,6 +109,14 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
         _selectedBranch = Branch.fromJson(jsonDecode(defaultBranchJson));
       }
 
+      // Pre-select base currency for inventory item company if available
+      final String currencyKey = _isOnline ? AppConstants.keyCurrencies : AppConstants.keyOfflineCurrencies;
+      final List<String> currenciesJson = prefs.getStringList(currencyKey) ?? [];
+      final List<Currency> currencies = currenciesJson.map((e) => Currency.fromJson(jsonDecode(e))).toList();
+      _baseCurrency = currencies.cast<Currency?>().firstWhere(
+        (c) => c?.isBaseCurrency == true,
+        orElse: () => null,
+      );
       
       _isLoading = false;
     });
@@ -159,17 +170,19 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
     final existingItem = widget.item ?? widget.branchStock?.item;
     
     InventoryItem newItem = InventoryItem(
-      id: existingItem?.id ?? DateTime.now().millisecondsSinceEpoch.toString(), // Temporary local ID
+      id: existingItem?.id, // Preserve ID if editing
       name: _nameController.text,
       description: _descriptionController.text,
       itemCode: _codeController.text,
       category: _selectedCategory,
       unit: _selectedUnit,
       tax: _selectedTax,
+      // currency: existingItem?.currency ?? _baseCurrency,
       purchasePrice: double.tryParse(_costPriceController.text) ?? 0.0,
       sellingPrice: double.tryParse(_sellingPriceController.text) ?? 0.0,
       reorderLevel: double.tryParse(_reorderLevelController.text) ?? 0.0,
       isService: _isService,
+      // company: _selectedBranch?.company, // Ensure company is set
       isSynced: false, // Default to not synced
     );
 
@@ -209,6 +222,7 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
         id: widget.branchStock?.id ?? '${newItem.id}_bs', // Use existing ID or generate new one
         item: newItem,
         branch: _selectedBranch,
+        stock: widget.branchStock?.stock ?? 0.00
       );
 
       final int branchStockIndex = localBranchStocks.indexWhere((element) => element.id == branchStock.id);

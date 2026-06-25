@@ -13,8 +13,9 @@ import 'login/login_screen.dart';
 
 class QuickStartScreen extends StatefulWidget {
   final String savedUsername;
+  final String? savedPassword;
   
-  const QuickStartScreen({super.key, required this.savedUsername});
+  const QuickStartScreen({super.key, required this.savedUsername, this.savedPassword});
 
   @override
   State<QuickStartScreen> createState() => _QuickStartScreenState();
@@ -33,6 +34,8 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
 
   List<PaymentType> _paymentTypes = [];
   List<Bank> _banks = [];
+  List<PaymentType> _displayPaymentTypes = [];
+  List<Bank> _DisplayBanks = [];
 
   Branch? _defaultBranch;
 
@@ -78,6 +81,7 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
     final List<String> paymentTypeJson = prefs.getStringList(AppConstants.keyOfflinePaymentTypes) ?? [];
     if (paymentTypeJson.isNotEmpty) {
       _paymentTypes = paymentTypeJson.map((e) => PaymentType.fromJson(jsonDecode(e))).toList();
+      _displayPaymentTypes = _paymentTypes.where((c)=>!c.isSystemCreated).toList();
     } else {
       _paymentTypes = []; // Initialize as empty if no saved data
     }
@@ -86,6 +90,7 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
     final List<String> bankJson = prefs.getStringList(AppConstants.keyOfflineBanks) ?? [];
     if (bankJson.isNotEmpty) {
       _banks = bankJson.map((e) => Bank.fromJson(jsonDecode(e))).toList();
+      _DisplayBanks = _banks.where((c)=>!c.isSystemCreated!).toList();
     } else {
       _banks = []; // Initialize as empty if no saved data
     }
@@ -144,7 +149,12 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => LoginScreen(initialUsername: widget.savedUsername)),
+          MaterialPageRoute(
+            builder: (context) => LoginScreen(
+              initialUsername: widget.savedUsername,
+              initialPassword: widget.savedPassword,
+            ),
+          ),
         );
       }
 
@@ -299,12 +309,12 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
                     const Text('No currencies available.', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
                   const SizedBox(height: 16),
                   const Text('Associated Bank (Optional)', style: TextStyle(fontWeight: FontWeight.bold)), // Changed label
-                  if (_banks.isNotEmpty)
-                    ..._banks.map((bank) {
+                  if (_DisplayBanks.isNotEmpty)
+                    ..._DisplayBanks.map((bank) {
                       return RadioListTile<String>( // Changed to RadioListTile
                         title: Text(bank.name),
                         subtitle: Text(bank.accountNumber ?? ''),
-                        value: bank.id!, // Value is the bank's ID
+                        value: bank.id??'', // Value is the bank's ID
                         groupValue: selectedBankId, // Group value is the currently selected bank ID
                         onChanged: (String? value) {
                           setDialogState(() {
@@ -313,7 +323,7 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
                         },
                       );
                     }),
-                  if (_banks.isEmpty)
+                  if (_DisplayBanks.isEmpty)
                     const Text('No banks available.', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
                 ],
               ),
@@ -333,12 +343,12 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
                     
                     List<Bank> selectedBanks = [];
                     if (selectedBankId != null) { // Check for single selectedBankId
-                      final bank = _banks.firstWhere((b) => b.id == selectedBankId);
+                      final bank = _DisplayBanks.firstWhere((b) => b.id == selectedBankId);
                       selectedBanks.add(bank);
                     }
 
                     final newPaymentType = PaymentType(
-                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      id:null,
                       name: name,
                       active: true,
                       currency: selectedCurrency,
@@ -346,6 +356,7 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
                     );
                     setState(() {
                       _paymentTypes.add(newPaymentType);
+                      _displayPaymentTypes.add(newPaymentType);
                     });
                     Navigator.pop(context);
                   }
@@ -393,13 +404,14 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
             onPressed: () {
               if (name.isNotEmpty) {
                 final newBank = Bank(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  id: null,
                   name: name,
                   accountNumber: accountNumber,
                   branch: branch,
                 );
                 setState(() {
                   _banks.add(newBank);
+                  _DisplayBanks.add(newBank);
                 });
                 Navigator.pop(context);
               }
@@ -597,19 +609,19 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  if (_banks.isEmpty)
+                  if (_DisplayBanks.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8),
                       child: Text('Would you like to add any banks?', style: TextStyle(color: AppTheme.grey, fontStyle: FontStyle.italic)),
                     ),
-                  if (_banks.isNotEmpty)
+                  if (_DisplayBanks.isNotEmpty)
                     Card(
                       elevation: 0,
                       color: AppTheme.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
                       child: Column(
-                        children: List.generate(_banks.length, (index) {
-                          final bank = _banks[index];
+                        children: List.generate(_DisplayBanks.length, (index) {
+                          final bank = _DisplayBanks[index];
                           return Column(
                             children: [
                               if (index > 0) const Divider(height: 1),
@@ -645,19 +657,19 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  if (_paymentTypes.isEmpty)
+                  if (_displayPaymentTypes.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8),
                       child: Text('Would you like to add any other payment methods?', style: TextStyle(color: AppTheme.grey, fontStyle: FontStyle.italic)),
                     ),
-                  if (_paymentTypes.isNotEmpty)
+                  if (_displayPaymentTypes.isNotEmpty)
                     Card(
                       elevation: 0,
                       color: AppTheme.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
                       child: Column(
-                        children: List.generate(_paymentTypes.length, (index) {
-                          final pt = _paymentTypes[index];
+                        children: List.generate(_displayPaymentTypes.length, (index) {
+                          final pt = _displayPaymentTypes[index];
                           return Column(
                             children: [
                               if (index > 0) const Divider(height: 1),
