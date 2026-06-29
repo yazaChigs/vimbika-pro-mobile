@@ -505,7 +505,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
     try {
       final username = _loggedInUser!.userName;
-      final password = pass;
+      final password = '1234';
 
       if (username != null && password != null) {
         final jwtRequest = JwtRequestModel(
@@ -570,8 +570,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           }
 
           currentCompany = currentCompany.copyWith(
-            newOfflineUser: savedUser,
+            // newOfflineUser: savedUser,
             defaultBranch: defaultBranchName,
+            name: 'Vimbika Pro Test 3'
           );
           final response = await _companyService.saveCompany(currentCompany);
           if (response != null && response.containsKey('item')) {
@@ -582,7 +583,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             if (response.containsKey('currencies') && response['currencies'] != null) {
               final List<dynamic> currenciesData = response['currencies'];
               final List<String> currenciesJsonList = currenciesData.map((c) => jsonEncode(c)).toList();
-              await prefs.setStringList(AppConstants.keyCurrencies, currenciesJsonList);
+              // await prefs.setStringList(AppConstants.keyCurrencies, currenciesJsonList);
+              print('currenciesData: ${currenciesJsonList}');
+              print('currencies: ${currenciesJsonList.length}');
               await prefs.setStringList(AppConstants.keyOfflineCurrencies, currenciesJsonList);
             }
 
@@ -594,8 +597,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
             // Attempt login to get JWT token for subsequent API calls
             await _attemptLogin(password);
+          }else if(response != null && response.containsKey('duplicate')){
+
           }
         } catch (e) {
+          company = await _companyService.getCompany();
           debugPrint('Error saving company to Vimbika after payment: $e');
         }
       }
@@ -615,7 +621,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         
         // Get base currency to add to inventoryItem/currency
         Currency? baseCurrency;
-        final List<String> currenciesJson = prefs.getStringList(AppConstants.keyCurrencies) ?? [];
+        final List<String> currenciesJson = prefs.getStringList(AppConstants.keyOfflineCurrencies) ?? [];
         if (currenciesJson.isNotEmpty) {
           final List<Currency> currencies = currenciesJson.map((e) => Currency.fromJson(jsonDecode(e))).toList();
           baseCurrency = currencies.cast<Currency?>().firstWhere(
@@ -645,7 +651,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
         final DateFormat formatter = DateFormat('yyyy-MM-dd');
         final String formattedEndDate = formatter.format(subscriptionEndDate);
-        print('formattedEndDate: $formattedEndDate');
         await prefs.setString(AppConstants.keySubscriptionEndDate, formattedEndDate);
 
         setState(() {
@@ -683,7 +688,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             
             // Get base currency for inventory items
             Currency? baseCurrency;
-            final List<String> currenciesJson = prefs.getStringList(AppConstants.keyCurrencies) ?? [];
+            final List<String> currenciesJson = prefs.getStringList(AppConstants.keyOfflineCurrencies) ?? [];
             if (currenciesJson.isNotEmpty) {
               final List<Currency> currencies = currenciesJson.map((e) => Currency.fromJson(jsonDecode(e))).toList();
               baseCurrency = currencies.cast<Currency?>().firstWhere(
@@ -711,19 +716,55 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           debugPrint('Error saving branch stocks to Vimbika after payment: $e');
         }
 
+        print('saving banks');
         // Save all none-system created banks to API separately
         try {
           final List<String> bankJsonList = prefs.getStringList(AppConstants.keyOfflineBanks) ?? [];
+          print(bankJsonList);
+          print(company?.toJson());
           if (bankJsonList.isNotEmpty && company != null && company.id != null) {
             final List<Bank> banks = bankJsonList.map((s) => Bank.fromJson(jsonDecode(s))).toList();
+            print('banks: ${banks.length}');
             final List<Bank> updatedBanks = [];
+
+            // Get base currency for banks if they don't have one
+            Currency? baseCurrency;
+            final List<String> currenciesJson = prefs.getStringList(AppConstants.keyOfflineCurrencies) ?? [];
+            if (currenciesJson.isNotEmpty) {
+              final List<Currency> currencies = currenciesJson.map((e) => Currency.fromJson(jsonDecode(e))).toList();
+              baseCurrency = currencies.cast<Currency?>().firstWhere(
+                    (c) => c?.isBaseCurrency == true,
+                orElse: () => null,
+              );
+            }
+            print('baseCurrency: ${baseCurrency?.toJson()}');
+
+
             for (var bank in banks) {
+              print('bank currency: ${bank.currency?.toJson()}');
               if (bank.isSystemCreated != true) {
-                final savedBank = await _bankService.saveBankWithCompany(bank, company.id!);
+                // Ensure bank has a currency
+                final bankWithCurrency = Bank(
+                  id: bank.id,
+                  name: bank.name,
+                  accountNumber: bank.accountNumber,
+                  branch: bank.branch,
+                  description: bank.description,
+                  currency: baseCurrency ?? bank.currency,
+                  isSystemCreated: bank.isSystemCreated,
+                  bankName: bank.bankName,
+                  dateCreated: bank.dateCreated,
+                  dateModified: bank.dateModified,
+                  createdByName: bank.createdByName,
+                  modifiedByName: bank.modifiedByName,
+                  version: bank.version,
+                );
+
+                final savedBank = await _bankService.saveBankWithCompany(bankWithCurrency, company.id!);
                 if (savedBank != null) {
                   updatedBanks.add(savedBank);
                 } else {
-                  updatedBanks.add(bank);
+                  updatedBanks.add(bankWithCurrency);
                 }
               } else {
                 updatedBanks.add(bank);
@@ -744,13 +785,30 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           if (paymentTypeJsonList.isNotEmpty && company != null && company.id != null) {
             final List<PaymentType> paymentTypes = paymentTypeJsonList.map((s) => PaymentType.fromJson(jsonDecode(s))).toList();
             final List<PaymentType> updatedPaymentTypes = [];
+
+            // Get base currency for payment types if they don't have one
+            Currency? baseCurrency;
+            final List<String> currenciesJson = prefs.getStringList(AppConstants.keyOfflineCurrencies) ?? [];
+            if (currenciesJson.isNotEmpty) {
+              final List<Currency> currencies = currenciesJson.map((e) => Currency.fromJson(jsonDecode(e))).toList();
+              baseCurrency = currencies.cast<Currency?>().firstWhere(
+                    (c) => c?.isBaseCurrency == true,
+                orElse: () => null,
+              );
+            }
+
             for (var pt in paymentTypes) {
               if (pt.isSystemCreated != true) {
-                final savedPt = await _paymentTypeService.savePaymentTypeWithCompany(pt, company.id!);
+                // Ensure payment type has a currency
+                final ptWithCurrency = pt.copyWith(
+                  currency:  baseCurrency ?? pt.currency ,
+                );
+
+                final savedPt = await _paymentTypeService.savePaymentTypeWithCompany(ptWithCurrency, company.id!);
                 if (savedPt != null) {
                   updatedPaymentTypes.add(savedPt);
                 } else {
-                  updatedPaymentTypes.add(pt);
+                  updatedPaymentTypes.add(ptWithCurrency);
                 }
               } else {
                 updatedPaymentTypes.add(pt);

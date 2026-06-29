@@ -1,104 +1,77 @@
-import 'base_entity.dart';
-import 'inventory_item.dart';
+import 'package:vimbika_pro/model/inventory_item.dart';
 
-class SaleItem extends BaseEntity {
-  final InventoryItem? inventoryItem;
-  final double quantity;
-  final double sellingPrice;
-  final double taxAmount;
-  final double discountAmount;
-  final double total;
-  bool? isMobile;
+class SaleItem {
+  String? id;
+  InventoryItem? inventoryItem;
+  double quantity;
+  double sellingPrice;
+  double discountAmount;
+  double total;
+  double taxAmount;
+  bool isMobile;
+  double? amountTendered;
 
   SaleItem({
-    super.id,
-    super.dateCreated,
-    super.dateModified,
-    super.createdByName,
-    super.modifiedByName,
-    super.version,
+    this.id,
     this.inventoryItem,
-    this.quantity = 0.0,
-    this.sellingPrice = 0.0,
-    this.taxAmount = 0.0,
+    required this.quantity,
+    required this.sellingPrice,
     this.discountAmount = 0.0,
-    this.total = 0.0,
-    this.isMobile,
+    required this.total,
+    required this.taxAmount,
+    this.isMobile = false,
+    this.amountTendered,
   });
 
-  SaleItem copyWith({
-    String? id,
-    String? dateCreated,
-    String? dateModified,
-    String? createdByName,
-    String? modifiedByName,
-    int? version,
-    InventoryItem? inventoryItem,
-    double? quantity,
-    double? sellingPrice,
-    double? taxAmount,
-    double? discountAmount,
-    double? total,
-    bool? isMobile,
-  }) {
-    return SaleItem(
-      id: id ?? this.id,
-      dateCreated: dateCreated ?? this.dateCreated,
-      dateModified: dateModified ?? this.dateModified,
-      createdByName: createdByName ?? this.createdByName,
-      modifiedByName: modifiedByName ?? this.modifiedByName,
-      version: version ?? this.version,
-      inventoryItem: inventoryItem ?? this.inventoryItem,
-      quantity: quantity ?? this.quantity,
-      sellingPrice: sellingPrice ?? this.sellingPrice,
-      taxAmount: taxAmount ?? this.taxAmount,
-      discountAmount: discountAmount ?? this.discountAmount,
-      total: total ?? this.total,
-      isMobile: isMobile ?? this.isMobile,
-    );
-  }
-
   factory SaleItem.fromJson(Map<String, dynamic> json) {
-
-    double? parseDouble(dynamic value) {
-      if (value == null) return null;
-      if (value is num) return value.toDouble();
-      if (value is String) return double.tryParse(value);
-      return null;
-    }
-    
     return SaleItem(
-      id: json['id']?.toString(),
-      dateCreated: json['dateCreated'] ,
-      dateModified: json['dateModified'],
-      createdByName: json['createdByName']?.toString(),
-      modifiedByName: json['modifiedByName']?.toString(),
-      version: (json['version'] as num?)?.toInt(),
+      id: json['id'],
       inventoryItem: json['inventoryItem'] != null ? InventoryItem.fromJson(json['inventoryItem']) : null,
-      quantity: parseDouble(json['quantity'] ) ?? 0.0,
-      sellingPrice: parseDouble(json['sellingPrice'])  ?? 0.0,
-      taxAmount: parseDouble(json['taxAmount'] ) ?? 0.0,
-      discountAmount: parseDouble(json['discountAmount'] ) ?? 0.0,
-      total: parseDouble(json['total']) ?? 0.0,
+      quantity: (json['quantity'] as num).toDouble(),
+      sellingPrice: (json['sellingPrice'] as num).toDouble(),
+      discountAmount: (json['discountAmount'] as num?)?.toDouble() ?? 0.0,
+      total: (json['total'] as num).toDouble(),
+      taxAmount: (json['taxAmount'] as num).toDouble(),
       isMobile: json['isMobile'] ?? false,
+      amountTendered: (json['amountTendered'] as num?)?.toDouble(),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'dateCreated': dateCreated,
-      'dateModified': dateModified,
-      'createdByName': createdByName,
-      'modifiedByName': modifiedByName,
-      'version': version,
       'inventoryItem': inventoryItem?.toJson(),
       'quantity': quantity,
       'sellingPrice': sellingPrice,
-      'taxAmount': taxAmount,
       'discountAmount': discountAmount,
       'total': total,
+      'taxAmount': taxAmount,
       'isMobile': isMobile,
+      'amountTendered': amountTendered,
     };
+  }
+
+  SaleItem copyWith({
+    String? id,
+    InventoryItem? inventoryItem,
+    double? quantity,
+    double? sellingPrice,
+    double? discountAmount,
+    double? total,
+    double? taxAmount,
+    bool? isMobile,
+    double? amountTendered,
+  }) {
+    return SaleItem(
+      id: id ?? this.id,
+      inventoryItem: inventoryItem ?? this.inventoryItem,
+      quantity: quantity ?? this.quantity,
+      sellingPrice: sellingPrice ?? this.sellingPrice,
+      discountAmount: discountAmount ?? this.discountAmount,
+      total: total ?? this.total,
+      taxAmount: taxAmount ?? this.taxAmount,
+      isMobile: isMobile ?? this.isMobile,
+      amountTendered: amountTendered ?? this.amountTendered,
+    );
   }
 }

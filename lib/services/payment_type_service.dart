@@ -20,7 +20,7 @@ class PaymentTypeService {
 
   Future<PaymentType?> savePaymentTypeWithCompany(PaymentType type, String companyId) async {
     final String responseStr = await _client.postAuthWithCompanyHeader(
-      '/payment-type/save',
+      '/payment-method/save',
       jsonEncode(type.toJson()),
       companyId,
       'POST'

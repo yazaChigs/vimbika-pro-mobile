@@ -151,10 +151,6 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                             SnackBar(content: Text(isDeposit ? 'Deposit added successfully' : 'Balance added successfully'), backgroundColor: Colors.green),
                           );
                           Navigator.pop(dialogContext); // Close the dialog
-                          print(payment.reference);
-                          print(payment.payer!.name);
-                          print(payment.amount);
-                          print(payment.paymentType!.name);
                           navigator.push(
                             MaterialPageRoute(
                               builder: (context) => PaymentReceiptScreen(payment: payment),

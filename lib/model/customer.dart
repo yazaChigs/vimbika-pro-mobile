@@ -15,6 +15,7 @@ class Customer extends BaseEntity {
   final Company? company;
   final Branch? branch;
   final bool isSynced; // New field
+  final double points;
 
   Customer({
     String? id,
@@ -33,6 +34,7 @@ class Customer extends BaseEntity {
     this.currencyBalance,
     this.company,
     this.branch,
+    this.points = 0.0,
     this.isSynced = true, // Default to true
   }) : super(
           id: id,
@@ -60,6 +62,7 @@ class Customer extends BaseEntity {
     List<CustomerCurrencyAmount>? currencyBalance,
     Company? company,
     Branch? branch,
+    double? points,
     bool? isSynced,
   }) {
     return Customer(
@@ -80,6 +83,7 @@ class Customer extends BaseEntity {
       company: company ?? this.company,
       branch: branch ?? this.branch,
       isSynced: isSynced ?? this.isSynced,
+      points: points ?? this.points,
     );
   }
 
@@ -104,6 +108,7 @@ class Customer extends BaseEntity {
       company: json['company'] != null ? Company.fromJson(json['company']) : null,
       branch: json['branch'] != null ? Branch.fromJson(json['branch']) : null,
       isSynced: json['isSynced'] ?? true, // Default to true for existing data
+      points: json['points']?.toDouble() ?? 0.0,
     );
   }
 
@@ -127,6 +132,7 @@ class Customer extends BaseEntity {
       'company': company?.toJson(),
       'branch': branch?.toJson(),
       'isSynced': isSynced, // Include in JSON
+      'points': points,
     };
   }
 }

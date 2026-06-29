@@ -73,7 +73,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       
       DateTime? saleDate;
       if (sale.dateCreated != null) saleDate = DateTime.tryParse(sale.dateCreated!);
-      if (saleDate == null && sale.timeIniated.isNotEmpty) saleDate = DateTime.tryParse(sale.timeIniated);
+      if (saleDate == null && sale.timeIniated!.isNotEmpty) saleDate = DateTime.tryParse(sale.timeIniated!);
       saleDate ??= DateTime.now();
 
       if (saleDate.isBefore(dateRange.start) || saleDate.isAfter(endDateExclusive) || saleDate.isAtSameMomentAs(endDateExclusive)) {

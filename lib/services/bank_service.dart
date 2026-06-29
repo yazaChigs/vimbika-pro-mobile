@@ -47,6 +47,7 @@ class BankService {
   }
 
   Future<Bank?> saveBankWithCompany(Bank bank, String companyId) async {
+    print('bank: ${bank.toJson()}');
     final String responseStr = await _client.postAuthWithCompanyHeader(
       '/bank/save',
       jsonEncode(bank.toJson()),

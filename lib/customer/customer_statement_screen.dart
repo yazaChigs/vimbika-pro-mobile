@@ -118,7 +118,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
           
           // Add Sale as a Debit
           entries.add(StatementEntry(
-            date: DateTime.tryParse(sale.timeIniated) ?? DateTime.now(),
+            date: DateTime.tryParse(sale.timeIniated!) ?? DateTime.now(),
             description: 'Invoice Sale',
             debit: sale.grandTotal,
             reference: '#${sale.id?.substring(0, 8).toUpperCase() ?? sale.posReference ?? 'N/A'}',
@@ -134,7 +134,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
 
               if (paymentName.startsWith('ACC-')) {
                   entries.add(StatementEntry(
-                    date: DateTime.tryParse(payment.paymentDate ?? sale.timeIniated) ?? DateTime.now(),
+                    date: DateTime.tryParse(payment.paymentDate ?? sale.timeIniated!) ?? DateTime.now(),
                     description: 'Paid via Account Balance',
                     credit: payment.amount,
                     reference: '#${sale.id?.substring(0, 8).toUpperCase() ?? sale.posReference ?? 'N/A'}',
@@ -145,7 +145,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
               } else {
                   // Standard cash/bank payment
                   entries.add(StatementEntry(
-                    date: DateTime.tryParse(payment.paymentDate ?? sale.timeIniated) ?? DateTime.now(),
+                    date: DateTime.tryParse(payment.paymentDate ?? sale.timeIniated!) ?? DateTime.now(),
                     description: 'Payment Received (${payment.paymentType?.name ?? "Cash"})',
                     credit: payment.amount,
                     reference: '#${sale.id?.substring(0, 8).toUpperCase() ?? sale.posReference ?? 'N/A'}',

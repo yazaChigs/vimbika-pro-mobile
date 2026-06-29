@@ -372,18 +372,31 @@ class _PaymentTypeManagementScreenState extends State<PaymentTypeManagementScree
                     return;
                   }
 
-                  final newPaymentType = PaymentType(
-                    id: paymentType?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-                    name: nameController.text,
-                    description: descriptionController.text.isNotEmpty ? descriptionController.text : null,
-                    isCash: isCash,
-                    isCard: isCard,
-                    isMobileMoney: isMobileMoney,
-                    isBankTransfer: isBankTransfer,
-                    currency: selectedCurrency,
-                    active: active,
-                    banks: isBankTransfer ? selectedBanks : null,
-                  );
+                  // If editing, use copyWith to preserve existing metadata
+                  final newPaymentType = paymentType != null
+                      ? paymentType.copyWith(
+                          name: nameController.text,
+                          description: descriptionController.text.isNotEmpty ? descriptionController.text : null,
+                          isCash: isCash,
+                          isCard: isCard,
+                          isMobileMoney: isMobileMoney,
+                          isBankTransfer: isBankTransfer,
+                          currency: selectedCurrency ?? _currencies.cast<Currency?>().firstWhere((c) => c?.isBaseCurrency == true, orElse: () => null),
+                          active: active,
+                          banks: isBankTransfer ? selectedBanks : null,
+                        )
+                      : PaymentType(
+                          id: null,
+                          name: nameController.text,
+                          description: descriptionController.text.isNotEmpty ? descriptionController.text : null,
+                          isCash: isCash,
+                          isCard: isCard,
+                          isMobileMoney: isMobileMoney,
+                          isBankTransfer: isBankTransfer,
+                          currency: selectedCurrency ?? _currencies.cast<Currency?>().firstWhere((c) => c?.isBaseCurrency == true, orElse: () => null),
+                          active: active,
+                          banks: isBankTransfer ? selectedBanks : null,
+                        );
 
                   setState(() {
                     if (paymentType == null) {

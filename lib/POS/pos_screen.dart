@@ -790,7 +790,7 @@ class POSScreen extends StatelessWidget {
                       );
                       if (matchingCustomer != null) {
                         controller.selectedCustomer = matchingCustomer;
-                        textEditingController.clear(); // Clear the text field after auto-selecting
+                        // textEditingController.clear(); // Clear the text field after auto-selecting
                         FocusScope.of(context).unfocus(); // Unfocus the text field
                       }
                     }

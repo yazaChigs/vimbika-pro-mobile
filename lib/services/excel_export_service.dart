@@ -123,10 +123,20 @@ class ExcelExportService {
       Excel excel;
       Sheet sheet;
 
-      if (await file.exists()) {
-        final bytes = await file.readAsBytes();
-        excel = Excel.decodeBytes(bytes);
-        sheet = excel[excel.getDefaultSheet()!];
+      if (await file.exists() && await file.length() > 0) {
+        try {
+          final bytes = await file.readAsBytes();
+          excel = Excel.decodeBytes(bytes);
+          sheet = excel[excel.getDefaultSheet()!];
+        } catch (e) {
+          print("Error decoding existing Excel file: $e. Falling back to creating a new one.");
+          excel = Excel.createExcel();
+          sheet = excel[excel.getDefaultSheet()!];
+          // Create header row
+          final firstAmountJson = amounts.first.toJson();
+          final headers = firstAmountJson.keys.map((key) => TextCellValue(key) as CellValue).toList();
+          sheet.appendRow(headers);
+        }
       } else {
         excel = Excel.createExcel();
         sheet = excel[excel.getDefaultSheet()!];
@@ -179,7 +189,13 @@ class ExcelExportService {
       if (result != null && result.files.single.path != null) {
         var filePath = result.files.single.path!;
         var bytes = File(filePath).readAsBytesSync();
-        var excel = Excel.decodeBytes(bytes);
+        Excel excel;
+        try {
+          excel = Excel.decodeBytes(bytes);
+        } catch (e) {
+          print("Error decoding Excel file: $e");
+          return {'success': false, 'message': 'Unsupported or corrupted Excel file format. Only .xlsx files are supported.', 'sales': []};
+        }
 
         List<Sale> importedSales = [];
 

@@ -102,7 +102,7 @@ class POSScreenController extends ChangeNotifier {
   bool _customerSelectFocus = true;
 
   double _amountTendered = 0.0; // New variable for amount tendered
-  TextEditingController _amountTenderedController = TextEditingController(); // Controller for tendered amount
+  final TextEditingController _amountTenderedController = TextEditingController(); // Controller for tendered amount
 
   double totalAmtToAcc = 0.0;
 
@@ -500,7 +500,6 @@ class POSScreenController extends ChangeNotifier {
       if (paymentType.banks != null) {
         for (Bank bank in paymentType.banks!) {
           if (bank.currency?.id == currency.id) {
-            print(bank.toJson());
             return bank;
           }
         }
@@ -511,6 +510,30 @@ class POSScreenController extends ChangeNotifier {
       debugPrint('Either currency or paymentType is null.');
     }
     return null;
+  }
+
+  void _adjustPayments() {
+    if (_payments.isNotEmpty) {
+      double newGrandTotal = grandTotalConverted;
+      double totalPaid = amountPaidConverted;
+
+      if (totalPaid > newGrandTotal) {
+        double overpayment = totalPaid - newGrandTotal;
+
+        for (int i = _payments.length - 1; i >= 0; i--) {
+          if (overpayment <= 0) break;
+
+          final payment = _payments[i];
+          if (payment.amount > overpayment) {
+            _payments[i] = payment.copyWith(amount: payment.amount - overpayment);
+            overpayment = 0;
+          } else {
+            overpayment -= payment.amount;
+            _payments.removeAt(i);
+          }
+        }
+      }
+    }
   }
 
   void addToCart(BranchStock stock) {
@@ -585,6 +608,7 @@ class POSScreenController extends ChangeNotifier {
     _priceControllers.remove(itemId);
     _discountControllers[itemId]?.dispose();
     _discountControllers.remove(itemId);
+    _adjustPayments();
     _amountTendered = 0.0; // Reset tendered amount on cart change
     _amountTenderedController.clear(); // Clear tendered amount controller
     notifyListeners();
@@ -648,6 +672,7 @@ class POSScreenController extends ChangeNotifier {
       taxAmount: itemTaxAmount,
       isMobile: true,
     );
+    _adjustPayments();
     _amountTendered = 0.0; // Reset tendered amount on cart change
     _amountTenderedController.clear(); // Clear tendered amount controller
     notifyListeners();
@@ -735,8 +760,8 @@ class POSScreenController extends ChangeNotifier {
             bank: _getCorrectBank(accountPaymentType, _selectedCurrency),
         ));
       }
-      _amountTendered = 0.0; // Reset tendered amount on payment
-      _amountTenderedController.clear(); // Clear tendered amount controller
+      _amountTendered = amountPaidConverted;
+      _amountTenderedController.text = _amountTendered.toStringAsFixed(2);
       notifyListeners();
   }
 
@@ -1020,28 +1045,29 @@ class POSScreenController extends ChangeNotifier {
     if (dialogResult && _cart.isEmpty) {
       await clearPOSScreen();
     }
-    // _amountTendered = 0.0; // Reset tendered amount on payment
-    // _amountTenderedController.clear(); // Clear tendered amount controller
+    _amountTendered = 0.0; // Reset tendered amount on payment
+    _amountTenderedController.clear(); // Clear tendered amount controller
     notifyListeners(); // This notifyListeners() is sufficient after the dialog closes
     customerSelectFocus = false;
   }
 
   void updatePaymentAmount(int index, double newAmount) {
-    _amountTendered = 0;
     if (index >= 0 && index < _payments.length) {
       final oldPayment = _payments[index];
+      final amountDifference = newAmount - oldPayment.amount;
       _payments[index] = oldPayment.copyWith(amount: newAmount);
-      _amountTendered += newAmount; // Reset tendered amount on payment update
-      _amountTenderedController.clear(); // Clear tendered amount controller
+      _amountTendered += amountDifference;
+      _amountTenderedController.text = _amountTendered.toStringAsFixed(2);
       notifyListeners();
     }
   }
 
   void removePayment(int index) {
     if (index >= 0 && index < _payments.length) {
-      _payments.removeAt(index);
-      _amountTendered = 0.0; // Reset tendered amount on payment removal
-      _amountTenderedController.clear(); // Clear tendered amount controller
+      final removedPayment = _payments.removeAt(index);
+      _amountTendered -= removedPayment.amount;
+      if (_amountTendered < 0) _amountTendered = 0;
+      _amountTenderedController.text = _amountTendered.toStringAsFixed(2);
       notifyListeners();
     }
   }
@@ -1113,6 +1139,7 @@ class POSScreenController extends ChangeNotifier {
 
             // --- Send updated customer to API ---
             if (_isOnline && totalAmtToAcc == 0.0) {
+              // ignore: avoid_print
               print('Updating customer balance to API: ${customerToUpdate.toJson()}');
               try {
                 await _customerService.updateCustomer(customerToUpdate);
@@ -1135,6 +1162,7 @@ class POSScreenController extends ChangeNotifier {
         _pendingCustomerBalanceUpdates.clear(); // Clear after applying
       }
       else{
+        // ignore: avoid_print
         print('No pending customer balance updates');
       }
       // --- End of pending customer balance updates ---
@@ -1213,6 +1241,7 @@ class POSScreenController extends ChangeNotifier {
           await _printerService.printSale(newSale);
         }
       } catch (e) {
+        // ignore: avoid_print
         print('Error auto-printing receipt: $e');
         // Don't fail the sale if printing fails
       }
@@ -1434,25 +1463,21 @@ class POSScreenController extends ChangeNotifier {
   }
 
   Future<void> clearPOSScreen({Customer? newCustomer}) async {
-    if (newCustomer == null) {
-      _cart.clear();
-      _payments.clear();
-      _pendingAccountCredits.clear();
-      _pendingCustomerBalanceUpdates.clear(); // Clear pending balance updates
-      _selectedCustomer = null;
-      _ticketName = null; // Clear ticket name
-      _amountTendered = 0.0; // Clear tendered amount
-      _amountTenderedController.clear(); // Clear tendered amount controller
-      _disposeQuantityControllers();
-    } else {
-      _selectedCustomer = newCustomer;
-    }
+    _cart.clear();
+    _payments.clear();
+    _pendingAccountCredits.clear();
+    _pendingCustomerBalanceUpdates.clear();
+    _selectedCustomer = newCustomer;
+    _ticketName = null;
+    _amountTendered = 0.0;
+    _amountTenderedController.clear();
+    _disposeQuantityControllers();
     _searchController.clear();
     _customerSearchController.clear();
     _searchQuery = '';
     _applyFilters();
-    await _loadData(); // Await the asynchronous data loading
-    _printReceiptForThisSale = _printerService.getAlwaysPrintReceipt(); // Reset to global setting
+    await _loadData();
+    _printReceiptForThisSale = _printerService.getAlwaysPrintReceipt();
     notifyListeners();
   }
 
@@ -1493,7 +1518,7 @@ class POSScreenController extends ChangeNotifier {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, null), // Return null if cancelled
-            child: const Text('Cancel'),
+            child: const Text('Hold'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext, ticketNameController.text),
@@ -1530,6 +1555,7 @@ class POSScreenController extends ChangeNotifier {
       totalTaxAmount: taxTotalBase * exchangeRate,
       amountAfterDiscount: grandTotalConverted,
       ticketName: ticketName, // Assign the entered ticket name
+      amountTendered: _amountTendered,
     );
 
     heldSales.add(heldSale); // Add the new held sale to the list
@@ -1552,19 +1578,14 @@ class POSScreenController extends ChangeNotifier {
   }
 
   void loadHeldSale(Sale heldSale) {
-    _cart.clear();
-    _payments.clear();
-    _pendingAccountCredits.clear(); // Reset pending credits
-    _pendingCustomerBalanceUpdates.clear(); // Clear pending balance updates
-    _disposeQuantityControllers();
-
+    clearPOSScreen();
     _cart.addAll(heldSale.items);
     _payments.addAll(heldSale.paymentTypes ?? []);
     _selectedCustomer = heldSale.customer;
     _selectedCurrency = heldSale.currency;
-    _ticketName = heldSale.ticketName; // Load ticket name
-    _amountTendered = 0.0; // Reset tendered amount when loading held sale
-    _amountTenderedController.clear(); // Clear tendered amount controller
+    _ticketName = heldSale.ticketName;
+    _amountTendered = heldSale.amountTendered ?? 0.0;
+    _amountTenderedController.text = _amountTendered.toStringAsFixed(2);
 
     for (var item in _cart) {
       if (item.inventoryItem?.id != null) {
@@ -1575,7 +1596,7 @@ class POSScreenController extends ChangeNotifier {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Held sale for ${heldSale.ticketName ?? 'Guest'} loaded.'), backgroundColor: Colors.green),
     );
-    _printReceiptForThisSale = _printerService.getAlwaysPrintReceipt(); // Reset to global setting
+    _printReceiptForThisSale = _printerService.getAlwaysPrintReceipt();
     notifyListeners();
   }
 
@@ -1609,51 +1630,30 @@ class POSScreenController extends ChangeNotifier {
       _amountTendered = grandTotalConverted;
       _amountTenderedController.text = _amountTendered.toStringAsFixed(2);
 
-      // if (balanceDueConverted > 0.01) {
-        final cashPaymentType = _paymentTypes.firstWhere(
-              (pt) => (pt.isCash == true || pt.name.toLowerCase().startsWith('cash')) && (pt.currency == null || pt.currency?.id == _selectedCurrency?.id),
-          orElse: () => PaymentType(id: 'cash_default', name: 'Cash', isCash: true),
-        );
+      final cashPaymentType = _paymentTypes.firstWhere(
+        (pt) => (pt.isCash == true || pt.name.toLowerCase().startsWith('cash')) && (pt.currency == null || pt.currency?.id == _selectedCurrency?.id),
+        orElse: () => PaymentType(id: 'cash_default', name: 'Cash', isCash: true),
+      );
 
-        // // Check if this payment type already exists
-        // final existingPaymentIndex = _payments.indexWhere((p) => p.paymentType?.name == cashPaymentType.name);
-        //
-        // if (existingPaymentIndex != -1) {
-        //   // Update existing payment
-        //   final existingPayment = _payments[existingPaymentIndex];
-        //   _payments[existingPaymentIndex] = existingPayment.copyWith(
-        //     amount: existingPayment.amount + grandTotalConverted, // Use grandTotalConverted for quick cash
-        //   );
-        // } else {
       _payments.clear();
-          // Add new payment
-          _payments.add(
-              PaymentReceived(
-            id: 'local_payment_${DateTime.now().millisecondsSinceEpoch}', // Unique ID
-            amount: grandTotalConverted, // Use grandTotalConverted for quick cash
-            paymentType: cashPaymentType,
-            currency: _selectedCurrency,
-            branch: _selectedBranch, // Add the selected branch here
-            paymentDescription: 'SALE',
-            paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
-            dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
-            isMobile: true,
-            bank: _getCorrectBank(cashPaymentType, _selectedCurrency),
-          )
-          );
+      _payments.add(
+        PaymentReceived(
+          id: 'local_payment_${DateTime.now().millisecondsSinceEpoch}',
+          amount: grandTotalConverted,
+          paymentType: cashPaymentType,
+          currency: _selectedCurrency,
+          branch: _selectedBranch,
+          paymentDescription: 'SALE',
+          paymentDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+          dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
+          isMobile: true,
+          bank: _getCorrectBank(cashPaymentType, _selectedCurrency),
+        ),
+      );
 
-        // }
-
-        // We no longer save payments to the shift here to avoid duplicates.
-        // It will be done in completeSale.
-      // }
-
-      // Need to unset _isProcessingSale before calling completeSale
-      // because completeSale checks it too.
       _isProcessingSale = false;
       await completeSale();
     } finally {
-      // Ensures it's reset even if an exception occurs
       _isProcessingSale = false;
       notifyListeners();
     }

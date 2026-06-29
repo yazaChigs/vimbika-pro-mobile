@@ -240,7 +240,7 @@ class _ImportedSalesPreviewScreenState extends State<ImportedSalesPreviewScreen>
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(sale.timeIniated))} • ${sale.items.length} items',
+                                  '${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(sale.timeIniated!))} • ${sale.items.length} items',
                                   style: const TextStyle(fontSize: 12, color: AppTheme.grey),
                                 ),
                                 const SizedBox(height: 4),

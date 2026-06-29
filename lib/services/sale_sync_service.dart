@@ -26,7 +26,7 @@ class SaleSyncService {
       return;
     }
     // Run every 20 minutes
-    _syncTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
+    _syncTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
       syncSales();
     });
     // Also run once immediately
@@ -94,7 +94,7 @@ class SaleSyncService {
       if (allSalesForExcel.isNotEmpty) {
          final now = DateTime.now();
          final todaySales = allSalesForExcel.where((sale) {
-           final saleDate = DateTime.parse(sale.timeIniated);
+           final saleDate = DateTime.parse(sale.timeIniated!);
              if (sale.dateCreated == null) return false;
              return saleDate.year == now.year &&
                     saleDate.month == now.month &&

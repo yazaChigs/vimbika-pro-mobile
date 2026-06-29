@@ -59,7 +59,7 @@ class CustomerController extends ChangeNotifier {
   }
 
   void setSearchQuery(String query) {
-    _searchQuery = query;
+    _searchQuery = query.trim().toLowerCase();
     _filterCustomers();
      if (!_isDisposed) {
       notifyListeners();
@@ -200,10 +200,9 @@ class CustomerController extends ChangeNotifier {
       _filteredCustomers = _customers;
     } else {
       _filteredCustomers = _customers.where((customer) {
-        final query = _searchQuery.toLowerCase();
-        return customer.name.toLowerCase().contains(query) ||
-               (customer.email?.toLowerCase().contains(query) ?? false) ||
-               (customer.phoneNumber?.toLowerCase().contains(query) ?? false);
+        return customer.name.toLowerCase().contains(_searchQuery) ||
+               (customer.email?.toLowerCase().contains(_searchQuery) ?? false) ||
+               (customer.phoneNumber?.contains(_searchQuery) ?? false);
       }).toList();
     }
   }

@@ -188,18 +188,33 @@ class _BankManagementScreenState extends State<BankManagementScreen> {
             TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
             ElevatedButton(
               onPressed: () {
-                if (nameController.text.isEmpty) return;
-                
-                final newBank = Bank(
-                  id: bank?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-                  name: nameController.text,
-                  accountNumber: accountController.text,
-                  branch: branchController.text,
-                  description: descriptionController.text,
-                  currency: selectedCurrency,
-                );
+              if (nameController.text.isEmpty) return;
 
-                this.setState(() {
+              // If editing, use existing bank values as base
+              final newBank = bank != null ? Bank(
+                id: bank.id,
+                name: nameController.text,
+                accountNumber: accountController.text,
+                branch: branchController.text,
+                description: descriptionController.text,
+                currency: selectedCurrency ?? _availableCurrencies.cast<Currency?>().firstWhere((c) => c?.isBaseCurrency == true, orElse: () => null),
+                isSystemCreated: bank.isSystemCreated,
+                bankName: bank.bankName,
+                dateCreated: bank.dateCreated,
+                dateModified: bank.dateModified,
+                createdByName: bank.createdByName,
+                modifiedByName: bank.modifiedByName,
+                version: bank.version,
+              ) : Bank(
+                id: null,
+                name: nameController.text,
+                accountNumber: accountController.text,
+                branch: branchController.text,
+                description: descriptionController.text,
+                currency: selectedCurrency ?? _availableCurrencies.cast<Currency?>().firstWhere((c) => c?.isBaseCurrency == true, orElse: () => null),
+              );
+
+              this.setState(() {
                   if (bank == null) {
                     _banks.add(newBank);
                   } else {

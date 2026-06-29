@@ -15,9 +15,6 @@ import 'package:intl/intl.dart';
 import '../services/excel_export_service.dart';
 import '../services/sale_service.dart'; // Import SaleService
 import '../services/mobile_shift_service.dart'; // Import MobileShiftService
-import 'package:provider/provider.dart'; // Import provider
-import '../custom_drawer/home_drawer.dart'; // Import DrawerIndex
-import '../navigation_home_screen.dart'; // Import NavigationProvider
 import 'imported_sales_preview_screen.dart'; // Import the new preview screen
 import '../model/user.dart'; // Import User model
 
@@ -25,7 +22,7 @@ class SalesScreen extends StatefulWidget {
   const SalesScreen({super.key});
 
   @override
-  _SalesScreenState createState() => _SalesScreenState();
+  State<SalesScreen> createState() => _SalesScreenState();
 }
 
 class _SalesScreenState extends State<SalesScreen> {
@@ -59,7 +56,7 @@ class _SalesScreenState extends State<SalesScreen> {
   Map<String, double> get _totalRevenueByCurrency {
     final Map<String, double> revenueByCurrency = {};
     for (var sale in _filteredSales) {
-      if ((sale.saleStatus != SaleStatus.REVERSED && sale.saleStatus != SaleStatus.CREDIT_NOTE) && sale.currency != null) {
+      if ((sale.saleStatus != SaleStatus.REVERSED.toString() && sale.saleStatus != SaleStatus.CREDIT_NOTE.toString()) && sale.currency != null) {
         final currencySymbol = sale.currency!.symbol ?? 'N/A';
         revenueByCurrency[currencySymbol] = (revenueByCurrency[currencySymbol] ?? 0) + sale.grandTotal;
       }
@@ -78,7 +75,6 @@ class _SalesScreenState extends State<SalesScreen> {
         _syncOnlineSales();
       }
     });
-    print('SalesScreen initState: _loadLocalData initiated');
   }
 
   void _sortSales(List<Sale> sales) {
@@ -90,12 +86,11 @@ class _SalesScreenState extends State<SalesScreen> {
         return aSynced ? 1 : -1;
       }
       
-      return b.timeIniated.compareTo(a.timeIniated);
+      return (b.timeIniated ?? "").compareTo(a.timeIniated ?? "");
     });
   }
 
   Future<void> _loadLocalData() async {
-    // print('SalesScreen: _loadLocalData starting, mounted: $mounted'); // Removed noisy log
     if (mounted) {
       setState(() {
         _isLoading = true;
@@ -116,10 +111,9 @@ class _SalesScreenState extends State<SalesScreen> {
         final User loggedInUser = User.fromJson(userMap);
         _loggedInUserId = loggedInUser.id;
         
-        // Use userName from model if available, fallback to 'username' from map, 
-        // and finally fallback to 'full_name' or similar if needed.
-        _loggedInUserName = loggedInUser.userName ?? userMap['username'] ?? userMap['userName'];
+        _loggedInUserName = loggedInUser.userName;
       } catch (e) {
+        // ignore: avoid_print
         print('Error decoding user data: $e');
       }
     }
@@ -181,13 +175,6 @@ class _SalesScreenState extends State<SalesScreen> {
     List<Sale> combinedSales = combinedSalesMap.values.toList();
     _sortSales(combinedSales);
 
-    print('SalesScreen: _loadLocalData finished loading, combinedSales count: ${combinedSales.length}, mounted: $mounted');
-    // print('SalesScreen: _loggedInUserName: $_loggedInUserName'); // Removed noisy log
-    // if (combinedSales.isNotEmpty) {
-    //   print('SalesScreen: First sale createdByName: ${combinedSales.first.createdByName}');
-    //   print('SalesScreen: First sale timeIniated: ${combinedSales.first.timeIniated}');
-    // }
-
     if (mounted) {
       setState(() {
         _branches = loadedBranches;
@@ -198,10 +185,6 @@ class _SalesScreenState extends State<SalesScreen> {
         _applyFilters();
       });
     } else {
-      // If not mounted, we still update the fields so that if it's currently being built
-      // or about to be built, it has the data. 
-      // NOTE: In Flutter, usually you shouldn't call setState if not mounted.
-      // But if this is called during initState, 'mounted' should be true.
       _branches = loadedBranches;
       _selectedBranch ??= initialSelectedBranch;
       _customers = loadedCustomers;
@@ -222,7 +205,7 @@ class _SalesScreenState extends State<SalesScreen> {
         branchId: _selectedBranch?.id,
         userId: _loggedInUserId, // Pass logged-in user ID
       );
-      List<Sale> onlineSales = fetchedOnlineSales.map((s) => Sale.fromOnlineSale(s)).toList();
+      List<Sale> onlineSales = fetchedOnlineSales.map((s) => Sale.fromJson(s.toJson())).toList();
 
       final Map<String, Sale> salesMap = { for (var s in _allSales) (s.posReference ?? s.id)!: s };
 
@@ -296,7 +279,9 @@ class _SalesScreenState extends State<SalesScreen> {
 
   Future<void> _loadData() async {
     await _loadLocalData();
-    await _syncOnlineSales();
+    if(mounted){
+      await _syncOnlineSales();
+    }
   }
 
   void _applyFilters() {
@@ -329,42 +314,25 @@ class _SalesScreenState extends State<SalesScreen> {
               try {
                   DateTime saleDate;
                   try {
-                    saleDate = DateTime.parse(sale.timeIniated);
+                    saleDate = DateTime.parse(sale.timeIniated!);
                   } catch (e) {
                     // Try parsing with the custom format if ISO fails
-                    saleDate = DateFormat(AppConstants.APP_DATE_TIME_FMT).parse(sale.timeIniated);
+                    saleDate = DateFormat(AppConstants.APP_DATE_TIME_FMT).parse(sale.timeIniated!);
                   }
                   matchesDate = saleDate.isAfter(_filterStartDate!) && saleDate.isBefore(_filterEndDate!);
-                  // if (!matchesDate) {
-                  //   print('SalesScreen: sale ${sale.posReference ?? sale.id} filtered out by date: $saleDate not between $_filterStartDate and $_filterEndDate');
-                  // }
               } catch (e) {
-                  print('SalesScreen: Error parsing date ${sale.timeIniated}: $e');
                   matchesDate = false;
               }
           }
 
-          // 7. User Filter (by userId, already applied in _loadLocalData and _syncOnlineSales)
-          // final matchesUserId = _loggedInUserId == null || sale.userId == _loggedInUserId;
-
           // 8. User Filter (by createdByName matching loggedInUserName)
           bool matchesCreatedByName = _loggedInUserName == null || (sale.createdByName != null && sale.createdByName == _loggedInUserName);
 
-          // Workaround: if it's a local unsynced sale, we might want to be more lenient if createdByName is missing
           if (sale.isSynced != true && sale.createdByName == null) {
             matchesCreatedByName = true;
           }
-
-          // if (!matchesCreatedByName) {
-          //    print('SalesScreen: sale ${sale.posReference ?? sale.id} filtered out by createdByName: expected $_loggedInUserName, got ${sale.createdByName}');
-          // }
-
-          // If it's a local sale (not synced), we definitely want to see it regardless of some filters?
-          // No, filters should apply. But maybe createdByName is not set for local sales?
-          // In pos_screen_controller.dart, it is set from currentShift.createdByName.
           
           return matchesSearch && matchesBranch && matchesCustomer && matchesStatus && matchesShift && matchesDate
-              // && matchesUserId
               && matchesCreatedByName;
         }).toList();
       });
@@ -386,7 +354,7 @@ class _SalesScreenState extends State<SalesScreen> {
   }
 
   Future<void> _reverseSale(Sale sale) async {
-    bool confirm = await showDialog(
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Reverse Sale?'),
@@ -399,9 +367,9 @@ class _SalesScreenState extends State<SalesScreen> {
           ),
         ],
       ),
-    ) ?? false;
+    );
 
-    if (confirm) {
+    if (confirm == true) {
       if (mounted) {
         setState(() {
           _isLoading = true;
@@ -479,9 +447,11 @@ class _SalesScreenState extends State<SalesScreen> {
 
   Future<void> _exportSales() async {
     if (_filteredSales.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No sales to export.'), backgroundColor: Colors.orange),
-      );
+      if(mounted){
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No sales to export.'), backgroundColor: Colors.orange),
+        );
+      }
       return;
     }
 
@@ -515,47 +485,49 @@ class _SalesScreenState extends State<SalesScreen> {
         final List<Sale> importedSales = List<Sale>.from(result['sales']);
         final String? filePath = result['filePath'];
 
-        final List<Sale>? selectedSales = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ImportedSalesPreviewScreen(
-              importedSales: importedSales,
-              excelFilePath: filePath,
+        if(mounted){
+          final List<Sale>? selectedSales = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ImportedSalesPreviewScreen(
+                importedSales: importedSales,
+                excelFilePath: filePath,
+              ),
             ),
-          ),
-        );
+          );
 
-        if (selectedSales != null && selectedSales.isNotEmpty) {
-          final SharedPreferences prefs = await SharedPreferences.getInstance();
-          const String backupSalesKey = 'backup_sales';
-          
-          final List<String> existingBackupJson = prefs.getStringList(backupSalesKey) ?? [];
-          final Map<String, Sale> backupSalesMap = { 
-              for (var s in existingBackupJson.map((e) => Sale.fromJson(jsonDecode(e)))) 
-                  (s.posReference ?? s.id)!: s 
-          };
+          if (selectedSales != null && selectedSales.isNotEmpty) {
+            final SharedPreferences prefs = await SharedPreferences.getInstance();
+            const String backupSalesKey = 'backup_sales';
+            
+            final List<String> existingBackupJson = prefs.getStringList(backupSalesKey) ?? [];
+            final Map<String, Sale> backupSalesMap = { 
+                for (var s in existingBackupJson.map((e) => Sale.fromJson(jsonDecode(e)))) 
+                    (s.posReference ?? s.id)!: s 
+            };
 
-          for (var sale in selectedSales) {
-              final String? key = sale.posReference ?? sale.id;
-              if (key != null) {
-                  backupSalesMap[key] = sale;
-              }
-          }
+            for (var sale in selectedSales) {
+                final String? key = sale.posReference ?? sale.id;
+                if (key != null) {
+                    backupSalesMap[key] = sale;
+                }
+            }
 
-          final List<String> combinedBackupJson = backupSalesMap.values.map((s) => jsonEncode(s.toJson())).toList();
-          await prefs.setStringList(backupSalesKey, combinedBackupJson);
+            final List<String> combinedBackupJson = backupSalesMap.values.map((s) => jsonEncode(s.toJson())).toList();
+            await prefs.setStringList(backupSalesKey, combinedBackupJson);
 
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${selectedSales.length} sales imported successfully!'), backgroundColor: Colors.green),
-            );
-          }
-          await _loadData();
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No sales were selected for import.'), backgroundColor: Colors.orange),
-            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('${selectedSales.length} sales imported successfully!'), backgroundColor: Colors.green),
+              );
+            }
+            await _loadData();
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('No sales were selected for import.'), backgroundColor: Colors.orange),
+              );
+            }
           }
         }
       } else {
@@ -687,8 +659,8 @@ class _SalesScreenState extends State<SalesScreen> {
                           itemCount: _filteredSales.length,
                           itemBuilder: (context, index) {
                             final sale = _filteredSales[index];
-                            final String currentDate = _formatDate(sale.timeIniated);
-                            final bool showDivider = index == 0 || _formatDate(_filteredSales[index - 1].timeIniated) != currentDate;
+                            final String currentDate = _formatDate(sale.timeIniated ?? '');
+                            final bool showDivider = index == 0 || _formatDate(_filteredSales[index - 1].timeIniated ?? '') != currentDate;
 
                             Widget saleCard = Card(
                               margin: const EdgeInsets.only(bottom: 12),
@@ -736,7 +708,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                                 ),
                                                 const SizedBox(height: 2),
                                                 Text(
-                                                  '${DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(sale.timeIniated))} • ${sale.items.length} items',
+                                                  '${DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(sale.timeIniated!))} • ${sale.items.length} items',
                                                   style: const TextStyle(fontSize: 12, color: AppTheme.grey),
                                                 ),
                                               ],
@@ -783,7 +755,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                                     borderRadius: BorderRadius.circular(4),
                                                   ),
                                                   child: Text(
-                                                    '${sale.saleStatus}' ?? 'COMPLETE',
+                                                    sale.saleStatus ?? 'COMPLETE',
                                                     style: TextStyle(
                                                       color: (sale.saleStatus == SaleStatus.REVERSED.toString() || sale.saleStatus == SaleStatus.CREDIT_NOTE.toString())
                                                           ? Colors.grey
@@ -992,8 +964,8 @@ class _SalesScreenState extends State<SalesScreen> {
     return PopupMenuButton<String>(
       onSelected: onSelected,
       itemBuilder: (context) => [
-        PopupMenuItem(value: 'All', child: const Text('All')), // Added 'All' option
-        ...options.map((opt) => PopupMenuItem(value: opt, child: Text(opt))).toList(),
+        const PopupMenuItem(value: 'All', child: Text('All')), // Added 'All' option
+        ...options.map((opt) => PopupMenuItem(value: opt, child: Text(opt))),
       ],
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1016,7 +988,7 @@ class _SalesScreenState extends State<SalesScreen> {
     return PopupMenuButton<T?>(
       onSelected: onChanged,
       itemBuilder: (context) => [
-        PopupMenuItem<T?>(value: null, child: const Text('All')),
+        PopupMenuItem<T?>(value: null, child: Text('All')),
         ...items.map((item) => PopupMenuItem<T?>(value: item, child: Text(itemLabel(item)))),
       ],
       child: Container(

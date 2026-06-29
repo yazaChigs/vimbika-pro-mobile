@@ -1,126 +1,168 @@
-import 'base_entity.dart';
-import 'customer.dart';
-import 'branch.dart';
-import 'currency.dart';
-import 'sale_item.dart';
-import 'payment_received.dart';
-import 'online_sale.dart'; // Import OnlineSale
-import 'company.dart'; // Import Company
-import 'payment_type.dart'; // Import PaymentType
-import 'sale_status.dart';
+import 'dart:convert';
 
-class Sale extends BaseEntity {
-  final String? referenceNumber;
-  final Customer? customer;
-  final Branch? branch;
-  final Currency? currency;
-  final Currency? baseCurrency;
-  final List<SaleItem> items;
-  final List<PaymentReceived>? paymentTypes;
-  final String timeIniated;
-  final String? notes;
-  final bool? isSynced;
-  final double? amountAfterDiscount;
-  final double? baseSaleAmount;
-  final double? balance;
-  final double? saleCost;
-  final double? reSaleCost;
-  final String? paymentStatus;
-  final DateTime? followUpDate;
-  final bool? isDelivered;
-  final Company? company;
-  final bool? isProformaInvoice;
-  final String? orderNumber;
-  final DateTime? deliveryDate;
-  final String? saleStatus; // This maps to OnlineSale.saleStatus
-  final bool? hasReturns;
-  final bool? isRefunded;
-  final bool? isReversible;
-  final bool? isLessThan12Months;
-  final double? totalTaxAmount;
-  final double? standardRatedTotal;
-  final double? zeroRatedTotal;
-  final double? amountPaid;
-  final String? shiftReference;
-  final String? posReference;
-  final String? receiptQrCode;
-  final String? receiptQrData;
-  final bool? taxInvoice;
-  final double? change;
-  final double? tipAmount;
-  final String? cashierFullName;
-  final bool? fiscalized;
-  final PaymentType? paymentType;
-  final bool? emailReceipt;
-  final bool? isWalkInCustomer;
-  final String? ticketName;
-  final String? ticketComment;
-  final double? totalQuantity;
-  final String? amtToAcc;
-  final String? customerAccBankType;
+import 'package:vimbika_pro/model/branch.dart';
+import 'package:vimbika_pro/model/company.dart';
+import 'package:vimbika_pro/model/customer.dart';
+import 'package:vimbika_pro/model/sale_item.dart';
+import 'package:vimbika_pro/model/payment_received.dart';
+import 'package:vimbika_pro/model/currency.dart';
 
-
-  // Added for compatibility with existing UI
-  double get grandTotal => amountAfterDiscount ?? baseSaleAmount ?? 0.0;
-
+class Sale {
+  String? id;
+  String? dateCreated;
+  String? dateModified;
+  String? createdByName;
+  String? modifiedByName;
+  int? version;
+  String? cashierFullName;
+  Customer? customer;
+  Company? company;
+  Branch? branch;
+  List<SaleItem> items;
+  List<PaymentReceived>? paymentTypes;
+  String? timeIniated;
+  String? timeCompleted;
+  String? saleStatus;
+  Currency? currency;
+  Currency? baseCurrency;
+  double? amountAfterDiscount;
+  double? baseSaleAmount;
+  double? totalTaxAmount;
+  bool? isSynced;
+  bool? fiscalized;
+  bool? taxInvoice;
+  double? totalQuantity;
+  String? posReference;
+  String? referenceNumber;
+  String? shiftReference;
+  String? ticketName;
+  String? amtToAcc;
+  String? customerAccBankType;
+  double? amountPaid;
+  double? change;
+  double? amountTendered;
+  String? receiptQrCode;
+  String? receiptQrData;
 
   Sale({
-    super.id,
-    super.dateCreated,
-    super.dateModified,
-    super.createdByName,
-    super.modifiedByName,
-    super.version,
-    this.referenceNumber,
+    this.id,
+    this.dateCreated,
+    this.dateModified,
+    this.createdByName,
+    this.modifiedByName,
+    this.version,
+    this.cashierFullName,
     this.customer,
+    this.company,
     this.branch,
-    this.currency,
-    this.baseCurrency,
     required this.items,
     this.paymentTypes,
-    required this.timeIniated,
-    this.notes,
-    this.isSynced,
+    this.timeIniated,
+    this.timeCompleted,
+    this.saleStatus,
+    this.currency,
+    this.baseCurrency,
     this.amountAfterDiscount,
     this.baseSaleAmount,
-    this.balance,
-    this.saleCost,
-    this.reSaleCost,
-    this.paymentStatus,
-    this.followUpDate,
-    this.isDelivered,
-    this.company,
-    this.isProformaInvoice,
-    this.orderNumber,
-    this.deliveryDate,
-    this.saleStatus,
-    this.hasReturns,
-    this.isRefunded,
-    this.isReversible,
-    this.isLessThan12Months,
     this.totalTaxAmount,
-    this.standardRatedTotal,
-    this.zeroRatedTotal,
-    this.amountPaid,
-    this.shiftReference,
-    this.posReference,
-    this.receiptQrCode,
-    this.receiptQrData,
-    this.taxInvoice,
-    this.change,
-    this.tipAmount,
-    this.cashierFullName,
+    this.isSynced,
     this.fiscalized,
-    this.paymentType,
-    this.emailReceipt,
-    this.isWalkInCustomer,
-    this.ticketName,
-    this.ticketComment,
+    this.taxInvoice,
     this.totalQuantity,
+    this.posReference,
+    this.referenceNumber,
+    this.shiftReference,
+    this.ticketName,
     this.amtToAcc,
     this.customerAccBankType,
-
+    this.amountPaid,
+    this.change,
+    this.amountTendered,
+    this.receiptQrCode,
+    this.receiptQrData,
   });
+
+  double get grandTotal => items.fold(0, (sum, item) => sum + item.total);
+
+  factory Sale.fromJson(Map<String, dynamic> json) {
+    return Sale(
+      id: json['id'],
+      dateCreated: json['dateCreated'],
+      dateModified: json['dateModified'],
+      createdByName: json['createdByName'],
+      modifiedByName: json['modifiedByName'],
+      version: json['version'],
+      cashierFullName: json['cashierFullName'],
+      customer: json['customer'] != null ? Customer.fromJson(json['customer']) : null,
+      company: json['company'] != null ? Company.fromJson(json['company']) : null,
+      branch: json['branch'] != null ? Branch.fromJson(json['branch']) : null,
+      items: (json['items'] as List<dynamic>).map((item) => SaleItem.fromJson(item)).toList(),
+      paymentTypes: (json['paymentTypes'] as List<dynamic>?)?.map((item) => PaymentReceived.fromJson(item)).toList(),
+      timeIniated: json['timeIniated'],
+      timeCompleted: json['timeCompleted'],
+      saleStatus: json['saleStatus'],
+      currency: json['currency'] != null ? Currency.fromJson(json['currency']) : null,
+      baseCurrency: json['baseCurrency'] != null ? Currency.fromJson(json['baseCurrency']) : null,
+      amountAfterDiscount: json['amountAfterDiscount'],
+      baseSaleAmount: json['baseSaleAmount'],
+      totalTaxAmount: json['totalTaxAmount'],
+      isSynced: json['isSynced'],
+      fiscalized: json['fiscalized'],
+      taxInvoice: json['taxInvoice'],
+      totalQuantity: json['totalQuantity'],
+      posReference: json['posReference'],
+      referenceNumber: json['referenceNumber'],
+      shiftReference: json['shiftReference'],
+      ticketName: json['ticketName'],
+      amtToAcc: json['amtToAcc'],
+      customerAccBankType: json['customerAccBankType'],
+      amountPaid: json['amountPaid'],
+      change: json['change'],
+      amountTendered: json['amountTendered'],
+      receiptQrCode: json['receiptQrCode'],
+      receiptQrData: json['receiptQrData'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'dateCreated': dateCreated,
+      'dateModified': dateModified,
+      'createdByName': createdByName,
+      'modifiedByName': modifiedByName,
+      'version': version,
+      'cashierFullName': cashierFullName,
+      'customer': customer?.toJson(),
+      'company': company?.toJson(),
+      'branch': branch?.toJson(),
+      'items': items.map((item) => item.toJson()).toList(),
+      'paymentTypes': paymentTypes?.map((item) => item.toJson()).toList(),
+      'timeIniated': timeIniated,
+      'timeCompleted': timeCompleted,
+      'saleStatus': saleStatus,
+      'currency': currency?.toJson(),
+      'baseCurrency': baseCurrency?.toJson(),
+      'amountAfterDiscount': amountAfterDiscount,
+      'baseSaleAmount': baseSaleAmount,
+      'totalTaxAmount': totalTaxAmount,
+      'isSynced': isSynced,
+      'fiscalized': fiscalized,
+      'taxInvoice': taxInvoice,
+      'totalQuantity': totalQuantity,
+      'posReference': posReference,
+      'referenceNumber': referenceNumber,
+      'shiftReference': shiftReference,
+      'ticketName': ticketName,
+      'amtToAcc': amtToAcc,
+      'customerAccBankType': customerAccBankType,
+      'amountPaid': amountPaid,
+      'change': change,
+      'amountTendered': amountTendered,
+      'receiptQrCode': receiptQrCode,
+      'receiptQrData': receiptQrData,
+    };
+  }
 
   Sale copyWith({
     String? id,
@@ -129,54 +171,35 @@ class Sale extends BaseEntity {
     String? createdByName,
     String? modifiedByName,
     int? version,
-    String? referenceNumber,
+    String? cashierFullName,
     Customer? customer,
+    Company? company,
     Branch? branch,
-    Currency? currency,
-    Currency? baseCurrency,
     List<SaleItem>? items,
     List<PaymentReceived>? paymentTypes,
     String? timeIniated,
-    String? notes,
-    bool? isSynced,
+    String? timeCompleted,
+    String? saleStatus,
+    Currency? currency,
+    Currency? baseCurrency,
     double? amountAfterDiscount,
     double? baseSaleAmount,
-    double? balance,
-    double? saleCost,
-    double? reSaleCost,
-    String? paymentStatus,
-    DateTime? followUpDate,
-    bool? isDelivered,
-    Company? company,
-    bool? isProformaInvoice,
-    String? orderNumber,
-    DateTime? deliveryDate,
-    String? saleStatus,
-    bool? hasReturns,
-    bool? isRefunded,
-    bool? isReversible,
-    bool? isLessThan12Months,
     double? totalTaxAmount,
-    double? standardRatedTotal,
-    double? zeroRatedTotal,
-    double? amountPaid,
-    String? shiftReference,
-    String? posReference,
-    String? receiptQrCode,
-    String? receiptQrData,
-    bool? taxInvoice,
-    double? change,
-    double? tipAmount,
-    String? cashierFullName,
+    bool? isSynced,
     bool? fiscalized,
-    PaymentType? paymentType,
-    bool? emailReceipt,
-    bool? isWalkInCustomer,
-    String? ticketName,
-    String? ticketComment,
+    bool? taxInvoice,
     double? totalQuantity,
+    String? posReference,
+    String? referenceNumber,
+    String? shiftReference,
+    String? ticketName,
     String? amtToAcc,
     String? customerAccBankType,
+    double? amountPaid,
+    double? change,
+    double? amountTendered,
+    String? receiptQrCode,
+    String? receiptQrData,
   }) {
     return Sale(
       id: id ?? this.id,
@@ -185,246 +208,35 @@ class Sale extends BaseEntity {
       createdByName: createdByName ?? this.createdByName,
       modifiedByName: modifiedByName ?? this.modifiedByName,
       version: version ?? this.version,
-      referenceNumber: referenceNumber ?? this.referenceNumber,
+      cashierFullName: cashierFullName ?? this.cashierFullName,
       customer: customer ?? this.customer,
+      company: company ?? this.company,
       branch: branch ?? this.branch,
-      currency: currency ?? this.currency,
-      baseCurrency: baseCurrency ?? this.baseCurrency,
       items: items ?? this.items,
       paymentTypes: paymentTypes ?? this.paymentTypes,
       timeIniated: timeIniated ?? this.timeIniated,
-      notes: notes ?? this.notes,
-      isSynced: isSynced ?? this.isSynced,
+      timeCompleted: timeCompleted ?? this.timeCompleted,
+      saleStatus: saleStatus ?? this.saleStatus,
+      currency: currency ?? this.currency,
+      baseCurrency: baseCurrency ?? this.baseCurrency,
       amountAfterDiscount: amountAfterDiscount ?? this.amountAfterDiscount,
       baseSaleAmount: baseSaleAmount ?? this.baseSaleAmount,
-      balance: balance ?? this.balance,
-      saleCost: saleCost ?? this.saleCost,
-      reSaleCost: reSaleCost ?? this.reSaleCost,
-      paymentStatus: paymentStatus ?? this.paymentStatus,
-      followUpDate: followUpDate ?? this.followUpDate,
-      isDelivered: isDelivered ?? this.isDelivered,
-      company: company ?? this.company,
-      isProformaInvoice: isProformaInvoice ?? this.isProformaInvoice,
-      orderNumber: orderNumber ?? this.orderNumber,
-      deliveryDate: deliveryDate ?? this.deliveryDate,
-      saleStatus: saleStatus ?? this.saleStatus,
-      hasReturns: hasReturns ?? this.hasReturns,
-      isRefunded: isRefunded ?? this.isRefunded,
-      isReversible: isReversible ?? this.isReversible,
-      isLessThan12Months: isLessThan12Months ?? this.isLessThan12Months,
       totalTaxAmount: totalTaxAmount ?? this.totalTaxAmount,
-      standardRatedTotal: standardRatedTotal ?? this.standardRatedTotal,
-      zeroRatedTotal: zeroRatedTotal ?? this.zeroRatedTotal,
-      amountPaid: amountPaid ?? this.amountPaid,
-      shiftReference: shiftReference ?? this.shiftReference,
-      posReference: posReference ?? this.posReference,
-      receiptQrCode: receiptQrCode ?? this.receiptQrCode,
-      receiptQrData: receiptQrData ?? this.receiptQrData,
-      taxInvoice: taxInvoice ?? this.taxInvoice,
-      change: change ?? this.change,
-      tipAmount: tipAmount ?? this.tipAmount,
-      cashierFullName: cashierFullName ?? this.cashierFullName,
+      isSynced: isSynced ?? this.isSynced,
       fiscalized: fiscalized ?? this.fiscalized,
-      paymentType: paymentType ?? this.paymentType,
-      emailReceipt: emailReceipt ?? this.emailReceipt,
-      isWalkInCustomer: isWalkInCustomer ?? this.isWalkInCustomer,
-      ticketName: ticketName ?? this.ticketName,
-      ticketComment: ticketComment ?? this.ticketComment,
+      taxInvoice: taxInvoice ?? this.taxInvoice,
       totalQuantity: totalQuantity ?? this.totalQuantity,
+      posReference: posReference ?? this.posReference,
+      referenceNumber: referenceNumber ?? this.referenceNumber,
+      shiftReference: shiftReference ?? this.shiftReference,
+      ticketName: ticketName ?? this.ticketName,
       amtToAcc: amtToAcc ?? this.amtToAcc,
       customerAccBankType: customerAccBankType ?? this.customerAccBankType,
+      amountPaid: amountPaid ?? this.amountPaid,
+      change: change ?? this.change,
+      amountTendered: amountTendered ?? this.amountTendered,
+      receiptQrCode: receiptQrCode ?? this.receiptQrCode,
+      receiptQrData: receiptQrData ?? this.receiptQrData,
     );
-  }
-
-  factory Sale.fromJson(Map<String, dynamic> json) {
-    double? parseDouble(dynamic value) {
-      if (value == null) return null;
-      if (value is num) return value.toDouble();
-      if (value is String) return double.tryParse(value);
-      return null;
-    }
-
-    return Sale(
-      id: json['id']?.toString(),
-      dateCreated: json['dateCreated']?.toString(), // Pass directly as String?
-      dateModified: json['dateModified']?.toString(), // Pass directly as String?
-      createdByName: json['createdByName']?.toString(),
-      modifiedByName: json['modifiedByName']?.toString(),
-      version: (json['version'] as num?)?.toInt(),
-      referenceNumber: json['referenceNumber']?.toString(),
-      customer: json['customer'] != null ? Customer.fromJson(json['customer']) : null,
-      branch: json['branch'] != null ? Branch.fromJson(json['branch']) : null,
-      currency: json['currency'] != null ? Currency.fromJson(json['currency']) : null,
-      baseCurrency: json['baseCurrency'] != null ? Currency.fromJson(json['baseCurrency']) : null,
-      items: json['items'] != null
-          ? (json['items'] as List).map((i) => SaleItem.fromJson(i)).toList()
-          : [],
-      paymentTypes: json['paymentTypes'] != null
-          ? (json['paymentTypes'] as List).map((i) => PaymentReceived.fromJson(i)).toList()
-          : null,
-      timeIniated: json['timeIniated'].toString(),
-      notes: json['notes']?.toString(),
-      isSynced: json['isSynced'] as bool?,
-      amountAfterDiscount: parseDouble(json['amountAfterDiscount']),
-      baseSaleAmount: parseDouble(json['baseSaleAmount']),
-      balance: parseDouble(json['balance']),
-      saleCost: parseDouble(json['saleCost']),
-      reSaleCost: parseDouble(json['reSaleCost']),
-      paymentStatus: json['paymentStatus']?.toString(),
-      followUpDate: json['followUpDate'] != null ? DateTime.parse(json['followUpDate']) : null,
-      isDelivered: json['isDelivered'] as bool?,
-      company: json['company'] != null ? Company.fromJson(json['company']) : null,
-      isProformaInvoice: json['isProformaInvoice'] as bool?,
-      orderNumber: json['orderNumber']?.toString(),
-      deliveryDate: json['deliveryDate'] != null ? DateTime.parse(json['deliveryDate']) : null,
-      saleStatus: json['saleStatus'],
-      hasReturns: json['hasReturns'] as bool?,
-      isRefunded: json['isRefunded'] as bool?,
-      isReversible: json['isReversible'] as bool?,
-      isLessThan12Months: json['isLessThan12Months'] as bool?,
-      totalTaxAmount: parseDouble(json['totalTaxAmount']),
-      standardRatedTotal: parseDouble(json['standardRatedTotal']),
-      zeroRatedTotal: parseDouble(json['zeroRatedTotal']),
-      amountPaid: parseDouble(json['amountPaid']),
-      shiftReference: json['shiftReference']?.toString(),
-      posReference: json['posReference']?.toString(),
-      receiptQrCode: json['receiptQrCode']?.toString(),
-      receiptQrData: json['receiptQrData']?.toString(),
-      taxInvoice: json['taxInvoice'] as bool?,
-      change: parseDouble(json['change']),
-      tipAmount: parseDouble(json['tipAmount']),
-      cashierFullName: json['cashierFullName']?.toString(),
-      fiscalized: json['fiscalized'] as bool?,
-      paymentType: json['paymentType'] != null ? PaymentType.fromJson(json['paymentType']) : null,
-      emailReceipt: json['emailReceipt'] as bool?,
-      isWalkInCustomer: json['isWalkInCustomer'] as bool?,
-      ticketName: json['ticketName']?.toString(),
-      ticketComment: json['ticketComment']?.toString(),
-      totalQuantity: parseDouble(json['totalQuantity']),
-      amtToAcc: json['amtToAcc']?.toString(),
-      customerAccBankType: json['customerAccBankType']?.toString(),
-    );
-  }
-
-  factory Sale.fromOnlineSale(OnlineSale onlineSale) {
-    final double subTotal = onlineSale.baseSaleAmount ?? 0.0;
-    final double amountAfterDiscount = (onlineSale.amountAfterDiscount == null || onlineSale.amountAfterDiscount == 0.0)
-        ? subTotal
-        : onlineSale.amountAfterDiscount!;
-    final double discountTotal = subTotal - amountAfterDiscount;
-    final double taxTotal = onlineSale.totalTaxAmount ?? 0.0;
-    final double grandTotal = amountAfterDiscount + taxTotal;
-
-    return Sale(
-      id: onlineSale.id,
-      dateCreated: onlineSale.dateCreated,
-      createdByName: onlineSale.createdByName,
-      customer: onlineSale.customer,
-      branch: onlineSale.branch,
-      currency: onlineSale.currency,
-      items: onlineSale.items ?? [],
-      paymentTypes: onlineSale.paymentTypes,
-      timeIniated: onlineSale.timeIniated!,
-      isSynced: true,
-      referenceNumber: onlineSale.referenceNumber,
-      baseCurrency: onlineSale.baseCurrency,
-      amountAfterDiscount: onlineSale.amountAfterDiscount,
-      baseSaleAmount: onlineSale.baseSaleAmount,
-      balance: onlineSale.balance,
-      saleCost: onlineSale.saleCost,
-      reSaleCost: onlineSale.reSaleCost,
-      paymentStatus: onlineSale.paymentStatus,
-      followUpDate: onlineSale.followUpDate,
-      isDelivered: onlineSale.isDelivered,
-      company: onlineSale.company,
-      isProformaInvoice: onlineSale.isProformaInvoice,
-      orderNumber: onlineSale.orderNumber,
-      deliveryDate: onlineSale.deliveryDate,
-      saleStatus: onlineSale.saleStatus,
-      hasReturns: onlineSale.hasReturns,
-      isRefunded: onlineSale.isRefunded,
-      isReversible: onlineSale.isReversible,
-      isLessThan12Months: onlineSale.isLessThan12Months,
-      totalTaxAmount: onlineSale.totalTaxAmount,
-      standardRatedTotal: onlineSale.standardRatedTotal,
-      zeroRatedTotal: onlineSale.zeroRatedTotal,
-      amountPaid: onlineSale.amountPaid,
-      shiftReference: onlineSale.shiftReference,
-      posReference: onlineSale.posReference,
-      receiptQrCode: onlineSale.receiptQrCode,
-      receiptQrData: onlineSale.receiptQrData,
-      taxInvoice: onlineSale.taxInvoice,
-      change: onlineSale.change,
-      tipAmount: onlineSale.tipAmount,
-      cashierFullName: onlineSale.cashierFullName,
-      fiscalized: onlineSale.fiscalized,
-      paymentType: onlineSale.paymentType,
-      emailReceipt: onlineSale.emailReceipt,
-      isWalkInCustomer: onlineSale.isWalkInCustomer,
-      ticketName: onlineSale.ticketName,
-      ticketComment: onlineSale.ticketComment,
-      totalQuantity: onlineSale.totalQuantity,
-      amtToAcc: onlineSale.amtToAcc,
-      customerAccBankType: onlineSale.customerAccBankType,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'dateCreated': dateCreated, // Return directly as String?
-      'dateModified': dateModified, // Return directly as String?
-      'createdByName': createdByName,
-      'modifiedByName': modifiedByName,
-      'version': version,
-      'referenceNumber': referenceNumber,
-      'customer': customer?.toJson(),
-      'branch': branch?.toJson(),
-      'currency': currency?.toJson(),
-      'baseCurrency': baseCurrency?.toJson(),
-      'items': items.map((i) => i.toJson()).toList(),
-      'paymentTypes': paymentTypes?.map((i) => i.toJson()).toList(),
-      'timeIniated': timeIniated,
-      'notes': notes,
-      'isSynced': isSynced,
-      'amountAfterDiscount': amountAfterDiscount,
-      'baseSaleAmount': baseSaleAmount,
-      'balance': balance,
-      'saleCost': saleCost,
-      'reSaleCost': reSaleCost,
-      'paymentStatus': paymentStatus,
-      'followUpDate': followUpDate?.toIso8601String(),
-      'isDelivered': isDelivered,
-      'company': company?.toJson(),
-      'isProformaInvoice': isProformaInvoice,
-      'orderNumber': orderNumber,
-      'deliveryDate': deliveryDate?.toIso8601String(),
-      'saleStatus': saleStatus,
-      'hasReturns': hasReturns,
-      'isRefunded': isRefunded,
-      'isReversible': isReversible,
-      'isLessThan12Months': isLessThan12Months,
-      'totalTaxAmount': totalTaxAmount,
-      'standardRatedTotal': standardRatedTotal,
-      'zeroRatedTotal': zeroRatedTotal,
-      'amountPaid': amountPaid,
-      'shiftReference': shiftReference,
-      'posReference': posReference,
-      'receiptQrCode': receiptQrCode,
-      'receiptQrData': receiptQrData,
-      'taxInvoice': taxInvoice,
-      'change': change,
-      'tipAmount': tipAmount,
-      'cashierFullName': cashierFullName,
-      'fiscalized': fiscalized,
-      'paymentType': paymentType?.toJson(),
-      'emailReceipt': emailReceipt,
-      'isWalkInCustomer': isWalkInCustomer,
-      'ticketName': ticketName,
-      'ticketComment': ticketComment,
-      'totalQuantity': totalQuantity,
-      'amtToAcc': amtToAcc,
-      'customerAccBankType': customerAccBankType,
-    };
   }
 }

@@ -126,7 +126,7 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
                           children: [
                             const Text('DATE', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
                             Text(
-                              DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(widget.sale.timeIniated))
+                              DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(widget.sale.timeIniated!))
                                 , style: const TextStyle(fontWeight: FontWeight.bold)),
                           ],
                         ),

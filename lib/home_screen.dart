@@ -5,6 +5,7 @@ import 'package:vimbika_pro/app_constants/app_constants.dart';
 import 'package:vimbika_pro/screens/online/online_reports_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vimbika_pro/services/sale_sync_service.dart';
 import 'login/login_screen.dart';
 import 'model/homelist.dart';
 import 'package:vimbika_pro/services/default_data_service.dart';
@@ -21,10 +22,10 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   AnimationController? animationController;
   bool multiple = true;
   bool _isOfflineMode = true;
-  final DefaultDataService _defaultDataService = DefaultDataService();
 
   @override
   void initState() {
+    SaleSyncService().startSyncTimer();
     animationController = AnimationController(
         duration: const Duration(milliseconds: 2000), vsync: this);
     super.initState();

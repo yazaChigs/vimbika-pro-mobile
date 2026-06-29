@@ -126,7 +126,7 @@ class _ProductFlowReportScreenState extends State<ProductFlowReportScreen> {
                         else
                           ...productSales.map((s) => _buildFlowTile(
                             title: s.customer?.name ?? 'Walk-in Customer',
-                            subtitle: 'Sold on ${_formatDateString(s.timeIniated)}',
+                            subtitle: 'Sold on ${_formatDateString(s.timeIniated!)}',
                             amount: s.items.firstWhere((i) => i.inventoryItem?.id == _selectedProduct!.id).quantity,
                             isIncoming: false,
                           )),

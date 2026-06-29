@@ -53,7 +53,7 @@ class SaleService {
       if (allSalesForExcel.isNotEmpty) {
         final now = DateTime.now();
         final todaySales = allSalesForExcel.where((s) {
-          final saleDate = DateTime.parse(s.timeIniated);
+          final saleDate = DateTime.parse(s.timeIniated!);
           return saleDate.year == now.year &&
                  saleDate.month == now.month &&
                  saleDate.day == now.day;

@@ -4,7 +4,6 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui';
 
-import 'package:blue_thermal_printer/blue_thermal_printer.dart' as bt;
 import 'package:image/image.dart' as img;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -219,13 +218,11 @@ class PrinterService {
             ),
           );
         } catch (e) {
-          print('Bluetooth auto-connect failed: $e');
           _isConnected = false;
         }
       }
     } else {
       _isConnected = false;
-      print('Bluetooth printing is not supported on this platform.');
     }
   }
 
@@ -236,7 +233,6 @@ class PrinterService {
 
   Future<void> _startUsbDiscovery() async {
     if (!(Platform.isWindows || Platform.isAndroid)) {
-      print('USB printing is not supported on this platform.');
       return;
     }
 
@@ -276,7 +272,6 @@ class PrinterService {
           ),
         );
       } catch (e) {
-        print('USB auto-connect failed: $e');
         _isConnected = false;
       }
     }
@@ -287,8 +282,6 @@ class PrinterService {
     if (_printerType == PrinterTypes.usb) {
       await _stopUsbDiscovery(); // Stop current discovery
       await _startUsbDiscovery(); // Start a new one
-    } else {
-      print('Cannot refresh USB devices when printer type is not USB.');
     }
   }
 
@@ -332,7 +325,6 @@ class PrinterService {
 
   Future<void> connectBluetooth(BluetoothPrinterDeviceModel device) async {
     if (!(Platform.isAndroid || Platform.isIOS)) { // Add platform check
-      print('Bluetooth printing is not supported on this platform.');
       throw Exception('Bluetooth printing is not supported on this platform.');
     }
     try {
@@ -350,7 +342,6 @@ class PrinterService {
         await _savePrinterSettings();
       }
     } catch (e) {
-      print('Bluetooth connection failed: $e');
       _isConnected = false;
       rethrow;
     }
@@ -358,7 +349,6 @@ class PrinterService {
 
   Future<void> connectUsb(UsbPrinterDevice device) async {
     if (!(Platform.isWindows || Platform.isAndroid)) {
-      print('USB printing is not supported on this platform.');
       throw Exception('USB printing is not supported on this platform.');
     }
     try {
@@ -377,7 +367,6 @@ class PrinterService {
         throw Exception('Failed to connect to USB printer.');
       }
     } catch (e) {
-      print('USB connection failed: $e');
       _isConnected = false;
       rethrow;
     }
@@ -424,7 +413,6 @@ class PrinterService {
 
   Future<void> printPaymentReceipt(PaymentReceived payment) async {
     if (!_isConnected) {
-      print('Printer not connected. Cannot print payment receipt.');
       return;
     }
 
@@ -443,7 +431,6 @@ class PrinterService {
         }
       }
     } catch (e) {
-      print('Error printing payment receipt: $e');
       rethrow;
     }
   }
@@ -476,7 +463,6 @@ class PrinterService {
   /// Prints a sale receipt using the Sale model.
   Future<void> printSale(Sale sale) async {
     if (!_isConnected) {
-      print('Printer not connected. Cannot print sale receipt.');
       return;
     }
 
@@ -495,14 +481,12 @@ class PrinterService {
         }
       }
     } catch (e) {
-      print('Error printing sale receipt: $e');
       rethrow;
     }
   }
 
   Future<void> _printBluetoothSale(Sale sale) async {
     if (!(Platform.isAndroid || Platform.isIOS)) { // Add platform check
-      print('Bluetooth printing is not supported on this platform.');
       return;
     }
     if (_selectedBluetoothDevice == null || !_isConnected) {
@@ -532,7 +516,7 @@ class PrinterService {
             await Future.delayed(const Duration(milliseconds: 500));
           }
         } catch (e) {
-          print('Could not print BT image $e');
+          // Could not print BT image
         }
       }
     }
@@ -602,7 +586,7 @@ class PrinterService {
     }
 
     Currency? cur = sale.currency;
-    if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty) {
+    if((sale.paymentTypes?.any((pt) => pt.paymentType?.name.contains('ACC-') ?? false) ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty) {
       final balanceItem = sale.customer!.currencyBalance!.firstWhere(
         (cb) => cb.currency?.id == cur?.id,
         orElse: () => sale.customer!.currencyBalance!.first,
@@ -684,11 +668,11 @@ class PrinterService {
 
           await SunmiPrinter.printImage(bytes);
         } catch (e) {
-          print('Could not print SUNMI image $e');
+          // Could not print SUNMI image
         }
       }
     }
-    await SunmiPrinter.printText('\n${sale.company?.name??''}' ?? "Vimbika Pro", style: SunmiStyle(fontSize: SunmiFontSize.XL, align: SunmiPrintAlign.CENTER, bold: true));
+    await SunmiPrinter.printText('\n${sale.company?.name??''}', style: SunmiStyle(fontSize: SunmiFontSize.XL, align: SunmiPrintAlign.CENTER, bold: true));
     if (sale.branch != null) {
       await SunmiPrinter.printText("${sale.branch!.name}\n${sale.branch!.address ?? ''}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
@@ -750,7 +734,7 @@ class PrinterService {
     }
 
     Currency? cur = sale.currency;
-    if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty)
+    if((sale.paymentTypes?.any((pt) => pt.paymentType?.name.contains('ACC-') ?? false) ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty)
     {
       final balanceItem = sale.customer!.currencyBalance!.firstWhere(
         (cb) => cb.currency?.id == cur?.id,
@@ -796,7 +780,6 @@ class PrinterService {
 
   Future<void> _printUsbSale(Sale sale) async {
     if (!(Platform.isWindows || Platform.isAndroid)) {
-      print('USB printing is not supported on this platform.');
       return;
     }
     if (_selectedUsbDevice == null || !_isConnected) {
@@ -826,7 +809,7 @@ class PrinterService {
             await Future.delayed(const Duration(milliseconds: 1000));
           }
         } catch (e) {
-          print('Could not print USB image $e');
+          // Could not print USB image
         }
       }
     }
@@ -895,7 +878,7 @@ class PrinterService {
     }
 
     Currency? cur = sale.currency;
-    if(sale.paymentTypes!.any((pt) => pt.paymentType?.name!.contains('ACC-') ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty) {
+    if((sale.paymentTypes?.any((pt) => pt.paymentType?.name.contains('ACC-') ?? false) ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty) {
       final balanceItem = sale.customer!.currencyBalance!.firstWhere(
         (cb) => cb.currency?.id == cur?.id,
         orElse: () => sale.customer!.currencyBalance!.first,
@@ -962,7 +945,6 @@ class PrinterService {
   /// Throws an [Exception] if the printer is not connected.
   Future<void> printReceipt(String receiptContent) async {
     if (!_isConnected) {
-      print('Printer not connected. Cannot print receipt.');
       throw Exception('Printer not connected.');
     }
 
@@ -980,7 +962,6 @@ class PrinterService {
         }
       }
     } catch (e) {
-      print('Error printing receipt: $e');
       rethrow;
     }
   }
@@ -1048,14 +1029,13 @@ class PrinterService {
   /// and then sends it to the currently selected and connected printer.
   ///
   /// The `saleData` map should contain keys like 'storeName', 'storeAddress',
-  /// 'saleDateTime' (as DateTime), 'items' (List<Map<String, dynamic>>),
+  /// 'saleDateTime' (as DateTime), 'items' (a List of Maps),
   /// 'subtotal', 'tax', and 'total'.
   /// Each item in 'items' should have 'name', 'quantity', and 'price'.
   ///
   /// Throws an [Exception] if the printer is not connected.
   Future<void> printSaleReceipt(Map<String, dynamic> saleData) async {
     if (!_isConnected) {
-      print('Printer not connected. Cannot print sale receipt.');
       throw Exception('Printer not connected.');
     }
 
@@ -1063,14 +1043,12 @@ class PrinterService {
       final String formattedReceipt = _formatReceiptContent(saleData);
       await printReceipt(formattedReceipt);
     } catch (e) {
-      print('Error printing sale receipt: $e');
       rethrow;
     }
   }
 
   Future<void> _printBluetoothReceipt(String content) async {
     if (!(Platform.isAndroid || Platform.isIOS)) { // Add platform check
-      print('Bluetooth printing is not supported on this platform.');
       return;
     }
     if (_selectedBluetoothDevice == null || !_isConnected) {
@@ -1111,7 +1089,6 @@ class PrinterService {
 
   Future<void> _printUsbReceipt(String content) async {
     if (!(Platform.isWindows || Platform.isAndroid)) {
-      print('USB printing is not supported on this platform.');
       return;
     }
     if (_selectedUsbDevice == null || !_isConnected) {
@@ -1264,58 +1241,60 @@ class PrinterService {
     Map<String, Map<String, double>> currencyTotals = {}; // {currencyId: {type: amount}}
     Map<String, Map<String, double>> paymentTypeBreakdown = {}; // {currencyId: {paymentTypeName: totalAmount}}
 
-    shift.shiftCurrencyAmounts?.forEach((activity) {
-      if (activity.currency.id != null) {
-        currencyTotals.putIfAbsent(activity.currency.id!, () => {
-          'CASH_IN': 0.0,
-          'CASH_OUT': 0.0,
-          'CASH_PAYMENT': 0.0,
-          'OTHER_PAYMENT': 0.0,
-          'CASH_ACCOUNT_TOP_UP': 0.0,
-          'OTHER_ACCOUNT_TOP_UP': 0.0,
-        });
+    if (shift.shiftCurrencyAmounts != null) {
+      for (final activity in shift.shiftCurrencyAmounts!) {
+        if (activity.currency.id != null) {
+          currencyTotals.putIfAbsent(activity.currency.id!, () => {
+            'CASH_IN': 0.0,
+            'CASH_OUT': 0.0,
+            'CASH_PAYMENT': 0.0,
+            'OTHER_PAYMENT': 0.0,
+            'CASH_ACCOUNT_TOP_UP': 0.0,
+            'OTHER_ACCOUNT_TOP_UP': 0.0,
+          });
 
-        if (activity.amountType == 'CASH_IN') {
-          currencyTotals[activity.currency.id!]!['CASH_IN'] =
-              (currencyTotals[activity.currency.id!]!['CASH_IN'] ?? 0.0) + activity.amount;
-        } else if (activity.amountType == 'ACCOUNT_TOP_UP') {
-          if (activity.isCash == true|| (activity.paymentType?.toLowerCase().startsWith('cash') ?? false)) {
-            currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] =
-                (currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] ?? 0.0) + activity.amount;
-          } else {
-            currencyTotals[activity.currency.id!]!['OTHER_ACCOUNT_TOP_UP'] =
-                (currencyTotals[activity.currency.id!]!['OTHER_ACCOUNT_TOP_UP'] ?? 0.0) + activity.amount;
+          if (activity.amountType == 'CASH_IN') {
+            currencyTotals[activity.currency.id!]!['CASH_IN'] =
+                (currencyTotals[activity.currency.id!]!['CASH_IN'] ?? 0.0) + activity.amount;
+          } else if (activity.amountType == 'ACCOUNT_TOP_UP') {
+            if (activity.isCash == true|| (activity.paymentType?.toLowerCase().startsWith('cash') ?? false)) {
+              currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] =
+                  (currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] ?? 0.0) + activity.amount;
+            } else {
+              currencyTotals[activity.currency.id!]!['OTHER_ACCOUNT_TOP_UP'] =
+                  (currencyTotals[activity.currency.id!]!['OTHER_ACCOUNT_TOP_UP'] ?? 0.0) + activity.amount;
+            }
+          } else if (activity.amountType == 'CASH_OUT') {
+            currencyTotals[activity.currency.id!]!['CASH_OUT'] =
+                (currencyTotals[activity.currency.id!]!['CASH_OUT'] ?? 0.0) + activity.amount;
+          } else if (activity.amountType == 'SALE') {
+            if ((activity.isCash ?? false) || activity.paymentType!.toLowerCase().startsWith('cash') ) {
+              currencyTotals[activity.currency.id!]!['CASH_PAYMENT'] =
+                  (currencyTotals[activity.currency.id!]!['CASH_PAYMENT'] ?? 0.0) + activity.amount;
+            } else {
+              currencyTotals[activity.currency.id!]!['OTHER_PAYMENT'] =
+                  (currencyTotals[activity.currency.id!]!['OTHER_PAYMENT'] ?? 0.0) + activity.amount;
+            }
+
+            // Populate paymentTypeBreakdown for 'Payment' activities
+            final currencyId = activity.currency.id!;
+            final paymentTypeName = activity.paymentType ?? 'Unknown Payment Type';
+
+            paymentTypeBreakdown.putIfAbsent(currencyId, () => {});
+            paymentTypeBreakdown[currencyId]!.update(
+              paymentTypeName,
+              (value) => value + activity.amount,
+              ifAbsent: () => activity.amount,
+            );
           }
-        } else if (activity.amountType == 'CASH_OUT') {
-          currencyTotals[activity.currency.id!]!['CASH_OUT'] =
-              (currencyTotals[activity.currency.id!]!['CASH_OUT'] ?? 0.0) + activity.amount;
-        } else if (activity.amountType == 'SALE') {
-          if ((activity.isCash ?? false) || activity.paymentType!.toLowerCase().startsWith('cash') ) {
-            currencyTotals[activity.currency.id!]!['CASH_PAYMENT'] =
-                (currencyTotals[activity.currency.id!]!['CASH_PAYMENT'] ?? 0.0) + activity.amount;
-          } else {
-            currencyTotals[activity.currency.id!]!['OTHER_PAYMENT'] =
-                (currencyTotals[activity.currency.id!]!['OTHER_PAYMENT'] ?? 0.0) + activity.amount;
-          }
-
-          // Populate paymentTypeBreakdown for 'Payment' activities
-          final currencyId = activity.currency.id!;
-          final paymentTypeName = activity.paymentType ?? 'Unknown Payment Type';
-
-          paymentTypeBreakdown.putIfAbsent(currencyId, () => {});
-          paymentTypeBreakdown[currencyId]!.update(
-            paymentTypeName,
-            (value) => value + activity.amount,
-            ifAbsent: () => activity.amount,
-          );
         }
       }
-    });
+    }
 
     if (currencyTotals.isEmpty) {
       buffer.writeln('No monetary activities recorded.');
     } else {
-      currencyTotals.entries.forEach((entry) {
+      for (final entry in currencyTotals.entries) {
         final currencyId = entry.key;
         final totals = entry.value;
         final currency = availableCurrencies.firstWhere(
@@ -1350,11 +1329,11 @@ class PrinterService {
 
         if (paymentTypeBreakdown.containsKey(currencyId) && paymentTypeBreakdown[currencyId]!.isNotEmpty) {
           buffer.writeln('\nSales by Payment Type:');
-          paymentTypeBreakdown[currencyId]!.entries.forEach((ptEntry) {
+          for (final ptEntry in paymentTypeBreakdown[currencyId]!.entries) {
             buffer.writeln(_alignLeftRight('${ptEntry.key}:', '${currency.symbol} ${ptEntry.value.toStringAsFixed(2)}'));
-          });
+          }
         }
-      });
+      }
     }
     buffer.writeln('--------------------------------');
     buffer.writeln('       Powered by Vimbika');
@@ -1390,57 +1369,59 @@ class PrinterService {
     Map<String, Map<String, double>> currencyTotals = {};
     Map<String, Map<String, double>> paymentTypeBreakdown = {};
 
-    shift.shiftCurrencyAmounts?.forEach((activity) {
-      if (activity.currency.id != null) {
-        currencyTotals.putIfAbsent(activity.currency.id!, () => {
-          'CASH_IN': 0.0,
-          'CASH_OUT': 0.0,
-          'CASH_PAYMENT': 0.0,
-          'OTHER_PAYMENT': 0.0,
-          'CASH_ACCOUNT_TOP_UP': 0.0,
-          'OTHER_ACCOUNT_TOP_UP': 0.0,
-        });
+    if (shift.shiftCurrencyAmounts != null) {
+      for (final activity in shift.shiftCurrencyAmounts!) {
+        if (activity.currency.id != null) {
+          currencyTotals.putIfAbsent(activity.currency.id!, () => {
+            'CASH_IN': 0.0,
+            'CASH_OUT': 0.0,
+            'CASH_PAYMENT': 0.0,
+            'OTHER_PAYMENT': 0.0,
+            'CASH_ACCOUNT_TOP_UP': 0.0,
+            'OTHER_ACCOUNT_TOP_UP': 0.0,
+          });
 
-        if (activity.amountType == 'CASH_IN') {
-          currencyTotals[activity.currency.id!]!['CASH_IN'] =
-              (currencyTotals[activity.currency.id!]!['CASH_IN'] ?? 0.0) + activity.amount;
-        } else if (activity.amountType == 'ACCOUNT_TOP_UP') {
-          if (activity.isCash == true) {
-            currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] =
-                (currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] ?? 0.0) + activity.amount;
-          } else {
-            currencyTotals[activity.currency.id!]!['OTHER_ACCOUNT_TOP_UP'] =
-                (currencyTotals[activity.currency.id!]!['OTHER_ACCOUNT_TOP_UP'] ?? 0.0) + activity.amount;
+          if (activity.amountType == 'CASH_IN') {
+            currencyTotals[activity.currency.id!]!['CASH_IN'] =
+                (currencyTotals[activity.currency.id!]!['CASH_IN'] ?? 0.0) + activity.amount;
+          } else if (activity.amountType == 'ACCOUNT_TOP_UP') {
+            if (activity.isCash == true) {
+              currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] =
+                  (currencyTotals[activity.currency.id!]!['CASH_ACCOUNT_TOP_UP'] ?? 0.0) + activity.amount;
+            } else {
+              currencyTotals[activity.currency.id!]!['OTHER_ACCOUNT_TOP_UP'] =
+                  (currencyTotals[activity.currency.id!]!['OTHER_ACCOUNT_TOP_UP'] ?? 0.0) + activity.amount;
+            }
+          } else if (activity.amountType == 'CASH_OUT') {
+            currencyTotals[activity.currency.id!]!['CASH_OUT'] =
+                (currencyTotals[activity.currency.id!]!['CASH_OUT'] ?? 0.0) + activity.amount;
+          } else if (activity.amountType == 'SALE') {
+            if ((activity.isCash ?? false) || activity.paymentType!.toLowerCase().startsWith('cash') ) {
+              currencyTotals[activity.currency.id!]!['CASH_PAYMENT'] =
+                  (currencyTotals[activity.currency.id!]!['CASH_PAYMENT'] ?? 0.0) + activity.amount;
+            } else {
+              currencyTotals[activity.currency.id!]!['OTHER_PAYMENT'] =
+                  (currencyTotals[activity.currency.id!]!['OTHER_PAYMENT'] ?? 0.0) + activity.amount;
+            }
+
+            final currencyId = activity.currency.id!;
+            final paymentTypeName = activity.paymentType ?? 'Unknown Payment Type';
+
+            paymentTypeBreakdown.putIfAbsent(currencyId, () => {});
+            paymentTypeBreakdown[currencyId]!.update(
+              paymentTypeName,
+              (value) => value + activity.amount,
+              ifAbsent: () => activity.amount,
+            );
           }
-        } else if (activity.amountType == 'CASH_OUT') {
-          currencyTotals[activity.currency.id!]!['CASH_OUT'] =
-              (currencyTotals[activity.currency.id!]!['CASH_OUT'] ?? 0.0) + activity.amount;
-        } else if (activity.amountType == 'SALE') {
-          if ((activity.isCash ?? false) || activity.paymentType!.toLowerCase().startsWith('cash') ) {
-            currencyTotals[activity.currency.id!]!['CASH_PAYMENT'] =
-                (currencyTotals[activity.currency.id!]!['CASH_PAYMENT'] ?? 0.0) + activity.amount;
-          } else {
-            currencyTotals[activity.currency.id!]!['OTHER_PAYMENT'] =
-                (currencyTotals[activity.currency.id!]!['OTHER_PAYMENT'] ?? 0.0) + activity.amount;
-          }
-
-          final currencyId = activity.currency.id!;
-          final paymentTypeName = activity.paymentType ?? 'Unknown Payment Type';
-
-          paymentTypeBreakdown.putIfAbsent(currencyId, () => {});
-          paymentTypeBreakdown[currencyId]!.update(
-            paymentTypeName,
-            (value) => value + activity.amount,
-            ifAbsent: () => activity.amount,
-          );
         }
       }
-    });
+    }
 
     if (currencyTotals.isEmpty) {
       buffer.writeln('No monetary activities recorded.');
     } else {
-      currencyTotals.entries.forEach((entry) {
+      for (final entry in currencyTotals.entries) {
         final currencyId = entry.key;
         final totals = entry.value;
         final currency = availableCurrencies.firstWhere(
@@ -1475,11 +1456,11 @@ class PrinterService {
 
         if (paymentTypeBreakdown.containsKey(currencyId) && paymentTypeBreakdown[currencyId]!.isNotEmpty) {
           buffer.writeln('\nSales by Payment Type:');
-          paymentTypeBreakdown[currencyId]!.entries.forEach((ptEntry) {
+          for (final ptEntry in paymentTypeBreakdown[currencyId]!.entries) {
             buffer.writeln(_alignLeftRight('${ptEntry.key}:', '${currency.symbol} ${ptEntry.value.toStringAsFixed(2)}'));
-          });
+          }
         }
-      });
+      }
     }
 
     buffer.writeln('\n--------------------------------');
@@ -1489,7 +1470,7 @@ class PrinterService {
     if (shift.shiftCurrencyAmounts == null || shift.shiftCurrencyAmounts!.isEmpty) {
       buffer.writeln('No detailed activities recorded.');
     } else {
-      shift.shiftCurrencyAmounts!.forEach((activity) {
+      for (final activity in shift.shiftCurrencyAmounts!) {
         String activityLabel;
         String amountPrefix = '';
         if (activity.amountType == 'CASH_IN') {
@@ -1515,7 +1496,7 @@ class PrinterService {
           buffer.writeln(_alignLeftRight('Ref:', activity.posReference!));
         }
         buffer.writeln('---');
-      });
+      }
     }
 
     buffer.writeln('--------------------------------');

@@ -94,6 +94,7 @@ class CompanyService {
       '/company/save',
       jsonEncode(company.toJson()),
     );
+    print('company: $responseStr');
 
     final Map<String, dynamic> response = jsonDecode(responseStr);
     if (response.containsKey('item') && response['item'] != null) {
