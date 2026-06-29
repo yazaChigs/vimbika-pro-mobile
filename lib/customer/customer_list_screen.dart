@@ -9,9 +9,7 @@ import '../model/customer.dart';
 import '../model/payment_type.dart';
 import '../model/bank.dart'; // Import the Bank model
 import 'add_customer_screen.dart';
-import 'customer_statement_screen.dart'; // Import the new controller
-import '../custom_drawer/home_drawer.dart'; // Import DrawerIndex
-import '../navigation_home_screen.dart'; // Import NavigationProvider
+import 'customer_statement_screen.dart';
 
 class CustomerListScreen extends StatefulWidget {
   const CustomerListScreen({super.key});
@@ -226,6 +224,11 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   );
                 }).toList(),
+              ),
+            if (customer.points > 0)
+              Text(
+                'Points: ${customer.points.toStringAsFixed(2)}',
+                style: const TextStyle(fontSize: 12, color: AppTheme.vimbikaBlue, fontWeight: FontWeight.bold),
               ),
             if (!customer.isSynced) // Indicate unsynced status
               const Padding(

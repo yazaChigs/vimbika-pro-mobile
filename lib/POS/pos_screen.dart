@@ -163,13 +163,15 @@ class POSScreen extends StatelessWidget {
                 return Row(
                   children: [
                     Expanded(
-                      flex: 3,
+                      flex: 2,
                       child: _buildProductList(context, controller, constraints, isSmallScreen),
                     ),
-                    Container(
-                      width: 380,
-                      decoration: BoxDecoration(color: AppTheme.white, boxShadow: [BoxShadow(color: Colors.black.withAlpha(15), blurRadius: 10)]),
-                      child: _buildCartSummary(context, controller),
+                    Expanded(
+                      flex: 1,
+                      child: Container(
+                        decoration: BoxDecoration(color: AppTheme.white, boxShadow: [BoxShadow(color: Colors.black.withAlpha(15), blurRadius: 10)]),
+                        child: _buildCartSummary(context, controller),
+                      ),
                     ),
                   ],
                 );
@@ -363,20 +365,29 @@ class POSScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min, // Use min size
         children: [
-          const Text('Current Order', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), // Reduced font size
+          const Text('Current Order', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           _buildCustomerSelector(context, controller),
           if (controller.selectedCustomer != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 4.0), // Reduced padding
-              child: Text(
-                'Customer Balance: ${controller.selectedCurrency?.symbol ?? ''}${customerBalance.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.vimbikaBlue), // Reduced font size
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Customer Balance: ${controller.selectedCurrency?.symbol ?? ''}${customerBalance.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.vimbikaBlue),
+                  ),
+                  Text(
+                    'Points: ${controller.selectedCustomer?.points.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.vimbikaBlue),
+                  ),
+                ],
               ),
             ),
           const Divider(height: 8), // Reduced height
           Expanded(
             child: controller.cart.isEmpty
-                ? const Center(child: Text('Order is empty', style: TextStyle(fontSize: 12))) // Reduced font size
+                ? const Center(child: Text('Order is empty', style: TextStyle(fontSize: 14)))
                 : ListView.builder(
               itemCount: controller.cart.length,
               itemBuilder: (context, index) {
@@ -433,14 +444,14 @@ class POSScreen extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 item.inventoryItem?.name ?? '',
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             Text(
                               '${controller.selectedCurrency?.symbol ?? ''}${displayTotal.toStringAsFixed(2)}',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: AppTheme.vimbikaBlue),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.vimbikaBlue),
                             ),
                           ],
                         ),
@@ -448,7 +459,7 @@ class POSScreen extends StatelessWidget {
                           children: [
                             const Text(
                               'Qty: ',
-                              style: TextStyle(fontSize: 8, color: AppTheme.grey),
+                              style: TextStyle(fontSize: 12, color: AppTheme.grey),
                             ),
                             SizedBox(
                               width: 35,
@@ -457,7 +468,7 @@ class POSScreen extends StatelessWidget {
                                 controller: quantityController,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                                 decoration: const InputDecoration(
                                   isDense: true,
                                   contentPadding: EdgeInsets.zero,
@@ -477,18 +488,18 @@ class POSScreen extends StatelessWidget {
                               child: Text(
                                 '${controller.selectedCurrency?.symbol ?? ''}${(item.sellingPrice * rate).toStringAsFixed(2)} '
                                     '${item.discountAmount > 0 ? "(-${controller.selectedCurrency?.symbol ?? ''}${(item.discountAmount * rate).toStringAsFixed(2)})" : ""}',
-                                style: const TextStyle(fontSize: 7, color: AppTheme.grey),
+                                style: const TextStyle(fontSize: 11, color: AppTheme.grey),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             PopupMenuButton<String>(
-                              icon: const Icon(Icons.edit, size: 14, color: AppTheme.vimbikaBlue),
+                              icon: const Icon(Icons.edit, size: 18, color: AppTheme.vimbikaBlue),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                               itemBuilder: (context) => [
-                                const PopupMenuItem(value: 'price', child: Text('Edit Price', style: TextStyle(fontSize: 11))),
-                                const PopupMenuItem(value: 'discount', child: Text('Edit Discount', style: TextStyle(fontSize: 11))),
+                                const PopupMenuItem(value: 'price', child: Text('Edit Price', style: TextStyle(fontSize: 13))),
+                                const PopupMenuItem(value: 'discount', child: Text('Edit Discount', style: TextStyle(fontSize: 13))),
                               ],
                               onSelected: (value) {
                                 if (value == 'price') {
@@ -503,7 +514,7 @@ class POSScreen extends StatelessWidget {
                               },
                             ),
                             IconButton(
-                              icon: const Icon(Icons.close, size: 14, color: Colors.red),
+                              icon: const Icon(Icons.close, size: 18, color: Colors.red),
                               onPressed: () => controller.removeFromCart(controller.cart.length - 1 - index),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
@@ -524,7 +535,7 @@ class POSScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 4), // Reduced padding
               child: Text('Balance Due: ${controller.selectedCurrency?.symbol ?? ""}${controller.balanceDueConverted.toStringAsFixed(2)}',
-                  textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13)), // Reduced font size
+                  textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 15)),
             ),
         ],
       ),
@@ -538,31 +549,31 @@ class POSScreen extends StatelessWidget {
     return Column(
       children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Subtotal:', style: TextStyle(fontSize: 13)), // Reduced font size
-          Text('${controller.selectedCurrency?.symbol ?? ''}${subtotalConverted.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13)) // Reduced font size
+          const Text('Subtotal:', style: TextStyle(fontSize: 15)),
+          Text('${controller.selectedCurrency?.symbol ?? ''}${subtotalConverted.toStringAsFixed(2)}', style: const TextStyle(fontSize: 15))
         ]),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Tax Total:', style: TextStyle(fontSize: 13)), // Reduced font size
-          Text('${controller.selectedCurrency?.symbol ?? ''}${taxAmountConverted.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13)) // Reduced font size
+          const Text('Tax Total:', style: TextStyle(fontSize: 15)),
+          Text('${controller.selectedCurrency?.symbol ?? ''}${taxAmountConverted.toStringAsFixed(2)}', style: const TextStyle(fontSize: 15))
         ]),
         const SizedBox(height: 2), // Reduced height
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Grand Total:', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)), // Reduced font size
-          Text('${controller.selectedCurrency?.symbol ?? ''}${controller.grandTotalConverted.toStringAsFixed(2)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)) // Reduced font size
+          const Text('Grand Total:', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          Text('${controller.selectedCurrency?.symbol ?? ''}${controller.grandTotalConverted.toStringAsFixed(2)}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold))
         ]),
         const SizedBox(height: 4), // Reduced height
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Paid: ${controller.selectedCurrency?.symbol ?? ''}${controller.amountTendered.toStringAsFixed(2)}',
-                style: const TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.bold)),
+            Text('Paid: ${controller.selectedCurrency?.symbol ?? ''}${controller.amountPaidConverted.toStringAsFixed(2)}',
+                style: const TextStyle(color: Colors.green, fontSize: 15, fontWeight: FontWeight.bold)),
             Text(
               controller.balanceDueConverted <= 0.0
                   ? 'Change: ${controller.selectedCurrency?.symbol ?? ''}${(controller.balanceDueConverted * -1).toStringAsFixed(2)}'
                   : 'Balance Due: ${controller.selectedCurrency?.symbol ?? ''}${controller.balanceDueConverted.toStringAsFixed(2)}',
               style: TextStyle(
                   color: controller.balanceDueConverted <= 0.0 ? Colors.green : Colors.red,
-                  fontSize: 13,
+                  fontSize: 15,
                   fontWeight: FontWeight.bold),
             ),
           ],
@@ -577,11 +588,11 @@ class POSScreen extends StatelessWidget {
                 return ListTile(
                   dense: true,
                   visualDensity: VisualDensity.compact, // Make ListTile more compact
-                  title: Text(payment.paymentType?.name ?? 'Unknown', style: const TextStyle(fontSize: 10)), // Reduced font size
+                  title: Text(payment.paymentType?.name ?? 'Unknown', style: const TextStyle(fontSize: 14)),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('${controller.selectedCurrency?.symbol ?? ''}${payment.amount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 10)), // Reduced font size
+                      Text('${controller.selectedCurrency?.symbol ?? ''}${payment.amount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14)),
                       const SizedBox(width: 4), // Reduced width
                       InkWell(
                         onTap: () {
@@ -615,12 +626,12 @@ class POSScreen extends StatelessWidget {
                             ),
                           );
                         },
-                        child: const Icon(Icons.edit, size: 14, color: AppTheme.vimbikaBlue), // Reduced icon size
+                        child: const Icon(Icons.edit, size: 18, color: AppTheme.vimbikaBlue),
                       ),
                       const SizedBox(width: 4), // Reduced width
                       InkWell(
                         onTap: () => controller.removePayment(index),
-                        child: const Icon(Icons.close, size: 14, color: Colors.red), // Reduced icon size
+                        child: const Icon(Icons.close, size: 18, color: Colors.red),
                       )
                     ],
                   ),
@@ -632,12 +643,12 @@ class POSScreen extends StatelessWidget {
         // New "Print Receipt" checkbox
         if (controller.cart.isNotEmpty)
           SwitchListTile(
-            title: const Text('Print Receipt for this Sale', style: TextStyle(fontSize: 13)), // Reduced font size
+            title: const Text('Print Receipt for this Sale', style: TextStyle(fontSize: 15)),
             value: controller.printReceiptForThisSale,
             onChanged: (value) {
               controller.printReceiptForThisSale = value;
             },
-            secondary: const Icon(Icons.print, size: 20), // Reduced icon size
+            secondary: const Icon(Icons.print, size: 22),
             contentPadding: EdgeInsets.zero, // Adjust padding as needed
             dense: true, // Make SwitchListTile more compact
           ),
@@ -652,8 +663,8 @@ class POSScreen extends StatelessWidget {
                       onPressed: () {
                         controller.addPayment(context);
                       },
-                      icon: const Icon(Icons.payment, size: 16), // Reduced icon size
-                      label: const Text('Add Payment', style: TextStyle(fontSize: 11)), // Reduced font size
+                      icon: const Icon(Icons.payment, size: 18),
+                      label: const Text('Add Payment', style: TextStyle(fontSize: 14)),
                       style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 8)), // Reduced padding
                     ),
                   ),
@@ -667,8 +678,8 @@ class POSScreen extends StatelessWidget {
                             Navigator.pop(context);
                           }
                         },
-                        icon: const Icon(Icons.flash_on, size: 16), // Reduced icon size
-                        label: const Text('Quick Cash', style: TextStyle(fontSize: 11)), // Reduced font size
+                        icon: const Icon(Icons.flash_on, size: 18),
+                        label: const Text('Quick Cash', style: TextStyle(fontSize: 14)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
@@ -686,8 +697,8 @@ class POSScreen extends StatelessWidget {
                     onPressed: () {
                       controller.payFromAccount(context);
                     },
-                    icon: const Icon(Icons.account_balance_wallet, size: 16), // Reduced icon size
-                    label: const Text('Pay via ACC', style: TextStyle(fontSize: 11)), // Reduced font size
+                    icon: const Icon(Icons.account_balance_wallet, size: 18),
+                    label: const Text('Pay via ACC', style: TextStyle(fontSize: 14)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blueGrey,
                       foregroundColor: Colors.white,
@@ -717,7 +728,7 @@ class POSScreen extends StatelessWidget {
                     },
               child: controller.isProcessingSale
                   ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) // Reduced size
-                  : const Text('Complete Sale', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)), // Reduced font size
+                  : const Text('Complete Sale', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ),
       ],
@@ -761,24 +772,24 @@ class POSScreen extends StatelessWidget {
                   canRequestFocus: controller.customerSelectFocus, // Manually disable focus
                   decoration: InputDecoration(
                     hintText: 'Search or select customer...',
-                    prefixIcon: const Icon(Icons.person_search, size: 20), // Reduced icon size
+                    prefixIcon: const Icon(Icons.person_search, size: 22),
                     suffixIcon: textEditingController.text.isNotEmpty || controller.selectedCustomer != null
                         ? IconButton(
-                      icon: const Icon(Icons.clear, size: 18), // Reduced icon size
+                      icon: const Icon(Icons.clear, size: 20),
                       onPressed: () {
                         textEditingController.clear();
                         controller.selectedCustomer = null;
                         FocusScope.of(context).requestFocus(focusNode); // Request focus using the provided focusNode
                       },
                     )
-                        : const Icon(Icons.arrow_drop_down, size: 20), // Reduced icon size
+                        : const Icon(Icons.arrow_drop_down, size: 22),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     filled: true,
                     fillColor: AppTheme.nearlyWhite,
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10), // Reduced padding
                   ),
-                  style: const TextStyle(fontSize: 14), // Reduced font size
+                  style: const TextStyle(fontSize: 16),
                   onChanged: (value) {
                     if (value.isEmpty) {
                       controller.selectedCustomer = null;
@@ -824,8 +835,8 @@ class POSScreen extends StatelessWidget {
                             child: ListTile(
                               dense: true,
                               visualDensity: VisualDensity.compact,
-                              title: Text(option.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)), // Reduced font size
-                              subtitle: option.accountNumber != null ? Text(option.accountNumber!, style: const TextStyle(fontSize: 12)) : null, // Reduced font size
+                              title: Text(option.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              subtitle: option.accountNumber != null ? Text(option.accountNumber!, style: const TextStyle(fontSize: 14)) : null,
                             ),
                           );
                         },
@@ -837,7 +848,7 @@ class POSScreen extends StatelessWidget {
             ),
           ),
           IconButton(
-            iconSize: 18, // Reduced icon size
+            iconSize: 22,
             onPressed: () async {
               final Customer? newCustomer = await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddCustomerScreen()));
               if (context.mounted && newCustomer != null) {

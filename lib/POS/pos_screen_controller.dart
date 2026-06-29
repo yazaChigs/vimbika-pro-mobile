@@ -487,11 +487,8 @@ class POSScreenController extends ChangeNotifier {
   double get grandTotalConverted => grandTotalBase * (_selectedCurrency?.rate ?? 1.0);
   double get amountPaidConverted => _payments.fold(0, (sum, item) => sum + item.amount);
   
-  // Adjusted balanceDueConverted to consider amountTendered
+  // Reworked to be simpler and more reliable
   double get balanceDueConverted {
-    if (_amountTendered > 0) {
-      return grandTotalConverted - _amountTendered;
-    }
     return grandTotalConverted - amountPaidConverted;
   }
 
@@ -961,12 +958,9 @@ class POSScreenController extends ChangeNotifier {
                       currency: _selectedCurrency!,
                       amountChange: amountToCreditCustomer, // Credit to customer account
                     ));
-                  } else {
-                    // If not adding to account, or no customer selected,
-                    // treat excess as change, payment for sale is still grandTotalConverted
-                    paymentForSale = _cart.isEmpty ? 0 : grandTotalConverted;
                   }
                 }
+
 
                 // Add payment for the sale
                 if(paymentForSale > 0) {
@@ -1080,9 +1074,8 @@ class POSScreenController extends ChangeNotifier {
     try {
       if (_cart.isEmpty && _pendingAccountCredits.isEmpty) return;
 
-      // Check if the total amount paid (including tendered amount if applicable) covers the grand total
-      double effectiveAmountPaid = _amountTendered > 0 ? _amountTendered : amountPaidConverted;
-      if (effectiveAmountPaid < grandTotalConverted && _cart.isNotEmpty) {
+      // Check if the total amount paid covers the grand total
+      if (amountPaidConverted < grandTotalConverted && _cart.isNotEmpty) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -1212,8 +1205,8 @@ class POSScreenController extends ChangeNotifier {
           ticketName: _ticketName, // Include ticket name in the completed sale
           amtToAcc: totalAmtToAcc > 0 ? totalAmtToAcc.toStringAsFixed(2) : null,
           customerAccBankType:null,
-          amountPaid: amountTendered,
-          change:balanceDueConverted * -1,
+          amountPaid: amountPaidConverted,
+          change: balanceDueConverted < 0 ? balanceDueConverted * -1 : 0.0,
 
       );
 
