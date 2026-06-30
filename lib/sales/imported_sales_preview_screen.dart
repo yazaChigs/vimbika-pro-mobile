@@ -227,7 +227,7 @@ class _ImportedSalesPreviewScreenState extends State<ImportedSalesPreviewScreen>
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        sale.customer?.name ?? 'Walk-in Customer',
+                                        sale.customer.value?.name ?? 'Walk-in Customer',
                                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -245,7 +245,7 @@ class _ImportedSalesPreviewScreenState extends State<ImportedSalesPreviewScreen>
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${sale.currency?.symbol ?? ''}${sale.grandTotal.toStringAsFixed(2)}',
+                                  '${sale.currency.value?.symbol ?? ''}${sale.grandTotal.toStringAsFixed(2)}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,

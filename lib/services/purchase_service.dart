@@ -19,7 +19,7 @@ class PurchaseService {
     if (userData == null) throw Exception('User not logged in');
     final user = User.fromJson(jsonDecode(userData));
     
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) throw Exception('Company ID not found for user');
 
     final String formattedStartDate = '${startDate.toIso8601String().substring(0, 23)}Z';
@@ -55,7 +55,7 @@ class PurchaseService {
     if (userData == null) throw Exception('User not logged in');
     final user = User.fromJson(jsonDecode(userData));
     
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) throw Exception('Company ID not found for user');
 
     if (purchase.id == null) throw Exception('Purchase ID cannot be null for update');

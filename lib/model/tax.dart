@@ -1,18 +1,23 @@
-import 'base_name_entity.dart';
+import 'package:isar/isar.dart';
+import 'package:vimbika_pro/model/base_name_entity.dart';
 
+part 'tax.g.dart';
+
+@collection
 class Tax extends BaseNameEntity {
-  final double taxPercentage;
+  Id isarId = Isar.autoIncrement;
+  double? taxPercentage;
 
   Tax({
     String? id,
-    String? dateCreated, // Changed to String?
-    String? dateModified, // Changed to String?
+    String? dateCreated,
+    String? dateModified,
     String? createdByName,
     String? modifiedByName,
     int? version,
     required String name,
     String? description,
-    required this.taxPercentage,
+    this.taxPercentage,
   }) : super(
           id: id,
           dateCreated: dateCreated,
@@ -27,22 +32,22 @@ class Tax extends BaseNameEntity {
   factory Tax.fromJson(Map<String, dynamic> json) {
     return Tax(
       id: json['id'],
-      dateCreated: json['dateCreated'], // Pass directly as String?
-      dateModified: json['dateModified'], // Pass directly as String?
+      dateCreated: json['dateCreated'],
+      dateModified: json['dateModified'],
       createdByName: json['createdByName'],
       modifiedByName: json['modifiedByName'],
       version: json['version'],
-      name: json['name'] ?? 'Unknown Tax',
+      name: json['name'],
       description: json['description'],
-      taxPercentage: json['taxPercentage']  ?? 0.0,
+      taxPercentage: (json['taxPercentage'] as num?)?.toDouble(),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'dateCreated': dateCreated, // Return directly as String?
-      'dateModified': dateModified, // Return directly as String?
+      'dateCreated': dateCreated,
+      'dateModified': dateModified,
       'createdByName': createdByName,
       'modifiedByName': modifiedByName,
       'version': version,

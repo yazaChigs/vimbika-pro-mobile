@@ -7,13 +7,14 @@ import 'dart:convert';
 import '../../../model/payment_type.dart';
 import '../../../model/currency.dart';
 import '../../../model/bank.dart';
-import 'package:flutter/foundation.dart'; // Import for debugPrint
 import '../../../services/payments_service.dart'; // Import PaymentService
 import '../../../services/currency_service.dart'; // Import CurrencyService
 
 class PaymentTypeManagementScreen extends StatefulWidget {
+  const PaymentTypeManagementScreen({super.key});
+
   @override
-  _PaymentTypeManagementScreenState createState() => _PaymentTypeManagementScreenState();
+  State<PaymentTypeManagementScreen> createState() => _PaymentTypeManagementScreenState();
 }
 
 class _PaymentTypeManagementScreenState extends State<PaymentTypeManagementScreen> {
@@ -96,18 +97,24 @@ class _PaymentTypeManagementScreenState extends State<PaymentTypeManagementScree
       await _loadBanks();
       await _loadPaymentTypes();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Data refreshed from API')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data refreshed from API')),
+        );
+      }
     } catch (e) {
       debugPrint('Error refreshing data: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to refresh data: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to refresh data: $e')),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -148,14 +155,6 @@ class _PaymentTypeManagementScreenState extends State<PaymentTypeManagementScree
     });
   }
 
-  Future<void> _saveCurrencies(List<Currency> currenciesToSave) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String currencyKey = _isOfflineMode ? AppConstants.keyOfflineCurrencies : AppConstants.keyCurrencies;
-    final List<String> listJson = currenciesToSave
-        .map((item) => jsonEncode(item.toJson()))
-        .toList();
-    await prefs.setStringList(currencyKey, listJson);
-  }
 
 
   Future<void> _loadPaymentTypes() async {
@@ -201,7 +200,7 @@ class _PaymentTypeManagementScreenState extends State<PaymentTypeManagementScree
       // Show payment types that:
       // 1. Have no currency restriction (currency is null), OR
       // 2. Match the selected filter currency
-      return pt.currency == null || pt.currency?.id == _selectedFilterCurrency!.id;
+      return pt.currency.value == null || pt.currency.value?.id == _selectedFilterCurrency!.id;
     }).toList();
   }
 
@@ -220,7 +219,7 @@ class _PaymentTypeManagementScreenState extends State<PaymentTypeManagementScree
     bool isMobileMoney = paymentType?.isMobileMoney ?? false;
     bool isBankTransfer = paymentType?.isBankTransfer ?? false;
     bool active = paymentType?.active ?? true;
-    Currency? selectedCurrency = paymentType?.currency;
+    Currency? selectedCurrency = paymentType?.currency.value;
 
     // Initialize selected banks from the paymentType
     List<Bank> selectedBanks = [];
@@ -259,21 +258,21 @@ class _PaymentTypeManagementScreenState extends State<PaymentTypeManagementScree
                   SizedBox(height: 16),
                   // Currency Selection Dropdown
                   DropdownButtonFormField<Currency?>(
-                    value: selectedCurrency,
-                    decoration: InputDecoration(
+                    initialValue: selectedCurrency,
+                    decoration: const InputDecoration(
                       labelText: 'Currency (Optional)',
                       hintText: 'Select currency or leave empty for all',
                       border: OutlineInputBorder(),
                     ),
                     items: [
-                      DropdownMenuItem<Currency?>(
+                      const DropdownMenuItem<Currency?>(
                         value: null,
                         child: Text('All Currencies'),
                       ),
                       ..._currencies.map((currency) => DropdownMenuItem<Currency?>(
                         value: currency,
                         child: Text('${currency.name} (${currency.symbol})'),
-                      )).toList(),
+                      )),
                     ],
                     onChanged: (Currency? value) {
                       setDialogState(() {
@@ -287,7 +286,7 @@ class _PaymentTypeManagementScreenState extends State<PaymentTypeManagementScree
                     title: Text('Enabled', style: TextStyle(fontWeight: FontWeight.bold, color: active ? Colors.green : Colors.grey)),
                     subtitle: Text(active ? 'Method is active' : 'Method is disabled'),
                     value: active,
-                    activeColor: Colors.green,
+                    activeThumbColor: Colors.green,
                     onChanged: (bool value) {
                       setDialogState(() {
                         active = value;
@@ -353,7 +352,7 @@ class _PaymentTypeManagementScreenState extends State<PaymentTypeManagementScree
                           });
                         },
                       );
-                    }).toList(),
+                    }),
                   ],
                 ],
               ),
@@ -366,9 +365,11 @@ class _PaymentTypeManagementScreenState extends State<PaymentTypeManagementScree
               ElevatedButton(
                 onPressed: () async {
                   if (nameController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Payment method name is required')),
-                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Payment method name is required')),
+                      );
+                    }
                     return;
                   }
 
@@ -418,7 +419,7 @@ class _PaymentTypeManagementScreenState extends State<PaymentTypeManagementScree
                     );
                   }
                 },
-                child: Text('Save'),
+                child: const Text('Save'),
               ),
             ],
           );
@@ -482,38 +483,38 @@ class _PaymentTypeManagementScreenState extends State<PaymentTypeManagementScree
         iconTheme: IconThemeData(color: AppTheme.nearlyBlack),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh),
             onPressed: (_isLoading || _isOfflineMode) ? null : _refreshData, // Allow all users to refresh in online mode
             tooltip: 'Refresh Data',
           ),
         ],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : Column(
         children: [
           // Currency Filter Dropdown
           if (_currencies.isNotEmpty)
             Container(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               color: AppTheme.white,
               child: DropdownButtonFormField<Currency?>(
-                value: _selectedFilterCurrency,
-                decoration: InputDecoration(
+                initialValue: _selectedFilterCurrency,
+                decoration: const InputDecoration(
                   labelText: 'Filter by Currency',
                   hintText: 'Select currency to filter',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.filter_list),
                 ),
                 items: [
-                  DropdownMenuItem<Currency?>(
+                  const DropdownMenuItem<Currency?>(
                     value: null,
                     child: Text('All Payment Methods'),
                   ),
                   ..._currencies.map((currency) => DropdownMenuItem<Currency?>(
                     value: currency,
                     child: Text('${currency.name} (${currency.symbol})'),
-                  )).toList(),
+                  )),
                 ],
                 onChanged: (Currency? value) {
                   setState(() {
@@ -577,13 +578,13 @@ class _PaymentTypeManagementScreenState extends State<PaymentTypeManagementScree
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(paymentType.description ?? _getPaymentTypeDescription(paymentType)),
-                        if (paymentType.currency != null)
+                        if (paymentType.currency.value != null)
                           Padding(
-                            padding: EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.only(top: 4),
                             child: Chip(
                               label: Text(
-                                '${paymentType.currency!.symbol} ${paymentType.currency!.name}',
-                                style: TextStyle(fontSize: 11),
+                                '${paymentType.currency.value!.symbol} ${paymentType.currency.value!.name}',
+                                style: const TextStyle(fontSize: 11),
                               ),
                               backgroundColor: AppTheme.vimbikaBlue.withValues(alpha: 0.2),
                             ),

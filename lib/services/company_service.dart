@@ -106,7 +106,7 @@ class CompanyService {
   Future<List<Company>> getUserCompanies(User user) async {
     try {
       var response = await BaseHttpClient()
-          .getAuthWithCompanyHeader("/company/get-all", user.branch!.company!.id!)
+          .getAuthWithCompanyHeader("/company/get-all", user.companyId!)
           .catchError((onError) {
         if (onError is BadRequestException) {
           // In a real app, we might want to show a dialog here,

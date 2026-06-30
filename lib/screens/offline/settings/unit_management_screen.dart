@@ -7,8 +7,10 @@ import '../../../app_constants/app_constants.dart';
 import '../../../model/unit.dart';
 
 class UnitManagementScreen extends StatefulWidget {
+  const UnitManagementScreen({super.key});
+
   @override
-  _UnitManagementScreenState createState() => _UnitManagementScreenState();
+  State<UnitManagementScreen> createState() => _UnitManagementScreenState();
 }
 
 class _UnitManagementScreenState extends State<UnitManagementScreen> {
@@ -61,9 +63,11 @@ class _UnitManagementScreenState extends State<UnitManagementScreen> {
 
   void _showUnitDialog({Unit? unit}) {
     if (!_canEdit) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You do not have permission to edit units.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You do not have permission to edit units.')),
+        );
+      }
       return;
     }
 

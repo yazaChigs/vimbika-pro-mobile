@@ -1,8 +1,14 @@
+import 'package:isar/isar.dart';
+import 'package:json_annotation/json_annotation.dart';
 import 'package:vimbika_pro/model/inventory_item.dart';
 
+part 'sale_item.g.dart';
+
+@collection
 class SaleItem {
+  Id isarId = Isar.autoIncrement;
   String? id;
-  InventoryItem? inventoryItem;
+  final inventoryItem = IsarLink<InventoryItem>();
   double quantity;
   double sellingPrice;
   double discountAmount;
@@ -13,20 +19,23 @@ class SaleItem {
 
   SaleItem({
     this.id,
-    this.inventoryItem,
-    required this.quantity,
-    required this.sellingPrice,
+    InventoryItem? inventoryItem,
+    this.quantity = 0.0,
+    this.sellingPrice = 0.0,
     this.discountAmount = 0.0,
-    required this.total,
-    required this.taxAmount,
+    this.total = 0.0,
+    this.taxAmount = 0.0,
     this.isMobile = false,
     this.amountTendered,
-  });
+  }) {
+    if (inventoryItem != null) {
+      this.inventoryItem.value = inventoryItem;
+    }
+  }
 
   factory SaleItem.fromJson(Map<String, dynamic> json) {
-    return SaleItem(
+    final item = SaleItem(
       id: json['id'],
-      inventoryItem: json['inventoryItem'] != null ? InventoryItem.fromJson(json['inventoryItem']) : null,
       quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
       sellingPrice: (json['sellingPrice'] as num?)?.toDouble() ?? 0.0,
       discountAmount: (json['discountAmount'] as num?)?.toDouble() ?? 0.0,
@@ -35,12 +44,15 @@ class SaleItem {
       isMobile: json['isMobile'] ?? false,
       amountTendered: (json['amountTendered'] as num?)?.toDouble(),
     );
+    if (json['inventoryItem'] != null) {
+      item.inventoryItem.value = InventoryItem.fromJson(json['inventoryItem']);
+    }
+    return item;
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'inventoryItem': inventoryItem?.toJson(),
       'quantity': quantity,
       'sellingPrice': sellingPrice,
       'discountAmount': discountAmount,
@@ -48,6 +60,7 @@ class SaleItem {
       'taxAmount': taxAmount,
       'isMobile': isMobile,
       'amountTendered': amountTendered,
+      'inventoryItem': inventoryItem.value?.toJson(),
     };
   }
 
@@ -62,9 +75,8 @@ class SaleItem {
     bool? isMobile,
     double? amountTendered,
   }) {
-    return SaleItem(
+    final newItem = SaleItem(
       id: id ?? this.id,
-      inventoryItem: inventoryItem ?? this.inventoryItem,
       quantity: quantity ?? this.quantity,
       sellingPrice: sellingPrice ?? this.sellingPrice,
       discountAmount: discountAmount ?? this.discountAmount,
@@ -73,5 +85,7 @@ class SaleItem {
       isMobile: isMobile ?? this.isMobile,
       amountTendered: amountTendered ?? this.amountTendered,
     );
+    newItem.inventoryItem.value = inventoryItem ?? this.inventoryItem.value;
+    return newItem;
   }
 }

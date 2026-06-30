@@ -460,7 +460,7 @@ class POSScreenController extends ChangeNotifier {
   void _applyFilters() {
     _filteredBranchStocks = _allBranchStocks.where((s) {
       final matchesBranch = _selectedBranch == null || s.branch?.id == _selectedBranch?.id;
-      final matchesCategory = _selectedCategory == null || s.item?.category?.id == _selectedCategory!.id;
+      final matchesCategory = _selectedCategory == null || s.item?.category.value?.id == _selectedCategory!.id;
 
       bool matchesSearch;
       if (_isBarcodeSearchMode) {
@@ -497,7 +497,7 @@ class POSScreenController extends ChangeNotifier {
     if (currency != null && paymentType != null) {
       if (paymentType.banks != null) {
         for (Bank bank in paymentType.banks!) {
-          if (bank.currency?.id == currency.id) {
+          if (bank.currency.value?.id == currency.id) {
             return bank;
           }
         }
@@ -538,7 +538,7 @@ class POSScreenController extends ChangeNotifier {
     final product = stock.item!;
 
     if (!_allowOutOfStockSales && !product.isService) {
-      final cartItemIndex = _cart.indexWhere((item) => item.inventoryItem?.id == product.id);
+      final cartItemIndex = _cart.indexWhere((item) => item.inventoryItem.value?.id == product.id);
       double currentCartQty = 0;
       if (cartItemIndex != -1) {
         currentCartQty = _cart[cartItemIndex].quantity;
@@ -556,12 +556,12 @@ class POSScreenController extends ChangeNotifier {
       }
     }
 
-    final index = _cart.indexWhere((item) => item.inventoryItem?.id == product.id);
+    final index = _cart.indexWhere((item) => item.inventoryItem.value?.id == product.id);
     if (index != -1) {
       final existingItem = _cart[index];
 
       final double newQty = existingItem.quantity + 1;
-      final double taxRate = product.tax?.taxPercentage ?? 0.0;
+      final double taxRate = product.tax.value?.taxPercentage ?? 0.0;
       double itemTaxAmount;
       double totalInclusive = newQty * product.sellingPrice;
       itemTaxAmount = totalInclusive - (totalInclusive / (1 + taxRate / 100));
@@ -576,7 +576,7 @@ class POSScreenController extends ChangeNotifier {
         id:index.toString(),
       );
     } else {
-      final double taxRate = product.tax?.taxPercentage ?? 0.0;
+      final double taxRate = product.tax.value?.taxPercentage ?? 0.0;
       double itemTaxAmount;
       double totalInclusive = 1 * product.sellingPrice;
       itemTaxAmount = totalInclusive - (totalInclusive / (1 + taxRate / 100));
@@ -599,7 +599,7 @@ class POSScreenController extends ChangeNotifier {
   void removeFromCart(int index) {
     final SaleItem removedItem = _cart[index];
     _cart.removeAt(index);
-    final String itemId = removedItem.inventoryItem!.id!;
+    final String itemId = removedItem.inventoryItem.value!.id!;
     _quantityControllers[itemId]?.dispose();
     _quantityControllers.remove(itemId);
     _priceControllers[itemId]?.dispose();
@@ -614,7 +614,7 @@ class POSScreenController extends ChangeNotifier {
 
   void updateCartItemDetails(int index, {double? quantity, double? sellingPrice, double? discountAmount}) {
     final SaleItem existingItem = _cart[index];
-    final product = existingItem.inventoryItem!;
+    final product = existingItem.inventoryItem.value!;
 
     final double newQuantity = quantity ?? existingItem.quantity;
     final double newSellingPrice = sellingPrice ?? existingItem.sellingPrice;
@@ -654,7 +654,7 @@ class POSScreenController extends ChangeNotifier {
     // The previous logic for newQuantity == 0 is now handled by the newQuantity <= 0 check above.
     // If newQuantity is 0, it will show an error and return, not remove the item.
 
-    final double taxRate = product.tax?.taxPercentage ?? 0.0;
+    final double taxRate = product.tax.value?.taxPercentage ?? 0.0;
     double itemTaxAmount;
     double subtotalAfterDiscount = (newQuantity * newSellingPrice) - newDiscountAmount;
     if (subtotalAfterDiscount < 0) subtotalAfterDiscount = 0;
@@ -722,7 +722,7 @@ class POSScreenController extends ChangeNotifier {
     }
 
     final accountPaymentType = _paymentTypes.firstWhere(
-          (pt) => pt.name == 'ACC-${_selectedCurrency?.name}' && (pt.currency == null || pt.currency?.id == _selectedCurrency?.id),
+          (pt) => pt.name == 'ACC-${_selectedCurrency?.name}' && (pt.currency.value == null || pt.currency.value?.id == _selectedCurrency?.id),
       orElse: () => PaymentType(id: 'acc_default', name: 'ACC-${_selectedCurrency?.name}', isCredit: true, currency: _selectedCurrency),
     );
 
@@ -735,7 +735,7 @@ class POSScreenController extends ChangeNotifier {
     ));
 
     // Check if this payment type already exists
-    final existingPaymentIndex = _payments.indexWhere((p) => p.paymentType?.name == accountPaymentType.name);
+    final existingPaymentIndex = _payments.indexWhere((p) => p.paymentType.value?.name == accountPaymentType.name);
 
       if (existingPaymentIndex != -1) {
         // Update existing payment
@@ -784,7 +784,7 @@ class POSScreenController extends ChangeNotifier {
     bool isProcessingDeposit = false;
 
     final List<PaymentType> filteredPaymentTypes = _paymentTypes.where((pt) {
-      final bool matchesCurrency = pt.currency == null || pt.currency?.id == _selectedCurrency?.id;
+      final bool matchesCurrency = pt.currency.value == null || pt.currency.value?.id == _selectedCurrency?.id;
       final bool allowsCreditWithoutCustomer = !pt.isCredit || _selectedCustomer != null;
       // Removed the `isAlreadySelected` check here, as we will handle aggregation
       // instead of preventing selection.
@@ -966,7 +966,7 @@ class POSScreenController extends ChangeNotifier {
                 // Add payment for the sale
                 if(paymentForSale > 0) {
                   // Check if this payment type already exists
-                  final existingPaymentIndex = _payments.indexWhere((p) => p.paymentType?.name == selectedPaymentType?.name);
+                  final existingPaymentIndex = _payments.indexWhere((p) => p.paymentType.value?.name == selectedPaymentType?.name);
 
                   if (existingPaymentIndex != -1) {
                     // Update existing payment
@@ -1112,20 +1112,23 @@ class POSScreenController extends ChangeNotifier {
 
           if (customerIndex != -1) {
             Customer customerToUpdate = currentCustomers[customerIndex];
-            List<CustomerCurrencyAmount> updatedAmounts = List.from(customerToUpdate.currencyBalance ?? []);
+            List<CustomerCurrencyAmount> updatedAmounts = List.from(customerToUpdate.currencyBalance);
 
-            final int ccaIndex = updatedAmounts.indexWhere((cca) => cca.currency?.id == update.currency.id);
+            final int ccaIndex = updatedAmounts.indexWhere((cca) {
+              cca.currency.loadSync();
+              return cca.currency.value?.id == update.currency.id;
+            });
 
             if (ccaIndex != -1) {
               updatedAmounts[ccaIndex] = CustomerCurrencyAmount(
-                currency: updatedAmounts[ccaIndex].currency,
-                balance: (updatedAmounts[ccaIndex].balance ?? 0.0) + update.amountChange,
+                currency: updatedAmounts[ccaIndex].currency.value,
+                amount: updatedAmounts[ccaIndex].amount + update.amountChange,
               );
             } else {
               // If currency balance doesn't exist, add it
               updatedAmounts.add(CustomerCurrencyAmount(
                 currency: update.currency,
-                balance: update.amountChange,
+                amount: update.amountChange,
               ));
             }
             customerToUpdate = customerToUpdate.copyWith(currencyBalance: updatedAmounts);
@@ -1172,11 +1175,7 @@ class POSScreenController extends ChangeNotifier {
           taxAmount: item.taxAmount * exchangeRate,
           discountAmount: item.discountAmount * exchangeRate,
           total: item.total * exchangeRate,
-          inventoryItem: InventoryItem(
-              name: item.inventoryItem!.name,
-              id: item.inventoryItem!.id,
-              itemType: item.inventoryItem!.itemType
-          )
+          inventoryItem: item.inventoryItem.value!.copyWith()
         );
       }).toList();
 
@@ -1184,20 +1183,13 @@ class POSScreenController extends ChangeNotifier {
           id: null,
           createdByName: currentShift.createdByName,
           cashierFullName: currentShift.userFullName,
-          customer: _selectedCustomer,
-          company: _selectedBranch!.company,
-          branch: Branch(id: _selectedBranch!.id, name: _selectedBranch!.name),
-          items: convertedCart, // Use converted items here
-          paymentTypes: _payments,
           timeIniated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
-          currency: _selectedCurrency,
-          baseCurrency: _selectedCurrency,
+          saleStatus: 'COMPLETE',
           amountAfterDiscount: grandTotalConverted,
           baseSaleAmount: grandTotalBase, // Base sale amount should also be converted now that items are converted
           totalTaxAmount: taxTotalBase * exchangeRate, // Tax should be converted
           isSynced: false,
           fiscalized: false,
-          saleStatus: 'COMPLETE',
           taxInvoice: false,
           totalQuantity: _cart.fold(0.0, (sum, item) => sum! + item.quantity),
           posReference: generatedReference,
@@ -1210,6 +1202,13 @@ class POSScreenController extends ChangeNotifier {
           change: balanceDueConverted < 0 ? balanceDueConverted * -1 : 0.0,
 
       );
+      newSale.customer.value = _selectedCustomer;
+      newSale.company.value = _selectedBranch!.company.value;
+      newSale.branch.value = Branch(id: _selectedBranch!.id, name: _selectedBranch!.name);
+      newSale.items.addAll(convertedCart);
+      newSale.paymentTypes.addAll(_payments);
+      newSale.currency.value = _selectedCurrency;
+      newSale.baseCurrency.value = _selectedCurrency;
 
       try {
         await _saleService.saveSale(newSale);
@@ -1249,10 +1248,10 @@ class POSScreenController extends ChangeNotifier {
       final List<BranchStock> allStocks = stockStrings.map((e) => BranchStock.fromJson(jsonDecode(e))).toList();
 
       for (var cartItem in _cart) {
-        if (cartItem.inventoryItem?.isService == true) continue;
+        if (cartItem.inventoryItem.value?.isService == true) continue;
 
         final stockIndex = allStocks.indexWhere((s) =>
-        s.item?.id == cartItem.inventoryItem?.id &&
+        s.item?.id == cartItem.inventoryItem.value?.id &&
             s.branch?.id == _selectedBranch?.id
         );
 
@@ -1278,15 +1277,15 @@ class POSScreenController extends ChangeNotifier {
           dateCreated:null,
           timeCreated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
           active: true,
-          currency: payment.currency!,
+          currency: payment.currency.value!,
           amount: payment.amount,
-          notes: _cart.isEmpty ? 'Account top up via ${payment.paymentType!.name}' : 'Payment for sale ${newSale.posReference} via ${payment.paymentType!.name}',
+          notes: _cart.isEmpty ? 'Account top up via ${payment.paymentType.value!.name}' : 'Payment for sale ${newSale.posReference} via ${payment.paymentType.value!.name}',
           amountType: _cart.isEmpty ? 'ACCOUNT_TOP_UP' : 'SALE',
           ref: 'SL_${DateTime.now().millisecondsSinceEpoch}${_payments.indexOf(payment)}', // Changed to use posReference as ID is null initially
           posReference: newSale.posReference,
           shiftReference: currentShift.shiftReference,
-          isCash: payment.paymentType!.isCash == true || (payment.paymentType!.name.toLowerCase().startsWith('cash')),
-          paymentType: payment.paymentType!.name,
+          isCash: payment.paymentType.value!.isCash == true || (payment.paymentType.value!.name.toLowerCase().startsWith('cash')),
+          paymentType: payment.paymentType.value!.name,
         );
         currentShift.shiftCurrencyAmounts!.add(paymentShiftAmount);
         newActivitiesToExport.add(paymentShiftAmount);
@@ -1349,61 +1348,37 @@ class POSScreenController extends ChangeNotifier {
         List<CustomerCurrencyAmount> updatedCurrencyBalance = [];
 
         CustomerCurrencyAmount? existingCca;
-        if (currentLocalCustomer.currencyBalance != null) {
-          existingCca = currentLocalCustomer.currencyBalance!.firstWhereOrNull(
-                (cca) => cca.currency?.id == selectedCurrency.id,
+        if (currentLocalCustomer.currencyBalance.isNotEmpty) {
+          existingCca = currentLocalCustomer.currencyBalance.firstWhereOrNull(
+                (cca) {
+                  cca.currency.loadSync();
+                  return cca.currency.value?.id == selectedCurrency.id;
+                },
           );
-          updatedCurrencyBalance.addAll(currentLocalCustomer.currencyBalance!.where(
-                (cca) => cca.currency?.id != selectedCurrency.id,
+          updatedCurrencyBalance.addAll(currentLocalCustomer.currencyBalance.where(
+                (cca) {
+                  cca.currency.loadSync();
+                  return cca.currency.value?.id != selectedCurrency.id;
+                },
           ));
         }
 
         CustomerCurrencyAmount newCca;
         if (existingCca != null) {
           newCca = CustomerCurrencyAmount(
-            id: existingCca.id,
-            balance: (existingCca.balance ?? 0.0) + amount,
-            currency: existingCca.currency,
-            lastTranxDate: DateTime.now(),
-            dateCreated: existingCca.dateCreated,
-            dateModified:null,
-            createdByName: existingCca.createdByName,
-            modifiedByName: existingCca.modifiedByName,
-            version: existingCca.version,
+            currency: existingCca.currency.value,
+            amount: (existingCca.amount) + amount,
           );
         } else {
           newCca = CustomerCurrencyAmount(
-            id: 'local_cca_${DateTime.now().millisecondsSinceEpoch}',
-            balance: amount,
             currency: selectedCurrency,
-            lastTranxDate: DateTime.now(),
-            dateCreated: null,
-            dateModified: null,
-            createdByName: 'Mobile App',
-            modifiedByName: 'Mobile App',
-            version: 1,
+            amount: amount,
           );
         }
         updatedCurrencyBalance.add(newCca);
 
-        Customer updatedCustomer = Customer(
-          id: currentLocalCustomer.id,
-          dateCreated: currentLocalCustomer.dateCreated,
-          dateModified: currentLocalCustomer.dateModified,
-          createdByName: currentLocalCustomer.createdByName,
-          modifiedByName: currentLocalCustomer.modifiedByName,
-          version: currentLocalCustomer.version,
-          name: currentLocalCustomer.name,
-          email: currentLocalCustomer.email,
-          mobilePhone: currentLocalCustomer.mobilePhone,
-          address: currentLocalCustomer.address,
-          accountNumber: currentLocalCustomer.accountNumber,
-          taxNumber: currentLocalCustomer.taxNumber,
-          tinNumber: currentLocalCustomer.tinNumber,
+        Customer updatedCustomer = currentLocalCustomer.copyWith(
           currencyBalance: updatedCurrencyBalance,
-          company: currentLocalCustomer.company,
-          branch: currentLocalCustomer.branch,
-          // isSynced: false, // Important to mark as unsynced
         );
 
         _customers[customerIndex] = updatedCustomer;
@@ -1543,19 +1518,19 @@ class POSScreenController extends ChangeNotifier {
       id: 'held_${DateTime.now().millisecondsSinceEpoch}',
       createdByName: currentShift?.createdByName,
       cashierFullName: currentShift?.userFullName,
-      customer: _selectedCustomer,
-      branch: _selectedBranch,
-      items: List.from(_cart),
-      paymentTypes: List.from(_payments),
       timeIniated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
       saleStatus: SaleStatus.ON_HOLD,
-      currency: _selectedCurrency,
       shiftReference: currentShift?.shiftReference,
       totalTaxAmount: taxTotalBase * exchangeRate,
       amountAfterDiscount: grandTotalConverted,
       ticketName: ticketName, // Assign the entered ticket name
       amountTendered: _amountTendered,
     );
+    heldSale.customer.value = _selectedCustomer;
+    heldSale.branch.value = _selectedBranch;
+    heldSale.items.addAll(_cart);
+    heldSale.paymentTypes.addAll(_payments);
+    heldSale.currency.value = _selectedCurrency;
 
     heldSales.add(heldSale); // Add the new held sale to the list
     await prefs.setStringList(AppConstants.keyHeldSales, heldSales.map((s) => jsonEncode(s.toJson())).toList());
@@ -1579,17 +1554,17 @@ class POSScreenController extends ChangeNotifier {
   void loadHeldSale(Sale heldSale) {
     clearPOSScreen();
     _cart.addAll(heldSale.items);
-    _payments.addAll(heldSale.paymentTypes ?? []);
-    _selectedCustomer = heldSale.customer;
-    _selectedCurrency = heldSale.currency;
+    _payments.addAll(heldSale.paymentTypes);
+    _selectedCustomer = heldSale.customer.value;
+    _selectedCurrency = heldSale.currency.value;
     _ticketName = heldSale.ticketName;
     _heldSaleId = heldSale.id;
     _amountTendered = heldSale.amountTendered ?? 0.0;
     _amountTenderedController.text = _amountTendered.toStringAsFixed(2);
 
     for (var item in _cart) {
-      if (item.inventoryItem?.id != null) {
-        _quantityControllers[item.inventoryItem!.id!] = TextEditingController(text: item.quantity.toStringAsFixed(2));
+      if (item.inventoryItem.value?.id != null) {
+        _quantityControllers[item.inventoryItem.value!.id!] = TextEditingController(text: item.quantity.toStringAsFixed(2));
       }
     }
     if (!context.mounted) return;
@@ -1631,7 +1606,7 @@ class POSScreenController extends ChangeNotifier {
       _amountTenderedController.text = _amountTendered.toStringAsFixed(2);
 
       final cashPaymentType = _paymentTypes.firstWhere(
-        (pt) => (pt.isCash == true || pt.name.toLowerCase().startsWith('cash')) && (pt.currency == null || pt.currency?.id == _selectedCurrency?.id),
+        (pt) => (pt.isCash == true || pt.name.toLowerCase().startsWith('cash')) && (pt.currency.value == null || pt.currency.value?.id == _selectedCurrency?.id),
         orElse: () => PaymentType(id: 'cash_default', name: 'Cash', isCash: true),
       );
 

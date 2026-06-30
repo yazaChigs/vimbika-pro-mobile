@@ -23,10 +23,8 @@ import 'package:uuid/uuid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart'; // Import for DateFormat
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 
-import 'package:vimbika_pro/services/customer_service.dart';
 import '../../../model/company.dart';
 import '../../../model/customer.dart';
 import '../../../model/currency.dart';
@@ -129,38 +127,44 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     });
     try {
       final subscriptions = await _subscriptionService.getAvailableSubscriptions('OFFLINE');
-      setState(() {
-        _availableSubscriptions = subscriptions.map((item) {
-          return {
-            'name': item.name,
-            'price': item.sellingPrice,
-            'displayPrice': '\$${item.sellingPrice} / month',
-            'features': item.description?.split(',') ?? ['Basic POS'],
-            'item': item,
-          };
-        }).toList();
+      if (mounted) {
+        setState(() {
+          _availableSubscriptions = subscriptions.map((item) {
+            return {
+              'name': item.name,
+              'price': item.sellingPrice,
+              'displayPrice': '\$${item.sellingPrice} / month',
+              'features': item.description?.split(',') ?? ['Basic POS'],
+              'item': item,
+            };
+          }).toList();
 
-        // If currently empty, you might want to add a default Free Tier if not returned by API
-        if (_availableSubscriptions.isEmpty) {
-           _availableSubscriptions = [
-            {
-              'name': 'Free Tier',
-              'price': 0.0,
-              'displayPrice': '\$0 / month',
-              'features': ['Basic POS', '1 User', 'Limited Reporting', 'Offline Mode'],
-            }
-          ];
-        }
-      });
+          // If currently empty, you might want to add a default Free Tier if not returned by API
+          if (_availableSubscriptions.isEmpty) {
+            _availableSubscriptions = [
+              {
+                'name': 'Free Tier',
+                'price': 0.0,
+                'displayPrice': '\$0 / month',
+                'features': ['Basic POS', '1 User', 'Limited Reporting', 'Offline Mode'],
+              }
+            ];
+          }
+        });
+      }
     } catch (e) {
       debugPrint('Error fetching subscriptions: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load subscriptions: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load subscriptions: $e')),
+        );
+      }
     } finally {
-      setState(() {
-        _isFetchingSubscriptions = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isFetchingSubscriptions = false;
+        });
+      }
     }
   }
 
@@ -455,17 +459,20 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       final response = await _ecocashService.initiatePayment(requestDto);
 
       if (response['transactionOperationStatus'] == 'PENDING SUBSCRIBER VALIDATION') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please approve the transaction on your phone.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please approve the transaction on your phone.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
         await _saveUserAndCompanyAfterPayment(selectedPlan);
 
-        final statusResponse = await _ecocashService.checkStatus(clientCorrelator);
+        final statusResponseMap = await _ecocashService.checkStatus(clientCorrelator);
+        final statusResponse = statusResponseMap['status'];
 
-        if (statusResponse['status'] == 'COMPLETED') {
+        if (statusResponse == 'COMPLETED') {
           // PAYMENT SUCCESSFUL - NOW SAVE USER AND COMPANY
           await _saveUserAndCompanyAfterPayment(selectedPlan);
         } else {
@@ -479,24 +486,30 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           }
         }
       } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Payment failed: $response'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Payment failed: ${response}'),
+            content: Text('An error occurred during upgrade: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('An error occurred during upgrade: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -540,9 +553,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           final returnedUser = await _subscriptionService.saveVimbikaUser(_loggedInUser!);
           if (returnedUser != null) {
             savedUser = returnedUser;
-            setState(() {
-              _loggedInUser = returnedUser;
-            });
+            if (mounted) {
+              setState(() {
+                _loggedInUser = returnedUser;
+              });
+            }
             final SharedPreferences prefs = await SharedPreferences.getInstance();
             await prefs.setString(AppConstants.keyOfflineUserData, jsonEncode(returnedUser.toJson()));
           }
@@ -702,7 +717,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 .map((s) => s.item!.copyWith(
                     quantity: s.stock,
                     company: company,
-                    currency: s.item!.currency ?? baseCurrency,
+                    currency: s.item!.currency.value ?? baseCurrency,
                 ))
                 .toList();
 
@@ -741,7 +756,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
 
             for (var bank in banks) {
-              print('bank currency: ${bank.currency?.toJson()}');
+              print('bank currency: ${bank.currency.value?.toJson()}');
               if (bank.isSystemCreated != true) {
                 // Ensure bank has a currency
                 final bankWithCurrency = Bank(
@@ -750,7 +765,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   accountNumber: bank.accountNumber,
                   branch: bank.branch,
                   description: bank.description,
-                  currency: baseCurrency ?? bank.currency,
+                  currency: baseCurrency ?? bank.currency.value,
                   isSystemCreated: bank.isSystemCreated,
                   bankName: bank.bankName,
                   dateCreated: bank.dateCreated,
@@ -801,7 +816,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               if (pt.isSystemCreated != true) {
                 // Ensure payment type has a currency
                 final ptWithCurrency = pt.copyWith(
-                  currency:  baseCurrency ?? pt.currency ,
+                  currency:  baseCurrency ?? pt.currency.value ,
                 );
 
                 final savedPt = await _paymentTypeService.savePaymentTypeWithCompany(ptWithCurrency, company.id!);
@@ -924,9 +939,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         // _ecocashService.charge(request);
 
         // Await the final status from the backend
-        final statusResponse = await _ecocashService.checkStatus(clientCorrelator);
+        final statusResponseMap = await _ecocashService.checkStatus(clientCorrelator);
+        final statusResponse = statusResponseMap['status'];
 
-        if (statusResponse['status'] == 'COMPLETED') {
+        if (statusResponse == 'COMPLETED') {
           if (mounted) {
             setState(() {
               _currentSubscription = _selectedSubscription!;
@@ -972,17 +988,19 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             await prefs.setInt(AppConstants.keySubscriptionDaysRemaining, daysRemaining);
             await prefs.setString(AppConstants.keySubscriptions, jsonEncode(currentSubscription.toJson()));
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Successfully subscribed to $_currentSubscription'),
-                backgroundColor: Colors.green,
-              ),
-            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Successfully subscribed to $_currentSubscription'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
           }
-        } else if (statusResponse == 'FAILED' ||
+        } else if (statusResponse is String && (statusResponse == 'FAILED' ||
             statusResponse == 'CANCELLED' ||
             statusResponse == 'TIMEOUT' ||
-            statusResponse == 'UNKNOWN_TRANSACTION') {
+            statusResponse == 'UNKNOWN_TRANSACTION')) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -1003,24 +1021,30 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           }
         }
       } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Payment failed: $response'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Payment failed: ${response}'),
+            content: Text('An error occurred: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('An error occurred: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     } finally {
-      setState(() {
-        _isLoading = false; // Set loading to false
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false; // Set loading to false
+        });
+      }
     }
   }
 
@@ -1045,7 +1069,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.red),
                 ),

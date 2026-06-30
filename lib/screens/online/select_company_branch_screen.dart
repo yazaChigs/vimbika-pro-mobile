@@ -37,7 +37,7 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedCompany = widget.user.branch?.company;
+    _selectedCompany = widget.user.branch?.company.value;
     _selectedBranch = widget.user.branch;
     
     // If both are already present, we can just skip to create shift directly
@@ -111,7 +111,7 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
                   itemBuilder: (BuildContext context, int index) {
                     final company = _companies[index];
                     return ListTile(
-                      title: Text(company.name),
+                      title: Text(company.name!),
                       leading: const Icon(Icons.business),
                       trailing: _selectedCompany?.id == company.id
                           ? const Icon(Icons.check, color: AppTheme.vimbikaBlue)
@@ -168,7 +168,7 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
                   itemBuilder: (BuildContext context, int index) {
                     final branch = _branches[index];
                     return ListTile(
-                      title: Text(branch.name),
+                      title: Text(branch.name!),
                       leading: const Icon(Icons.store),
                       trailing: _selectedBranch?.id == branch.id
                           ? const Icon(Icons.check, color: AppTheme.vimbikaBlue)

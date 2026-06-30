@@ -3,13 +3,12 @@ import 'package:vimbika_pro/model/mobile_pos_shift.dart';
 import '../app_constants/app_theme.dart';
 import '../model/mobile_shift_currency_amount.dart';
 import '../model/currency.dart';
-import '../app_constants/app_constants.dart'; // Needed for DateFormat
 
 class ShiftDataScreen extends StatelessWidget {
   final MobilePosShift shift;
   final List<Currency> availableCurrencies;
 
-  const ShiftDataScreen({Key? key, required this.shift, required this.availableCurrencies}) : super(key: key);
+  const ShiftDataScreen({super.key, required this.shift, required this.availableCurrencies});
 
   @override
   Widget build(BuildContext context) {

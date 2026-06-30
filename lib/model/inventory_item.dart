@@ -1,16 +1,21 @@
-import 'base_name_entity.dart';
-import 'category.dart';
-import 'unit.dart';
-import 'tax.dart';
-import 'currency.dart'; // Import Currency
-import 'company.dart'; // Import Company
+import 'package:isar/isar.dart';
+import 'package:vimbika_pro/model/base_name_entity.dart';
+import 'package:vimbika_pro/model/category.dart';
+import 'package:vimbika_pro/model/unit.dart';
+import 'package:vimbika_pro/model/tax.dart';
+import 'package:vimbika_pro/model/currency.dart'; // Import Currency
+import 'package:vimbika_pro/model/company.dart'; // Import Company
 
+part 'inventory_item.g.dart';
+
+@collection
 class InventoryItem extends BaseNameEntity {
+  Id isarId = Isar.autoIncrement;
   final String? itemCode;
-  final Category? category;
-  final Unit? unit;
-  final Tax? tax;
-  final Currency? currency; // Added currency field
+  final category = IsarLink<Category>();
+  final unit = IsarLink<Unit>();
+  final tax = IsarLink<Tax>();
+  final currency = IsarLink<Currency>(); // Added currency field
   final double purchasePrice;
   final double sellingPrice;
   final double quantity;
@@ -19,7 +24,7 @@ class InventoryItem extends BaseNameEntity {
   final String? imageUrl;
   final String? itemType;
   final String? renewalInterval;
-  final Company? company; // Added company field
+  final company = IsarLink<Company>(); // Added company field
   final bool isSynced; // Added isSynced field
 
   InventoryItem({
@@ -32,10 +37,6 @@ class InventoryItem extends BaseNameEntity {
     required super.name,
     super.description,
     this.itemCode,
-    this.category,
-    this.unit,
-    this.tax,
-    this.currency,
     this.purchasePrice = 0.0,
     this.sellingPrice = 0.0,
     this.quantity = 0.0,
@@ -43,13 +44,25 @@ class InventoryItem extends BaseNameEntity {
     this.isService = false,
     this.imageUrl,
     this.itemType,
-    this.company,
     this.isSynced = false, // Default to false
     this.renewalInterval,
-  });
+    Category? category,
+    Unit? unit,
+    Tax? tax,
+  }) {
+    if (category != null) {
+      this.category.value = category;
+    }
+    if (unit != null) {
+      this.unit.value = unit;
+    }
+    if (tax != null) {
+      this.tax.value = tax;
+    }
+  }
 
   factory InventoryItem.fromJson(Map<String, dynamic> json) {
-    return InventoryItem(
+    final inventoryItem = InventoryItem(
       id: json['id']?.toString(),
       dateCreated: json['dateCreated'] ,
       dateModified: json['dateModified'] ,
@@ -59,10 +72,6 @@ class InventoryItem extends BaseNameEntity {
       name: json['name']?.toString() ?? 'Unknown Item',
       description: json['description']?.toString(),
       itemCode: json['itemCode']?.toString(),
-      category: json['category'] != null ? Category.fromJson(json['category']) : null,
-      unit: json['unit'] != null ? Unit.fromJson(json['unit']) : null,
-      tax: json['tax'] != null ? Tax.fromJson(json['tax']) : null,
-      currency: json['currency'] != null ? Currency.fromJson(json['currency']) : null,
       purchasePrice: (json['purchasePrice'] as num?)?.toDouble() ?? 0.0,
       sellingPrice: (json['sellingPrice'] as num?)?.toDouble() ?? 0.0,
       quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
@@ -70,10 +79,27 @@ class InventoryItem extends BaseNameEntity {
       isService: json['isService'] as bool? ?? false,
       imageUrl: json['imageUrl'],
       itemType: json['itemType'],
-      company: json['company'] != null ? Company.fromJson(json['company']) : null,
       isSynced: json['isSynced'] as bool? ?? false, // Parse isSynced
       renewalInterval: json['renewalInterval'],
     );
+
+    if (json['category'] != null) {
+      inventoryItem.category.value = Category.fromJson(json['category']);
+    }
+    if (json['unit'] != null) {
+      inventoryItem.unit.value = Unit.fromJson(json['unit']);
+    }
+    if (json['tax'] != null) {
+      inventoryItem.tax.value = Tax.fromJson(json['tax']);
+    }
+    if (json['currency'] != null) {
+      inventoryItem.currency.value = Currency.fromJson(json['currency']);
+    }
+    if (json['company'] != null) {
+      inventoryItem.company.value = Company.fromJson(json['company']);
+    }
+
+    return inventoryItem;
   }
 
   Map<String, dynamic> toJson() {
@@ -87,10 +113,10 @@ class InventoryItem extends BaseNameEntity {
       'name': name,
       'description': description,
       'itemCode': itemCode,
-      'category': category?.toJson(),
-      'unit': unit?.toJson(),
-      'tax': tax?.toJson(),
-      'currency': currency?.toJson(),
+      'category': category.value?.toJson(),
+      'unit': unit.value?.toJson(),
+      'tax': tax.value?.toJson(),
+      'currency': currency.value?.toJson(),
       'purchasePrice': purchasePrice,
       'sellingPrice': sellingPrice,
       'quantity': quantity,
@@ -98,13 +124,12 @@ class InventoryItem extends BaseNameEntity {
       'isService': isService,
       'imageUrl': imageUrl,
       'itemType': itemType,
-      'company': company?.toJson(),
+      'company': company.value?.toJson(),
       'isSynced': isSynced, // Include isSynced in toJson
       'renewalInterval': renewalInterval,
     };
   }
 
-  // Add copyWith method
   InventoryItem copyWith({
     String? id,
     String? dateCreated,
@@ -115,22 +140,22 @@ class InventoryItem extends BaseNameEntity {
     String? name,
     String? description,
     String? itemCode,
-    Category? category,
-    Unit? unit,
-    Tax? tax,
-    Currency? currency,
+    double? purchasePrice,
     double? sellingPrice,
     double? quantity,
-    double? purchasePrice,
     double? reorderLevel,
     bool? isService,
     String? imageUrl,
     String? itemType,
-    Company? company,
     bool? isSynced,
     String? renewalInterval,
+    Category? category,
+    Unit? unit,
+    Tax? tax,
+    Currency? currency,
+    Company? company,
   }) {
-    return InventoryItem(
+    final newItem = InventoryItem(
       id: id ?? this.id,
       dateCreated: dateCreated ?? this.dateCreated,
       dateModified: dateModified ?? this.dateModified,
@@ -140,10 +165,6 @@ class InventoryItem extends BaseNameEntity {
       name: name ?? this.name,
       description: description ?? this.description,
       itemCode: itemCode ?? this.itemCode,
-      category: category ?? this.category,
-      unit: unit ?? this.unit,
-      tax: tax ?? this.tax,
-      currency: currency ?? this.currency,
       purchasePrice: purchasePrice ?? this.purchasePrice,
       sellingPrice: sellingPrice ?? this.sellingPrice,
       quantity: quantity ?? this.quantity,
@@ -151,9 +172,16 @@ class InventoryItem extends BaseNameEntity {
       isService: isService ?? this.isService,
       imageUrl: imageUrl ?? this.imageUrl,
       itemType: itemType ?? this.itemType,
-      company: company ?? this.company,
       isSynced: isSynced ?? this.isSynced,
       renewalInterval: renewalInterval ?? this.renewalInterval,
     );
+
+    newItem.category.value = category ?? this.category.value;
+    newItem.unit.value = unit ?? this.unit.value;
+    newItem.tax.value = tax ?? this.tax.value;
+    newItem.currency.value = currency ?? this.currency.value;
+    newItem.company.value = company ?? this.company.value;
+
+    return newItem;
   }
 }

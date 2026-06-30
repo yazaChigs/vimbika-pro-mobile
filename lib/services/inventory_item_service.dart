@@ -17,7 +17,7 @@ class InventoryItemService {
     }
 
     final User currentUser = User.fromJson(jsonDecode(userData));
-    final String? companyId = currentUser.branch?.company?.id;
+    final String? companyId = currentUser.companyId;
 
     if (companyId == null) {
       throw Exception('Company ID not found for the current user.');
@@ -45,7 +45,7 @@ class InventoryItemService {
     }
 
     final User currentUser = User.fromJson(jsonDecode(userData));
-    final String? companyId = currentUser.branch?.company?.id;
+    final String? companyId = currentUser.companyId;
 
     if (companyId == null) {
       throw Exception('Company ID not found for the current user.');

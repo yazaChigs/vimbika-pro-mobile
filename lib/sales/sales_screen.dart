@@ -56,8 +56,8 @@ class _SalesScreenState extends State<SalesScreen> {
   Map<String, double> get _totalRevenueByCurrency {
     final Map<String, double> revenueByCurrency = {};
     for (var sale in _filteredSales) {
-      if ((sale.saleStatus != SaleStatus.REVERSED.toString() && sale.saleStatus != SaleStatus.CREDIT_NOTE.toString()) && sale.currency != null) {
-        final currencySymbol = sale.currency!.symbol ?? 'N/A';
+      if ((sale.saleStatus != SaleStatus.REVERSED.toString() && sale.saleStatus != SaleStatus.CREDIT_NOTE.toString()) && sale.currency.value != null) {
+        final currencySymbol = sale.currency.value!.symbol ?? 'N/A';
         revenueByCurrency[currencySymbol] = (revenueByCurrency[currencySymbol] ?? 0) + sale.grandTotal;
       }
     }
@@ -289,15 +289,15 @@ class _SalesScreenState extends State<SalesScreen> {
       setState(() {
         _filteredSales = _allSales.where((sale) {
           // 1. Search Filter (Customer Name or Sale ID)
-          final matchesSearch = (sale.customer?.name.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) || 
+          final matchesSearch = (sale.customer.value?.name.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) || 
                                (sale.id?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
                                (_searchQuery.isEmpty);
 
           // 2. Branch Filter
-          final matchesBranch = _selectedBranch == null || sale.branch?.id == _selectedBranch!.id;
+          final matchesBranch = _selectedBranch == null || sale.branch.value?.id == _selectedBranch!.id;
 
           // 3. Customer Filter
-          final matchesCustomer = _selectedCustomer == null || sale.customer?.id == _selectedCustomer!.id;
+          final matchesCustomer = _selectedCustomer == null || sale.customer.value?.id == _selectedCustomer!.id;
 
           // 4. Status Filter
           final matchesStatus = _selectedStatus == 'All' || sale.saleStatus == _selectedStatus;
@@ -702,7 +702,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                  sale.customer?.name ?? 'Walk-in Customer',
+                                                  sale.customer.value?.name ?? 'Walk-in Customer',
                                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                                                   overflow: TextOverflow.ellipsis,
                                                 ),
@@ -719,7 +719,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                             crossAxisAlignment: CrossAxisAlignment.end,
                                             children: [
                                               Text(
-                                                '${sale.currency?.symbol ?? ''}${sale.grandTotal.toStringAsFixed(2)}',
+                                                '${sale.currency.value?.symbol ?? ''}${sale.grandTotal.toStringAsFixed(2)}',
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 16,
@@ -780,7 +780,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                                 const SizedBox(width: 8),
                                                 Expanded(
                                                   child: Text(
-                                                    'Branch: ${sale.branch?.name ?? 'Main'}',
+                                                    'Branch: ${sale.branch.value?.name ?? 'Main'}',
                                                     style: const TextStyle(fontSize: 11, color: AppTheme.grey),
                                                     overflow: TextOverflow.ellipsis,
                                                   ),
@@ -929,12 +929,12 @@ class _SalesScreenState extends State<SalesScreen> {
                 _buildCompactDropdown<Branch>('Branch', _branches, _selectedBranch, (val) {
                   if (mounted) setState(() => _selectedBranch = val);
                   _applyFilters();
-                }, (b) => b.name),
+                }, (b) => b.name ?? ''),
                 const SizedBox(width: 8),
                 _buildCompactDropdown<Customer>('Customer', _customers, _selectedCustomer, (val) {
                   if (mounted) setState(() => _selectedCustomer = val);
                   _applyFilters();
-                }, (c) => c.name),
+                }, (c) => c.name ?? ''),
                 if (_currentShift != null) ...[
                   const SizedBox(width: 8),
                   FilterChip(

@@ -42,7 +42,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     }
 
     Currency? selectedCurrency = controller.currencies.first;
-    List<PaymentType> validPaymentTypes = controller.paymentTypes.where((pt) => !pt.isCredit && (pt.currency == null || pt.currency?.id == selectedCurrency?.id)).toList();
+    List<PaymentType> validPaymentTypes = controller.paymentTypes.where((pt) => !pt.isCredit && (pt.currency.value == null || pt.currency.value?.id == selectedCurrency?.id)).toList();
     
     if (validPaymentTypes.isEmpty) {
       if (mounted) { // Add mounted check here as well
@@ -54,7 +54,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     }
 
     PaymentType? selectedPaymentType = validPaymentTypes.first;
-    Bank? selectedBank = selectedPaymentType?.banks?.isNotEmpty == true ? selectedPaymentType!.banks!.first : null; // Initialize selectedBank as Bank?
+    Bank? selectedBank = selectedPaymentType?.banks?.isNotEmpty == true ? selectedPaymentType!.banks!.first : null;
     final TextEditingController amountController = TextEditingController();
     bool isSavingBalance = false;
 
@@ -73,7 +73,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                 onChanged: (val) {
                   setDialogState(() {
                     selectedCurrency = val;
-                    validPaymentTypes = controller.paymentTypes.where((pt) => !pt.isCredit && (pt.currency == null || pt.currency?.id == selectedCurrency?.id)).toList();
+                    validPaymentTypes = controller.paymentTypes.where((pt) => !pt.isCredit && (pt.currency.value == null || pt.currency.value?.id == selectedCurrency?.id)).toList();
                     selectedPaymentType = validPaymentTypes.isNotEmpty ? validPaymentTypes.first : null;
                     selectedBank = selectedPaymentType?.banks?.isNotEmpty == true ? selectedPaymentType!.banks!.first : null; // Reset selectedBank
                   });
@@ -94,8 +94,8 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
               if (selectedPaymentType?.banks?.isNotEmpty == true) // Conditionally display bank selection
                 Padding(
                   padding: const EdgeInsets.only(top: 16.0),
-                  child: DropdownButtonFormField<Bank>( // Change type to Bank
-                    value: selectedBank,
+                  child: DropdownButtonFormField<Bank>(
+                    initialValue: selectedBank,
                     decoration: const InputDecoration(labelText: 'Bank'),
                     items: selectedPaymentType!.banks!.map((bank) => DropdownMenuItem(value: bank, child: Text(bank.name))).toList(), // Use bank.name for display
                     onChanged: (val) {
@@ -209,14 +209,14 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
             if (customer.mobilePhone != null && customer.mobilePhone!.isNotEmpty)
               Text(customer.mobilePhone!),
             // Display currency balances
-            if (customer.currencyBalance != null && customer.currencyBalance!.isNotEmpty)
+            if (customer.currencyBalance.isNotEmpty)
               Wrap(
                 spacing: 8.0, // gap between adjacent chips
                 runSpacing: 4.0, // gap between lines
-                children: customer.currencyBalance!.map((cca) {
+                children: customer.currencyBalance.map((cca) {
                   return Chip(
                     label: Text(
-                      '${cca.currency?.symbol ?? ''} ${cca.balance?.toStringAsFixed(2) ?? '0.00'}',
+                      '${cca.currency.value?.symbol ?? ''} ${cca.amount.toStringAsFixed(2)}',
                       style: const TextStyle(fontSize: 10),
                     ),
                     backgroundColor: AppTheme.lightText.withAlpha(26),
@@ -238,7 +238,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                   style: TextStyle(fontSize: 12, color: Colors.orange, fontStyle: FontStyle.italic),
                 ),
               ),
-            if ((customer.currencyBalance == null || customer.currencyBalance!.isEmpty) && customer.isSynced)
+            if (customer.currencyBalance.isEmpty && customer.isSynced)
               const Padding(
                 padding: EdgeInsets.only(top: 4.0),
                 child: Text(

@@ -1,69 +1,46 @@
-import 'currency.dart';
-import 'base_entity.dart';
+import 'package:isar/isar.dart';
+import 'package:json_annotation/json_annotation.dart';
+import 'package:vimbika_pro/model/currency.dart';
 
-class CustomerCurrencyAmount implements BaseEntity {
-  @override
-  final String? id;
-  final double? balance;
-  final Currency? currency;
-  final DateTime? lastTranxDate;
+part 'customer_currency_amount.g.dart';
 
-  // BaseEntity fields
-  final String? dateCreated;
-  final String? dateModified;
-  final String? createdByName;
-  final String? modifiedByName;
-  final int? version;
+@collection
+class CustomerCurrencyAmount {
+  Id isarId = Isar.autoIncrement;
+  final currency = IsarLink<Currency>();
+  double amount;
 
   CustomerCurrencyAmount({
-    this.id,
-    this.balance = 0.0,
-    this.currency,
-    this.lastTranxDate,
-    // BaseEntity fields
-    this.dateCreated,
-    this.dateModified,
-    this.createdByName,
-    this.modifiedByName,
-    this.version,
-  });
-
-  factory CustomerCurrencyAmount.fromJson(Map<String, dynamic> json) {
-    return CustomerCurrencyAmount(
-      id: json['id']?.toString(),
-      balance: (json['balance'] as num?)?.toDouble() ?? 0.0,
-      currency: json['currency'] != null ? Currency.fromJson(json['currency']) : null,
-      lastTranxDate: json['lastTranxDate'] != null ? _parseDateTime(json['lastTranxDate']) : null,
-      // BaseEntity fields
-      dateCreated: json['dateCreated'] ,
-      dateModified: json['dateModified'] ,
-      createdByName: json['createdByName']?.toString(),
-      modifiedByName: json['modifiedByName']?.toString(),
-      version: (json['version'] as num?)?.toInt(),
-    );
+    Currency? currency,
+    this.amount = 0.0,
+  }) {
+    if (currency != null) {
+      this.currency.value = currency;
+    }
   }
 
-  static DateTime? _parseDateTime(dynamic value) {
-    if (value == null) return null;
-    try {
-      return DateTime.parse(value.toString().replaceAll(' ', 'T'));
-    } catch (e) {
-      return DateTime.tryParse(value.toString());
+  factory CustomerCurrencyAmount.fromJson(Map<String, dynamic> json) {
+    final item = CustomerCurrencyAmount(
+      amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+    );
+    if (json['currency'] != null) {
+      item.currency.value = Currency.fromJson(json['currency']);
     }
+    return item;
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'balance': balance,
-      'currency': currency?.toJson(),
-      'lastTranxDate': lastTranxDate?.toIso8601String(),
-      // BaseEntity fields
-      'dateCreated': dateCreated,
-      'dateModified': dateModified,
-      'createdByName': createdByName,
-      'modifiedByName': modifiedByName,
-      'version': version,
+      'amount': amount,
+      'currency': currency.value?.toJson(),
     };
+  }
+
+  CustomerCurrencyAmount copyWith({
+    double? amount,
+  }) {
+    return CustomerCurrencyAmount(
+      amount: amount ?? this.amount,
+    )..currency.value = currency.value;
   }
 }

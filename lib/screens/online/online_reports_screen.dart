@@ -269,7 +269,7 @@ class _OnlineReportsScreenState extends State<OnlineReportsScreen> {
                                           final branchTransactions = branchSpecificSales.length;
 
                                           return BranchCard(
-                                            name: branch.name,
+                                            name: branch.name!,
                                             sales: branchSalesSum,
                                             transactions: branchTransactions,
                                             avgSale: branchTransactions > 0 ? branchSalesSum / branchTransactions : 0.0,
@@ -371,7 +371,7 @@ class _OnlineReportsScreenState extends State<OnlineReportsScreen> {
                               onReceivablesTap: () {
                                 final filteredPayments = _controller.paymentsReceived.where((p) {
                                   final matchesCurrency = _controller.selectedCurrency == null ||
-                                      p.currency?.id == _controller.selectedCurrency!.id;
+                                      p.currency.value?.id == _controller.selectedCurrency!.id;
                                   // PaymentReceived model doesn't seem to have a branch field directly, 
                                   // but if it's related to a sale, we might filter it.
                                   // For now, filtering only by currency as that's what's available in the model.
@@ -469,7 +469,7 @@ class _OnlineReportsScreenState extends State<OnlineReportsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(item.name, style: const TextStyle(fontWeight: FontWeight.w500)),
-                            Text(item.category?.name ?? 'No Category',
+                            Text(item.category.value?.name ?? 'No Category',
                                 style: const TextStyle(fontSize: 12, color: Colors.grey)),
                           ],
                         ),

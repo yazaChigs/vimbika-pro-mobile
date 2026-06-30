@@ -496,7 +496,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
     final TextEditingController notesController = TextEditingController();
     
     final filteredPaymentTypes = _paymentTypes.where((pt) => 
-      pt.currency == null || pt.currency?.id == purchase.currency?.id
+      pt.currency.value == null || pt.currency.value?.id == purchase.currency?.id
     ).toList();
 
     PaymentType? selectedPaymentType; // Initialize to null

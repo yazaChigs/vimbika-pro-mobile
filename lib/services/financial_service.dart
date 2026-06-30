@@ -10,7 +10,7 @@ class FinancialService {
     double openingBalance = 0.0,
   }) {
     final totalCashReceived = paymentsReceived
-        .where((p) => _isCash(p.paymentType?.isCash, p.paymentType?.name))
+        .where((p) => _isCash(p.paymentType.value?.isCash, p.paymentType.value?.name))
         .fold(0.0, (sum, p) => sum + p.amount);
 
     final totalCashPaid = paymentsPaid

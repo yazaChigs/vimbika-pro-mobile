@@ -122,7 +122,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
   void _addItemToCart(InventoryItem item) {
     setState(() {
       final existingIndex = _cartItems.indexWhere((i) => i.inventoryItem?.id == item.id);
-      final taxPercent = item.tax?.taxPercentage ?? 0.0;
+      final taxPercent = item.tax.value?.taxPercentage ?? 0.0;
       if (existingIndex != -1) {
         final existingItem = _cartItems[existingIndex];
         final newQuantity = existingItem.quantity + 1;
@@ -200,16 +200,16 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
                     purchasePrice: pPriceBase,
                     sellingPrice: sPriceBase,
                     quantity: item.inventoryItem?.quantity ?? 0.0,
-                    category: item.inventoryItem?.category,
-                    unit: item.inventoryItem?.unit,
-                    tax: item.inventoryItem?.tax,
+                    category: item.inventoryItem!.category.value,
+                    unit: item.inventoryItem!.unit.value,
+                    tax: item.inventoryItem!.tax.value,
                     itemCode: item.inventoryItem?.itemCode,
                     reorderLevel: item.inventoryItem?.reorderLevel ?? 0.0,
                     description: item.inventoryItem?.description,
                     isService: item.inventoryItem?.isService ?? false,
                   );
 
-                  final taxPercent = updatedInventoryItem.tax?.taxPercentage ?? 0.0;
+                  final taxPercent = updatedInventoryItem.tax.value?.taxPercentage ?? 0.0;
                   final taxAmount = (pPriceBase * qty) * (taxPercent / 100);
 
                   _cartItems[index] = PurchaseItem(
@@ -237,7 +237,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
     }
 
     final List<PaymentType> availablePaymentTypes = _paymentTypes.where((pt) => 
-      (pt.currency == null || pt.currency?.id == _selectedCurrency?.id) &&
+      (pt.currency.value == null || pt.currency.value?.id == _selectedCurrency?.id) &&
       !(pt.name ?? '').startsWith('ACC-') &&
       !_payments.any((p) => p.paymentType?.id == pt.id) // Filter out already selected payment types
     ).toList();
@@ -393,9 +393,9 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
             purchasePrice: cartItem.price,
             sellingPrice: cartItem.inventoryItem?.sellingPrice ?? item.sellingPrice,
             quantity: item.quantity + cartItem.quantity,
-            category: item.category,
-            unit: item.unit,
-            tax: item.tax,
+            category: item.category.value,
+            unit: item.unit.value,
+            tax: item.tax.value,
             itemCode: item.itemCode,
             reorderLevel: item.reorderLevel,
             description: item.description,
@@ -648,7 +648,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
               children: [
                 Text('Qty: ${item.quantity.toStringAsFixed(0)} | Cost: ${_selectedCurrency?.symbol ?? ""}${priceConverted.toStringAsFixed(2)}'),
                 if (item.taxAmount > 0)
-                  Text('Tax: ${_selectedCurrency?.symbol ?? ""}${taxAmountConverted.toStringAsFixed(2)} (${item.inventoryItem?.tax?.taxPercentage ?? 0}%)', style: const TextStyle(fontSize: 12, color: AppTheme.grey)),
+                  Text('Tax: ${_selectedCurrency?.symbol ?? ""}${taxAmountConverted.toStringAsFixed(2)} (${item.inventoryItem?.tax.value!.taxPercentage ?? 0}%)', style: const TextStyle(fontSize: 12, color: AppTheme.grey)),
                 Text('Sell Price: ${_selectedCurrency?.symbol ?? ""}${sellingPriceConverted.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: AppTheme.grey)),
               ],
             ),

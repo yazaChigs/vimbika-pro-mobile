@@ -107,14 +107,14 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       }
 
       // Get the company from logged in user if possible
-      Company? currentCompany = widget.customer?.company;
-      Branch? currentBranch = widget.customer?.branch;
+      Company? currentCompany = widget.customer?.company.value;
+      Branch? currentBranch = widget.customer?.branch.value;
 
       if (currentCompany == null || currentBranch == null) {
         final String? userData = prefs.getString(isOfflineMode ? AppConstants.keyOfflineUserData : AppConstants.keyOnlineUserData);
         if (userData != null) {
             final user = User.fromJson(jsonDecode(userData));
-            currentCompany ??= user.branch?.company;
+            currentCompany ??= user.branch?.company.value;
             currentBranch ??= user.branch;
         }
       }
@@ -135,9 +135,6 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         accountNumber: _accountNumberController.text.trim(),
         taxNumber: _taxNumberController.text.trim(),
         tinNumber: _tinNumberController.text.trim(),
-        currencyBalance: widget.customer?.currencyBalance, // preserve existing balance
-        company: currentCompany, // preserve or set company
-        branch: currentBranch, // set branch
         dateCreated: widget.customer?.dateCreated,
         dateModified: widget.customer?.dateModified,
         createdByName: widget.customer?.createdByName,
@@ -145,6 +142,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         version: widget.customer?.version,
         isSynced: false, // Initially false, will be updated after successful API sync
       );
+      customerToSave.company.value = currentCompany;
+      customerToSave.branch.value = currentBranch;
+      if (widget.customer != null) {
+        customerToSave.currencyBalance.addAll(widget.customer!.currencyBalance);
+      }
 
 
       // 1. Save locally first

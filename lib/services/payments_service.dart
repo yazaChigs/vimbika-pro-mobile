@@ -34,7 +34,7 @@ class PaymentsService {
     if (userData == null) throw Exception('User not logged in');
     final user = User.fromJson(jsonDecode(userData));
     
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) throw Exception('Company ID not found for user');
 
     final String formattedStartDate = '${startDate.toIso8601String().substring(0, 23)}Z';
@@ -64,7 +64,7 @@ class PaymentsService {
     if (userData == null) throw Exception('User not logged in');
     final user = User.fromJson(jsonDecode(userData));
     
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) throw Exception('Company ID not found for user');
 
     final String formattedStartDate = '${startDate.toIso8601String().substring(0, 23)}Z';
@@ -91,7 +91,7 @@ class PaymentsService {
     if (userData == null) throw Exception('User not logged in');
     final user = User.fromJson(jsonDecode(userData));
     
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) throw Exception('Company ID not found for user');
 
     final String responseStr = await _client.getAuthWithCompanyHeader(
@@ -165,7 +165,7 @@ class PaymentsService {
 
       bool matchesCurrency = true;
       if (currency != null) {
-        matchesCurrency = payment.currency?.id == currency.id;
+        matchesCurrency = payment.currency.value?.id == currency.id;
       }
 
       bool matchesDate = true;
@@ -190,7 +190,7 @@ class PaymentsService {
         final String? userData = prefs.getString(AppConstants.keyOnlineUserData);
         if (userData == null) throw Exception('User not logged in');
         final user = User.fromJson(jsonDecode(userData));
-        final String? companyId = user.branch?.company?.id;
+        final String? companyId = user.companyId;
         if (companyId == null) throw Exception('Company ID not found for user');
 
         final String jsonPayment = jsonEncode(payment.toJson());
@@ -287,7 +287,7 @@ class PaymentsService {
     }
     final user = User.fromJson(jsonDecode(userData));
 
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) {
       debugPrint('Company ID not found for user, cannot sync payment.');
       return false;

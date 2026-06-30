@@ -202,9 +202,9 @@ class OnlineReportsController {
     }).toList();
 
     final currentCurrencyPaymentsReceived = paymentsReceived.where((p) {
-      final matchesCurrency = selectedCurrency == null || p.currency?.id == selectedCurrency!.id;
+      final matchesCurrency = selectedCurrency == null || p.currency.value?.id == selectedCurrency!.id;
       // Note: If PaymentReceived model doesn't have branch, you might need to adjust this
-      final matchesBranch = selectedBranch == null || p.branch?.id == selectedBranch!.id; // Assuming PaymentReceived can have a branch
+      final matchesBranch = selectedBranch == null || p.branch.value?.id == selectedBranch!.id; // Assuming PaymentReceived can have a branch
       return matchesCurrency && matchesBranch;
     }).toList();
 
@@ -242,7 +242,7 @@ class OnlineReportsController {
       final totalBranchSales = branchSalesList.fold(0.0, (sum, s) => sum + s.grandTotal);
       final totalBranchProfit = branchSalesList.fold(0.0, (sum, s) => sum + (s.grandTotal - (s.saleCost ?? 0.0)));
       
-      salesMap[branchName] = totalBranchSales;
+      salesMap[branchName!] = totalBranchSales;
       profitsMap[branchName] = totalBranchProfit;
     }
 
@@ -296,7 +296,7 @@ class OnlineReportsController {
     for (var sale in sales) {
       if (sale.paymentTypes != null && sale.paymentTypes!.isNotEmpty) {
         for (var payment in sale.paymentTypes!) {
-          final typeName = payment.paymentType?.name ?? 'Unknown';
+          final typeName = payment.paymentType.value?.name ?? 'Unknown';
           paymentTypeMap[typeName] = (paymentTypeMap[typeName] ?? 0.0) + payment.amount;
         }
       } else if (sale.paymentType != null) {
@@ -334,7 +334,7 @@ class OnlineReportsController {
       final items = sale.items;
       if (items != null) {
         for (var item in items) {
-          final productName = item.inventoryItem?.name ?? 'Unknown Product';
+          final productName = item.inventoryItem.value?.name ?? 'Unknown Product';
           productQuantities[productName] = (productQuantities[productName] ?? 0.0) + item.quantity;
         }
       }

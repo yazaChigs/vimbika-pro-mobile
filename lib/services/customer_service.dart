@@ -21,7 +21,7 @@ class CustomerService {
     if (userData == null) throw Exception('User not logged in');
     final user = User.fromJson(jsonDecode(userData));
     
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) throw Exception('Company ID not found for user');
 
     final String responseStr = await _client.getAuthWithCompanyHeader(
@@ -55,14 +55,14 @@ class CustomerService {
     if (userData == null) throw Exception('User not logged in');
     final user = User.fromJson(jsonDecode(userData));
     
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) throw Exception('Company ID not found for user');
 
     // Ensure the customer being sent to API has branch and company set if missing
     final Customer customerToSend = customer.copyWith(
       isSynced: true,
-      company: customer.company ?? user.branch?.company,
-      branch: customer.branch ?? user.branch,
+      company: customer.company.value ?? user.branch?.company.value,
+      branch: customer.branch.value ?? user.branch,
     );
 
     final String jsonCustomer = jsonEncode(customerToSend.toJson());
@@ -105,14 +105,14 @@ class CustomerService {
       if (userData == null) throw Exception('User not logged in');
       final user = User.fromJson(jsonDecode(userData));
       
-      final String? companyId = user.branch?.company?.id;
+      final String? companyId = user.companyId;
       if (companyId == null) throw Exception('Company ID not found for user');
 
       // Ensure the customer being sent to API has branch and company set if missing
       final Customer customerToSend = customer.copyWith(
         isSynced: true,
-        company: customer.company ?? user.branch?.company,
-        branch: customer.branch ?? user.branch,
+        company: customer.company.value ?? user.branch?.company.value,
+        branch: customer.branch.value ?? user.branch,
       );
 
       final String jsonCustomer = jsonEncode(customerToSend.toJson());
@@ -211,7 +211,7 @@ class CustomerService {
     if (userData == null) throw Exception('User not logged in');
     final user = User.fromJson(jsonDecode(userData));
     
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) throw Exception('Company ID not found for user');
 
     final Map<String, dynamic> requestBody = {

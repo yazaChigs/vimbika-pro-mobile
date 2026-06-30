@@ -54,8 +54,8 @@ class DefaultDataService {
       //
       // // Fetch customers
       await _customerService.fetchCustomers();
-      if(branch!=null && branch.company!=null) {
-        await downloadAndSaveImage(branch.company!.id!);
+      if(branch!=null && branch.company.value != null) {
+        await downloadAndSaveImage(branch.company.value!.id!);
       }
       
       await getSettings(user, prefs);

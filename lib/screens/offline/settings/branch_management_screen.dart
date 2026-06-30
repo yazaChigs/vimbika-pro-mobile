@@ -115,8 +115,10 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                 name: nameController.text,
                 address: addressController.text,
                 phoneNumber: phoneController.text,
-                company: _company,
               );
+              if (_company != null) {
+                branch.company.value = _company;
+              }
 
               _saveDefaultBranch(branch);
               Navigator.pop(context);
@@ -171,7 +173,7 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
               decoration: BoxDecoration(color: AppTheme.vimbikaBlue.withValues(alpha: 0.1), shape: BoxShape.circle),
               child: const Icon(Icons.store, color: AppTheme.vimbikaBlue),
             ),
-            title: Text(_defaultBranch!.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            title: Text(_defaultBranch!.name ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             subtitle: const Text('Main Operating Branch'),
             trailing: _canEdit ? IconButton(
               icon: const Icon(Icons.edit, color: AppTheme.vimbikaBlue),

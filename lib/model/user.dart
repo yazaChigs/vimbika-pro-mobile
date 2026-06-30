@@ -16,12 +16,12 @@ class User extends BaseEntity {
   final String? profilePicture; // Added profilePicture field
 
   User({
-    String? id,
-    String? dateCreated,
-    String? dateModified,
-    String? createdByName,
-    String? modifiedByName,
-    int? version,
+    super.id,
+    super.dateCreated,
+    super.dateModified,
+    super.createdByName,
+    super.modifiedByName,
+    super.version,
     required this.userName,
     this.firstName,
     this.lastName,
@@ -33,17 +33,10 @@ class User extends BaseEntity {
     this.password,
     this.userRoles, // Add to constructor
     this.profilePicture, // Add to constructor
-  }) : super(
-          id: id,
-          dateCreated: dateCreated,
-          dateModified: dateModified,
-          createdByName: createdByName,
-          modifiedByName: modifiedByName,
-          version: version,
-        );
+  });
 
   // Getter for companyId
-  String? get companyId => branch?.company?.id;
+  String? get companyId => branch?.company.value?.id;
 
   // copyWith method
   User copyWith({
@@ -67,8 +60,8 @@ class User extends BaseEntity {
   }) {
     return User(
       id: id ?? this.id,
-      dateCreated: dateCreated ,
-      dateModified: dateModified ,
+      dateCreated: dateCreated,
+      dateModified: dateModified,
       createdByName: createdByName ?? this.createdByName,
       modifiedByName: modifiedByName ?? this.modifiedByName,
       version: version ?? this.version,
@@ -89,8 +82,8 @@ class User extends BaseEntity {
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'],
-      dateCreated: json['dateCreated'] ,
-      dateModified: json['dateModified'] ,
+      dateCreated: json['dateCreated'],
+      dateModified: json['dateModified'],
       createdByName: json['createdByName'],
       modifiedByName: json['modifiedByName'],
       version: json['version'],

@@ -61,13 +61,14 @@ class CustomerController extends ChangeNotifier {
   void setSearchQuery(String query) {
     _searchQuery = query.trim().toLowerCase();
     _filterCustomers();
-     if (!_isDisposed) {
+    if (!_isDisposed) {
       notifyListeners();
     }
   }
 
   void _setupConnectivityListener() {
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+    _connectivitySubscription =
+        Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
       if (results.any((result) => result != ConnectivityResult.none)) {
         debugPrint('Connectivity changed to online. Attempting to sync unsynced data.');
         _startPeriodicSyncCheck();
@@ -82,26 +83,28 @@ class CustomerController extends ChangeNotifier {
   Future<void> _loadData() async {
     _setLoading(true);
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    
+
     final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
-    
-    // For customers, offline customers and online customers use the same key but when online we can optionally fetch. 
+
+    // For customers, offline customers and online customers use the same key but when online we can optionally fetch.
     // Usually they are stored under AppConstants.keyCustomers
     // We get locally either way.
     _customers = await _customerService.getCustomersLocally();
 
-    final String currencyKey = isOfflineMode ? AppConstants.keyOfflineCurrencies : AppConstants.keyCurrencies;
+    final String currencyKey =
+        isOfflineMode ? AppConstants.keyOfflineCurrencies : AppConstants.keyCurrencies;
     final List<String> currencyJson = prefs.getStringList(currencyKey) ?? [];
-    
-    final String paymentTypeKey = isOfflineMode ? AppConstants.keyOfflinePaymentTypes : AppConstants.keyPaymentTypes;
+
+    final String paymentTypeKey =
+        isOfflineMode ? AppConstants.keyOfflinePaymentTypes : AppConstants.keyPaymentTypes;
     final List<String> paymentTypeJson = prefs.getStringList(paymentTypeKey) ?? [];
-    
+
     _currencies = currencyJson.map((e) => Currency.fromJson(jsonDecode(e))).toList();
     _paymentTypes = paymentTypeJson
         .map((e) => PaymentType.fromJson(jsonDecode(e)))
         .where((pt) => pt.active)
         .toList();
-    
+
     _filterCustomers();
     _setLoading(false);
   }
@@ -111,7 +114,8 @@ class CustomerController extends ChangeNotifier {
       await _attemptSyncUnsyncedData();
 
       // Check if there are still unsynced items after the initial attempt
-      if ((await _customerService.getUnsyncedCustomers()).isNotEmpty || (await _paymentsService.getUnsyncedReceivedPaymentsLocally()).isNotEmpty) {
+      if ((await _customerService.getUnsyncedCustomers()).isNotEmpty ||
+          (await _paymentsService.getUnsyncedReceivedPaymentsLocally()).isNotEmpty) {
         debugPrint('Unsynced items found. Starting periodic sync check.');
         _syncTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
           _attemptSyncUnsyncedData();
@@ -147,7 +151,8 @@ class CustomerController extends ChangeNotifier {
     }
 
     // Sync unsynced payments
-    List<PaymentReceived> unsyncedPayments = await _paymentsService.getUnsyncedReceivedPaymentsLocally();
+    List<PaymentReceived> unsyncedPayments =
+        await _paymentsService.getUnsyncedReceivedPaymentsLocally();
     if (unsyncedPayments.isNotEmpty) {
       debugPrint('Attempting to sync ${unsyncedPayments.length} unsynced payments...');
       for (PaymentReceived payment in unsyncedPayments) {
@@ -160,7 +165,8 @@ class CustomerController extends ChangeNotifier {
     }
 
     await _loadData(); // Reload data to update UI and re-evaluate unsynced count
-    if ((await _customerService.getUnsyncedCustomers()).isEmpty && (await _paymentsService.getUnsyncedReceivedPaymentsLocally()).isEmpty) {
+    if ((await _customerService.getUnsyncedCustomers()).isEmpty &&
+        (await _paymentsService.getUnsyncedReceivedPaymentsLocally()).isEmpty) {
       debugPrint('All unsynced data synced. Stopping periodic sync check.');
       _syncTimer?.cancel();
       _syncTimer = null;
@@ -201,8 +207,8 @@ class CustomerController extends ChangeNotifier {
     } else {
       _filteredCustomers = _customers.where((customer) {
         return customer.name.toLowerCase().contains(_searchQuery) ||
-               (customer.email?.toLowerCase().contains(_searchQuery) ?? false) ||
-               (customer.mobilePhone?.contains(_searchQuery) ?? false);
+            (customer.email?.toLowerCase().contains(_searchQuery) ?? false) ||
+            (customer.mobilePhone?.contains(_searchQuery) ?? false);
       }).toList();
     }
   }
@@ -235,78 +241,46 @@ class CustomerController extends ChangeNotifier {
     return null;
   }
 
-  Future<PaymentReceived?> addBalance(Customer customer, Currency selectedCurrency, PaymentType selectedPaymentType, double amount, {Bank? selectedBank, bool isDeposit = false}) async {
+  Future<PaymentReceived?> addBalance(Customer customer, Currency selectedCurrency,
+      PaymentType selectedPaymentType, double amount,
+      {Bank? selectedBank, bool isDeposit = false}) async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final Branch? defaultBranch = await _getDefaultBranch();
-      // final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false; // No longer needed directly here
-      
+
       final newPayment = PaymentReceived(
-        paymentType: selectedPaymentType,
-        payer: customer,
-        currency: selectedCurrency,
-        branch: defaultBranch ?? customer.branch, // Use defaultBranch if available, else customer.branch
         amount: amount,
         amountPaid: amount,
         paymentDescription: isDeposit ? 'CUSTOMER_DEPOSIT' : 'PAY_ACCOUNT',
-        paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
-        dateTime:DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
+        paymentDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
         notes: isDeposit ? 'Customer deposit from mobile app' : 'Balance addition from mobile app',
-        bank: selectedBank, // Pass the selected Bank object
         isMobile: true,
+        isSynced: false,
       );
 
-      // --- Start of local balance update logic ---
-      // We perform local operations first so the UI updates quickly whether online or offline
-      // Find the customer in the local list
+      newPayment.paymentType.value = selectedPaymentType;
+      newPayment.payer.value = customer;
+      newPayment.currency.value = selectedCurrency;
+      newPayment.branch.value = defaultBranch ?? customer.branch.value;
+      newPayment.bank.value = selectedBank;
+
       int customerIndex = _customers.indexWhere((c) => c.id == customer.id);
       if (customerIndex != -1) {
         Customer currentLocalCustomer = _customers[customerIndex];
-        List<CustomerCurrencyAmount> updatedCurrencyBalance = [];
 
-        // Check if there's an existing balance for the selected currency
-        CustomerCurrencyAmount? existingCca;
-        if (currentLocalCustomer.currencyBalance != null) {
-          existingCca = currentLocalCustomer.currencyBalance!.firstWhereOrNull(
-            (cca) => cca.currency?.id == selectedCurrency.id,
-          );
-          updatedCurrencyBalance.addAll(currentLocalCustomer.currencyBalance!.where(
-            (cca) => cca.currency?.id != selectedCurrency.id,
-          ));
-        }
+        CustomerCurrencyAmount? existingCca = currentLocalCustomer.currencyBalance
+            .firstWhereOrNull((cca) => cca.currency.value?.id == selectedCurrency.id);
 
-        // Create or update the CustomerCurrencyAmount
-        CustomerCurrencyAmount newCca;
         if (existingCca != null) {
-          newCca = CustomerCurrencyAmount(
-            id: existingCca.id,
-            balance: (existingCca.balance ?? 0.0) + amount,
-            currency: existingCca.currency,
-            lastTranxDate: DateTime.now(), // Update last transaction date
-            dateCreated: existingCca.dateCreated,
-            dateModified:null,
-            createdByName: existingCca.createdByName,
-            modifiedByName: existingCca.modifiedByName,
-            version: existingCca.version,
-          );
+          existingCca.amount += amount;
         } else {
-          // If no existing CCA, create a new one
-          newCca = CustomerCurrencyAmount(
-            id: 'local_cca_${DateTime.now().millisecondsSinceEpoch}', // Generate a local ID
-            balance: amount,
-            currency: selectedCurrency,
-            lastTranxDate: DateTime.now(),
-            dateCreated: null,
-            dateModified: null,
-            createdByName: 'Mobile App',
-            modifiedByName: 'Mobile App',
-            version: 1,
-          );
+          final newCca = CustomerCurrencyAmount(amount: amount);
+          newCca.currency.value = selectedCurrency;
+          currentLocalCustomer.currencyBalance.add(newCca);
         }
-        updatedCurrencyBalance.add(newCca);
 
-        // Create a new Customer object with the updated currencyBalance
-        Customer updatedCustomer = Customer(
+        final updatedCustomer = Customer(
           id: currentLocalCustomer.id,
           dateCreated: currentLocalCustomer.dateCreated,
           dateModified: currentLocalCustomer.dateModified,
@@ -320,29 +294,22 @@ class CustomerController extends ChangeNotifier {
           accountNumber: currentLocalCustomer.accountNumber,
           taxNumber: currentLocalCustomer.taxNumber,
           tinNumber: currentLocalCustomer.tinNumber,
-          currencyBalance: updatedCurrencyBalance, // Use the new list
-          company: currentLocalCustomer.company,
-          branch: currentLocalCustomer.branch,
-          isSynced: currentLocalCustomer.isSynced, // Keep original sync status
+          isSynced: false, // Mark as unsynced
         );
 
-        // Replace the old customer with the updated one
+        updatedCustomer.currencyBalance.addAll(currentLocalCustomer.currencyBalance);
+        updatedCustomer.company.value = currentLocalCustomer.company.value;
+        updatedCustomer.branch.value = currentLocalCustomer.branch.value;
+
         _customers[customerIndex] = updatedCustomer;
-        await _customerService.saveCustomerLocally(updatedCustomer); // Persist local change
-        _filterCustomers(); // Re-filter to update UI if search query is active
+        await _customerService.saveCustomerLocally(updatedCustomer);
+        _filterCustomers();
         if (!_isDisposed) {
-          notifyListeners(); // Notify listeners about the change
+          notifyListeners();
         }
       }
-      // --- End of local balance update logic ---
 
-      // Always save locally first to be safe, especially in offline mode. 
-      // The `savePaymentReceived` method in PaymentsService already handles online vs offline 
-      // by saving locally if the sync fails, but we can also just rely on it.
       final savedPayment = await _paymentsService.savePaymentReceived(newPayment);
-      
-      // Trigger the periodic sync check to attempt syncing the new payment
-      // immediately if online, or queue it for later if offline.
       _startPeriodicSyncCheck();
 
       final MobilePosShift? currentShift = await _getCurrentShift();
@@ -353,21 +320,20 @@ class CustomerController extends ChangeNotifier {
           active: true,
           currency: selectedCurrency,
           amount: amount,
-          notes: isDeposit ? 'Customer Deposit for ${customer.name}' : 'Account Top-up for ${customer.name}',
+          notes: isDeposit
+              ? 'Customer Deposit for ${customer.name}'
+              : 'Account Top-up for ${customer.name}',
           amountType: isDeposit ? 'CUSTOMER_DEPOSIT' : 'ACCOUNT_TOP_UP',
-          // If online, it's possible savedPayment has no ID yet until synced back, fallback to generated. 
-          // Assuming savePaymentReceived returns a valid object or we use local ID
           ref: savedPayment.id ?? 'payment_${DateTime.now().millisecondsSinceEpoch}',
           posReference: '${customer.name}${DateTime.now().microsecondsSinceEpoch}',
           shiftReference: currentShift.shiftReference,
           isCash: selectedPaymentType.isCash,
           paymentType: selectedPaymentType.name,
-          bankName: selectedBank?.name, // Pass the selected bank's name
+          bankName: selectedBank?.name,
         );
         currentShift.shiftCurrencyAmounts ??= [];
         currentShift.shiftCurrencyAmounts!.add(shiftAmount);
-        
-        // Export the newly created activity
+
         await _excelExportService.exportShiftCurrencyAmountsToExcel([shiftAmount]);
 
         await prefs.setString(AppConstants.keyCurrentOpenShift, currentShift.toJson());
@@ -382,9 +348,12 @@ class CustomerController extends ChangeNotifier {
       return null;
     }
   }
-  
-  Future<PaymentReceived?> addDeposit(Customer customer, Currency selectedCurrency, PaymentType selectedPaymentType, double amount, {Bank? selectedBank}) async {
-    return addBalance(customer, selectedCurrency, selectedPaymentType, amount, selectedBank: selectedBank, isDeposit: true);
+
+  Future<PaymentReceived?> addDeposit(Customer customer, Currency selectedCurrency,
+      PaymentType selectedPaymentType, double amount,
+      {Bank? selectedBank}) async {
+    return addBalance(customer, selectedCurrency, selectedPaymentType, amount,
+        selectedBank: selectedBank, isDeposit: true);
   }
 
   @override

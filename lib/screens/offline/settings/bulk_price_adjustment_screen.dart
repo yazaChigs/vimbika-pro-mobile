@@ -82,7 +82,7 @@ class _BulkPriceAdjustmentScreenState extends State<BulkPriceAdjustmentScreen> {
         _filteredItems = List.from(_allItems);
       } else {
         _filteredItems = _allItems
-            .where((item) => item.category?.id == _selectedCategory!.id)
+            .where((item) => item.category.value?.id == _selectedCategory!.id)
             .toList();
       }
     });

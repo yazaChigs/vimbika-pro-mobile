@@ -1,19 +1,24 @@
-import 'base_entity.dart';
-import 'customer_currency_amount.dart';
-import 'company.dart';
-import 'branch.dart';
+import 'package:isar/isar.dart';
+import 'package:vimbika_pro/model/base_entity.dart';
+import 'package:vimbika_pro/model/customer_currency_amount.dart';
+import 'package:vimbika_pro/model/company.dart';
+import 'package:vimbika_pro/model/branch.dart';
 
+part 'customer.g.dart';
+
+@collection
 class Customer extends BaseEntity {
+  Id isarId = Isar.autoIncrement;
   final String name;
   final String? email;
   final String? mobilePhone;
   final String? address;
-  final String? accountNumber; 
+  final String? accountNumber;
   final String? taxNumber;
   final String? tinNumber;
-  final List<CustomerCurrencyAmount>? currencyBalance;
-  final Company? company;
-  final Branch? branch;
+  final currencyBalance = IsarLinks<CustomerCurrencyAmount>();
+  final company = IsarLink<Company>();
+  final branch = IsarLink<Branch>();
   final bool isSynced; // New field
   final double points;
 
@@ -31,9 +36,6 @@ class Customer extends BaseEntity {
     this.email,
     this.mobilePhone,
     this.address,
-    this.currencyBalance,
-    this.company,
-    this.branch,
     this.points = 0.0,
     this.isSynced = true, // Default to true
   }) : super(
@@ -45,53 +47,11 @@ class Customer extends BaseEntity {
           version: version,
         );
 
-  Customer copyWith({
-    String? id,
-    String? dateCreated,
-    String? dateModified,
-    String? createdByName,
-    String? modifiedByName,
-    int? version,
-    String? name,
-    String? email,
-    String? phoneNumber,
-    String? address,
-    String? accountNumber,
-    String? taxNumber,
-    String? tinNumber,
-    List<CustomerCurrencyAmount>? currencyBalance,
-    Company? company,
-    Branch? branch,
-    double? points,
-    bool? isSynced,
-  }) {
-    return Customer(
-      id: id ?? this.id,
-      dateCreated: dateCreated ?? this.dateCreated,
-      dateModified: dateModified ?? this.dateModified,
-      createdByName: createdByName ?? this.createdByName,
-      modifiedByName: modifiedByName ?? this.modifiedByName,
-      version: version ?? this.version,
-      name: name ?? this.name,
-      email: email ?? this.email,
-      mobilePhone: phoneNumber ?? this.mobilePhone,
-      address: address ?? this.address,
-      accountNumber: accountNumber ?? this.accountNumber,
-      taxNumber: taxNumber ?? this.taxNumber,
-      tinNumber: tinNumber ?? this.tinNumber,
-      currencyBalance: currencyBalance ?? this.currencyBalance,
-      company: company ?? this.company,
-      branch: branch ?? this.branch,
-      isSynced: isSynced ?? this.isSynced,
-      points: points ?? this.points,
-    );
-  }
-
   factory Customer.fromJson(Map<String, dynamic> json) {
-    return Customer(
+    final customer = Customer(
       id: json['id']?.toString(),
-      dateCreated: json['dateCreated'], 
-      dateModified: json['dateModified'], 
+      dateCreated: json['dateCreated'],
+      dateModified: json['dateModified'],
       createdByName: json['createdByName'],
       modifiedByName: json['modifiedByName'],
       version: json['version'],
@@ -99,17 +59,26 @@ class Customer extends BaseEntity {
       email: json['email'],
       mobilePhone: json['mobilePhone'],
       address: json['address'],
-      accountNumber: json['accountNumber']?.toString(), 
+      accountNumber: json['accountNumber']?.toString(),
       taxNumber: json['taxNumber']?.toString(),
       tinNumber: json['tinNumber']?.toString(),
-      currencyBalance: (json['currencyBalance'] as List<dynamic>?)
-          ?.map((e) => CustomerCurrencyAmount.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      company: json['company'] != null ? Company.fromJson(json['company']) : null,
-      branch: json['branch'] != null ? Branch.fromJson(json['branch']) : null,
       isSynced: json['isSynced'] ?? true, // Default to true for existing data
       points: json['points']?.toDouble() ?? 0.0,
     );
+
+    if (json['currencyBalance'] != null) {
+      customer.currencyBalance.addAll((json['currencyBalance'] as List<dynamic>?)
+          ?.map((e) => CustomerCurrencyAmount.fromJson(e as Map<String, dynamic>))
+          .toList() ?? []);
+    }
+    if (json['company'] != null) {
+      customer.company.value = Company.fromJson(json['company']);
+    }
+    if (json['branch'] != null) {
+      customer.branch.value = Branch.fromJson(json['branch']);
+    }
+
+    return customer;
   }
 
   Map<String, dynamic> toJson() {
@@ -128,11 +97,58 @@ class Customer extends BaseEntity {
       'taxNumber': taxNumber,
       'tinNumber': tinNumber,
       'currencyBalance':
-          currencyBalance?.map((e) => e.toJson()).toList(),
-      'company': company?.toJson(),
-      'branch': branch?.toJson(),
+          currencyBalance.map((e) => e.toJson()).toList(),
+      'company': company.value?.toJson(),
+      'branch': branch.value?.toJson(),
       'isSynced': isSynced, // Include in JSON
       'points': points,
     };
+  }
+
+  Customer copyWith({
+    String? id,
+    String? dateCreated,
+    String? dateModified,
+    String? createdByName,
+    String? modifiedByName,
+    int? version,
+    String? name,
+    String? accountNumber,
+    String? taxNumber,
+    String? tinNumber,
+    String? email,
+    String? mobilePhone,
+    String? address,
+    double? points,
+    bool? isSynced,
+    Company? company,
+    Branch? branch,
+    List<CustomerCurrencyAmount>? currencyBalance,
+  }) {
+    final customer = Customer(
+      id: id ?? this.id,
+      dateCreated: dateCreated ?? this.dateCreated,
+      dateModified: dateModified ?? this.dateModified,
+      createdByName: createdByName ?? this.createdByName,
+      modifiedByName: modifiedByName ?? this.modifiedByName,
+      version: version ?? this.version,
+      name: name ?? this.name,
+      accountNumber: accountNumber ?? this.accountNumber,
+      taxNumber: taxNumber ?? this.taxNumber,
+      tinNumber: tinNumber ?? this.tinNumber,
+      email: email ?? this.email,
+      mobilePhone: mobilePhone ?? this.mobilePhone,
+      address: address ?? this.address,
+      points: points ?? this.points,
+      isSynced: isSynced ?? this.isSynced,
+    );
+    customer.company.value = company ?? this.company.value;
+    customer.branch.value = branch ?? this.branch.value;
+    if (currencyBalance != null) {
+      customer.currencyBalance.addAll(currencyBalance);
+    } else {
+      customer.currencyBalance.addAll(this.currencyBalance);
+    }
+    return customer;
   }
 }

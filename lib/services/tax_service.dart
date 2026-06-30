@@ -17,23 +17,18 @@ class TaxService {
       if (userData == null) throw Exception('User not logged in');
       final user = User.fromJson(jsonDecode(userData));
 
-      final String? companyId = user.branch?.company?.id;
+      final String? companyId = user.companyId;
       if (companyId == null) throw Exception('Company ID not found for user');
       final response = await _httpClient.getAuthWithCompanyHeader('/tax/get-all', companyId);
-      if (response.statusCode == 200) {
 
-        final List<dynamic> data = jsonDecode(response);
-        final List<Tax> taxes = data.map((b) => Tax.fromJson(b)).toList();
+      final List<dynamic> data = jsonDecode(response);
+      final List<Tax> taxes = data.map((b) => Tax.fromJson(b)).toList();
 
-        // Save to SharedPreferences
-        final SharedPreferences prefs = await SharedPreferences.getInstance();
-        final List<String> taxListString = taxes.map((tax) => jsonEncode(tax.toJson())).toList();
-        await prefs.setStringList(AppConstants.keyTaxes, taxListString);
+      // Save to SharedPreferences
+      final List<String> taxListString = taxes.map((tax) => jsonEncode(tax.toJson())).toList();
+      await prefs.setStringList(AppConstants.keyTaxes, taxListString);
 
-        return taxes;
-      } else {
-        throw Exception('Failed to load taxes');
-      }
+      return taxes;
     } catch (e) {
       print('Error fetching taxes: $e');
       rethrow;

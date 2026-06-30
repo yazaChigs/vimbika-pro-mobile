@@ -99,7 +99,7 @@ class InventoryImportScreen extends BaseImportScreen {
         try {
           // Look for matching branch by name
           targetBranch = availableBranches.firstWhere(
-            (b) => b.name.toLowerCase() == branchNameInCsv.toLowerCase()
+            (b) => b.name!.toLowerCase() == branchNameInCsv.toLowerCase()
           );
         } catch (_) {
           // If branch in CSV doesn't exist, use default branch

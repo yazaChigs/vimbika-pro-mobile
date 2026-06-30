@@ -69,7 +69,7 @@ class _ProductFlowReportScreenState extends State<ProductFlowReportScreen> {
 
     if (_selectedProduct != null) {
       productPurchases = _allPurchases.where((p) => p.items.any((i) => i.inventoryItem?.id == _selectedProduct!.id)).toList();
-      productSales = _allSales.where((s) => s.items.any((i) => i.inventoryItem?.id == _selectedProduct!.id)).toList();
+      productSales = _allSales.where((s) => s.items.any((i) => i.inventoryItem.value?.id == _selectedProduct!.id)).toList();
     }
 
     return Scaffold(
@@ -125,9 +125,9 @@ class _ProductFlowReportScreenState extends State<ProductFlowReportScreen> {
                           _buildEmptyState('No sales records for this product.')
                         else
                           ...productSales.map((s) => _buildFlowTile(
-                            title: s.customer?.name ?? 'Walk-in Customer',
+                            title: s.customer.value?.name ?? 'Walk-in Customer',
                             subtitle: 'Sold on ${_formatDateString(s.timeIniated!)}',
-                            amount: s.items.firstWhere((i) => i.inventoryItem?.id == _selectedProduct!.id).quantity,
+                            amount: s.items.firstWhere((i) => i.inventoryItem.value?.id == _selectedProduct!.id).quantity,
                             isIncoming: false,
                           )),
                       ],

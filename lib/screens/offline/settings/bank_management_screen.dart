@@ -6,13 +6,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../../model/bank.dart';
 import '../../../model/currency.dart';
-import '../../../model/user.dart';
 import '../../../services/bank_service.dart'; // Import BankService
 import '../../../services/currency_service.dart'; // Import CurrencyService
 
 class BankManagementScreen extends StatefulWidget {
+  const BankManagementScreen({super.key});
+
   @override
-  _BankManagementScreenState createState() => _BankManagementScreenState();
+  State<BankManagementScreen> createState() => _BankManagementScreenState();
 }
 
 class _BankManagementScreenState extends State<BankManagementScreen> {
@@ -113,13 +114,17 @@ class _BankManagementScreenState extends State<BankManagementScreen> {
       await _currencyService.fetchCurrencies(); // Ensure currencies are up-to-date
       await _bankService.fetchBanks(); // Fetch from API and save to SharedPreferences
       await _loadData(); // Reload from SharedPreferences
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Banks synced from API')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Banks synced from API')),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to sync banks: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to sync banks: $e')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -148,7 +153,7 @@ class _BankManagementScreenState extends State<BankManagementScreen> {
     final accountController = TextEditingController(text: bank?.accountNumber);
     final branchController = TextEditingController(text: bank?.branch);
     final descriptionController = TextEditingController(text: bank?.description);
-    Currency? selectedCurrency = bank?.currency;
+    Currency? selectedCurrency = bank?.currency.value;
 
     showDialog(
       context: context,
@@ -165,7 +170,7 @@ class _BankManagementScreenState extends State<BankManagementScreen> {
                 const SizedBox(height: 16),
                 DropdownButtonFormField<Currency>(
                   decoration: InputDecoration(labelText: 'Currency'),
-                  value: selectedCurrency != null && _availableCurrencies.any((c) => c.id == selectedCurrency!.id)
+                  initialValue: selectedCurrency != null && _availableCurrencies.any((c) => c.id == selectedCurrency!.id)
                       ? _availableCurrencies.firstWhere((c) => c.id == selectedCurrency!.id)
                       : null,
                   items: _availableCurrencies.map((currency) {
@@ -199,7 +204,6 @@ class _BankManagementScreenState extends State<BankManagementScreen> {
                 description: descriptionController.text,
                 currency: selectedCurrency ?? _availableCurrencies.cast<Currency?>().firstWhere((c) => c?.isBaseCurrency == true, orElse: () => null),
                 isSystemCreated: bank.isSystemCreated,
-                bankName: bank.bankName,
                 dateCreated: bank.dateCreated,
                 dateModified: bank.dateModified,
                 createdByName: bank.createdByName,
@@ -292,7 +296,7 @@ class _BankManagementScreenState extends State<BankManagementScreen> {
                           child: Icon(Icons.account_balance, color: AppTheme.vimbikaBlue),
                         ),
                         title: Text(bank.name, style: TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('${bank.accountNumber ?? 'No Account #'} - ${bank.currency?.name ?? ''}'),
+                        subtitle: Text('${bank.accountNumber ?? 'No Account #'} - ${bank.currency.value?.name ?? ''}'),
                         trailing: _canEdit ? Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [

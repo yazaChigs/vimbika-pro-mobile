@@ -177,7 +177,7 @@ class _TaxManagementScreenState extends State<TaxManagementScreen> {
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: AppTheme.vimbikaBlue.withValues(alpha: 0.1),
-                          child: Text('${tax.taxPercentage.toStringAsFixed(0)}%', style: TextStyle(color: AppTheme.vimbikaBlue)),
+                          child: Text('${tax.taxPercentage!.toStringAsFixed(0)}%', style: TextStyle(color: AppTheme.vimbikaBlue)),
                         ),
                         title: Text(tax.name, style: TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text(tax.description ?? 'No description'),

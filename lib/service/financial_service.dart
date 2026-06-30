@@ -11,7 +11,7 @@ class FinancialService {
   }) {
     // 1. Filter and sum received cash
     double totalCashReceived = paymentsReceived
-        .where((p) => _isCashType(p.paymentType?.name))
+        .where((p) => _isCashType(p.paymentType.value?.name))
         .fold(0.0, (sum, item) => sum + item.amount);
 
     // 2. Filter and sum paid cash

@@ -41,7 +41,7 @@ class BranchReportScreen extends StatelessWidget {
     for (var sale in branchSales) {
       if (sale.items != null) {
         for (var item in sale.items!) {
-          final name = item.inventoryItem?.name ?? 'Unknown';
+          final name = item.inventoryItem.value?.name ?? 'Unknown';
           productSales[name] = (productSales[name] ?? 0.0) + item.quantity;
         }
       }

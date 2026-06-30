@@ -208,7 +208,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
   }
 
   Future<void> _openShift() async {
-    if (_currentUser == null || _currentUser!.branch?.company == null) {
+    if (_currentUser == null || _currentUser!.branch?.company.value == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('User or company information not available. Cannot open shift.')),
@@ -222,8 +222,8 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     });
     try {
       final BaseNameModel companyBaseNameModel = BaseNameModel(
-        id: _currentUser!.branch!.company!.id,
-        name: _currentUser!.branch!.company!.name,
+        id: _currentUser!.companyId,
+        name: _currentUser!.branch?.company.value?.name,
       );
 
       final newShift = MobilePosShift(
@@ -627,14 +627,14 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
       );
       return;
     }
-    if (_currentUser?.branch?.company == null) {
+    if (_currentUser?.branch?.company.value == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Company information not available. Cannot print summary.')),
       );
       return;
     }
     try {
-      await _printerService.printShiftSummary(_currentShift!, _availableCurrencies, _currentUser!.branch!.company!);
+      await _printerService.printShiftSummary(_currentShift!, _availableCurrencies, _currentUser!.branch!.company.value);
       if (!mounted) return; // Added check
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Shift summary sent to printer.')),
@@ -660,14 +660,14 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
       );
       return;
     }
-    if (_currentUser?.branch?.company == null) {
+    if (_currentUser?.branch?.company.value == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Company information not available. Cannot print full report.')),
       );
       return;
     }
     try {
-      await _printerService.printFullShiftReport(_currentShift!, _availableCurrencies, _currentUser!.branch!.company!);
+      await _printerService.printFullShiftReport(_currentShift!, _availableCurrencies, _currentUser!.branch!.company.value);
       if (!mounted) return; // Added check
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Full shift report sent to printer.')),

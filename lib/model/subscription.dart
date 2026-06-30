@@ -127,7 +127,7 @@ class Subscription extends BaseNameEntity {
         "name": name,
         "description": description,
         "active": active,
-        "currency": currency?.toMap(),
+        "currency": currency?.toJson(),
         "renewalAmount": renewalAmount,
         "renewalDate": renewalDate,
         "subscription": subscription?.toJson(),

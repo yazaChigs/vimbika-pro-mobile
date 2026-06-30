@@ -29,9 +29,9 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
 
   Future<void> _loadLogo() async {
     print(widget.sale.items.map((item)=> item.total));
-    if (widget.sale.company?.id != null) {
+    if (widget.sale.company.value?.id != null) {
       final defaultDataService = DefaultDataService();
-      final imageFile = await defaultDataService.getImage(widget.sale.company!.id!);
+      final imageFile = await defaultDataService.getImage(widget.sale.company.value!.id!);
       if (imageFile != null && await imageFile.exists()) {
         setState(() {
           _logoFile = imageFile;
@@ -115,7 +115,7 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
                         height: 100,
                         width: 100,
                       ),
-                    Text('${widget.sale.company?.name ?? 'Vimbika'}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                    Text('${widget.sale.company.value?.name ?? 'Vimbika'}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2)),
                     const Text('Official Sales Receipt', style: TextStyle(fontSize: 12, color: AppTheme.grey)),
                     const SizedBox(height: 24),
                     Row(
@@ -140,15 +140,15 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
                       ],
                     ),
                     const Divider(height: 32),
-                    if (widget.sale.customer != null) ...[
+                    if (widget.sale.customer.value != null) ...[
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text('CUSTOMER', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
-                            Text(widget.sale.customer!.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            if (widget.sale.customer!.mobilePhone != null) Text(widget.sale.customer!.mobilePhone!, style: const TextStyle(fontSize: 12)),
+                            Text(widget.sale.customer.value!.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            if (widget.sale.customer.value!.mobilePhone != null) Text(widget.sale.customer.value!.mobilePhone!, style: const TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),
@@ -165,7 +165,7 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Expanded(
-                            child: Text('${item.inventoryItem?.name} (x${item.quantity.toStringAsFixed(0)})'),
+                            child: Text('${item.inventoryItem.value?.name} (x${item.quantity.toStringAsFixed(0)})'),
                           ),
                           Text('\$${item.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w600)),
                         ],
@@ -180,16 +180,16 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    if (widget.sale.paymentTypes != null && widget.sale.paymentTypes!.isNotEmpty) ...[
+                    if (widget.sale.paymentTypes.isNotEmpty) ...[
                       const Align(
                         alignment: Alignment.centerLeft,
                         child: Text('PAYMENT DETAILS', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
                       ),
                       const SizedBox(height: 4),
-                      ...widget.sale.paymentTypes!.map((p) => Row(
+                      ...widget.sale.paymentTypes.map((p) => Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(p.paymentType?.name ?? 'Method', style: const TextStyle(fontSize: 12)),
+                          Text(p.paymentType.value?.name ?? 'Method', style: const TextStyle(fontSize: 12)),
                           Text('\$${p.amount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                         ],
                       )),

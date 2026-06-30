@@ -1,5 +1,5 @@
-import 'dart:convert';
-
+import 'package:isar/isar.dart';
+import 'package:json_annotation/json_annotation.dart';
 import 'package:vimbika_pro/model/branch.dart';
 import 'package:vimbika_pro/model/company.dart';
 import 'package:vimbika_pro/model/customer.dart';
@@ -7,7 +7,11 @@ import 'package:vimbika_pro/model/sale_item.dart';
 import 'package:vimbika_pro/model/payment_received.dart';
 import 'package:vimbika_pro/model/currency.dart';
 
+part 'sale.g.dart';
+
+@collection
 class Sale {
+  Id isarId = Isar.autoIncrement;
   String? id;
   String? dateCreated;
   String? dateModified;
@@ -15,16 +19,18 @@ class Sale {
   String? modifiedByName;
   int? version;
   String? cashierFullName;
-  Customer? customer;
-  Company? company;
-  Branch? branch;
-  List<SaleItem> items;
-  List<PaymentReceived>? paymentTypes;
+  final customer = IsarLink<Customer>();
+  final company = IsarLink<Company>();
+  final branch = IsarLink<Branch>();
+  @ignore
+  final items = IsarLinks<SaleItem>();
+  @ignore
+  final paymentTypes = IsarLinks<PaymentReceived>();
   String? timeIniated;
   String? timeCompleted;
   String? saleStatus;
-  Currency? currency;
-  Currency? baseCurrency;
+  final currency = IsarLink<Currency>();
+  final baseCurrency = IsarLink<Currency>();
   double? amountAfterDiscount;
   double? baseSaleAmount;
   double? totalTaxAmount;
@@ -52,16 +58,9 @@ class Sale {
     this.modifiedByName,
     this.version,
     this.cashierFullName,
-    this.customer,
-    this.company,
-    this.branch,
-    required this.items,
-    this.paymentTypes,
     this.timeIniated,
     this.timeCompleted,
     this.saleStatus,
-    this.currency,
-    this.baseCurrency,
     this.amountAfterDiscount,
     this.baseSaleAmount,
     this.totalTaxAmount,
@@ -82,27 +81,23 @@ class Sale {
     this.receiptQrData,
   });
 
-  double get grandTotal => items.fold(0, (sum, item) => sum + item.total);
+  double get grandTotal {
+    items.loadSync();
+    return items.fold(0.0, (sum, item) => sum + item.total);
+  }
 
   factory Sale.fromJson(Map<String, dynamic> json) {
-    return Sale(
+    final sale = Sale(
       id: json['id'],
       dateCreated: json['dateCreated'],
       dateModified: json['dateModified'],
       createdByName: json['createdByName'],
       modifiedByName: json['modifiedByName'],
-      version: (json['version'] as num?)?.toInt(),
+      version: json['version'],
       cashierFullName: json['cashierFullName'],
-      customer: json['customer'] != null ? Customer.fromJson(json['customer']) : null,
-      company: json['company'] != null ? Company.fromJson(json['company']) : null,
-      branch: json['branch'] != null ? Branch.fromJson(json['branch']) : null,
-      items: ((json['items'] ?? []) as List<dynamic>).map((item) => SaleItem.fromJson(item)).toList(),
-      paymentTypes: (json['paymentTypes'] as List<dynamic>?)?.map((item) => PaymentReceived.fromJson(item)).toList(),
       timeIniated: json['timeIniated'],
       timeCompleted: json['timeCompleted'],
       saleStatus: json['saleStatus'],
-      currency: json['currency'] != null ? Currency.fromJson(json['currency']) : null,
-      baseCurrency: json['baseCurrency'] != null ? Currency.fromJson(json['baseCurrency']) : null,
       amountAfterDiscount: (json['amountAfterDiscount'] as num?)?.toDouble(),
       baseSaleAmount: (json['baseSaleAmount'] as num?)?.toDouble(),
       totalTaxAmount: (json['totalTaxAmount'] as num?)?.toDouble(),
@@ -122,6 +117,22 @@ class Sale {
       receiptQrCode: json['receiptQrCode'],
       receiptQrData: json['receiptQrData'],
     );
+    if (json['customer'] != null) {
+      sale.customer.value = Customer.fromJson(json['customer']);
+    }
+    if (json['company'] != null) {
+      sale.company.value = Company.fromJson(json['company']);
+    }
+    if (json['branch'] != null) {
+      sale.branch.value = Branch.fromJson(json['branch']);
+    }
+    if (json['currency'] != null) {
+      sale.currency.value = Currency.fromJson(json['currency']);
+    }
+    if (json['baseCurrency'] != null) {
+      sale.baseCurrency.value = Currency.fromJson(json['baseCurrency']);
+    }
+    return sale;
   }
 
   Map<String, dynamic> toJson() {
@@ -133,16 +144,9 @@ class Sale {
       'modifiedByName': modifiedByName,
       'version': version,
       'cashierFullName': cashierFullName,
-      'customer': customer?.toJson(),
-      'company': company?.toJson(),
-      'branch': branch?.toJson(),
-      'items': items.map((item) => item.toJson()).toList(),
-      'paymentTypes': paymentTypes?.map((item) => item.toJson()).toList(),
       'timeIniated': timeIniated,
       'timeCompleted': timeCompleted,
       'saleStatus': saleStatus,
-      'currency': currency?.toJson(),
-      'baseCurrency': baseCurrency?.toJson(),
       'amountAfterDiscount': amountAfterDiscount,
       'baseSaleAmount': baseSaleAmount,
       'totalTaxAmount': totalTaxAmount,
@@ -161,10 +165,16 @@ class Sale {
       'amountTendered': amountTendered,
       'receiptQrCode': receiptQrCode,
       'receiptQrData': receiptQrData,
+      'customer': customer.value?.toJson(),
+      'company': company.value?.toJson(),
+      'branch': branch.value?.toJson(),
+      'currency': currency.value?.toJson(),
+      'baseCurrency': baseCurrency.value?.toJson(),
     };
   }
 
   Sale copyWith({
+    Id? isarId,
     String? id,
     String? dateCreated,
     String? dateModified,
@@ -172,16 +182,9 @@ class Sale {
     String? modifiedByName,
     int? version,
     String? cashierFullName,
-    Customer? customer,
-    Company? company,
-    Branch? branch,
-    List<SaleItem>? items,
-    List<PaymentReceived>? paymentTypes,
     String? timeIniated,
     String? timeCompleted,
     String? saleStatus,
-    Currency? currency,
-    Currency? baseCurrency,
     double? amountAfterDiscount,
     double? baseSaleAmount,
     double? totalTaxAmount,
@@ -201,7 +204,7 @@ class Sale {
     String? receiptQrCode,
     String? receiptQrData,
   }) {
-    return Sale(
+    final newSale = Sale(
       id: id ?? this.id,
       dateCreated: dateCreated ?? this.dateCreated,
       dateModified: dateModified ?? this.dateModified,
@@ -209,16 +212,9 @@ class Sale {
       modifiedByName: modifiedByName ?? this.modifiedByName,
       version: version ?? this.version,
       cashierFullName: cashierFullName ?? this.cashierFullName,
-      customer: customer ?? this.customer,
-      company: company ?? this.company,
-      branch: branch ?? this.branch,
-      items: items ?? this.items,
-      paymentTypes: paymentTypes ?? this.paymentTypes,
       timeIniated: timeIniated ?? this.timeIniated,
       timeCompleted: timeCompleted ?? this.timeCompleted,
       saleStatus: saleStatus ?? this.saleStatus,
-      currency: currency ?? this.currency,
-      baseCurrency: baseCurrency ?? this.baseCurrency,
       amountAfterDiscount: amountAfterDiscount ?? this.amountAfterDiscount,
       baseSaleAmount: baseSaleAmount ?? this.baseSaleAmount,
       totalTaxAmount: totalTaxAmount ?? this.totalTaxAmount,
@@ -238,5 +234,16 @@ class Sale {
       receiptQrCode: receiptQrCode ?? this.receiptQrCode,
       receiptQrData: receiptQrData ?? this.receiptQrData,
     );
+
+    newSale.isarId = isarId ?? this.isarId;
+    newSale.customer.value = customer.value;
+    newSale.company.value = company.value;
+    newSale.branch.value = branch.value;
+    newSale.items.addAll(items);
+    newSale.paymentTypes.addAll(paymentTypes);
+    newSale.currency.value = currency.value;
+    newSale.baseCurrency.value = baseCurrency.value;
+
+    return newSale;
   }
 }

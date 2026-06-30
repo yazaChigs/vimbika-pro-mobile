@@ -9,8 +9,10 @@ import 'model/company.dart';
 import 'model/branch.dart';
 
 class CreateCompanyScreen extends StatefulWidget {
+  const CreateCompanyScreen({super.key});
+
   @override
-  _CreateCompanyScreenState createState() => _CreateCompanyScreenState();
+  State<CreateCompanyScreen> createState() => _CreateCompanyScreenState();
 }
 
 class _CreateCompanyScreenState extends State<CreateCompanyScreen> {
@@ -49,11 +51,11 @@ class _CreateCompanyScreenState extends State<CreateCompanyScreen> {
       // Create Default Branch object using company's contact info
       final defaultBranch = Branch(
         name: _branchNameController.text,
-        company: company,
         address: company.address,
         phoneNumber: company.phoneNumber,
         email: company.email,
       );
+      defaultBranch.company.value = company;
 
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       
@@ -68,9 +70,11 @@ class _CreateCompanyScreenState extends State<CreateCompanyScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to create company: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to create company: $e')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -200,7 +204,7 @@ class _CreateCompanyScreenState extends State<CreateCompanyScreen> {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 3,
             offset: Offset(0, 1),

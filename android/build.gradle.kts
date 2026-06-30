@@ -17,6 +17,47 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+
+    val setupProject = { p: Project ->
+        if (p.hasProperty("android")) {
+            val android = p.extensions.findByName("android") as? com.android.build.gradle.BaseExtension
+            android?.apply {
+                try {
+                    compileOptions {
+                        sourceCompatibility = JavaVersion.VERSION_17
+                        targetCompatibility = JavaVersion.VERSION_17
+                    }
+                } catch (e: Exception) {
+                    // Ignore if already finalized
+                }
+            }
+        }
+
+        if (p.plugins.hasPlugin("kotlin-android")) {
+            try {
+                p.extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension> {
+                    compilerOptions {
+                        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore if already finalized
+            }
+        }
+
+        if (p.name == "isar_flutter_libs") {
+            val libAndroid = p.extensions.findByName("android") as? com.android.build.gradle.LibraryExtension
+            libAndroid?.namespace = "dev.isar.isar_flutter_libs"
+        }
+    }
+
+    if (project.state.executed) {
+        setupProject(project)
+    } else {
+        project.afterEvaluate {
+            setupProject(project)
+        }
+    }
 }
 
 tasks.register<Delete>("clean") {

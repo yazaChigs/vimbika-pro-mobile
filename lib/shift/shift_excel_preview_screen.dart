@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vimbika_pro/model/base_name_model.dart';
 import '../app_constants/app_constants.dart';
-import '../model/company.dart';
 import '../model/mobile_pos_shift.dart';
 import '../model/user.dart';
 import '../model/mobile_shift_currency_amount.dart';
@@ -54,7 +53,7 @@ class _ShiftExcelPreviewScreenState extends State<ShiftExcelPreviewScreen> {
       final MobilePosShift shiftToSave = MobilePosShift(
         shiftReference: shiftReference,
         userId: user.id,
-        company: BaseNameModel(id: user.branch?.company?.id, name: user.branch?.company!.name),
+        company: BaseNameModel(id: user.companyId, name: user.branch?.company.value?.name),
         userFullName: '${user.firstName ?? ''} ${user.lastName ?? ''}'.trim(),
         createdByName: user.userName,
         openingTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),

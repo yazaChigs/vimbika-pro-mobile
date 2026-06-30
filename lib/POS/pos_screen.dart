@@ -347,15 +347,18 @@ class POSScreen extends StatelessWidget {
   }
 
   Widget _buildCartSummary(BuildContext context, POSScreenController controller, {bool isDialog = false}) {
-    final customerBalance = controller.selectedCustomer?.currencyBalance?.firstWhere(
-          (cca) => cca.currency?.id == controller.selectedCurrency?.id,
-      orElse: () => CustomerCurrencyAmount(currency: controller.selectedCurrency, balance: 0.0),
-    ).balance ??
+    final customerBalance = controller.selectedCustomer?.currencyBalance.firstWhere(
+          (cca) {
+            cca.currency.loadSync();
+            return cca.currency.value?.id == controller.selectedCurrency?.id;
+          },
+      orElse: () => CustomerCurrencyAmount(currency: controller.selectedCurrency, amount: 0.0),
+    ).amount ??
         0.0;
 
     // Group payments by payment type
     final groupedPayments = controller.payments.groupFoldBy<String, double>(
-          (payment) => payment.paymentType?.name ?? 'Unknown',
+          (payment) => payment.paymentType.value?.name ?? 'Unknown',
           (previous, payment) => previous??0.00 + payment.amount,
     );
 
@@ -396,7 +399,7 @@ class POSScreen extends StatelessWidget {
                 final rate = controller.selectedCurrency?.rate ?? 1.0;
                 double displayTotal = (item.total ) * rate;
 
-                final String itemId = item.inventoryItem!.id!;
+                final String itemId = item.inventoryItem.value?.id ?? '';
                 TextEditingController? quantityController = controller.quantityControllers[itemId];
                 TextEditingController? priceController = controller.priceControllers[itemId];
                 TextEditingController? discountController = controller.discountControllers[itemId];
@@ -443,7 +446,7 @@ class POSScreen extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                item.inventoryItem?.name ?? '',
+                                (item.inventoryItem.value?.name) ?? '',
                                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -588,7 +591,7 @@ class POSScreen extends StatelessWidget {
                 return ListTile(
                   dense: true,
                   visualDensity: VisualDensity.compact, // Make ListTile more compact
-                  title: Text(payment.paymentType?.name ?? 'Unknown', style: const TextStyle(fontSize: 14)),
+                  title: Text((payment.paymentType.value?.name) ?? 'Unknown', style: const TextStyle(fontSize: 14)),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -881,8 +884,8 @@ class POSScreen extends StatelessWidget {
                 itemCount: heldSales.length,
                 itemBuilder: (context, index) {
                   final sale = heldSales[index];
-                  final double conversionRate = (sale.currency?.rate ?? 1.0);
-                  final String displaySymbol = sale.currency?.symbol ?? '';
+                  final double conversionRate = ((sale.currency.value?.rate) ?? 1.0);
+                  final String displaySymbol = (sale.currency.value?.symbol) ?? '';
                   return Card(
                     margin: const EdgeInsets.symmetric(vertical: 2), // Reduced margin
                     child: ExpansionTile(
@@ -902,7 +905,7 @@ class POSScreen extends StatelessWidget {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        '${item.inventoryItem?.name ?? 'Unknown Item'} (x${item.quantity.toStringAsFixed(0)})',
+                                        '${(item.inventoryItem.value?.name) ?? 'Unknown Item'} (x${item.quantity.toStringAsFixed(0)})',
                                         style: const TextStyle(fontSize: 12), // Reduced font size
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -941,7 +944,7 @@ class POSScreen extends StatelessWidget {
                                   });
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Held sale for ${sale.customer?.name ?? 'Guest'} deleted.'), backgroundColor: Colors.red),
+                                      SnackBar(content: Text('Held sale for ${(sale.customer.value?.name) ?? 'Guest'} deleted.'), backgroundColor: Colors.red),
                                     );
                                   }
                                 },

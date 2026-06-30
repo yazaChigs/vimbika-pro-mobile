@@ -40,7 +40,7 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
   Tax? _selectedTax;
   Branch? _selectedBranch;
   Currency? _baseCurrency;
-  
+
   List<Category> _categories = [];
   List<Unit> _units = [];
   List<Tax> _taxes = [];
@@ -93,14 +93,14 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
 
       final item = widget.item ?? widget.branchStock?.item;
       if (item != null) {
-        if (item.category != null) {
-          _selectedCategory = _categories.cast<Category?>().firstWhere((element) => element?.id == item.category!.id, orElse: () => null); // Changed orElse to null
+        if (item.category.value != null) {
+          _selectedCategory = _categories.cast<Category?>().firstWhere((element) => element?.id == item.category.value!.id, orElse: () => null); // Changed orElse to null
         }
-        if (item.unit != null) {
-          _selectedUnit = _units.cast<Unit?>().firstWhere((element) => element?.id == item.unit!.id, orElse: () => null); // Changed orElse to null
+        if (item.unit.value != null) {
+          _selectedUnit = _units.cast<Unit?>().firstWhere((element) => element?.id == item.unit.value!.id, orElse: () => null); // Changed orElse to null
         }
-        if (item.tax != null) {
-          _selectedTax = _taxes.cast<Tax?>().firstWhere((element) => element?.id == item.tax!.id, orElse: () => null); // Changed orElse to null
+        if (item.tax.value != null) {
+          _selectedTax = _taxes.cast<Tax?>().firstWhere((element) => element?.id == item.tax.value!.id, orElse: () => null); // Changed orElse to null
         }
       }
 

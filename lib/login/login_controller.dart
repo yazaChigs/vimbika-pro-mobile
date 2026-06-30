@@ -171,7 +171,7 @@ class LoginController extends ChangeNotifier {
         await prefs.setString(AppConstants.keyOfflineUserData, jsonEncode(foundUser.toJson()));
         await prefs.setString(AppConstants.keyUserData, jsonEncode(foundUser.toJson()));
         if (foundUser.branch?.company != null) {
-          await CompanyService().saveOfflineCompany(foundUser.branch!.company!);
+          await CompanyService().saveOfflineCompany(foundUser.branch!.company.value!);
         }
         await prefs.setBool(AppConstants.keyHasUser, true);
         await prefs.setBool(AppConstants.keyHasLoggedIn, true); // Mark as logged in

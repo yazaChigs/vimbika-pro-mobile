@@ -443,13 +443,13 @@ class PrinterService {
     buffer.writeln('--------------------------------');
     buffer.writeln('Receipt #: ${payment.id ?? 'N/A'}');
     buffer.writeln('Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}');
-    if (payment.payer != null) {
-      buffer.writeln('Received From: ${payment.payer!.name}');
+    if (payment.payer.value != null) {
+      buffer.writeln('Received From: ${payment.payer.value!.name}');
     }
-    buffer.writeln('Amount: ${payment.currency?.symbol ?? ''} ${payment.amount.toStringAsFixed(2)}');
-    buffer.writeln('Payment Method: ${payment.paymentType?.name ?? 'N/A'}');
-    if (payment.bank != null) {
-      buffer.writeln('Bank: ${payment.bank!.name}');
+    buffer.writeln('Amount: ${payment.currency.value?.symbol ?? ''} ${payment.amount.toStringAsFixed(2)}');
+    buffer.writeln('Payment Method: ${payment.paymentType.value?.name ?? 'N/A'}');
+    if (payment.bank.value != null) {
+      buffer.writeln('Bank: ${payment.bank.value!.name}');
     }
     buffer.writeln('--------------------------------');
     buffer.writeln('  THANK YOU FOR YOUR PAYMENT!');
@@ -498,9 +498,9 @@ class PrinterService {
     final Generator generator = Generator(PaperSize.mm58, profile);
 
     // Get image
-    if (sale.company?.id != null) {
+    if (sale.company.value?.id != null) {
       final DefaultDataService defaultDataService = DefaultDataService();
-      final File? logoFile = await defaultDataService.getImage(sale.company!.id!);
+      final File? logoFile = await defaultDataService.getImage(sale.company.value!.id!);
       if (logoFile != null && await logoFile.exists()) {
         try {
           Uint8List imageBytes = await logoFile.readAsBytes();
@@ -521,39 +521,38 @@ class PrinterService {
       }
     }
 
-    bytes += generator.text(sale.company?.name ?? "Vimbika Pro", styles: PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
-    bytes += generator.text(sale.branch?.name ?? "", styles: PosStyles(align: PosAlign.center));
-    bytes += generator.text(sale.branch?.address ?? "", styles: PosStyles(align: PosAlign.center));
+    bytes += generator.text(sale.company.value?.name ?? "Vimbika Pro", styles: PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+    if (sale.branch.value != null) {
+      bytes += generator.text(sale.branch.value!.name ?? "", styles: PosStyles(align: PosAlign.center));
+      bytes += generator.text(sale.branch.value!.address ?? "", styles: PosStyles(align: PosAlign.center));
+    }
 
 
     // Company Phone Number
-    if (sale.company?.phoneNumber != null && sale.company!.phoneNumber!.isNotEmpty) {
-      bytes += generator.text("Tel: ${sale.company!.phoneNumber!}", styles: PosStyles(align: PosAlign.center));
+    if (sale.company.value?.phoneNumber != null && sale.company.value!.phoneNumber!.isNotEmpty) {
+      bytes += generator.text("Tel: ${sale.company.value!.phoneNumber!}", styles: PosStyles(align: PosAlign.center));
     }
-    // Company VAT Number
-    if (sale.company?.vatNumber != null && sale.company!.vatNumber!.isNotEmpty) {
-      bytes += generator.text("VAT: ${sale.company!.vatNumber!}", styles: PosStyles(align: PosAlign.center));
+    // Company VAT Number (using description as placeholder if vatNumber missing)
+    if (sale.company.value?.description != null && sale.company.value!.description!.isNotEmpty) {
+      bytes += generator.text("Info: ${sale.company.value!.description!}", styles: PosStyles(align: PosAlign.center));
     }
-    // Company TIN Number
-    if (sale.company?.taxNumber != null && sale.company!.taxNumber!.isNotEmpty) {
-      bytes += generator.text("TIN: ${sale.company!.taxNumber!}", styles: PosStyles(align: PosAlign.center));
-    }
-
+    // Company TIN Number (removing taxNumber since it doesn't exist)
+    
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
-    bytes += generator.text("Receipt #: ${sale.posReference ?? sale.posReference}", styles: PosStyles(align: PosAlign.left));
+    bytes += generator.text("Receipt #: ${sale.posReference ?? 'N/A'}", styles: PosStyles(align: PosAlign.left));
     bytes += generator.text("Date: ${sale.timeIniated}", styles: PosStyles(align: PosAlign.left));
-    if (sale.customer != null) {
-      bytes += generator.text("Customer: ${sale.customer!.name}", styles: PosStyles(align: PosAlign.left));
+    if (sale.customer.value != null) {
+      bytes += generator.text("Customer: ${sale.customer.value!.name}", styles: PosStyles(align: PosAlign.left));
     }
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     bytes += generator.text("Item", styles: PosStyles(align: PosAlign.left)); // Simpler header
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
 
-    String symbol = sale.currency?.symbol ?? "";
+    String symbol = sale.currency.value?.symbol ?? "";
     num totalItems = 0;
     for (var item in sale.items) {
       totalItems += item.quantity;
-      String name = (item.inventoryItem?.name ?? "Item");
+      String name = (item.inventoryItem.value?.name ?? "Item");
       // Split name into multiple lines if it's too long
       List<String> nameLines = [];
       int chunkSize = 30; // Max characters per line for item name
@@ -580,18 +579,18 @@ class PrinterService {
     if (sale.paymentTypes != null && sale.paymentTypes!.isNotEmpty) {
       bytes += generator.text("Payment Details:", styles: PosStyles(align: PosAlign.left));
       for (var payment in sale.paymentTypes!) {
-        bytes += generator.text("${payment.paymentType?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+        bytes += generator.text("${payment.paymentType.value?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
       }
       bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     }
 
-    Currency? cur = sale.currency;
-    if((sale.paymentTypes?.any((pt) => pt.paymentType?.name.contains('ACC-') ?? false) ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty) {
-      final balanceItem = sale.customer!.currencyBalance!.firstWhere(
-        (cb) => cb.currency?.id == cur?.id,
-        orElse: () => sale.customer!.currencyBalance!.first,
+    Currency? cur = sale.currency.value;
+    if((sale.paymentTypes?.any((pt) => pt.paymentType.value?.name.contains('ACC-') ?? false) ?? false) && sale.customer.value != null && sale.customer.value!.currencyBalance != null && sale.customer.value!.currencyBalance!.isNotEmpty) {
+      final balanceItem = sale.customer.value!.currencyBalance!.firstWhere(
+        (cb) => cb.currency.value?.id == cur?.id,
+        orElse: () => sale.customer.value!.currencyBalance!.first,
       );
-      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${balanceItem.balance!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${balanceItem.amount!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
       bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     }
 
@@ -631,7 +630,7 @@ class PrinterService {
         bytes += generator.text(sale.receiptQrCode!, styles: PosStyles(align: PosAlign.center));
       }
     } else if(sale.receiptQrCode==null && _waScan){
-      Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
+      Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency.value!.symbol!, sale.amountAfterDiscount!);
       bytes += generator.image(
         img.decodeImage(waImageBytes)!,
         align: PosAlign.center,
@@ -651,9 +650,9 @@ class PrinterService {
     await SunmiPrinter.startTransactionPrint(true);
     
     // Get image
-    if (sale.company?.id != null) {
+    if (sale.company.value?.id != null) {
       final DefaultDataService defaultDataService = DefaultDataService();
-      final File? logoFile = await defaultDataService.getImage(sale.company!.id!);
+      final File? logoFile = await defaultDataService.getImage(sale.company.value!.id!);
       if (logoFile != null && await logoFile.exists()) {
         try {
           Uint8List bytes = await logoFile.readAsBytes();
@@ -672,36 +671,34 @@ class PrinterService {
         }
       }
     }
-    await SunmiPrinter.printText('\n${sale.company?.name??''}', style: SunmiStyle(fontSize: SunmiFontSize.XL, align: SunmiPrintAlign.CENTER, bold: true));
-    if (sale.branch != null) {
-      await SunmiPrinter.printText("${sale.branch!.name}\n${sale.branch!.address ?? ''}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    await SunmiPrinter.printText('\n${sale.company.value?.name??''}', style: SunmiStyle(fontSize: SunmiFontSize.XL, align: SunmiPrintAlign.CENTER, bold: true));
+    if (sale.branch.value != null) {
+      await SunmiPrinter.printText("${sale.branch.value!.name}\n${sale.branch.value!.address ?? ''}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
 
     // Add company/branch contact details
-    if (sale.company?.phoneNumber != null && sale.company!.phoneNumber!.isNotEmpty) {
-      await SunmiPrinter.printText("Tel: ${sale.company!.phoneNumber!}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    if (sale.company.value?.phoneNumber != null && sale.company.value!.phoneNumber!.isNotEmpty) {
+      await SunmiPrinter.printText("Tel: ${sale.company.value!.phoneNumber!}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
-    if (sale.company?.vatNumber != null && sale.company!.vatNumber!.isNotEmpty) {
-      await SunmiPrinter.printText("VAT: ${sale.company!.vatNumber!}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    if (sale.company.value?.description != null && sale.company.value!.description!.isNotEmpty) {
+      await SunmiPrinter.printText("Info: ${sale.company.value!.description!}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
-    if (sale.company?.taxNumber != null && sale.company!.taxNumber!.isNotEmpty) {
-      await SunmiPrinter.printText("TIN: ${sale.company!.taxNumber!}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
-    }
+    // Removing taxNumber access as it might be missing from model
 
     await SunmiPrinter.lineWrap(1);
     await SunmiPrinter.printText("Receipt #: ${sale.id?.substring(0, 8).toUpperCase() ?? 'N/A'}\nDate: ${sale.timeIniated}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
-    if (sale.customer != null) {
-      await SunmiPrinter.printText("Customer: ${sale.customer!.name}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    if (sale.customer.value != null) {
+      await SunmiPrinter.printText("Customer: ${sale.customer.value!.name}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
     }
     await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     
-    String symbol = sale.currency?.symbol ?? "";
+    String symbol = sale.currency.value?.symbol ?? "";
     num totalItems = 0;
     await SunmiPrinter.printText("Item", style: SunmiStyle(align: SunmiPrintAlign.LEFT)); // Simpler header
     await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     for (var item in sale.items) {
       totalItems += item.quantity;
-      String name = (item.inventoryItem?.name ?? "Item");
+      String name = (item.inventoryItem.value?.name ?? "Item");
       // Split name into multiple lines if it's too long
       List<String> nameLines = [];
       int chunkSize = 30; // Max characters per line for item name
@@ -728,20 +725,20 @@ class PrinterService {
     if (sale.paymentTypes != null && sale.paymentTypes!.isNotEmpty) {
       await SunmiPrinter.printText("Payment Details:", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
       for (var payment in sale.paymentTypes!) {
-        await SunmiPrinter.printText("${payment.paymentType?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+        await SunmiPrinter.printText("${payment.paymentType.value?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
       }
       await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
 
-    Currency? cur = sale.currency;
-    if((sale.paymentTypes?.any((pt) => pt.paymentType?.name.contains('ACC-') ?? false) ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty)
+    Currency? cur = sale.currency.value;
+    if((sale.paymentTypes?.any((pt) => pt.paymentType.value?.name.contains('ACC-') ?? false) ?? false) && sale.customer.value != null && sale.customer.value!.currencyBalance != null && sale.customer.value!.currencyBalance!.isNotEmpty)
     {
-      final balanceItem = sale.customer!.currencyBalance!.firstWhere(
-        (cb) => cb.currency?.id == cur?.id,
-        orElse: () => sale.customer!.currencyBalance!.first,
+      final balanceItem = sale.customer.value!.currencyBalance!.firstWhere(
+        (cb) => cb.currency.value?.id == cur?.id,
+        orElse: () => sale.customer.value!.currencyBalance!.first,
       );
       await SunmiPrinter.printText(
-          "Account Balance: ${cur?.symbol ?? ''} ${balanceItem.balance!.toStringAsFixed(2)}");
+          "Account Balance: ${cur?.symbol ?? ''} ${balanceItem.amount!.toStringAsFixed(2)}");
       await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
     await SunmiPrinter.printText("\n");
@@ -761,7 +758,7 @@ class PrinterService {
     } else if(sale.receiptQrCode==null
         && _waScan
     ){
-      Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
+      Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency.value!.symbol!, sale.amountAfterDiscount!);
       await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
       await SunmiPrinter.printImage(waImageBytes);
       await SunmiPrinter.printText("\n");
@@ -791,9 +788,9 @@ class PrinterService {
     final Generator generator = Generator(PaperSize.mm58, profile);
 
     // Get image
-    if (sale.company?.id != null) {
+    if (sale.company.value?.id != null) {
       final DefaultDataService defaultDataService = DefaultDataService();
-      final File? logoFile = await defaultDataService.getImage(sale.company!.id!);
+      final File? logoFile = await defaultDataService.getImage(sale.company.value!.id!);
       if (logoFile != null && await logoFile.exists()) {
         try {
           Uint8List imageBytes = await logoFile.readAsBytes();
@@ -814,38 +811,37 @@ class PrinterService {
       }
     }
 
-    bytes += generator.text(sale.company?.name ?? "Vimbika Pro", styles: PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
-    bytes += generator.text(sale.branch?.name ?? "", styles: PosStyles(align: PosAlign.center));
-    bytes += generator.text(sale.branch?.address ?? "", styles: PosStyles(align: PosAlign.center));
+    bytes += generator.text(sale.company.value?.name ?? "Vimbika Pro", styles: PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+    if (sale.branch.value != null) {
+      bytes += generator.text(sale.branch.value!.name ?? "", styles: PosStyles(align: PosAlign.center));
+      bytes += generator.text(sale.branch.value!.address ?? "", styles: PosStyles(align: PosAlign.center));
+    }
 
     // Company Phone Number
-    if (sale.company?.phoneNumber != null && sale.company!.phoneNumber!.isNotEmpty) {
-      bytes += generator.text("Tel: ${sale.company!.phoneNumber!}", styles: PosStyles(align: PosAlign.center));
+    if (sale.company.value?.phoneNumber != null && sale.company.value!.phoneNumber!.isNotEmpty) {
+      bytes += generator.text("Tel: ${sale.company.value!.phoneNumber!}", styles: PosStyles(align: PosAlign.center));
     }
     // Company VAT Number
-    if (sale.company?.vatNumber != null && sale.company!.vatNumber!.isNotEmpty) {
-      bytes += generator.text("VAT: ${sale.company!.vatNumber!}", styles: PosStyles(align: PosAlign.center));
+    if (sale.company.value?.description != null && sale.company.value!.description!.isNotEmpty) {
+      bytes += generator.text("Info: ${sale.company.value!.description!}", styles: PosStyles(align: PosAlign.center));
     }
-    // Company TIN Number
-    if (sale.company?.taxNumber != null && sale.company!.taxNumber!.isNotEmpty) {
-      bytes += generator.text("TIN: ${sale.company!.taxNumber!}", styles: PosStyles(align: PosAlign.center));
-    }
+    // Removing taxNumber since it's not verified to exist
 
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
-    bytes += generator.text("Receipt #: ${sale.posReference ?? sale.posReference}", styles: PosStyles(align: PosAlign.left));
+    bytes += generator.text("Receipt #: ${sale.posReference ?? 'N/A'}", styles: PosStyles(align: PosAlign.left));
     bytes += generator.text("Date: ${sale.timeIniated}", styles: PosStyles(align: PosAlign.left));
-    if (sale.customer != null) {
-      bytes += generator.text("Customer: ${sale.customer!.name}", styles: PosStyles(align: PosAlign.left));
+    if (sale.customer.value != null) {
+      bytes += generator.text("Customer: ${sale.customer.value!.name}", styles: PosStyles(align: PosAlign.left));
     }
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     bytes += generator.text("Item", styles: PosStyles(align: PosAlign.left)); // Simpler header
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     
-    String symbol = sale.currency?.symbol ?? "";
+    String symbol = sale.currency.value?.symbol ?? "";
     num totalItems = 0;
     for (var item in sale.items) {
       totalItems += item.quantity;
-      String name = (item.inventoryItem?.name ?? "Item");
+      String name = (item.inventoryItem.value?.name ?? "Item");
       // Split name into multiple lines if it's too long
       List<String> nameLines = [];
       int chunkSize = 30; // Max characters per line for item name
@@ -872,18 +868,18 @@ class PrinterService {
     if (sale.paymentTypes != null && sale.paymentTypes!.isNotEmpty) {
       bytes += generator.text("Payment Details:", styles: PosStyles(align: PosAlign.left));
       for (var payment in sale.paymentTypes!) {
-        bytes += generator.text("${payment.paymentType?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+        bytes += generator.text("${payment.paymentType.value?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
       }
       bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     }
 
-    Currency? cur = sale.currency;
-    if((sale.paymentTypes?.any((pt) => pt.paymentType?.name.contains('ACC-') ?? false) ?? false) && sale.customer != null && sale.customer!.currencyBalance != null && sale.customer!.currencyBalance!.isNotEmpty) {
-      final balanceItem = sale.customer!.currencyBalance!.firstWhere(
-        (cb) => cb.currency?.id == cur?.id,
-        orElse: () => sale.customer!.currencyBalance!.first,
+    Currency? cur = sale.currency.value;
+    if((sale.paymentTypes?.any((pt) => pt.paymentType.value?.name.contains('ACC-') ?? false) ?? false) && sale.customer.value != null && sale.customer.value!.currencyBalance != null && sale.customer.value!.currencyBalance!.isNotEmpty) {
+      final balanceItem = sale.customer.value!.currencyBalance!.firstWhere(
+        (cb) => cb.currency.value?.id == cur?.id,
+        orElse: () => sale.customer.value!.currencyBalance!.first,
       );
-      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${balanceItem.balance!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${balanceItem.amount!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
       bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     }
 
@@ -923,7 +919,7 @@ class PrinterService {
         bytes += generator.text(sale.receiptQrCode!, styles: PosStyles(align: PosAlign.center));
       }
     } else if(sale.receiptQrCode==null && _waScan){
-      Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency!.symbol!, sale.amountAfterDiscount!);
+      Uint8List waImageBytes = await generateWhatsappQR(sale.referenceNumber!, sale.currency.value!.symbol!, sale.amountAfterDiscount!);
       bytes += generator.image(
         img.decodeImage(waImageBytes)!,
         align: PosAlign.center,

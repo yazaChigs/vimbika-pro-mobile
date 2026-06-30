@@ -155,10 +155,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
           TextCellValue(item.name),
           TextCellValue(item.description!),
           TextCellValue(item.itemCode ?? ''),
-          TextCellValue(item.category?.name ?? ''),
-          TextCellValue(item.unit?.name ?? ''),
-          TextCellValue(item.tax?.name ?? ''),
-          DoubleCellValue(item.tax?.taxPercentage ?? 0.0),
+          TextCellValue(item.category.value?.name ?? ''),
+          TextCellValue(item.unit.value?.name ?? ''),
+          TextCellValue(item.tax.value?.name ?? ''),
+          DoubleCellValue(item.tax.value?.taxPercentage ?? 0.0),
           DoubleCellValue(item.purchasePrice),
           DoubleCellValue(item.sellingPrice),
           DoubleCellValue(item.reorderLevel),
@@ -220,7 +220,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         final matchesBranch = _selectedBranch == null || stock.branch?.id == _selectedBranch!.id;
 
         // Category Filter
-        final matchesCategory = _selectedCategory == null || item.category?.id == _selectedCategory!.id;
+        final matchesCategory = _selectedCategory == null || item.category.value?.id == _selectedCategory!.id;
 
         bool matchesItemType = true;
         if (_selectedItemType == 'Products') matchesItemType = !item.isService;
@@ -305,7 +305,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
-                                        'Stock: ${stock.stock.toStringAsFixed(0)} ${item.unit?.name ?? ''}',
+                                        'Stock: ${stock.stock.toStringAsFixed(0)} ${item.unit.value?.name ?? ''}',
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,

@@ -40,7 +40,6 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
   Branch? _defaultBranch;
 
   // New state variable for "sell nil items"
-  bool _sellNilItems = false;
   // New state variable for "allow out of stock sales"
   bool _allowOutOfStockSales = false;
 
@@ -81,7 +80,7 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
     final List<String> paymentTypeJson = prefs.getStringList(AppConstants.keyOfflinePaymentTypes) ?? [];
     if (paymentTypeJson.isNotEmpty) {
       _paymentTypes = paymentTypeJson.map((e) => PaymentType.fromJson(jsonDecode(e))).toList();
-      _displayPaymentTypes = _paymentTypes.where((c)=>!c.isSystemCreated).toList();
+      _displayPaymentTypes = _paymentTypes.where((c)=>!c.isSystemCreated!).toList();
     } else {
       _paymentTypes = []; // Initialize as empty if no saved data
     }
@@ -675,7 +674,7 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
                               if (index > 0) const Divider(height: 1),
                               CheckboxListTile(
                                 title: Text(pt.name),
-                                subtitle: pt.currency != null ? Text('For ${pt.currency!.name} only${pt.banks != null && pt.banks!.isNotEmpty ? ' (${pt.banks!.length} Banks)' : ''}') : (pt.banks != null && pt.banks!.isNotEmpty ? Text('${pt.banks!.length} Banks') : null),
+                                subtitle: pt.currency.value != null ? Text('For ${pt.currency.value!.name} only${pt.banks != null && pt.banks!.isNotEmpty ? ' (${pt.banks!.length} Banks)' : ''}') : (pt.banks != null && pt.banks!.isNotEmpty ? Text('${pt.banks!.length} Banks') : null),
                                 value: pt.active,
                                 // activeColor: AppTheme.vimbikaBlue, // remove deprecated warning again just in case
                                 activeColor: AppTheme.vimbikaBlue,

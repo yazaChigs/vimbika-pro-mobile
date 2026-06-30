@@ -1,28 +1,25 @@
-import 'base_name_entity.dart';
+import 'package:isar/isar.dart';
+import 'package:vimbika_pro/model/base_name_entity.dart';
 
+part 'unit.g.dart';
+
+@collection
 class Unit extends BaseNameEntity {
+  Id isarId = Isar.autoIncrement;
+
   final String? abbreviation;
 
   Unit({
-    String? id,
-    String? dateCreated,
-    String? dateModified,
-    String? createdByName,
-    String? modifiedByName,
-    int? version,
-    required String name,
-    String? description,
+    super.id,
+    super.dateCreated,
+    super.dateModified,
+    super.createdByName,
+    super.modifiedByName,
+    super.version,
+    required super.name,
     this.abbreviation,
-  }) : super(
-          id: id,
-          dateCreated: dateCreated,
-          dateModified: dateModified,
-          createdByName: createdByName,
-          modifiedByName: modifiedByName,
-          version: version,
-          name: name,
-          description: description,
-        );
+    super.description,
+  });
 
   factory Unit.fromJson(Map<String, dynamic> json) {
     return Unit(
@@ -32,7 +29,8 @@ class Unit extends BaseNameEntity {
       createdByName: json['createdByName'],
       modifiedByName: json['modifiedByName'],
       version: json['version'],
-      name: json['name'] ?? '',
+      name: json['name'],
+      abbreviation: json['abbreviation'],
       description: json['description'],
     );
   }
@@ -40,12 +38,13 @@ class Unit extends BaseNameEntity {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'dateCreated': dateCreated, // Return directly as String?
-      'dateModified': dateModified, // Return directly as String?
+      'dateCreated': dateCreated,
+      'dateModified': dateModified,
       'createdByName': createdByName,
       'modifiedByName': modifiedByName,
       'version': version,
       'name': name,
+      'abbreviation': abbreviation,
       'description': description,
     };
   }

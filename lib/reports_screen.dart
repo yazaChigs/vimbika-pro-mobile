@@ -84,21 +84,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
       // Top Sold Items calculation & Cost of Sales
       for (final saleItem in sale.items) {
-        if (saleItem.inventoryItem != null) {
-          final itemId = saleItem.inventoryItem!.id ?? 'unknown';
+        if (saleItem.inventoryItem.value != null) {
+          final itemId = saleItem.inventoryItem.value!.id ?? 'unknown';
           itemSalesCount[itemId] = (itemSalesCount[itemId] ?? 0.0) + saleItem.quantity;
-          itemNames[itemId] = saleItem.inventoryItem!.name;
+          itemNames[itemId] = saleItem.inventoryItem.value!.name;
           
           // Cost of sales: quantity sold * purchase price of the item
-          costOfSalesSum += (saleItem.quantity * saleItem.inventoryItem!.purchasePrice);
+          costOfSalesSum += (saleItem.quantity * saleItem.inventoryItem.value!.purchasePrice);
         }
       }
 
       // Customer Statistics calculation
-      if (sale.customer != null) {
-        final customerId = sale.customer!.id ?? 'unknown_${sale.customer!.name}';
+      if (sale.customer.value != null) {
+        final customerId = sale.customer.value!.id ?? 'unknown_${sale.customer.value!.name}';
         customerSalesValue[customerId] = (customerSalesValue[customerId] ?? 0.0) + sale.grandTotal;
-        customerNames[customerId] = sale.customer!.name;
+        customerNames[customerId] = sale.customer.value!.name;
       }
     }
 

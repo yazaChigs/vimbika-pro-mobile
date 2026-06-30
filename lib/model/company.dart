@@ -1,46 +1,34 @@
-import 'package:vimbika_pro/model/user.dart';
+import 'package:isar/isar.dart';
+import 'package:vimbika_pro/model/base_entity.dart';
 
-import 'base_name_entity.dart';
+part 'company.g.dart';
 
-class Company extends BaseNameEntity {
-  final String? address;
-  final String? phoneNumber;
-  final String? email;
-  final String? website;
-  final String? logo;
-  final String? taxNumber;
-  final String? vatNumber;
-  final String? defaultBranch;
-  final User? newOfflineUser;
+@collection
+class Company extends BaseEntity {
+  Id isarId = Isar.autoIncrement;
+  String? name;
+  String? description;
+  String? address;
+  String? phoneNumber;
+  String? email;
+  String? website;
+  String? logo;
 
   Company({
-    String? id,
-    String? dateCreated,
-    String? dateModified,
-    String? createdByName,
-    String? modifiedByName,
-    int? version,
-    required String name,
-    String? description,
+    super.id,
+    super.dateCreated,
+    super.dateModified,
+    super.createdByName,
+    super.modifiedByName,
+    super.version,
+    this.name,
+    this.description,
     this.address,
     this.phoneNumber,
     this.email,
     this.website,
     this.logo,
-    this.taxNumber,
-    this.vatNumber,
-    this.defaultBranch,
-    this.newOfflineUser,
-  }) : super(
-          id: id,
-          dateCreated: dateCreated,
-          dateModified: dateModified,
-          createdByName: createdByName,
-          modifiedByName: modifiedByName,
-          version: version,
-          name: name,
-          description: description,
-        );
+  });
 
   Company copyWith({
     String? id,
@@ -56,10 +44,7 @@ class Company extends BaseNameEntity {
     String? email,
     String? website,
     String? logo,
-    String? taxNumber,
-    String? vatNumber,
     String? defaultBranch,
-    User? newOfflineUser,
   }) {
     return Company(
       id: id ?? this.id,
@@ -75,33 +60,24 @@ class Company extends BaseNameEntity {
       email: email ?? this.email,
       website: website ?? this.website,
       logo: logo ?? this.logo,
-      taxNumber: taxNumber ?? this.taxNumber,
-      vatNumber: vatNumber ?? this.vatNumber,
-      newOfflineUser: newOfflineUser ?? this.newOfflineUser,
-      defaultBranch: defaultBranch ?? this.defaultBranch,
     );
   }
 
   factory Company.fromJson(Map<String, dynamic> json) {
     return Company(
-      id: json['id']?.toString(),
-      dateCreated: json['dateCreated'] ,
-      dateModified: json['dateModified'] ,
-      createdByName: json['createdByName']?.toString(),
-      modifiedByName: json['modifiedByName']?.toString(),
+      id: json['id'],
+      dateCreated: json['dateCreated'],
+      dateModified: json['dateModified'],
+      createdByName: json['createdByName'],
+      modifiedByName: json['modifiedByName'],
       version: json['version'],
-      name: json['name']?.toString() ?? 'Unknown Company',
-      description: json['description']?.toString(),
-      address: json['address']?.toString(),
-      phoneNumber: json['phoneNumber']?.toString(),
-      email: json['email']?.toString(),
-      website: json['website']?.toString(),
-      logo: json['logo']?.toString(),
-      taxNumber: json['taxNumber']?.toString(),
-      vatNumber: json['vatNumber']?.toString(),
-      newOfflineUser: json['newOfflineUser'],
-      defaultBranch: json['defaultBranch'],
-
+      name: json['name'],
+      description: json['description'],
+      address: json['address'],
+      phoneNumber: json['phoneNumber'],
+      email: json['email'],
+      website: json['website'],
+      logo: json['logo'],
     );
   }
 
@@ -120,10 +96,6 @@ class Company extends BaseNameEntity {
       'email': email,
       'website': website,
       'logo': logo,
-      'taxNumber': taxNumber,
-      'vatNumber': vatNumber,
-      'newOfflineUser': newOfflineUser,
-      'defaultBranch': defaultBranch,
     };
   }
 }

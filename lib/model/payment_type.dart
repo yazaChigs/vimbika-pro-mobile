@@ -1,53 +1,47 @@
-import 'base_name_entity.dart';
-import 'currency.dart';
-import 'bank.dart';
+import 'package:isar/isar.dart';
+import 'package:vimbika_pro/model/base_name_entity.dart';
+import 'package:vimbika_pro/model/currency.dart';
+import 'package:vimbika_pro/model/bank.dart';
 
+part 'payment_type.g.dart';
+
+@collection
 class PaymentType extends BaseNameEntity {
+  Id isarId = Isar.autoIncrement;
+  final bool active;
   final bool isCash;
+  final bool isCredit;
   final bool isCard;
   final bool isMobileMoney;
   final bool isBankTransfer;
-  final bool _isCredit; // Internal field
-  final bool active; // Added active field
-  final bool isSystemCreated;
-  final Currency? currency;
+  final bool? isSystemCreated;
+  @ignore
   final List<Bank>? banks;
-
-  bool get isCredit {
-    if (_isCredit) return true;
-    final upperName = name.toUpperCase();
-    return upperName.startsWith('ACC-') || upperName.startsWith('CREDIT-');
-  }
+  final currency = IsarLink<Currency>();
 
   PaymentType({
-    String? id,
-    String? dateCreated,
-    String? dateModified,
-    String? createdByName,
-    String? modifiedByName,
-    int? version,
-    required String name,
-    String? description,
+    super.id,
+    super.dateCreated,
+    super.dateModified,
+    super.createdByName,
+    super.modifiedByName,
+    super.version,
+    required super.name,
+    super.description,
+    this.active = true,
     this.isCash = false,
+    this.isCredit = false,
     this.isCard = false,
     this.isMobileMoney = false,
     this.isBankTransfer = false,
-    bool isCredit = false, // Initialize internal field
-    this.active = true, // Default to true
-    this.currency,
+    this.isSystemCreated,
     this.banks,
-    this.isSystemCreated = false,
-  }) : _isCredit = isCredit,
-       super(
-          id: id,
-          dateCreated: dateCreated,
-          dateModified: dateModified,
-          createdByName: createdByName,
-          modifiedByName: modifiedByName,
-          version: version,
-          name: name,
-          description: description,
-        );
+    Currency? currency,
+  }) {
+    if (currency != null) {
+      this.currency.value = currency;
+    }
+  }
 
   PaymentType copyWith({
     String? id,
@@ -58,17 +52,17 @@ class PaymentType extends BaseNameEntity {
     int? version,
     String? name,
     String? description,
+    bool? active,
     bool? isCash,
+    bool? isCredit,
     bool? isCard,
     bool? isMobileMoney,
     bool? isBankTransfer,
-    bool? isCredit,
-    bool? active,
     bool? isSystemCreated,
-    Currency? currency,
     List<Bank>? banks,
+    Currency? currency,
   }) {
-    return PaymentType(
+    final newPaymentType = PaymentType(
       id: id ?? this.id,
       dateCreated: dateCreated ?? this.dateCreated,
       dateModified: dateModified ?? this.dateModified,
@@ -77,51 +71,50 @@ class PaymentType extends BaseNameEntity {
       version: version ?? this.version,
       name: name ?? this.name,
       description: description ?? this.description,
+      active: active ?? this.active,
       isCash: isCash ?? this.isCash,
+      isCredit: isCredit ?? this.isCredit,
       isCard: isCard ?? this.isCard,
       isMobileMoney: isMobileMoney ?? this.isMobileMoney,
       isBankTransfer: isBankTransfer ?? this.isBankTransfer,
-      isCredit: isCredit ?? this._isCredit,
-      active: active ?? this.active,
-      currency: currency ?? this.currency,
-      banks: banks ?? this.banks,
       isSystemCreated: isSystemCreated ?? this.isSystemCreated,
+      banks: banks ?? this.banks,
     );
+    if (currency != null) {
+      newPaymentType.currency.value = currency;
+    } else {
+      newPaymentType.currency.value = this.currency.value;
+    }
+    return newPaymentType;
   }
 
-  factory PaymentType.fromJson(dynamic jsonData) {
-    if (jsonData is String) {
-      return PaymentType(
-        id: jsonData,
-        name: jsonData,
-      );
-    }
-    
-    final Map<String, dynamic> json = jsonData as Map<String, dynamic>;
-    
-    return PaymentType(
-      id: json['id']?.toString(),
-      dateCreated: json['dateCreated'] ,
-      dateModified: json['dateModified'] ,
-      createdByName: json['createdByName'] is Map ? json['createdByName']['name']?.toString() ?? json['createdByName']['firstName']?.toString() : json['createdByName']?.toString(),
-      modifiedByName: json['modifiedByName'] is Map ? json['modifiedByName']['name']?.toString() ?? json['modifiedByName']['firstName']?.toString() : json['modifiedByName']?.toString(),
-      version: json['version'] is int ? json['version'] : int.tryParse(json['version']?.toString() ?? ''),
-      name: json['name']?.toString() ?? '',
-      description: json['description']?.toString(),
-      isCash: json['isCash'] == true || json['isCash'] == 'true',
-      isCard: json['isCard'] == true || json['isCard'] == 'true',
-      isMobileMoney: json['isMobileMoney'] == true || json['isMobileMoney'] == 'true',
-      isBankTransfer: json['isBankTransfer'] == true || json['isBankTransfer'] == 'true',
-      isCredit: json['isCredit'] == true || json['isCredit'] == 'true', // Parse isCredit from JSON
-      active: json['active'] ?? true, // Parse active from JSON, default true
-      currency: json['currency'] != null
-          ? (json['currency'] is String ? Currency(id: json['currency']) : Currency.fromMap(json['currency']))
-          : null,
+  factory PaymentType.fromJson(Map<String, dynamic> json) {
+    final paymentType = PaymentType(
+      id: json['id'],
+      dateCreated: json['dateCreated'],
+      dateModified: json['dateModified'],
+      createdByName: json['createdByName'],
+      modifiedByName: json['modifiedByName'],
+      version: json['version'],
+      name: json['name'],
+      description: json['description'],
+      active: json['active'] ?? true,
+      isCash: json['isCash'] ?? false,
+      isCredit: json['isCredit'] ?? false,
+      isCard: json['isCard'] ?? false,
+      isMobileMoney: json['isMobileMoney'] ?? false,
+      isBankTransfer: json['isBankTransfer'] ?? false,
+      isSystemCreated: json['isSystemCreated'],
       banks: json['banks'] != null
           ? (json['banks'] as List).map((i) => Bank.fromJson(i)).toList()
           : null,
-      isSystemCreated: json['isSystemCreated'] ?? false,
     );
+
+    if (json['currency'] != null) {
+      paymentType.currency.value = Currency.fromJson(json['currency']);
+    }
+
+    return paymentType;
   }
 
   Map<String, dynamic> toJson() {
@@ -134,15 +127,15 @@ class PaymentType extends BaseNameEntity {
       'version': version,
       'name': name,
       'description': description,
+      'active': active,
       'isCash': isCash,
+      'isCredit': isCredit,
       'isCard': isCard,
       'isMobileMoney': isMobileMoney,
       'isBankTransfer': isBankTransfer,
-      'isCredit': _isCredit, // Save the actual boolean received from the API if it's there
-      'active': active,
-      'currency': currency?.toJson(),
-      'banks': banks?.map((i) => i.toJson()).toList(),
       'isSystemCreated': isSystemCreated,
+      'banks': banks?.map((b) => b.toJson()).toList(),
+      'currency': currency.value?.toJson(),
     };
   }
 }

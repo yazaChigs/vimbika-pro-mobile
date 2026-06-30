@@ -15,7 +15,7 @@ class CurrencyService {
     if (userData == null) throw Exception('User not logged in');
     final user = User.fromJson(jsonDecode(userData));
     
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) throw Exception('Company ID not found for user');
 
     final String responseStr = await _client.getAuthWithCompanyHeader(
@@ -24,7 +24,7 @@ class CurrencyService {
     );
 
     final List<dynamic> data = jsonDecode(responseStr);
-    final List<Currency> currencies = data.map((c) => Currency.fromMap(c)).toList();
+    final List<Currency> currencies = data.map((c) => Currency.fromJson(c)).toList();
     
     // Save to shared preferences
     await prefs.setStringList(AppConstants.keyCurrencies, currencies.map((c) => jsonEncode(c.toJson())).toList());

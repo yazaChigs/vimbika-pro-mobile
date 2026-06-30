@@ -114,7 +114,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
 
       for (var item in salesJson) {
         final sale = Sale.fromJson(jsonDecode(item));
-        if (sale.customer?.id == widget.customer.id) {
+        if (sale.customer.value?.id == widget.customer.id) {
           
           // Add Sale as a Debit
           entries.add(StatementEntry(
@@ -126,11 +126,11 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
           billed += sale.grandTotal;
 
           // Add each Payment as a Credit
-          if (sale.paymentTypes != null) {
-            for (var payment in sale.paymentTypes!) {
+          if (sale.paymentTypes.isNotEmpty) {
+            for (var payment in sale.paymentTypes) {
               if (payment.id != null) processedPaymentIds.add(payment.id!);
               
-              final String paymentName = payment.paymentType?.name.toUpperCase() ?? '';
+              final String paymentName = payment.paymentType.value?.name.toUpperCase() ?? '';
 
               if (paymentName.startsWith('ACC-')) {
                   entries.add(StatementEntry(
@@ -146,7 +146,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
                   // Standard cash/bank payment
                   entries.add(StatementEntry(
                     date: DateTime.tryParse(payment.paymentDate ?? sale.timeIniated!) ?? DateTime.now(),
-                    description: 'Payment Received (${payment.paymentType?.name ?? "Cash"})',
+                    description: 'Payment Received (${payment.paymentType.value?.name ?? "Cash"})',
                     credit: payment.amount,
                     reference: '#${sale.id?.substring(0, 8).toUpperCase() ?? sale.posReference ?? 'N/A'}',
                   ));
@@ -171,41 +171,42 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
       }
       
       for (var payment in standalonePayments) {
-          // Only process if it belongs to this customer and wasn't already processed as part of a sale
-          if (payment.payer?.id == widget.customer.id && (payment.id == null || !processedPaymentIds.contains(payment.id))) {
-              
-              // If it's a PAY_ACCOUNT description, it means money was deposited INTO the account
-              if (payment.paymentDescription == 'PAY_ACCOUNT') {
-                  entries.add(StatementEntry(
-                    date: DateTime.tryParse(payment.dateTime ?? payment.paymentDate ?? '') ?? DateTime.now(),
-                    description: 'Account Deposit (${payment.paymentType?.name ?? "Cash"})',
-                    credit: payment.amount,
-                    reference: '#${payment.id?.substring(0, 8).toUpperCase() ?? 'TOPUP'}',
-                  ));
-                  paid += payment.amount;
-              } else if (payment.paymentDescription == 'SALE') {
-                   // In case a standalone sale payment got orphaned here
-                  
-                  final String paymentName = payment.paymentType?.name.toUpperCase() ?? '';
-                  if (!paymentName.startsWith('CREDIT-') && !paymentName.startsWith('ACC-')) {
-                     entries.add(StatementEntry(
-                      date: DateTime.tryParse(payment.dateTime ?? payment.paymentDate ?? '') ?? DateTime.now(),
-                      description: 'Payment Received (${payment.paymentType?.name ?? "Cash"})',
-                      credit: payment.amount,
-                      reference: '#${payment.id?.substring(0, 8).toUpperCase() ?? 'PAYMENT'}',
-                    ));
-                    paid += payment.amount;
-                  }
-              } else if (payment.paymentType?.isCredit == true && payment.paymentType?.name != null && !payment.paymentType!.name.toUpperCase().startsWith('ACC-')) {
-                   // This is a charge to the account (buying on credit) not attached to a sale? Unlikely but handle it
-                   entries.add(StatementEntry(
-                    date: DateTime.tryParse(payment.dateTime ?? payment.paymentDate ?? '') ?? DateTime.now(),
-                    description: 'Credit Charge',
-                    debit: payment.amount,
-                    reference: '#${payment.id?.substring(0, 8).toUpperCase() ?? 'CREDIT'}',
-                  ));
-                  billed += payment.amount;
-              }
+        // Only process if it belongs to this customer and wasn't already processed as part of a sale
+        if (payment.payer.value?.id == widget.customer.id && (payment.id == null || !processedPaymentIds.contains(payment.id))) {
+          // If it's a PAY_ACCOUNT description, it means money was deposited INTO the account
+          if (payment.paymentDescription == 'PAY_ACCOUNT') {
+            entries.add(StatementEntry(
+              date: DateTime.tryParse(payment.dateTime ?? payment.paymentDate ?? '') ?? DateTime.now(),
+              description: 'Account Deposit (${payment.paymentType.value?.name ?? "Cash"})',
+              credit: payment.amount,
+              reference: '#${payment.id?.substring(0, 8).toUpperCase() ?? 'TOPUP'}',
+            ));
+            paid += payment.amount;
+          } else if (payment.paymentDescription == 'SALE') {
+            // In case a standalone sale payment got orphaned here
+
+            final String paymentName = payment.paymentType.value?.name.toUpperCase() ?? '';
+            if (!paymentName.startsWith('CREDIT-') && !paymentName.startsWith('ACC-')) {
+              entries.add(StatementEntry(
+                date: DateTime.tryParse(payment.dateTime ?? payment.paymentDate ?? '') ?? DateTime.now(),
+                description: 'Payment Received (${payment.paymentType.value?.name ?? "Cash"})',
+                credit: payment.amount,
+                reference: '#${payment.id?.substring(0, 8).toUpperCase() ?? 'PAYMENT'}',
+              ));
+              paid += payment.amount;
+            }
+          } else if (payment.paymentType.value?.isCredit == true &&
+              payment.paymentType.value?.name != null &&
+              !payment.paymentType.value!.name.toUpperCase().startsWith('ACC-')) {
+            // This is a charge to the account (buying on credit) not attached to a sale? Unlikely but handle it
+            entries.add(StatementEntry(
+              date: DateTime.tryParse(payment.dateTime ?? payment.paymentDate ?? '') ?? DateTime.now(),
+              description: 'Credit Charge',
+              debit: payment.amount,
+              reference: '#${payment.id?.substring(0, 8).toUpperCase() ?? 'CREDIT'}',
+            ));
+            billed += payment.amount;
+          }
               
               if (payment.id != null) processedPaymentIds.add(payment.id!);
           }

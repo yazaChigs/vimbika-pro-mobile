@@ -23,7 +23,7 @@ class MobilePosShiftService {
     if (userData == null) throw Exception('User not logged in');
     final user = User.fromJson(jsonDecode(userData));
 
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) throw Exception('Company ID not found for user');
     final String formattedStartDate = '${startDate.toIso8601String().substring(0, 23)}Z';
     final String formattedEndDate = '${endDate.toIso8601String().substring(0, 23)}Z';
@@ -74,7 +74,7 @@ class MobilePosShiftService {
     if (userData == null) throw Exception('User not logged in');
     final user = User.fromJson(jsonDecode(userData));
 
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) throw Exception('Company ID not found for user');
 
     final String responseStr = await _client.getAuthWithCompanyHeader(
@@ -100,7 +100,7 @@ class MobilePosShiftService {
     if (userData == null) throw Exception('User not logged in');
     final user = User.fromJson(jsonDecode(userData));
 
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) throw Exception('Company ID not found for user');
 
     final String responseStr = await _client.getAuthWithCompanyHeader(
@@ -183,7 +183,7 @@ class MobilePosShiftService {
     if (userData == null) throw Exception('User not logged in');
     final user = User.fromJson(jsonDecode(userData));
 
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) throw Exception('Company ID not found for user');
     List<MobilePosShift> shiftList = [];
     shiftList.add(shift);
@@ -223,7 +223,7 @@ class MobilePosShiftService {
     if (userData == null) throw Exception('User not logged in');
     final user = User.fromJson(jsonDecode(userData));
 
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) throw Exception('Company ID not found for user');
 
     String jsonAmounts = json.encode(amounts.map((e) => e.toJson()).toList());
@@ -246,7 +246,7 @@ class MobilePosShiftService {
     if (userData == null) throw Exception('User not logged in');
     final user = User.fromJson(jsonDecode(userData));
 
-    final String? companyId = user.branch?.company?.id;
+    final String? companyId = user.companyId;
     if (companyId == null) throw Exception('Company ID not found for user');
     
     // Wrap the single shift object in a list to match the backend's expected input

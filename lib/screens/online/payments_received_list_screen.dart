@@ -78,14 +78,14 @@ class PaymentsReceivedListScreen extends StatelessWidget {
                                 color: AppColors.success),
                           ),
                           title: Text(
-                            payment.payer?.name ?? 'Anonymous Payer',
+                            payment.payer.value?.name ?? 'Anonymous Payer',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                payment.paymentType?.name ?? 'General Payment',
+                                payment.paymentType.value?.name ?? 'General Payment',
                                 style: const TextStyle(color: Colors.grey),
                               ),
                               if (payment.paymentDescription != null &&

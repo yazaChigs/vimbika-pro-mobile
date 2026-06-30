@@ -44,7 +44,7 @@ class MobileShiftCurrencyAmount {
     amount: (json["amount"] as num?)?.toDouble() ?? 0.0,
     currency: json["currency"] != null
         ? (json["currency"] is String
-            ? Currency.fromRawJson(json["currency"])
+            ? Currency.fromJson(jsonDecode(json["currency"]))
             : Currency.fromJson(json["currency"] as Map<String, dynamic>))
         : Currency(), // Fallback to empty currency if null
     notes: json["notes"]?.toString(),
@@ -64,7 +64,7 @@ class MobileShiftCurrencyAmount {
     "dateCreated": dateCreated,
     "createdByName": createdByName,
     "amount": amount,
-    "currency": currency.toMap(),
+    "currency": currency.toJson(),
     "notes": notes,
     "amountType": amountType,
     "ref": ref,

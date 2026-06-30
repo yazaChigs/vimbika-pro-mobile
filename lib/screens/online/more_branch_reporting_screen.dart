@@ -230,7 +230,7 @@ class _MoreBranchReportingScreenState extends State<MoreBranchReportingScreen> {
     for (var sale in sales) {
       if (sale.paymentTypes != null) {
         for (var payment in sale.paymentTypes!) {
-          final paymentTypeName = payment.paymentType?.name ?? 'Unknown';
+          final paymentTypeName = payment.paymentType.value?.name ?? 'Unknown';
           salesByPaymentType.update(paymentTypeName, (value) => value + payment.amount, ifAbsent: () => payment.amount);
         }
       }
@@ -256,7 +256,7 @@ class _MoreBranchReportingScreenState extends State<MoreBranchReportingScreen> {
       for (var branch in sortedBranchesForChart) {
         final branchTotal = branchPerformance[branch.id] ?? 0.0;
         if (branchTotal > 0) {
-          branchSalesMap[branch.name] = branchTotal;
+          branchSalesMap[branch.name!] = branchTotal;
         }
       }
     }
@@ -425,7 +425,7 @@ class _MoreBranchReportingScreenState extends State<MoreBranchReportingScreen> {
                     value: null,
                     child: Text("All Branches", style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
-                  ..._branches.map((b) => DropdownMenuItem(value: b, child: Text(b.name))),
+                  ..._branches.map((b) => DropdownMenuItem(value: b, child: Text(b.name!))),
                 ],
                 onChanged: (val) => setState(() => _selectedBranch = val),
               ),

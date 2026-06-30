@@ -1,84 +1,101 @@
-import 'dart:convert';
+import 'package:isar/isar.dart';
+import 'package:vimbika_pro/model/base_entity.dart';
 
-Currency currencyModelFromJson(String str) => Currency.fromJson(json.decode(str));
-String currencyItemModelToJson(Currency data) => json.encode(data.toMap());
+part 'currency.g.dart';
 
-class Currency {
-  Currency({
-    this.id,
-    this.name,
-    this.symbol,
-    this.rate,
-    this.isBaseCurrency,
-    this.isSystemCreated = false,
-  });
-
-  String? id;
+@collection
+class Currency extends BaseEntity {
+  Id isarId = Isar.autoIncrement;
   String? name;
+  String? code;
   String? symbol;
-  double? rate = 0.0;
-  bool? isBaseCurrency = false;
-  bool? isSystemCreated = false;
+  bool? isBaseCurrency;
+  double? rate;
+  bool? isSystemCreated;
+
+  Currency({
+    String? id,
+    String? dateCreated,
+    String? dateModified,
+    String? createdByName,
+    String? modifiedByName,
+    int? version,
+    this.name,
+    this.code,
+    this.symbol,
+    this.isBaseCurrency,
+    this.rate,
+    this.isSystemCreated,
+  }) : super(
+          id: id,
+          dateCreated: dateCreated,
+          dateModified: dateModified,
+          createdByName: createdByName,
+          modifiedByName: modifiedByName,
+          version: version,
+        );
+
+  factory Currency.fromJson(Map<String, dynamic> json) {
+    return Currency(
+      id: json['id'],
+      dateCreated: json['dateCreated'],
+      dateModified: json['dateModified'],
+      createdByName: json['createdByName'],
+      modifiedByName: json['modifiedByName'],
+      version: json['version'],
+      name: json['name'],
+      code: json['code'],
+      symbol: json['symbol'],
+      isBaseCurrency: json['isBaseCurrency'],
+      rate: json['rate']?.toDouble(),
+      isSystemCreated: json['isSystemCreated'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'dateCreated': dateCreated,
+      'dateModified': dateModified,
+      'createdByName': createdByName,
+      'modifiedByName': modifiedByName,
+      'version': version,
+      'name': name,
+      'code': code,
+      'symbol': symbol,
+      'isBaseCurrency': isBaseCurrency,
+      'rate': rate,
+      'isSystemCreated': isSystemCreated,
+    };
+  }
 
   Currency copyWith({
     String? id,
+    String? dateCreated,
+    String? dateModified,
+    String? createdByName,
+    String? modifiedByName,
+    int? version,
     String? name,
+    String? code,
     String? symbol,
-    double? rate,
     bool? isBaseCurrency,
+    double? rate,
     bool? isSystemCreated,
   }) {
     return Currency(
       id: id ?? this.id,
+      dateCreated: dateCreated ?? this.dateCreated,
+      dateModified: dateModified ?? this.dateModified,
+      createdByName: createdByName ?? this.createdByName,
+      modifiedByName: modifiedByName ?? this.modifiedByName,
+      version: version ?? this.version,
       name: name ?? this.name,
+      code: code ?? this.code,
       symbol: symbol ?? this.symbol,
-      rate: rate ?? this.rate,
       isBaseCurrency: isBaseCurrency ?? this.isBaseCurrency,
+      rate: rate ?? this.rate,
       isSystemCreated: isSystemCreated ?? this.isSystemCreated,
     );
   }
-
-  /// Factory to create a Currency object from a decoded JSON map.
-  /// This factory expects a Map<String, dynamic> as input.
-  factory Currency.fromJson(Map<String, dynamic> json) {
-    return Currency.fromMap(json);
-  }
-
-  factory Currency.fromRawJson(String str) => Currency.fromJson(json.decode(str));
-
-  /// Returns a Map for JSON serialization (not a String)
-  Map<String, dynamic> toJson() => toMap();
-
-  factory Currency.fromMap(Map<String, dynamic> json) => Currency(
-    id: json["id"]?.toString(),
-    name: json["name"]?.toString(),
-    symbol: json["symbol"]?.toString(),
-    rate: (json["rate"] as num?)?.toDouble() ?? 0.0,
-    isBaseCurrency: json["isBaseCurrency"] == true || json["isBaseCurrency"] == 'true',
-    isSystemCreated: json["isSystemCreated"] == true || json["isSystemCreated"] == 'true',
-  );
-
-  Map<String, dynamic> toMap() => {
-    "id": id,
-    "name": name,
-    "symbol": symbol,
-    "rate": rate,
-    "isBaseCurrency": isBaseCurrency,
-    "isSystemCreated": isSystemCreated,
-  };
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is Currency &&
-              runtimeType == other.runtimeType &&
-              id == other.id &&
-              name == other.name &&
-              symbol == other.symbol &&
-              rate == other.rate &&
-              isBaseCurrency == other.isBaseCurrency;
-
-  @override
-  int get hashCode =>
-      id.hashCode ^ name.hashCode ^ symbol.hashCode ^ rate.hashCode ^ isBaseCurrency.hashCode;
 }

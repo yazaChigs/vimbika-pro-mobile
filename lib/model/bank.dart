@@ -1,65 +1,59 @@
-import 'base_name_entity.dart';
-import 'currency.dart';
+import 'package:isar/isar.dart';
+import 'package:vimbika_pro/model/base_name_entity.dart';
+import 'package:vimbika_pro/model/currency.dart';
 
+part 'bank.g.dart';
+
+@collection
 class Bank extends BaseNameEntity {
-  final String? accountNumber;
-  final String? branch;
+  Id isarId = Isar.autoIncrement;
+  final currency = IsarLink<Currency>();
+  String? accountNumber;
+  String? branch;
   String? bankName;
-  final Currency? currency;
   bool? isSystemCreated;
 
   Bank({
-    String? id,
-    String? dateCreated,
-    String? dateModified,
-    String? createdByName,
-    String? modifiedByName,
-    int? version,
-    this.bankName,
-    required String name,
-    String? description,
+    super.id,
+    super.dateCreated,
+    super.dateModified,
+    super.createdByName,
+    super.modifiedByName,
+    super.version,
+    required super.name,
+    super.description,
     this.accountNumber,
     this.branch,
-    this.currency,
+    this.bankName,
     this.isSystemCreated,
-  }) : super(
-          id: id,
-          dateCreated: dateCreated,
-          dateModified: dateModified,
-          createdByName: createdByName,
-          modifiedByName: modifiedByName,
-          version: version,
-          name: name,
-          description: description,
-        );
+    Currency? currency,
+  }) {
+    if (currency != null) {
+      this.currency.value = currency;
+    }
+  }
 
-  factory Bank.fromJson(dynamic jsonData) {
-    if (jsonData is String) {
-      return Bank(
-        id: jsonData,
-        name: jsonData,
-      );
+  factory Bank.fromJson(Map<String, dynamic> json) {
+    final bank = Bank(
+      id: json['id'],
+      dateCreated: json['dateCreated'],
+      dateModified: json['dateModified'],
+      createdByName: json['createdByName'],
+      modifiedByName: json['modifiedByName'],
+      version: json['version'],
+      name: json['name'] ?? '',
+      description: json['description'],
+      accountNumber: json['accountNumber'],
+      branch: json['branch'],
+      bankName: json['bankName'],
+      isSystemCreated: json['isSystemCreated'],
+    );
+
+    if (json['currency'] != null) {
+      bank.currency.value = Currency.fromJson(json['currency']);
     }
 
-    final Map<String, dynamic> json = jsonData as Map<String, dynamic>;
-
-    return Bank(
-      id: json['id']?.toString(),
-      dateCreated: json['dateCreated'] ,
-      dateModified: json['dateModified'] ,
-      createdByName: json['createdByName'] is Map ? json['createdByName']['name']?.toString() ?? json['createdByName']['firstName']?.toString() : json['createdByName']?.toString(),
-      modifiedByName: json['modifiedByName'] is Map ? json['modifiedByName']['name']?.toString() ?? json['modifiedByName']['firstName']?.toString() : json['modifiedByName']?.toString(),
-      version: json['version'] is int ? json['version'] : int.tryParse(json['version']?.toString() ?? ''),
-      name: json['name']?.toString() ?? '',
-      description: json['description']?.toString(),
-      accountNumber: json['accountNumber']?.toString(),
-      branch: json['branch']?.toString(),
-      currency: json['currency'] != null
-          ? (json['currency'] is String ? Currency(id: json['currency']) : Currency.fromMap(json['currency']))
-          : null,
-      isSystemCreated: json['isSystemCreated'] is bool ? json['isSystemCreated'] : false,
-      bankName: json['bankName']?.toString(),
-    );
+    return bank;
   }
 
   Map<String, dynamic> toJson() {
@@ -74,9 +68,9 @@ class Bank extends BaseNameEntity {
       'description': description,
       'accountNumber': accountNumber,
       'branch': branch,
-      'currency': currency?.toJson(),
-      'isSystemCreated': isSystemCreated,
       'bankName': bankName,
+      'isSystemCreated': isSystemCreated,
+      'currency': currency.value?.toJson(),
     };
   }
 }

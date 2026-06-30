@@ -1,6 +1,12 @@
-import 'base_name_entity.dart';
+import 'package:isar/isar.dart';
+import 'package:vimbika_pro/model/base_name_entity.dart';
 
+part 'category.g.dart';
+
+@collection
 class Category extends BaseNameEntity {
+  Id isarId = Isar.autoIncrement;
+
   Category({
     String? id,
     String? dateCreated,
@@ -8,7 +14,7 @@ class Category extends BaseNameEntity {
     String? createdByName,
     String? modifiedByName,
     int? version,
-    required String name, // Changed to nullable
+    required String name,
     String? description,
   }) : super(
           id: id,
@@ -24,12 +30,12 @@ class Category extends BaseNameEntity {
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
       id: json['id'],
-      dateCreated: json['dateCreated'] ,
-      dateModified: json['dateModified'] ,
+      dateCreated: json['dateCreated'],
+      dateModified: json['dateModified'],
       createdByName: json['createdByName'],
       modifiedByName: json['modifiedByName'],
       version: json['version'],
-      name: json['name'] ?? '', // No longer need ?? ''
+      name: json['name'],
       description: json['description'],
     );
   }
