@@ -202,7 +202,7 @@ class CustomerController extends ChangeNotifier {
       _filteredCustomers = _customers.where((customer) {
         return customer.name.toLowerCase().contains(_searchQuery) ||
                (customer.email?.toLowerCase().contains(_searchQuery) ?? false) ||
-               (customer.phoneNumber?.contains(_searchQuery) ?? false);
+               (customer.mobilePhone?.contains(_searchQuery) ?? false);
       }).toList();
     }
   }
@@ -315,7 +315,7 @@ class CustomerController extends ChangeNotifier {
           version: currentLocalCustomer.version,
           name: currentLocalCustomer.name,
           email: currentLocalCustomer.email,
-          phoneNumber: currentLocalCustomer.phoneNumber,
+          mobilePhone: currentLocalCustomer.mobilePhone,
           address: currentLocalCustomer.address,
           accountNumber: currentLocalCustomer.accountNumber,
           taxNumber: currentLocalCustomer.taxNumber,

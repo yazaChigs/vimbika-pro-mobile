@@ -26,7 +26,7 @@ class SaleSyncService {
       return;
     }
     // Run every 20 minutes
-    _syncTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
+    _syncTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       syncSales();
     });
     // Also run once immediately
@@ -36,6 +36,12 @@ class SaleSyncService {
   void stopSyncTimer() {
     _syncTimer?.cancel();
     _syncTimer = null;
+  }
+
+  Future<void> clearOfflineSales() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove(AppConstants.keyOfflineSales);
+    debugPrint('Cleared offline sales from SharedPreferences.');
   }
 
   Future<void> syncSales() async {
@@ -61,39 +67,27 @@ class SaleSyncService {
       // Parse all sales and filter out reversed ones
       final List<Map<String, dynamic>> allSalesMapList = [];
       final List<Sale> allSalesForExcel = [];
-      final List<Map<String, dynamic>> salesToKeepLocally = []; // Sales that are not reversed
 
       for (var s in salesJsonList) {
         if (s.trim().isEmpty || s == 'null') continue;
         try {
           final decoded = jsonDecode(s);
           if (decoded is Map<String, dynamic>) {
-            if (decoded['status'] == 'Reversed') {
-              debugPrint('Skipping reversed sale from sync: ${decoded['posReference'] ?? decoded['id']}');
-              // Do not add to allSalesMapList, but also don't add to salesToKeepLocally
-              // as it's a reversed sale that should be removed from the unsynced queue.
-            } else {
+            if (decoded['status'] != 'Reversed') {
               allSalesMapList.add(decoded);
               allSalesForExcel.add(Sale.fromJson(decoded));
-              salesToKeepLocally.add(decoded); // Keep non-reversed sales
             }
           }
         } catch (e) {
           debugPrint('Failed to decode a sale string: $e');
-          // If decoding fails, keep the original string to avoid data loss
-          // unless it's explicitly a reversed sale (which we can't tell if decoding fails)
-          // For now, we'll just skip it.
         }
       }
-
-      // Update local storage to remove reversed sales
-      await prefs.setStringList(salesKey, salesToKeepLocally.map((s) => jsonEncode(s)).toList());
-
 
       // Export to Excel for the day
       if (allSalesForExcel.isNotEmpty) {
          final now = DateTime.now();
          final todaySales = allSalesForExcel.where((sale) {
+           if (sale.timeIniated == null) return false;
            final saleDate = DateTime.parse(sale.timeIniated!);
              if (sale.dateCreated == null) return false;
              return saleDate.year == now.year &&
@@ -134,15 +128,12 @@ class SaleSyncService {
       }
       
       List<Map<String, dynamic>> unsyncedSalesToProcess = [];
-      List<Map<String, dynamic>> otherSales = []; // Includes already synced, or sales with unexpected states
 
       // Separate sales into unsynced and others
       for (var saleMap in allSalesMapList) {
         // A sale is considered unsynced if it has no server ID and is explicitly marked as not synced.
         if (saleMap['id'] == null && (saleMap['isSynced'] == false || saleMap['isSynced'] == null)) {
           unsyncedSalesToProcess.add(saleMap);
-        } else {
-          otherSales.add(saleMap);
         }
       }
 
@@ -178,41 +169,81 @@ class SaleSyncService {
         }
       }
 
-      // Reconstruct final list using posReference to avoid duplicates
-      final Map<String, Map<String, dynamic>> finalSalesMap = {};
+      // Reconstruct the list of sales to be saved in SharedPreferences.
+      // This logic will keep all unsynced sales, but only synced sales from the last 7 days
+      // to prevent SharedPreferences from growing indefinitely.
 
-      void addToFinalMap(List<Map<String, dynamic>> sales) {
-        for (var sale in sales) {
-          final String? posRef = sale['posReference']?.toString();
-          if (posRef != null) {
-            // If already exists, prefer the one with an ID or isSynced=true
-            if (!finalSalesMap.containsKey(posRef) || 
-                (sale['id'] != null || sale['isSynced'] == true)) {
-              finalSalesMap[posRef] = sale;
+      // 1. Create a list of all sales that are now "current"
+      List<Map<String, dynamic>> currentSalesState = [];
+      // Add sales that were already synced or not part of the sync attempt
+      currentSalesState.addAll(allSalesMapList.where((saleMap) {
+        final isUnsynced = saleMap['id'] == null && (saleMap['isSynced'] == false || saleMap['isSynced'] == null);
+        return !isUnsynced;
+      }));
+      // Add newly synced sales
+      currentSalesState.addAll(successfullySyncedSales);
+      // Add sales that failed to sync
+      currentSalesState.addAll(failedToSyncSales);
+
+      // 2. Now filter this `currentSalesState` list for what to save.
+      List<Map<String, dynamic>> finalSalesToSave = [];
+      final DateTime sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+
+      // Use a set of JSON strings to track duplicates. It's inefficient but safe.
+      Set<String> processedSales = {};
+
+      for (var saleMap in currentSalesState) {
+        final isSynced = saleMap['id'] != null && saleMap['isSynced'] == true;
+
+        bool shouldKeep = false;
+        if (!isSynced) {
+          shouldKeep = true; // Always keep unsynced sales.
+        } else {
+          // For synced sales, keep them if they are recent.
+          final timeInitiatedString = saleMap['timeIniated'];
+          if (timeInitiatedString != null) {
+            try {
+              final saleDate = DateTime.parse(timeInitiatedString);
+              if (saleDate.isAfter(sevenDaysAgo)) {
+                shouldKeep = true;
+              }
+            } catch (e) {
+              shouldKeep = true; // Keep if date parsing fails
             }
           } else {
-            // If no posReference, use id as fallback or just add if it has neither (shouldn't happen)
-            final String fallbackKey = sale['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString();
-            finalSalesMap[fallbackKey] = sale;
+            shouldKeep = true; // Keep if no date info
+          }
+        }
+
+        if (shouldKeep) {
+          String saleJson = jsonEncode(saleMap);
+          if (!processedSales.contains(saleJson)) {
+            finalSalesToSave.add(saleMap);
+            processedSales.add(saleJson);
           }
         }
       }
 
-      addToFinalMap(otherSales);
-      addToFinalMap(successfullySyncedSales);
-      addToFinalMap(failedToSyncSales);
-
-      final List<String> finalSalesJsonList = finalSalesMap.values
+      // 3. Save `finalSalesToSave` to SharedPreferences.
+      final List<String> finalSalesJsonList = finalSalesToSave
           .map((saleMap) => jsonEncode(saleMap))
           .toList();
 
-      await prefs.setStringList(AppConstants.keySales, finalSalesJsonList);
+      if (finalSalesJsonList.isEmpty) {
+        await prefs.remove(salesKey);
+        debugPrint('Cleared all sales from $salesKey.');
+      } else {
+        await prefs.setStringList(salesKey, finalSalesJsonList);
+        debugPrint('Updated sales in $salesKey. Total count: ${finalSalesJsonList.length}');
+      }
 
     } catch (e) {
       debugPrint('Error in syncSales: $e');
     } finally {
       _isSyncing = false;
     }
+
+    await calculateSharedPreferencesSize();
   }
 
   Future<List<Sale>> syncSelectedSales(List<Sale> sales, String companyId) async {
@@ -245,5 +276,111 @@ class SaleSyncService {
       }
     }
     return syncedSales;
+  }
+
+
+  Future<void> calculateSharedPreferencesSize() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = [
+      AppConstants.keyHasUser,
+      AppConstants.keyHasLoggedIn,
+      AppConstants.keyUserData,
+      AppConstants.keyOnlineUserData,
+      AppConstants.keyOfflineUserData,
+      AppConstants.keyAllUsers,
+      AppConstants.keyCompanyData,
+      AppConstants.keyOnlineCompanyData,
+      AppConstants.keyOfflineCompanyData,
+      AppConstants.keyDefaultBranch,
+      AppConstants.keyOfflineBranch,
+      AppConstants.keyBranches,
+      AppConstants.keyOfflineBranches,
+      AppConstants.keyUserRoles,
+      AppConstants.keySubscriptions,
+      AppConstants.keyOfflineSubscriptions,
+      AppConstants.keySubscriptionDaysRemaining,
+      AppConstants.keySelectedSubscription,
+      AppConstants.keySubscriptionEndDate,
+      AppConstants.keyConfig,
+      AppConstants.keyUnsyncedClosedShift,
+      AppConstants.keyCurrencies,
+      AppConstants.keyOfflineCurrencies,
+      AppConstants.keyTaxes,
+      AppConstants.keyOfflineTaxes,
+      AppConstants.keyCategories,
+      AppConstants.keyOfflineCategories,
+      AppConstants.keyExpenseCategories,
+      AppConstants.keyUnits,
+      AppConstants.keyOfflineUnits,
+      AppConstants.keyBanks,
+      AppConstants.keyOfflineBanks,
+      AppConstants.keyOfflinePendingBanks,
+      AppConstants.keyPaymentTypes,
+      AppConstants.keyOfflinePaymentTypes,
+      AppConstants.keySuppliers,
+      AppConstants.keyCustomers,
+      AppConstants.keyOfflineCustomers,
+      AppConstants.keySales,
+      AppConstants.keyOfflineSales,
+      AppConstants.keyPurchases,
+      AppConstants.keyInventoryItems,
+      AppConstants.keyOfflineInventoryItems,
+      AppConstants.keyExpenses,
+      AppConstants.keyOnlineExpenses,
+      AppConstants.keyBranchStock,
+      AppConstants.keyOfflineBranchStock,
+      AppConstants.keyOutOfStockItems,
+      AppConstants.keyLastSelectedDate,
+      AppConstants.keyPaymentsReceived,
+      AppConstants.keyOfflinePaymentsReceived,
+      AppConstants.keyPaymentsPaid,
+      AppConstants.keyMobileShifts,
+      AppConstants.keyOfflineMobileShifts,
+      AppConstants.keyCurrentOpenShift,
+      AppConstants.keyHeldSales,
+      AppConstants.keyUnsyncedReceivedPayments,
+      AppConstants.keyCachedPastShifts,
+      AppConstants.keyLastFetchedUserId,
+      AppConstants.keyAllowOutOfStockSales,
+      AppConstants.keyIsOfflineMode,
+      AppConstants.keyIsPriceInclusiveTax,
+      AppConstants.keyCompanySettings,
+      AppConstants.keyPrinterType,
+      AppConstants.keyPrinterMacAddress,
+      AppConstants.keyPrinterName,
+      AppConstants.keyAlwaysPrintReceipt,
+      AppConstants.keyNumberOfReceiptsPerSale,
+      AppConstants.keyUsbPrinterDevice,
+    ];
+
+    int totalSize = 0;
+
+    for (final key in keys) {
+      final dynamic value = prefs.get(key);
+      if (value == null) {
+        continue;
+      }
+
+      int size = 0;
+      if (value is String) {
+        size = utf8.encode(value).length;
+      } else if (value is bool) {
+        size = 1;
+      } else if (value is int) {
+        size = 8;
+      } else if (value is double) {
+        size = 8;
+      } else if (value is List<String>) {
+        for (final str in value) {
+          size += utf8.encode(str).length;
+        }
+      }
+      totalSize += size;
+      debugPrint('Key: $key, Size: $size bytes');
+    }
+
+    debugPrint('Total SharedPreferences size: $totalSize bytes');
+    debugPrint('Total SharedPreferences size: ${totalSize / 1024} KB');
+    debugPrint('Total SharedPreferences size: ${totalSize / (1024 * 1024)} MB');
   }
 }

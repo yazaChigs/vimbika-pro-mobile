@@ -4,7 +4,7 @@ class AppConstants {
   // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.africa/vimbika-africa/api";
   // static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
   // static const VIMBIKA_BACKEND_URL = "https://mashwede.vimbika.africa/mashwede/api";
-  //     static const VIMBIKA_BACKEND_URL = "http://192.168.1.108:8080/vimbika-pro/api";
+  //     static const VIMBIKA_BACKEND_URL = "http://192.168.100.111:8080/vimbika-pro/api";
           static const VIMBIKA_BACKEND_URL = "http://192.168.1.148:8080/vimbika-pro/api";
   // static const VIMBIKA_BACKEND_URL = "http://172.20.10.4:8080/vimbika-pro/api";
   static const int defaultTimeout = 30000;

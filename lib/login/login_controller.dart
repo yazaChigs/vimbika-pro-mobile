@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:vimbika_pro/model/subscription.dart';
 import 'package:vimbika_pro/services/company_service.dart';
 import 'package:vimbika_pro/model/company.dart';
@@ -205,7 +206,7 @@ class LoginController extends ChangeNotifier {
         userId: user.id,
         userFullName: '${user.firstName ?? ''} ${user.lastName ?? ''}'.trim(),
         createdByName: user.userName,
-        dateCreated: DateTime.now().toIso8601String(),
+        dateCreated: DateFormat('yyyy-MM-dd').format(DateTime.now()),
         openingTime: DateTime.now().toIso8601String(),
         active: true,
         isShiftClosed: false,

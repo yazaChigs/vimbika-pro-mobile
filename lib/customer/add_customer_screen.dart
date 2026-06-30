@@ -39,7 +39,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     super.initState();
     _nameController = TextEditingController(text: widget.customer?.name);
     _emailController = TextEditingController(text: widget.customer?.email);
-    _phoneController = TextEditingController(text: widget.customer?.phoneNumber);
+    _phoneController = TextEditingController(text: widget.customer?.mobilePhone);
     _addressController = TextEditingController(text: widget.customer?.address);
     _accountNumberController = TextEditingController(text: widget.customer?.accountNumber);
     _taxNumberController = TextEditingController(text: widget.customer?.taxNumber);
@@ -130,7 +130,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         id: widget.customer?.id, // Use existing ID if editing
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
-        phoneNumber: _phoneController.text.trim(),
+        mobilePhone: _phoneController.text.trim(),
         address: _addressController.text.trim(),
         accountNumber: _accountNumberController.text.trim(),
         taxNumber: _taxNumberController.text.trim(),

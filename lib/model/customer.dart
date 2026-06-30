@@ -6,7 +6,7 @@ import 'branch.dart';
 class Customer extends BaseEntity {
   final String name;
   final String? email;
-  final String? phoneNumber;
+  final String? mobilePhone;
   final String? address;
   final String? accountNumber; 
   final String? taxNumber;
@@ -29,7 +29,7 @@ class Customer extends BaseEntity {
     this.taxNumber,
     this.tinNumber,
     this.email,
-    this.phoneNumber,
+    this.mobilePhone,
     this.address,
     this.currencyBalance,
     this.company,
@@ -74,7 +74,7 @@ class Customer extends BaseEntity {
       version: version ?? this.version,
       name: name ?? this.name,
       email: email ?? this.email,
-      phoneNumber: phoneNumber ?? this.phoneNumber,
+      mobilePhone: phoneNumber ?? this.mobilePhone,
       address: address ?? this.address,
       accountNumber: accountNumber ?? this.accountNumber,
       taxNumber: taxNumber ?? this.taxNumber,
@@ -97,7 +97,7 @@ class Customer extends BaseEntity {
       version: json['version'],
       name: json['name'] ?? 'Unknown',
       email: json['email'],
-      phoneNumber: json['phoneNumber'],
+      mobilePhone: json['mobilePhone'],
       address: json['address'],
       accountNumber: json['accountNumber']?.toString(), 
       taxNumber: json['taxNumber']?.toString(),
@@ -122,7 +122,7 @@ class Customer extends BaseEntity {
       'version': version,
       'name': name,
       'email': email,
-      'phoneNumber': phoneNumber,
+      'mobilePhone': mobilePhone,
       'address': address,
       'accountNumber': accountNumber,
       'taxNumber': taxNumber,

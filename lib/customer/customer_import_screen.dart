@@ -41,7 +41,7 @@ class CustomerImportScreen extends BaseImportScreen {
         id: '${nowStr}_$i',
         name: row[0]?.value?.toString().trim() ?? '',
         email: row[1]?.value?.toString().trim() ?? '',
-        phoneNumber: row[2]?.value?.toString().trim() ?? '',
+        mobilePhone: row[2]?.value?.toString().trim() ?? '',
         address: row[3]?.value?.toString().trim() ?? '',
       );
 

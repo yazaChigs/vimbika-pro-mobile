@@ -449,7 +449,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         "subscriptionName": _selectedSubscription,
         "customer": Customer(
           name: (_loggedInUser?.userName ?? '').trim().isNotEmpty ? (_loggedInUser?.userName ?? '').trim() : 'Ecocash Subscriber',
-          phoneNumber: _phoneController.text,
+          mobilePhone: _phoneController.text,
         ),
       };
       final response = await _ecocashService.initiatePayment(requestDto);
@@ -909,7 +909,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           name: (_loggedInUser?.userName ?? '').trim().isNotEmpty
               ? (_loggedInUser?.userName ?? '').trim()
               : 'Ecocash Subscriber',
-          phoneNumber: _phoneController.text,
+          mobilePhone: _phoneController.text,
         ),
       };
       final response = await _ecocashService.initiatePayment(requestDto);

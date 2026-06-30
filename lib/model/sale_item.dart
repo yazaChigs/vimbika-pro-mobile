@@ -27,11 +27,11 @@ class SaleItem {
     return SaleItem(
       id: json['id'],
       inventoryItem: json['inventoryItem'] != null ? InventoryItem.fromJson(json['inventoryItem']) : null,
-      quantity: (json['quantity'] as num).toDouble(),
-      sellingPrice: (json['sellingPrice'] as num).toDouble(),
+      quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
+      sellingPrice: (json['sellingPrice'] as num?)?.toDouble() ?? 0.0,
       discountAmount: (json['discountAmount'] as num?)?.toDouble() ?? 0.0,
-      total: (json['total'] as num).toDouble(),
-      taxAmount: (json['taxAmount'] as num).toDouble(),
+      total: (json['total'] as num?)?.toDouble() ?? 0.0,
+      taxAmount: (json['taxAmount'] as num?)?.toDouble() ?? 0.0,
       isMobile: json['isMobile'] ?? false,
       amountTendered: (json['amountTendered'] as num?)?.toDouble(),
     );

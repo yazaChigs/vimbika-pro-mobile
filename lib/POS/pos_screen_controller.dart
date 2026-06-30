@@ -98,6 +98,7 @@ class POSScreenController extends ChangeNotifier {
 
   int _heldSalesCount = 0;
   String? _ticketName; // New property for held sale ticket name
+  String? _heldSaleId;
   bool _printReceiptForThisSale = false; // New setting for individual sale printing
   bool _customerSelectFocus = true;
 
@@ -1227,6 +1228,10 @@ class POSScreenController extends ChangeNotifier {
         return; // Stop the sale process if local save fails
       }
 
+      if (_heldSaleId != null) {
+        await removeHeldSale(_heldSaleId!);
+      }
+
       // Print receipt based on selected printer and new setting
       try {
         // Only print if the individual sale setting is true, OR if the global "always print" setting is true.
@@ -1390,7 +1395,7 @@ class POSScreenController extends ChangeNotifier {
           version: currentLocalCustomer.version,
           name: currentLocalCustomer.name,
           email: currentLocalCustomer.email,
-          phoneNumber: currentLocalCustomer.phoneNumber,
+          mobilePhone: currentLocalCustomer.mobilePhone,
           address: currentLocalCustomer.address,
           accountNumber: currentLocalCustomer.accountNumber,
           taxNumber: currentLocalCustomer.taxNumber,
@@ -1462,6 +1467,7 @@ class POSScreenController extends ChangeNotifier {
     _pendingCustomerBalanceUpdates.clear();
     _selectedCustomer = newCustomer;
     _ticketName = null;
+    _heldSaleId = null;
     _amountTendered = 0.0;
     _amountTenderedController.clear();
     _disposeQuantityControllers();
@@ -1577,6 +1583,7 @@ class POSScreenController extends ChangeNotifier {
     _selectedCustomer = heldSale.customer;
     _selectedCurrency = heldSale.currency;
     _ticketName = heldSale.ticketName;
+    _heldSaleId = heldSale.id;
     _amountTendered = heldSale.amountTendered ?? 0.0;
     _amountTenderedController.text = _amountTendered.toStringAsFixed(2);
 

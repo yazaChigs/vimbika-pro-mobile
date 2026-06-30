@@ -206,8 +206,8 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
           children: [
             if (customer.email != null && customer.email!.isNotEmpty)
               Text(customer.email!),
-            if (customer.phoneNumber != null && customer.phoneNumber!.isNotEmpty)
-              Text(customer.phoneNumber!),
+            if (customer.mobilePhone != null && customer.mobilePhone!.isNotEmpty)
+              Text(customer.mobilePhone!),
             // Display currency balances
             if (customer.currencyBalance != null && customer.currencyBalance!.isNotEmpty)
               Wrap(

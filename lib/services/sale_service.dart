@@ -22,54 +22,8 @@ class SaleService {
 
     final List<String> salesJson = prefs.getStringList(salesKey) ?? [];
     
-    // Remove existing sale with same posReference to avoid duplicates
-    salesJson.removeWhere((s) {
-      try {
-        final Map<String, dynamic> existingSale = jsonDecode(s);
-        return existingSale['posReference'] == sale.posReference;
-      } catch (e) {
-        return false;
-      }
-    });
-
     salesJson.add(jsonEncode(sale.toJson()));
     await prefs.setStringList(salesKey, salesJson);
-    
-    // Attempt to export sales immediately to ensure backup
-    try {
-      final List<Sale> allSalesForExcel = [];
-      for (var s in salesJson) {
-        if (s.trim().isEmpty || s == 'null') continue;
-        try {
-          final decoded = jsonDecode(s);
-          if (decoded is Map<String, dynamic>) {
-            allSalesForExcel.add(Sale.fromJson(decoded));
-          }
-        } catch (e) {
-          print('Failed to decode a sale string for export: $e');
-        }
-      }
-
-      if (allSalesForExcel.isNotEmpty) {
-        final now = DateTime.now();
-        final todaySales = allSalesForExcel.where((s) {
-          final saleDate = DateTime.parse(s.timeIniated!);
-          return saleDate.year == now.year &&
-                 saleDate.month == now.month &&
-                 saleDate.day == now.day;
-        }).toList();
-
-        if (todaySales.isNotEmpty) {
-          final fileName = 'sales_backup_${DateFormat('yyyy_MM_dd').format(now)}';
-          await _excelExportService.exportSalesToExcel(todaySales, fileName);
-          print('Exported ${todaySales.length} sales to excel: $fileName');
-        }
-      }
-    } catch (e) {
-      print('Error during immediate excel export: $e');
-    }
-
-    // No longer trigger sync here. Sync will be triggered by POSScreenController.
   }
 
   Future<void> syncSales() async {

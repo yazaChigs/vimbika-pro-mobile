@@ -406,7 +406,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
         children: [
           Text(widget.customer.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text(widget.customer.email ?? widget.customer.phoneNumber ?? '', style: const TextStyle(color: AppTheme.grey)),
+          Text(widget.customer.email ?? widget.customer.mobilePhone ?? '', style: const TextStyle(color: AppTheme.grey)),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,

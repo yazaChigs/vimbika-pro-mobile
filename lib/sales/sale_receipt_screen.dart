@@ -148,7 +148,7 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
                           children: [
                             const Text('CUSTOMER', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
                             Text(widget.sale.customer!.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            if (widget.sale.customer!.phoneNumber != null) Text(widget.sale.customer!.phoneNumber!, style: const TextStyle(fontSize: 12)),
+                            if (widget.sale.customer!.mobilePhone != null) Text(widget.sale.customer!.mobilePhone!, style: const TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),
