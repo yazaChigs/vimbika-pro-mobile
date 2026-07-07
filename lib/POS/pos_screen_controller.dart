@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -29,7 +30,8 @@ import 'package:vimbika_pro/services/currency_service.dart';
 import 'package:vimbika_pro/services/payments_service.dart';
 import 'package:vimbika_pro/services/bank_service.dart';
 import 'package:vimbika_pro/services/category_service.dart';
-import 'package:vimbika_pro/services/excel_export_service.dart'; // Import ExcelExportService
+import 'package:vimbika_pro/services/excel_export_service.dart';
+import 'package:vimbika_pro/services/isar_service.dart';
 
 /// Represents a pending update to a customer's balance, to be applied at sale completion.
 class PendingCustomerBalanceUpdate {
@@ -52,8 +54,10 @@ class POSScreenController extends ChangeNotifier {
   final SaleService _saleService = SaleService();
   final PrinterService _printerService = PrinterService(); // Instantiate PrinterService
   final CustomerService _customerService = CustomerService();
+  final BranchStockService _branchStockService = BranchStockService();
   final PaymentsService _paymentsService = PaymentsService();
   final ExcelExportService _excelExportService = ExcelExportService(); // Instantiate ExcelExportService
+  final IsarService _isarService = IsarService();
 
   POSScreenController(this.context) {
     _checkOpenShift();
@@ -97,12 +101,11 @@ class POSScreenController extends ChangeNotifier {
   bool _isOnline = false; // Added for offline/online mode
 
   int _heldSalesCount = 0;
-  String? _ticketName; // New property for held sale ticket name
   String? _heldSaleId;
+  String? _ticketName; // New property for held sale ticket name
   bool _printReceiptForThisSale = false; // New setting for individual sale printing
   bool _customerSelectFocus = true;
 
-  double _amountTendered = 0.0; // New variable for amount tendered
   final TextEditingController _amountTenderedController = TextEditingController(); // Controller for tendered amount
 
   double totalAmtToAcc = 0.0;
@@ -140,7 +143,6 @@ class POSScreenController extends ChangeNotifier {
   String? get ticketName => _ticketName; // Getter for ticket name
   bool get printReceiptForThisSale => _printReceiptForThisSale; // Getter for new setting
   bool get customerSelectFocus => _customerSelectFocus; // Getter for new setting
-  double get amountTendered => _amountTendered; // Getter for amount tendered
   TextEditingController get amountTenderedController => _amountTenderedController; // Getter for amount tendered controller
 
   // Setter for new setting
@@ -155,14 +157,6 @@ class POSScreenController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Setter for amount tendered
-  set amountTendered(double value) {
-    _amountTendered = value;
-    _amountTenderedController.text = value.toStringAsFixed(2);
-    notifyListeners();
-  }
-
-
   Future<void> _loadPrinterSettings() async {
     await _printerService.init(); // Ensure printer service is initialized
     _printReceiptForThisSale = _printerService.getAlwaysPrintReceipt(); // Initialize with global setting
@@ -175,13 +169,15 @@ class POSScreenController extends ChangeNotifier {
     // Clear payments when currency changes as payments are in the selected currency
     _payments.clear();
     _pendingCustomerBalanceUpdates.clear(); // Clear pending balance updates
-    _amountTendered = 0.0; // Reset tendered amount
     _amountTenderedController.clear(); // Clear tendered amount controller
     notifyListeners();
   }
 
   set selectedCustomer(Customer? customer) {
     _selectedCustomer = customer;
+    if (customer != null) {
+      customer.loadAll();
+    }
     notifyListeners();
   }
 
@@ -242,8 +238,7 @@ class POSScreenController extends ChangeNotifier {
         final customer = _customers.firstWhere(
           (c) => c.accountNumber == query,
         );
-        _selectedCustomer = customer;
-        notifyListeners();
+        selectedCustomer = customer;
       } catch (e) {
         // Customer not found, do nothing
       }
@@ -320,10 +315,6 @@ class POSScreenController extends ChangeNotifier {
     // Determine online/offline mode
     _isOnline = !(prefs.getBool(AppConstants.keyIsOfflineMode) ?? false);
 
-    final List<String> stockJson = _isOnline
-        ? (prefs.getStringList(AppConstants.keyBranchStock) ?? [])
-        : (prefs.getStringList(AppConstants.keyOfflineBranchStock) ?? []);
-
     final List<String> currencyJson = _isOnline
         ? (prefs.getStringList(AppConstants.keyCurrencies) ?? [])
         : (prefs.getStringList(AppConstants.keyOfflineCurrencies) ?? []);
@@ -341,13 +332,14 @@ class POSScreenController extends ChangeNotifier {
 
     Branch? defaultBranch;
     final String? dBranchJson = _isOnline
-        ?prefs.getString(AppConstants.keyDefaultBranch):
-    prefs.getString(AppConstants.keyOfflineBranch);
+        ? prefs.getString(AppConstants.keyDefaultBranch)
+        : prefs.getString(AppConstants.keyOfflineBranch);
     if (dBranchJson != null) {
       defaultBranch = Branch.fromJson(jsonDecode(dBranchJson));
     }
 
-    _allBranchStocks = stockJson.map((item) => BranchStock.fromJson(jsonDecode(item))).toList();
+    _allBranchStocks = await _branchStockService.getBranchStocksLocally();
+
     _currencies = currencyJson.map((e) => Currency.fromJson(jsonDecode(e))).toList();
 
     // Only load active payment types and exclude those containing "Credit" in their name
@@ -387,14 +379,10 @@ class POSScreenController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final stockService = BranchStockService();
-      final newStocks = await stockService.fetchStockByBranch(_selectedBranch!);
+      final newStocks = await _branchStockService.fetchStockByBranch(_selectedBranch!);
 
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-
-      List<String> stockJsonList = newStocks.map((s) => jsonEncode(s.toJson())).toList();
-      // Save to keyBranchStock if online, or keyOfflineBranchStock if offline (though this method should only be called if online)
-      await prefs.setStringList(AppConstants.keyBranchStock, stockJsonList);
+      // Save to SharedPreferences via BranchStockService
+      await _branchStockService.saveBranchStocksLocally(newStocks);
 
       _allBranchStocks = newStocks;
       _applyFilters();
@@ -434,12 +422,14 @@ class POSScreenController extends ChangeNotifier {
       // final List<Tax> taxes = await taxService.fetchTaxes();
       final String? branchId = _selectedBranch?.id;
       final List<model.Category> categories = branchId != null ? await categoryService.fetchCategoriesByBranch(branchId) : [];
+      final List<Customer> customers = await _customerService.fetchCustomers();
 
       await prefs.setStringList(AppConstants.keyCurrencies, currencies.map((c) => jsonEncode(c.toJson())).toList());
       await prefs.setStringList(AppConstants.keyPaymentTypes, paymentTypes.map((p) => jsonEncode(p.toJson())).toList());
       await prefs.setStringList(AppConstants.keyBanks, banks.map((b) => jsonEncode(b.toJson())).toList());
       // await prefs.setStringList(AppConstants.keyTaxes, taxes.map((t) => jsonEncode(t.toJson())).toList());
       await prefs.setStringList(AppConstants.keyCategories, categories.map((c) => jsonEncode(c.toJson())).toList());
+      await prefs.setStringList(AppConstants.keyCustomers, customers.map((c) => jsonEncode(c.toJson())).toList());
 
       await _loadData();
 
@@ -459,19 +449,19 @@ class POSScreenController extends ChangeNotifier {
 
   void _applyFilters() {
     _filteredBranchStocks = _allBranchStocks.where((s) {
-      final matchesBranch = _selectedBranch == null || s.branch?.id == _selectedBranch?.id;
-      final matchesCategory = _selectedCategory == null || s.item?.category.value?.id == _selectedCategory!.id;
+      final matchesBranch = _selectedBranch == null || s.branch.value?.id == _selectedBranch?.id;
+      final matchesCategory = _selectedCategory == null || s.item.value?.category.value?.id == _selectedCategory!.id;
 
       bool matchesSearch;
       if (_isBarcodeSearchMode) {
         if (_searchQuery.isEmpty) { // Added condition
           matchesSearch = true; // Show all items if barcode search is active but query is empty
         } else {
-          matchesSearch = s.item?.itemCode == _searchQuery;
+          matchesSearch = s.item.value?.itemCode == _searchQuery;
         }
       } else {
-        matchesSearch = (s.item?.name.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-            (s.item?.itemCode?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+        matchesSearch = (s.item.value?.name.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
+            (s.item.value?.itemCode?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
       }
 
       return matchesBranch && matchesCategory && matchesSearch;
@@ -487,6 +477,22 @@ class POSScreenController extends ChangeNotifier {
 
   double get grandTotalConverted => grandTotalBase * (_selectedCurrency?.rate ?? 1.0);
   double get amountPaidConverted => _payments.fold(0, (sum, item) => sum + item.amount);
+  double get totalAmountTendered => _payments.fold(0, (sum, item) => sum + (item.amountTendered ?? item.amount));
+
+  double get changeConverted {
+    final overpayment = totalAmountTendered - amountPaidConverted;
+    if (overpayment <= 0) return 0.0;
+    final change = overpayment - amountToAccountConverted;
+    return change > 0 ? change : 0.0;
+  }
+
+  double get amountToAccountConverted {
+    return _pendingCustomerBalanceUpdates
+        .where((update) => update.amountChange > 0)
+        .fold(0.0, (sum, update) => sum + update.amountChange);
+  }
+
+  double get totalReceivedConverted => totalAmountTendered + amountToAccountConverted;
   
   // Reworked to be simpler and more reliable
   double get balanceDueConverted {
@@ -510,32 +516,36 @@ class POSScreenController extends ChangeNotifier {
     return null;
   }
 
-  void _adjustPayments() {
-    if (_payments.isNotEmpty) {
-      double newGrandTotal = grandTotalConverted;
-      double totalPaid = amountPaidConverted;
+  void _recalculateAppliedAmounts() {
+    double balanceToCover = grandTotalConverted;
+    final List<PaymentReceived> originalPayments = List.from(_payments);
+    _payments.clear();
 
-      if (totalPaid > newGrandTotal) {
-        double overpayment = totalPaid - newGrandTotal;
+    for (final payment in originalPayments) {
+      // Use the tendered amount if available, otherwise the amount itself.
+      double tendered = payment.amountTendered ?? payment.amount;
+      double amountToApply = 0;
 
-        for (int i = _payments.length - 1; i >= 0; i--) {
-          if (overpayment <= 0) break;
-
-          final payment = _payments[i];
-          if (payment.amount > overpayment) {
-            _payments[i] = payment.copyWith(amount: payment.amount - overpayment);
-            overpayment = 0;
-          } else {
-            overpayment -= payment.amount;
-            _payments.removeAt(i);
-          }
-        }
+      if (balanceToCover > 0) {
+        amountToApply = (tendered < balanceToCover) ? tendered : balanceToCover;
+        balanceToCover -= amountToApply;
       }
+
+      // Add the payment back with the corrected applied amount, preserving the original tendered amount.
+      _payments.add(payment.copyWith(amount: amountToApply));
     }
   }
 
-  void addToCart(BranchStock stock) {
-    final product = stock.item!;
+  void _adjustPayments() {
+    _recalculateAppliedAmounts();
+  }
+
+  Future<void> addToCart(BranchStock stock) async {
+    final product = stock.item.value;
+    if (product == null) return;
+
+    // Eagerly load all nested properties of the product.
+    await product.loadAll();
 
     if (!_allowOutOfStockSales && !product.isService) {
       final cartItemIndex = _cart.indexWhere((item) => item.inventoryItem.value?.id == product.id);
@@ -545,13 +555,15 @@ class POSScreenController extends ChangeNotifier {
       }
 
       if (stock.stock <= currentCartQty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Not enough stock available'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Not enough stock available'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
         return;
       }
     }
@@ -559,7 +571,6 @@ class POSScreenController extends ChangeNotifier {
     final index = _cart.indexWhere((item) => item.inventoryItem.value?.id == product.id);
     if (index != -1) {
       final existingItem = _cart[index];
-
       final double newQty = existingItem.quantity + 1;
       final double taxRate = product.tax.value?.taxPercentage ?? 0.0;
       double itemTaxAmount;
@@ -567,31 +578,31 @@ class POSScreenController extends ChangeNotifier {
       itemTaxAmount = totalInclusive - (totalInclusive / (1 + taxRate / 100));
 
       _cart[index] = SaleItem(
-        inventoryItem: product,
         quantity: newQty,
         sellingPrice: product.sellingPrice,
         total: totalInclusive,
         taxAmount: itemTaxAmount,
         isMobile: true,
-        id:index.toString(),
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
       );
+      _cart[index].inventoryItem.value = product;
     } else {
       final double taxRate = product.tax.value?.taxPercentage ?? 0.0;
       double itemTaxAmount;
       double totalInclusive = 1 * product.sellingPrice;
       itemTaxAmount = totalInclusive - (totalInclusive / (1 + taxRate / 100));
 
-      _cart.add(SaleItem(
-        id: _cart.length.toString(),
-        inventoryItem: product,
+      SaleItem saleItem = SaleItem(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
         quantity: 1.0,
         sellingPrice: product.sellingPrice,
         total: totalInclusive,
         taxAmount: itemTaxAmount,
         isMobile: true,
-      ));
+      );
+      saleItem.inventoryItem.value = product;
+      _cart.add(saleItem);
     }
-    _amountTendered = 0.0; // Reset tendered amount on cart change
     _amountTenderedController.clear(); // Clear tendered amount controller
     notifyListeners();
   }
@@ -607,7 +618,6 @@ class POSScreenController extends ChangeNotifier {
     _discountControllers[itemId]?.dispose();
     _discountControllers.remove(itemId);
     _adjustPayments();
-    _amountTendered = 0.0; // Reset tendered amount on cart change
     _amountTenderedController.clear(); // Clear tendered amount controller
     notifyListeners();
   }
@@ -634,11 +644,14 @@ class POSScreenController extends ChangeNotifier {
     }
 
     final BranchStock stock = _allBranchStocks.firstWhere(
-          (s) => s.item?.id == product.id && s.branch?.id == _selectedBranch?.id,
-      orElse: () => BranchStock(id: '', item: null, branch: null, stock: 0),
+          (s) => s.item.value?.id == product.id && s.branch.value?.id == _selectedBranch?.id,
+      orElse: () {
+        final bs = BranchStock(id: '', stock: 0);
+        return bs;
+      },
     );
 
-    if (!_allowOutOfStockSales && !product.isService && stock.item != null) {
+    if (!_allowOutOfStockSales && !product.isService && stock.item.value != null) {
       if (newQuantity > stock.stock) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -661,8 +674,8 @@ class POSScreenController extends ChangeNotifier {
     itemTaxAmount = subtotalAfterDiscount - (subtotalAfterDiscount / (1 + taxRate / 100));
 
     _cart[index] = SaleItem(
-      id: index.toString(),
-      inventoryItem: product,
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      // inventoryItem: product,
       quantity: newQuantity,
       sellingPrice: newSellingPrice,
       discountAmount: newDiscountAmount,
@@ -670,8 +683,8 @@ class POSScreenController extends ChangeNotifier {
       taxAmount: itemTaxAmount,
       isMobile: true,
     );
+    _cart[index].inventoryItem.value = product;
     _adjustPayments();
-    _amountTendered = 0.0; // Reset tendered amount on cart change
     _amountTenderedController.clear(); // Clear tendered amount controller
     notifyListeners();
   }
@@ -746,7 +759,7 @@ class POSScreenController extends ChangeNotifier {
       } else {
         // Add new payment
         _payments.add(PaymentReceived(
-            id: 'local_payment_${DateTime.now().millisecondsSinceEpoch}', // Unique ID
+            id: DateTime.now().millisecondsSinceEpoch.toString(), // Unique ID
             amount: balanceDueConverted,
             paymentType: accountPaymentType,
             currency: _selectedCurrency,
@@ -758,8 +771,7 @@ class POSScreenController extends ChangeNotifier {
             bank: _getCorrectBank(accountPaymentType, _selectedCurrency),
         ));
       }
-      _amountTendered = amountPaidConverted;
-      _amountTenderedController.text = _amountTendered.toStringAsFixed(2);
+      _amountTenderedController.text = totalAmountTendered.toStringAsFixed(2);
       notifyListeners();
   }
 
@@ -780,14 +792,19 @@ class POSScreenController extends ChangeNotifier {
 
     PaymentType? selectedPaymentType; // Use a local variable for the selected type
     final amountController = TextEditingController(text: balanceDueConverted > 0 ? balanceDueConverted.toStringAsFixed(2) : '');
+
     bool addToAccount = _cart.isEmpty && _selectedCustomer != null; // State for the checkbox
     bool isProcessingDeposit = false;
 
+    final usedPaymentTypeIds = _payments.map((p) => p.paymentType.value?.id).toSet();
     final List<PaymentType> filteredPaymentTypes = _paymentTypes.where((pt) {
+      final isAlreadyUsed = usedPaymentTypeIds.contains(pt.id);
+      if (isAlreadyUsed) {
+        return false; // Exclude if already used
+      }
+
       final bool matchesCurrency = pt.currency.value == null || pt.currency.value?.id == _selectedCurrency?.id;
       final bool allowsCreditWithoutCustomer = !pt.isCredit || _selectedCustomer != null;
-      // Removed the `isAlreadySelected` check here, as we will handle aggregation
-      // instead of preventing selection.
 
       // If cart is empty, only show non-credit payment types
       if (_cart.isEmpty) {
@@ -843,7 +860,7 @@ class POSScreenController extends ChangeNotifier {
                   CheckboxListTile(
                     title: const Text('Add remaining to customer account'),
                     value: addToAccount,
-                    onChanged: (double.tryParse(amountController.text) ?? 0.0) > grandTotalConverted || _cart.isEmpty
+                    onChanged: (double.tryParse(amountController.text) ?? 0.0) > balanceDueConverted || _cart.isEmpty
                         ? (bool? newValue) {
                       setDialogState(() {
                         addToAccount = newValue ?? false;
@@ -865,9 +882,8 @@ class POSScreenController extends ChangeNotifier {
                   );
                   return;
                 }
-                final amt = double.tryParse(amountController.text) ?? 0.0;
+                var amt = double.tryParse(amountController.text) ?? 0.0;
                 if (amt <= 0) return;
-                _amountTendered += amt;
 
                 if (_cart.isEmpty) {
                   if (_selectedCustomer == null) {
@@ -944,52 +960,48 @@ class POSScreenController extends ChangeNotifier {
                 }
 
                 // Handle payment for the sale and potential overpayment to account
+                double currentBalanceDue = balanceDueConverted;
                 double paymentForSale = amt;
-                double amountToCreditCustomer = 0.0;
 
-                if (amt > grandTotalConverted || _cart.isEmpty) {
-                  if (_selectedCustomer != null && addToAccount) {
-                    amountToCreditCustomer = _cart.isEmpty ? amt : amt - grandTotalConverted;
-                    paymentForSale = _cart.isEmpty ? 0 : grandTotalConverted; // Cap payment for sale at grand total
-
-                    // Defer customer balance update (credit to customer account)
-                    _pendingCustomerBalanceUpdates.add(PendingCustomerBalanceUpdate(
-                      customerId: _selectedCustomer!.id!,
-                      customerName: _selectedCustomer!.name,
-                      currency: _selectedCurrency!,
-                      amountChange: amountToCreditCustomer, // Credit to customer account
-                    ));
-                  }
+                if (paymentForSale > currentBalanceDue) {
+                  paymentForSale = currentBalanceDue;
+                }
+                if (paymentForSale < 0) {
+                  paymentForSale = 0;
                 }
 
+                double amountToCreditCustomer = amt - paymentForSale;
+
+                if (_selectedCustomer != null && addToAccount && amountToCreditCustomer > 0) {
+                  // Defer customer balance update (credit to customer account)
+                  _pendingCustomerBalanceUpdates.add(PendingCustomerBalanceUpdate(
+                    customerId: _selectedCustomer!.id!,
+                    customerName: _selectedCustomer!.name,
+                    currency: _selectedCurrency!,
+                    amountChange: amountToCreditCustomer, // Credit to customer account
+                  ));
+                } else {
+                  // Overpayment is change, not credited to account
+                  amountToCreditCustomer = 0;
+                }
 
                 // Add payment for the sale
                 if(paymentForSale > 0) {
-                  // Check if this payment type already exists
-                  final existingPaymentIndex = _payments.indexWhere((p) => p.paymentType.value?.name == selectedPaymentType?.name);
-
-                  if (existingPaymentIndex != -1) {
-                    // Update existing payment
-                    final existingPayment = _payments[existingPaymentIndex];
-                    _payments[existingPaymentIndex] = existingPayment.copyWith(
-                      amount: existingPayment.amount + paymentForSale,
-                    );
-                  } else {
-                    // Add new payment
-                    _payments.add(PaymentReceived(
-                      id: 'local_payment_${DateTime.now().millisecondsSinceEpoch}', // Unique ID
-                      amount: paymentForSale, // Use paymentForSale here
-                      paymentType: selectedPaymentType,
-                      currency: _selectedCurrency,
-                      branch: Branch(id: _selectedBranch!.id, name: _selectedBranch!.name),
-                      payer: _selectedCustomer,
-                      paymentDescription: _cart.isEmpty ? 'ACCOUNT_TOP_UP' : 'SALE',
-                      paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
-                      dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
-                      isMobile: true,
-                      bank: _getCorrectBank(selectedPaymentType, _selectedCurrency),
-                    ));
-                  }
+                  // Always add a new payment record. Do not aggregate here.
+                  _payments.add(PaymentReceived(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(), // Unique ID
+                    amount: paymentForSale, // Use paymentForSale here
+                    amountTendered: amt,
+                    paymentType: selectedPaymentType,
+                    currency: _selectedCurrency,
+                    branch: Branch(id: _selectedBranch!.id, name: _selectedBranch!.name),
+                    payer: _selectedCustomer,
+                    paymentDescription: _cart.isEmpty ? 'ACCOUNT_TOP_UP' : 'SALE',
+                    paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
+                    dateTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
+                    isMobile: true,
+                    bank: _getCorrectBank(selectedPaymentType, _selectedCurrency),
+                  ));
                 }
 
                 // We DO NOT save payments to the shift here to avoid duplicates.
@@ -1037,11 +1049,13 @@ class POSScreenController extends ChangeNotifier {
     // Explicitly unfocus any active field after the dialog closes
     FocusScope.of(context).unfocus();
 
-    if (dialogResult && _cart.isEmpty) {
-      await clearPOSScreen();
+    if (dialogResult) {
+      _recalculateAppliedAmounts(); // Explicitly recalculate all payment amounts
+      if (_cart.isEmpty) {
+        await clearPOSScreen();
+      }
     }
-    _amountTendered = 0.0; // Reset tendered amount on payment
-    _amountTenderedController.clear(); // Clear tendered amount controller
+    _amountTenderedController.text = totalAmountTendered.toStringAsFixed(2);
     notifyListeners(); // This notifyListeners() is sufficient after the dialog closes
     customerSelectFocus = false;
   }
@@ -1049,20 +1063,21 @@ class POSScreenController extends ChangeNotifier {
   void updatePaymentAmount(int index, double newAmount) {
     if (index >= 0 && index < _payments.length) {
       final oldPayment = _payments[index];
-      final amountDifference = newAmount - oldPayment.amount;
-      _payments[index] = oldPayment.copyWith(amount: newAmount);
-      _amountTendered += amountDifference;
-      _amountTenderedController.text = _amountTendered.toStringAsFixed(2);
+
+      // When a payment is edited, we assume the new value is the tendered amount.
+      // We update the tendered amount and then recalculate all applied amounts.
+      _payments[index] = oldPayment.copyWith(amountTendered: newAmount);
+      _recalculateAppliedAmounts();
+
+      _amountTenderedController.text = totalAmountTendered.toStringAsFixed(2);
       notifyListeners();
     }
   }
 
   void removePayment(int index) {
     if (index >= 0 && index < _payments.length) {
-      final removedPayment = _payments.removeAt(index);
-      _amountTendered -= removedPayment.amount;
-      if (_amountTendered < 0) _amountTendered = 0;
-      _amountTenderedController.text = _amountTendered.toStringAsFixed(2);
+      _payments.removeAt(index);
+      _amountTenderedController.text = totalAmountTendered.toStringAsFixed(2);
       notifyListeners();
     }
   }
@@ -1075,7 +1090,6 @@ class POSScreenController extends ChangeNotifier {
     try {
       if (_cart.isEmpty && _pendingAccountCredits.isEmpty) return;
 
-      // Check if the total amount paid covers the grand total
       if (amountPaidConverted < grandTotalConverted && _cart.isNotEmpty) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1094,80 +1108,42 @@ class POSScreenController extends ChangeNotifier {
         return;
       }
 
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-
-      totalAmtToAcc = 0.0;
-      for (var credit in _pendingAccountCredits) {
-        totalAmtToAcc += credit.amount;
-      }
-      // --- Apply pending customer balance updates BEFORE saving the sale ---
+      final List<Customer> customersToUpdate = [];
       if (_pendingCustomerBalanceUpdates.isNotEmpty) {
-        List<Customer> currentCustomers = (_isOnline
-            ? (prefs.getStringList(AppConstants.keyCustomers) ?? [])
-            : (prefs.getStringList(AppConstants.keyOfflineCustomers) ?? []))
-            .map((e) => Customer.fromJson(jsonDecode(e))).toList();
-
         for (var update in _pendingCustomerBalanceUpdates) {
-          final int customerIndex = currentCustomers.indexWhere((c) => c.id == update.customerId || c.name == update.customerName);
-
+          final int customerIndex = _customers.indexWhere((c) => c.id == update.customerId || c.name == update.customerName);
           if (customerIndex != -1) {
-            Customer customerToUpdate = currentCustomers[customerIndex];
+            Customer customerToUpdate = _customers[customerIndex];
             List<CustomerCurrencyAmount> updatedAmounts = List.from(customerToUpdate.currencyBalance);
-
-            final int ccaIndex = updatedAmounts.indexWhere((cca) {
-              cca.currency.loadSync();
-              return cca.currency.value?.id == update.currency.id;
-            });
+            final int ccaIndex = updatedAmounts.indexWhere((cca) => cca.currency.value?.id == update.currency.id);
 
             if (ccaIndex != -1) {
-              updatedAmounts[ccaIndex] = CustomerCurrencyAmount(
-                currency: updatedAmounts[ccaIndex].currency.value,
-                amount: updatedAmounts[ccaIndex].amount + update.amountChange,
-              );
+              updatedAmounts[ccaIndex].balance += update.amountChange;
             } else {
-              // If currency balance doesn't exist, add it
               updatedAmounts.add(CustomerCurrencyAmount(
                 currency: update.currency,
-                amount: update.amountChange,
+                balance: update.amountChange,
               ));
             }
             customerToUpdate = customerToUpdate.copyWith(currencyBalance: updatedAmounts);
-            currentCustomers[customerIndex] = customerToUpdate;
+            _customers[customerIndex] = customerToUpdate;
+            customersToUpdate.add(customerToUpdate);
 
-            // --- Send updated customer to API ---
-            if (_isOnline && totalAmtToAcc == 0.0) {
-              // ignore: avoid_print
-              print('Updating customer balance to API: ${customerToUpdate.toJson()}');
+            if (_isOnline) {
               try {
                 await _customerService.updateCustomer(customerToUpdate);
               } catch (e) {
-                debugPrint('Failed to update customer balance to API: $e');
-                // Decide if this error should stop the sale or just log it.
-                // For now, we'll log and continue, assuming local persistence is primary.
+                debugPrint('Failed to sync customer update during sale completion: $e');
               }
             }
-          } else {
-            debugPrint('Error: Customer with ID ${update.customerId} not found for balance update.');
           }
         }
-        await prefs.setStringList(_isOnline ? AppConstants.keyCustomers : AppConstants.keyOfflineCustomers, currentCustomers.map((c) => jsonEncode(c.toJson())).toList());
-        // Update the _selectedCustomer in the controller if it was part of the updates
-        if (_selectedCustomer != null) {
-          final updatedSelectedCustomer = currentCustomers.firstWhere((c) => c.id == _selectedCustomer!.id, orElse: () => _selectedCustomer!);
-          _selectedCustomer = updatedSelectedCustomer;
+        if (customersToUpdate.isNotEmpty) {
+          await _customerService.saveCustomersLocally(customersToUpdate);
         }
-        _pendingCustomerBalanceUpdates.clear(); // Clear after applying
       }
-      else{
-        // ignore: avoid_print
-        print('No pending customer balance updates');
-      }
-      // --- End of pending customer balance updates ---
-
 
       final String generatedReference = 'POS-${DateTime.now().millisecondsSinceEpoch}';
-
-      // Convert cart items to the selected currency
       final double exchangeRate = _selectedCurrency?.rate ?? 1.0;
       final List<SaleItem> convertedCart = _cart.map((item) {
         return item.copyWith(
@@ -1175,19 +1151,20 @@ class POSScreenController extends ChangeNotifier {
           taxAmount: item.taxAmount * exchangeRate,
           discountAmount: item.discountAmount * exchangeRate,
           total: item.total * exchangeRate,
-          inventoryItem: item.inventoryItem.value!.copyWith()
         );
       }).toList();
 
+      final saleTotal = grandTotalConverted;
+      final change = totalAmountTendered > saleTotal ? totalAmountTendered - saleTotal : 0.0;
+
       final newSale = Sale(
-          id: null,
           createdByName: currentShift.createdByName,
           cashierFullName: currentShift.userFullName,
           timeIniated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
           saleStatus: 'COMPLETE',
-          amountAfterDiscount: grandTotalConverted,
-          baseSaleAmount: grandTotalBase, // Base sale amount should also be converted now that items are converted
-          totalTaxAmount: taxTotalBase * exchangeRate, // Tax should be converted
+          amountAfterDiscount: saleTotal,
+          baseSaleAmount: grandTotalBase,
+          totalTaxAmount: taxTotalBase * exchangeRate,
           isSynced: false,
           fiscalized: false,
           taxInvoice: false,
@@ -1197,10 +1174,10 @@ class POSScreenController extends ChangeNotifier {
           shiftReference: currentShift.shiftReference,
           ticketName: _ticketName, // Include ticket name in the completed sale
           amtToAcc: totalAmtToAcc > 0 ? totalAmtToAcc.toStringAsFixed(2) : null,
-          customerAccBankType:null,
+          customerAccBankType:_payments.any((p)=>p.paymentType.value!.isCredit)?'ACC-${_selectedCurrency!.name}':'CASH-${_selectedCurrency!.name}',
           amountPaid: amountPaidConverted,
-          change: balanceDueConverted < 0 ? balanceDueConverted * -1 : 0.0,
-
+          amountTendered: totalAmountTendered,
+          change: change,
       );
       newSale.customer.value = _selectedCustomer;
       newSale.company.value = _selectedBranch!.company.value;
@@ -1210,66 +1187,40 @@ class POSScreenController extends ChangeNotifier {
       newSale.currency.value = _selectedCurrency;
       newSale.baseCurrency.value = _selectedCurrency;
 
-      try {
-        await _saleService.saveSale(newSale);
-      } catch (e) {
-        debugPrint('Failed to save sale locally: $e');
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to save sale: $e. Please try again.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        _isProcessingSale = false; // Reset processing state
-        notifyListeners();
-        return; // Stop the sale process if local save fails
-      }
+      await _saleService.completeSaleTransaction(newSale,_payments ,convertedCart,customersToUpdate);
 
       if (_heldSaleId != null) {
         await removeHeldSale(_heldSaleId!);
       }
 
-      // Print receipt based on selected printer and new setting
       try {
-        // Only print if the individual sale setting is true, OR if the global "always print" setting is true.
         if (_printerService.isConnected && (_printReceiptForThisSale)) {
           await _printerService.printSale(newSale);
         }
       } catch (e) {
-        // ignore: avoid_print
-        print('Error auto-printing receipt: $e');
-        // Don't fail the sale if printing fails
+        debugPrint('Error auto-printing receipt: $e');
       }
 
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String stockKey = _isOnline ? AppConstants.keyBranchStock : AppConstants.keyOfflineBranchStock;
       final List<String> stockStrings = prefs.getStringList(stockKey) ?? [];
       final List<BranchStock> allStocks = stockStrings.map((e) => BranchStock.fromJson(jsonDecode(e))).toList();
 
       for (var cartItem in _cart) {
         if (cartItem.inventoryItem.value?.isService == true) continue;
-
         final stockIndex = allStocks.indexWhere((s) =>
-        s.item?.id == cartItem.inventoryItem.value?.id &&
-            s.branch?.id == _selectedBranch?.id
+        s.item.value?.id == cartItem.inventoryItem.value?.id &&
+            s.branch.value?.id == _selectedBranch?.id
         );
-
         if (stockIndex != -1) {
           final stock = allStocks[stockIndex];
-          allStocks[stockIndex] = BranchStock(
-            id: stock.id,
-            branch: stock.branch,
-            item: stock.item,
-            stock: stock.stock - cartItem.quantity,
-          );
+          allStocks[stockIndex] = stock.copyWith(stock: stock.stock - cartItem.quantity);
         }
       }
-
       await prefs.setStringList(stockKey, allStocks.map((e) => jsonEncode(e.toJson())).toList());
 
       currentShift.shiftCurrencyAmounts ??= [];
-      final List<MobileShiftCurrencyAmount> newActivitiesToExport = []; // Track new activities
+      final List<MobileShiftCurrencyAmount> newActivitiesToExport = [];
 
       for (var payment in _payments) {
         final MobileShiftCurrencyAmount paymentShiftAmount = MobileShiftCurrencyAmount(
@@ -1281,7 +1232,7 @@ class POSScreenController extends ChangeNotifier {
           amount: payment.amount,
           notes: _cart.isEmpty ? 'Account top up via ${payment.paymentType.value!.name}' : 'Payment for sale ${newSale.posReference} via ${payment.paymentType.value!.name}',
           amountType: _cart.isEmpty ? 'ACCOUNT_TOP_UP' : 'SALE',
-          ref: 'SL_${DateTime.now().millisecondsSinceEpoch}${_payments.indexOf(payment)}', // Changed to use posReference as ID is null initially
+          ref: 'SL_${DateTime.now().millisecondsSinceEpoch}${_payments.indexOf(payment)}',
           posReference: newSale.posReference,
           shiftReference: currentShift.shiftReference,
           isCash: payment.paymentType.value!.isCash == true || (payment.paymentType.value!.name.toLowerCase().startsWith('cash')),
@@ -1303,18 +1254,20 @@ class POSScreenController extends ChangeNotifier {
         await _excelExportService.exportShiftCurrencyAmountsToExcel(newActivitiesToExport);
       }
 
-      _saveShift(currentShift); // Run in background
+      _saveShift(currentShift);
 
       if (!context.mounted) return;
 
-      await clearPOSScreen(); // Await clearPOSScreen
+      await clearPOSScreen();
     } finally {
+      if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Sale completed successfully!'),
           duration: Duration(seconds: 2),
         ),
       );
+      }
       _isProcessingSale = false;
       customerSelectFocus = false;
       notifyListeners();
@@ -1340,6 +1293,11 @@ class POSScreenController extends ChangeNotifier {
         bank: selectedBank,
         isMobile: true,
       );
+      newPayment.paymentType.value = selectedPaymentType;
+      newPayment.payer.value = customer;
+      newPayment.currency.value = selectedCurrency;
+      newPayment.branch.value = _selectedBranch;
+      newPayment.bank.value = selectedBank;
 
       // --- Start of local balance update logic ---
       int customerIndex = _customers.indexWhere((c) => c.id == customer.id);
@@ -1350,32 +1308,22 @@ class POSScreenController extends ChangeNotifier {
         CustomerCurrencyAmount? existingCca;
         if (currentLocalCustomer.currencyBalance.isNotEmpty) {
           existingCca = currentLocalCustomer.currencyBalance.firstWhereOrNull(
-                (cca) {
-                  cca.currency.loadSync();
-                  return cca.currency.value?.id == selectedCurrency.id;
-                },
+                (cca) => cca.currency.value?.id == selectedCurrency.id,
           );
           updatedCurrencyBalance.addAll(currentLocalCustomer.currencyBalance.where(
-                (cca) {
-                  cca.currency.loadSync();
-                  return cca.currency.value?.id != selectedCurrency.id;
-                },
+                (cca) => cca.currency.value?.id != selectedCurrency.id,
           ));
         }
 
-        CustomerCurrencyAmount newCca;
         if (existingCca != null) {
-          newCca = CustomerCurrencyAmount(
-            currency: existingCca.currency.value,
-            amount: (existingCca.amount) + amount,
-          );
+          existingCca.balance += amount;
+          updatedCurrencyBalance.add(existingCca);
         } else {
-          newCca = CustomerCurrencyAmount(
+          updatedCurrencyBalance.add(CustomerCurrencyAmount(
             currency: selectedCurrency,
-            amount: amount,
-          );
+            balance: amount,
+          ));
         }
-        updatedCurrencyBalance.add(newCca);
 
         Customer updatedCustomer = currentLocalCustomer.copyWith(
           currencyBalance: updatedCurrencyBalance,
@@ -1414,7 +1362,7 @@ class POSScreenController extends ChangeNotifier {
           amount: amount,
           notes: 'Customer Deposit for ${customer.name}',
           amountType: 'ACCOUNT_TOP_UP',
-          ref: newPayment.id ?? 'payment_${DateTime.now().millisecondsSinceEpoch}',
+          // ref: newPayment.id.toString(),
           posReference: '${customer.name}${DateTime.now().microsecondsSinceEpoch}',
           shiftReference: currentShift.shiftReference,
           isCash: selectedPaymentType.isCash == true || (selectedPaymentType.name.toLowerCase().startsWith('cash')),
@@ -1443,7 +1391,6 @@ class POSScreenController extends ChangeNotifier {
     _selectedCustomer = newCustomer;
     _ticketName = null;
     _heldSaleId = null;
-    _amountTendered = 0.0;
     _amountTenderedController.clear();
     _disposeQuantityControllers();
     _searchController.clear();
@@ -1492,7 +1439,7 @@ class POSScreenController extends ChangeNotifier {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, null), // Return null if cancelled
-            child: const Text('Hold'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext, ticketNameController.text),
@@ -1514,6 +1461,7 @@ class POSScreenController extends ChangeNotifier {
     final MobilePosShift? currentShift = await _getCurrentShift();
 
     final double exchangeRate = _selectedCurrency?.rate ?? 1.0;
+
     final heldSale = Sale(
       id: 'held_${DateTime.now().millisecondsSinceEpoch}',
       createdByName: currentShift?.createdByName,
@@ -1523,8 +1471,9 @@ class POSScreenController extends ChangeNotifier {
       shiftReference: currentShift?.shiftReference,
       totalTaxAmount: taxTotalBase * exchangeRate,
       amountAfterDiscount: grandTotalConverted,
-      ticketName: ticketName, // Assign the entered ticket name
-      amountTendered: _amountTendered,
+      ticketName: ticketName,
+      amountTendered: totalAmountTendered,
+      heldItems: List<SaleItem>.from(_cart), // Store cart items in heldItems
     );
     heldSale.customer.value = _selectedCustomer;
     heldSale.branch.value = _selectedBranch;
@@ -1532,7 +1481,8 @@ class POSScreenController extends ChangeNotifier {
     heldSale.paymentTypes.addAll(_payments);
     heldSale.currency.value = _selectedCurrency;
 
-    heldSales.add(heldSale); // Add the new held sale to the list
+    heldSales.add(heldSale);
+
     await prefs.setStringList(AppConstants.keyHeldSales, heldSales.map((s) => jsonEncode(s.toJson())).toList());
 
     _ticketName = ticketName; // Set the controller's ticket name
@@ -1551,28 +1501,48 @@ class POSScreenController extends ChangeNotifier {
     return heldSalesJson.map((jsonString) => Sale.fromJson(jsonDecode(jsonString))).toList();
   }
 
-  void loadHeldSale(Sale heldSale) {
-    clearPOSScreen();
-    _cart.addAll(heldSale.items);
-    _payments.addAll(heldSale.paymentTypes);
-    _selectedCustomer = heldSale.customer.value;
-    _selectedCurrency = heldSale.currency.value;
-    _ticketName = heldSale.ticketName;
-    _heldSaleId = heldSale.id;
-    _amountTendered = heldSale.amountTendered ?? 0.0;
-    _amountTenderedController.text = _amountTendered.toStringAsFixed(2);
+  Future<void> loadHeldSale(Sale heldSale) async {
+    await clearPOSScreen();
 
-    for (var item in _cart) {
-      if (item.inventoryItem.value?.id != null) {
-        _quantityControllers[item.inventoryItem.value!.id!] = TextEditingController(text: item.quantity.toStringAsFixed(2));
-      }
-    }
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Held sale for ${heldSale.ticketName ?? 'Guest'} loaded.'), backgroundColor: Colors.green),
-    );
-    _printReceiptForThisSale = _printerService.getAlwaysPrintReceipt();
+    _isLoading = true;
     notifyListeners();
+
+    try {
+      _cart.addAll(heldSale.heldItems); // Load items from heldItems
+      _payments.addAll(heldSale.paymentTypes);
+      _selectedCustomer = heldSale.customer.value;
+      _selectedCurrency = heldSale.currency.value;
+      _ticketName = heldSale.ticketName;
+      _heldSaleId = heldSale.id;
+      _amountTenderedController.text = (heldSale.amountTendered ?? 0.0).toStringAsFixed(2);
+
+      // Re-associate inventory items from local stock
+      for (var i = 0; i < _cart.length; i++) {
+        final saleItem = _cart[i];
+        final stockItem = _allBranchStocks.firstWhereOrNull(
+              (bs) => bs.item.value?.id == saleItem.inventoryItem.value?.id,
+        );
+        if (stockItem != null) {
+          _cart[i].inventoryItem.value = stockItem.item.value;
+          await _cart[i].inventoryItem.value!.loadAll(); // Ensure all nested properties are loaded
+        }
+      }
+
+      for (var item in _cart) {
+        if (item.inventoryItem.value?.id != null) {
+          _quantityControllers[item.inventoryItem.value!.id!] = TextEditingController(text: item.quantity.toStringAsFixed(2));
+        }
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Held sale for ${heldSale.ticketName ?? 'Guest'} loaded.'), backgroundColor: Colors.green),
+        );
+      }
+      _printReceiptForThisSale = _printerService.getAlwaysPrintReceipt();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> removeHeldSale(String saleId) async {
@@ -1601,10 +1571,6 @@ class POSScreenController extends ChangeNotifier {
         return;
       }
 
-      // Set amountTendered to grandTotalConverted for quick cash
-      _amountTendered = grandTotalConverted;
-      _amountTenderedController.text = _amountTendered.toStringAsFixed(2);
-
       final cashPaymentType = _paymentTypes.firstWhere(
         (pt) => (pt.isCash == true || pt.name.toLowerCase().startsWith('cash')) && (pt.currency.value == null || pt.currency.value?.id == _selectedCurrency?.id),
         orElse: () => PaymentType(id: 'cash_default', name: 'Cash', isCash: true),
@@ -1613,8 +1579,9 @@ class POSScreenController extends ChangeNotifier {
       _payments.clear();
       _payments.add(
         PaymentReceived(
-          id: 'local_payment_${DateTime.now().millisecondsSinceEpoch}',
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
           amount: grandTotalConverted,
+          amountTendered: grandTotalConverted,
           paymentType: cashPaymentType,
           currency: _selectedCurrency,
           branch: _selectedBranch,
@@ -1625,6 +1592,8 @@ class POSScreenController extends ChangeNotifier {
           bank: _getCorrectBank(cashPaymentType, _selectedCurrency),
         ),
       );
+      
+      _amountTenderedController.text = totalAmountTendered.toStringAsFixed(2);
 
       _isProcessingSale = false;
       await completeSale();
@@ -1634,4 +1603,22 @@ class POSScreenController extends ChangeNotifier {
     }
   }
 
+}
+
+extension on InventoryItem {
+  Future<void> loadAll() async {
+    if (category.isAttached) await category.load();
+    if (unit.isAttached) await unit.load();
+    if (tax.isAttached) await tax.load();
+    if (currency.isAttached) await currency.load();
+    if (company.isAttached) await company.load();
+  }
+}
+
+extension on Customer {
+  Future<void> loadAll() async {
+    if (company.isAttached) await company.load();
+    if (branch.isAttached) await branch.load();
+    if (currencyBalanceLinks.isAttached) await currencyBalanceLinks.load();
+  }
 }

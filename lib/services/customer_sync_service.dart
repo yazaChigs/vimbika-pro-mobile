@@ -9,6 +9,7 @@ class CustomerSyncService {
   CustomerSyncService._internal();
 
   Timer? _timer;
+  bool _isSyncing = false;
   final CustomerService _customerService = CustomerService();
 
   void startSyncTimer() {
@@ -25,19 +26,26 @@ class CustomerSyncService {
   }
 
   Future<void> syncUpdatedCustomers() async {
+    if (_isSyncing) {
+      debugPrint('Customer sync already in progress, skipping.');
+      return;
+    }
+    _isSyncing = true;
     debugPrint('Syncing updated customers...');
     try {
       final List<Customer> allCustomers = await _customerService.getCustomersLocally();
-      final List<Customer> unsyncedCustomers = allCustomers.where((c) => !c.isSynced && c.id != null).toList();
+      final List<Customer> unsyncedCustomers =
+          allCustomers.where((c) => !c.isSynced && c.id != null).toList();
 
       if (unsyncedCustomers.isEmpty) {
         debugPrint('No updated customers to sync.');
         stopSyncTimer();
+        _isSyncing = false;
         return;
       }
 
       debugPrint('Attempting to sync ${unsyncedCustomers.length} updated customers...');
-      
+
       for (var customer in unsyncedCustomers) {
         try {
           await _customerService.updateCustomer(customer);
@@ -47,6 +55,8 @@ class CustomerSyncService {
       }
     } catch (e) {
       debugPrint('Error during customer sync: $e');
+    } finally {
+      _isSyncing = false;
     }
   }
 }

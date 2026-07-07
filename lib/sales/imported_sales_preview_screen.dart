@@ -33,6 +33,7 @@ class _ImportedSalesPreviewScreenState extends State<ImportedSalesPreviewScreen>
   void initState() {
     super.initState();
     _currentSales = List.from(widget.importedSales);
+    print(('_currentSales: ${_currentSales.first.items.length}'));
     // By default, all imported sales are selected by index
     _selectedIndices = Set.from(Iterable<int>.generate(_currentSales.length));
   }
@@ -84,6 +85,7 @@ class _ImportedSalesPreviewScreenState extends State<ImportedSalesPreviewScreen>
         return;
       }
 
+      print('Syncing ${salesToSync.length} sales... ${salesToSync.first.items.length}');
       final List<Sale> syncedSales = await _saleSyncService.syncSelectedSales(salesToSync, companyId);
       
       // Update local state and excel
@@ -240,7 +242,7 @@ class _ImportedSalesPreviewScreenState extends State<ImportedSalesPreviewScreen>
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(sale.timeIniated!))} • ${sale.items.length} items',
+                                  '${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(sale.timeIniated!))} • ${sale.allItems.length} items',
                                   style: const TextStyle(fontSize: 12, color: AppTheme.grey),
                                 ),
                                 const SizedBox(height: 4),

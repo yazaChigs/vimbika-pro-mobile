@@ -6,6 +6,7 @@ part 'sale_item.g.dart';
 
 @collection
 class SaleItem {
+  @JsonKey(includeFromJson: false, includeToJson: false)
   Id isarId = Isar.autoIncrement;
   String? id;
   final inventoryItem = IsarLink<InventoryItem>();
@@ -19,7 +20,7 @@ class SaleItem {
 
   SaleItem({
     this.id,
-    InventoryItem? inventoryItem,
+    // InventoryItem? inventoryItem,
     this.quantity = 0.0,
     this.sellingPrice = 0.0,
     this.discountAmount = 0.0,
@@ -28,14 +29,14 @@ class SaleItem {
     this.isMobile = false,
     this.amountTendered,
   }) {
-    if (inventoryItem != null) {
-      this.inventoryItem.value = inventoryItem;
-    }
+    // if (inventoryItem != null) {
+    //   this.inventoryItem.value = inventoryItem;
+    // }
   }
 
   factory SaleItem.fromJson(Map<String, dynamic> json) {
     final item = SaleItem(
-      id: json['id'],
+      id: json['id']?.toString(),
       quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
       sellingPrice: (json['sellingPrice'] as num?)?.toDouble() ?? 0.0,
       discountAmount: (json['discountAmount'] as num?)?.toDouble() ?? 0.0,
@@ -50,9 +51,12 @@ class SaleItem {
     return item;
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toJson({int? index}) {
+    if (inventoryItem.isAttached) {
+      inventoryItem.loadSync();
+    }
     return {
-      'id': id,
+      'id': id ?? (index??0).toString(),
       'quantity': quantity,
       'sellingPrice': sellingPrice,
       'discountAmount': discountAmount,
@@ -86,6 +90,7 @@ class SaleItem {
       amountTendered: amountTendered ?? this.amountTendered,
     );
     newItem.inventoryItem.value = inventoryItem ?? this.inventoryItem.value;
+    newItem.isarId = isarId;
     return newItem;
   }
 }

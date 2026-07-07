@@ -9,6 +9,7 @@ import 'model/expense.dart';
 import 'model/branch_stock.dart';
 import 'app_constants/app_constants.dart';
 import 'package:intl/intl.dart';
+import 'services/sale_service.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -18,6 +19,7 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
+  final SaleService _saleService = SaleService();
   DateTimeRange _selectedDateRange = DateTimeRange(
     start: DateTime(DateTime.now().year, DateTime.now().month, 1),
     end: DateTime.now(),
@@ -52,15 +54,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
     
     final bool isOffline = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
     
-    final String salesKey = isOffline ? AppConstants.keyOfflineSales : AppConstants.keySales;
     final String branchStockKey = isOffline ? AppConstants.keyOfflineBranchStock : AppConstants.keyBranchStock;
     final String expensesKey = isOffline ? AppConstants.keyExpenses : AppConstants.keyOnlineExpenses;
 
     final dateRange = _selectedDateRange;
     final endDateExclusive = dateRange.end.add(const Duration(days: 1));
 
-    // Load Sales
-    final List<String> salesJson = prefs.getStringList(salesKey) ?? [];
+    // Load Sales from Isar
+    final List<Sale> sales = await _saleService.getAllSales();
     final Map<String, double> itemSalesCount = {};
     final Map<String, String> itemNames = {};
     final Map<String, double> customerSalesValue = {};
@@ -68,12 +69,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
     double salesSum = 0.0;
     double costOfSalesSum = 0.0;
-    for (final item in salesJson) {
-      final sale = Sale.fromJson(jsonDecode(item));
-      
+    for (final sale in sales) {
       DateTime? saleDate;
       if (sale.dateCreated != null) saleDate = DateTime.tryParse(sale.dateCreated!);
-      if (saleDate == null && sale.timeIniated!.isNotEmpty) saleDate = DateTime.tryParse(sale.timeIniated!);
+      if (saleDate == null && sale.timeIniated != null && sale.timeIniated!.isNotEmpty) {
+        try {
+          saleDate = DateFormat(AppConstants.APP_DATE_TIME_FMT).parse(sale.timeIniated!);
+        } catch (e) {
+          saleDate = DateTime.tryParse(sale.timeIniated!);
+        }
+      }
       saleDate ??= DateTime.now();
 
       if (saleDate.isBefore(dateRange.start) || saleDate.isAfter(endDateExclusive) || saleDate.isAtSameMomentAs(endDateExclusive)) {
@@ -83,7 +88,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       salesSum += sale.grandTotal;
 
       // Top Sold Items calculation & Cost of Sales
-      for (final saleItem in sale.items) {
+      for (final saleItem in sale.allItems) {
         if (saleItem.inventoryItem.value != null) {
           final itemId = saleItem.inventoryItem.value!.id ?? 'unknown';
           itemSalesCount[itemId] = (itemSalesCount[itemId] ?? 0.0) + saleItem.quantity;
@@ -157,7 +162,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
     for (final stockStr in stocksJson) {
       final stock = BranchStock.fromJson(jsonDecode(stockStr));
-      final item = stock.item;
+      final item = stock.item.value;
       if (item == null) continue;
 
       totalItems++;

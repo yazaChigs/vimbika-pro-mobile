@@ -53,7 +53,7 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
   @override
   void initState() {
     super.initState();
-    final item = widget.item ?? widget.branchStock?.item;
+    final item = widget.item ?? widget.branchStock?.item.value;
     
     _nameController = TextEditingController(text: item?.name);
     _descriptionController = TextEditingController(text: item?.description);
@@ -91,7 +91,7 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
       _units = unitJson.map((e) => Unit.fromJson(jsonDecode(e))).toList();
       _taxes = taxJson.map((e) => Tax.fromJson(jsonDecode(e))).toList();
 
-      final item = widget.item ?? widget.branchStock?.item;
+      final item = widget.item ?? widget.branchStock?.item.value;
       if (item != null) {
         if (item.category.value != null) {
           _selectedCategory = _categories.cast<Category?>().firstWhere((element) => element?.id == item.category.value!.id, orElse: () => null); // Changed orElse to null
@@ -138,7 +138,7 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
 
     final String newName = _nameController.text.trim();
     final String newCode = _codeController.text.trim();
-    final String? currentId = widget.item?.id ?? widget.branchStock?.item?.id;
+    final String? currentId = widget.item?.id ?? widget.branchStock?.item.value?.id;
 
     bool isDuplicateName = localItems.any((item) => 
         item.id != currentId && 
@@ -167,7 +167,7 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
     }
 
     // 1. Create/Update InventoryItem
-    final existingItem = widget.item ?? widget.branchStock?.item;
+    final existingItem = widget.item ?? widget.branchStock?.item.value;
     
     InventoryItem newItem = InventoryItem(
       id: existingItem?.id, // Preserve ID if editing
@@ -220,10 +220,10 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
 
       BranchStock branchStock = BranchStock(
         id: widget.branchStock?.id ?? '${newItem.id}_bs', // Use existing ID or generate new one
-        item: newItem,
-        branch: _selectedBranch,
         stock: widget.branchStock?.stock ?? 0.00
       );
+      branchStock.item.value = newItem;
+      branchStock.branch.value = _selectedBranch;
 
       final int branchStockIndex = localBranchStocks.indexWhere((element) => element.id == branchStock.id);
       if (branchStockIndex != -1) {

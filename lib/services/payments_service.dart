@@ -4,6 +4,7 @@ import 'dart:async'; // Import for TimeoutException
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart'; // Import connectivity_plus
 import 'package:flutter/foundation.dart'; // For debugPrint
+import 'package:vimbika_pro/services/isar_service.dart';
 
 import '../app_constants/app_constants.dart';
 import '../model/online_sale.dart';
@@ -17,6 +18,7 @@ import 'base_http_client.dart';
 
 class PaymentsService {
   final BaseHttpClient _client = BaseHttpClient();
+  final IsarService _isarService = IsarService();
 
   Future<bool> _checkConnectivity() async {
     final connectivityResult = await (Connectivity().checkConnectivity());
@@ -223,58 +225,21 @@ class PaymentsService {
   }
 
   Future<PaymentReceived> savePaymentReceivedLocally(PaymentReceived payment) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<PaymentReceived> unsyncedPayments = await getUnsyncedReceivedPaymentsLocally();
-
-    // Assign a temporary ID if it doesn't have one (e.g., if it's a new offline payment)
+    // Assign a temporary ID if it doesn't have one
     if (payment.id == null || payment.id!.isEmpty) {
-      payment = payment.copyWith(id: 'local_${DateTime.now().millisecondsSinceEpoch}');
+      payment = payment.copyWith(id: DateTime.now().millisecondsSinceEpoch.toString());
     }
     
-    // Check if payment already exists in unsynced
-    int existingIndex = unsyncedPayments.indexWhere((p) => p.id == payment.id);
-    if (existingIndex != -1) {
-      unsyncedPayments[existingIndex] = payment.copyWith(isSynced: false); // Update existing
-    } else {
-      unsyncedPayments.add(payment.copyWith(isSynced: false)); // Add new to unsynced
-    }
-    
-    await prefs.setStringList(
-      AppConstants.keyUnsyncedReceivedPayments,
-      unsyncedPayments.map((p) => jsonEncode(p.toJson())).toList(),
-    );
-
-    // Also add to the general offline payments list so it shows up in reports
-    final List<String> offlinePaymentsJson = prefs.getStringList(AppConstants.keyOfflinePaymentsReceived) ?? [];
-    List<PaymentReceived> allOfflinePayments = offlinePaymentsJson.map((json) => PaymentReceived.fromJson(jsonDecode(json))).toList();
-    
-    int existingOfflineIndex = allOfflinePayments.indexWhere((p) => p.id == payment.id);
-    if (existingOfflineIndex != -1) {
-       allOfflinePayments[existingOfflineIndex] = payment;
-    } else {
-       allOfflinePayments.add(payment);
-    }
-    
-    await prefs.setStringList(AppConstants.keyOfflinePaymentsReceived, allOfflinePayments.map((p) => jsonEncode(p.toJson())).toList());
-
-
+    await _isarService.savePaymentReceived(payment.copyWith(isSynced: false));
     return payment;
   }
 
   Future<List<PaymentReceived>> getUnsyncedReceivedPaymentsLocally() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final List<String> unsyncedPaymentsJson = prefs.getStringList(AppConstants.keyUnsyncedReceivedPayments) ?? [];
-    return unsyncedPaymentsJson.map((json) => PaymentReceived.fromJson(jsonDecode(json))).toList();
+    return await _isarService.getUnsyncedPayments();
   }
 
   Future<void> removeUnsyncedReceivedPaymentLocally(String paymentId) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<PaymentReceived> unsyncedPayments = await getUnsyncedReceivedPaymentsLocally();
-    unsyncedPayments.removeWhere((p) => p.id == paymentId);
-    await prefs.setStringList(
-      AppConstants.keyUnsyncedReceivedPayments,
-      unsyncedPayments.map((p) => jsonEncode(p.toJson())).toList(),
-    );
+    await _isarService.deletePaymentReceived(paymentId);
   }
 
   Future<bool> syncReceivedPayment(PaymentReceived payment) async {
@@ -310,7 +275,7 @@ class PaymentsService {
       final Map<String, dynamic> responseData = jsonDecode(responseStr);
       if (responseData.containsKey('item')) {
         // If successful, remove from local unsynced list
-        await removeUnsyncedReceivedPaymentLocally(payment.id!);
+        await removeUnsyncedReceivedPaymentLocally(payment.id.toString());
         debugPrint('Payment ${payment.id} synced successfully.');
         return true;
       } else {

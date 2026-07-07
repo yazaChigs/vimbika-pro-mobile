@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 
 import '../app_constants/app_constants.dart';
 import '../services/customer_service.dart';
+import '../services/sale_service.dart';
 
 class StatementEntry {
   final DateTime date;
@@ -121,14 +122,14 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
             date: DateTime.tryParse(sale.timeIniated!) ?? DateTime.now(),
             description: 'Invoice Sale',
             debit: sale.grandTotal,
-            reference: '#${sale.id?.substring(0, 8).toUpperCase() ?? sale.posReference ?? 'N/A'}',
+            reference: '#${sale.id.toString() ?? sale.posReference ?? 'N/A'}',
           ));
           billed += sale.grandTotal;
 
           // Add each Payment as a Credit
           if (sale.paymentTypes.isNotEmpty) {
             for (var payment in sale.paymentTypes) {
-              if (payment.id != null) processedPaymentIds.add(payment.id!);
+              if (payment.id != null) processedPaymentIds.add(payment.id.toString());
               
               final String paymentName = payment.paymentType.value?.name.toUpperCase() ?? '';
 
@@ -137,7 +138,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
                     date: DateTime.tryParse(payment.paymentDate ?? sale.timeIniated!) ?? DateTime.now(),
                     description: 'Paid via Account Balance',
                     credit: payment.amount,
-                    reference: '#${sale.id?.substring(0, 8).toUpperCase() ?? sale.posReference ?? 'N/A'}',
+                    reference: '#${sale.id.toString()?? sale.posReference ?? 'N/A'}',
                   ));
                   paid += payment.amount;
               } else if (paymentName.startsWith('CREDIT-')) {
@@ -148,7 +149,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
                     date: DateTime.tryParse(payment.paymentDate ?? sale.timeIniated!) ?? DateTime.now(),
                     description: 'Payment Received (${payment.paymentType.value?.name ?? "Cash"})',
                     credit: payment.amount,
-                    reference: '#${sale.id?.substring(0, 8).toUpperCase() ?? sale.posReference ?? 'N/A'}',
+                    reference: '#${sale.id.toString()?? sale.posReference ?? 'N/A'}',
                   ));
                   paid += payment.amount;
               }
@@ -179,7 +180,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
               date: DateTime.tryParse(payment.dateTime ?? payment.paymentDate ?? '') ?? DateTime.now(),
               description: 'Account Deposit (${payment.paymentType.value?.name ?? "Cash"})',
               credit: payment.amount,
-              reference: '#${payment.id?.substring(0, 8).toUpperCase() ?? 'TOPUP'}',
+              reference: '#${payment.id.toString() ?? 'TOPUP'}',
             ));
             paid += payment.amount;
           } else if (payment.paymentDescription == 'SALE') {
@@ -191,7 +192,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
                 date: DateTime.tryParse(payment.dateTime ?? payment.paymentDate ?? '') ?? DateTime.now(),
                 description: 'Payment Received (${payment.paymentType.value?.name ?? "Cash"})',
                 credit: payment.amount,
-                reference: '#${payment.id?.substring(0, 8).toUpperCase() ?? 'PAYMENT'}',
+                reference: '#${payment.id.toString() ?? 'PAYMENT'}',
               ));
               paid += payment.amount;
             }
@@ -203,12 +204,12 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
               date: DateTime.tryParse(payment.dateTime ?? payment.paymentDate ?? '') ?? DateTime.now(),
               description: 'Credit Charge',
               debit: payment.amount,
-              reference: '#${payment.id?.substring(0, 8).toUpperCase() ?? 'CREDIT'}',
+              reference: '#${payment.id.toString() ?? 'CREDIT'}',
             ));
             billed += payment.amount;
           }
               
-              if (payment.id != null) processedPaymentIds.add(payment.id!);
+              if (payment.id != null) processedPaymentIds.add(payment.id.toString());
           }
       }
     } else {

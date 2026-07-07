@@ -83,8 +83,8 @@ class InventoryImportScreen extends BaseImportScreen {
 
       // VALIDATION 2: Duplicate Name or Code
       bool isDuplicate = branchStocks.any((s) => 
-        s.item?.name.toLowerCase() == name.toLowerCase() ||
-        (code.isNotEmpty && s.item?.itemCode?.toLowerCase() == code.toLowerCase())
+        s.item.value?.name.toLowerCase() == name.toLowerCase() ||
+        (code.isNotEmpty && s.item.value?.itemCode?.toLowerCase() == code.toLowerCase())
       );
 
       if (isDuplicate) {
@@ -135,10 +135,10 @@ class InventoryImportScreen extends BaseImportScreen {
 
       final branchStock = BranchStock(
         id: '${nowStr}_bs_$i',
-        item: inventoryItem,
-        branch: targetBranch,
         stock: double.tryParse(row[12]?.value?.toString() ?? '') ?? 0.0,
       );
+      branchStock.item.value = inventoryItem;
+      branchStock.branch.value = targetBranch;
 
       branchStocks.add(branchStock);
       importCount++;

@@ -83,19 +83,19 @@ class InventoryItem extends BaseNameEntity {
       renewalInterval: json['renewalInterval'],
     );
 
-    if (json['category'] != null) {
+    if (json['category'] != null && json['category'] is Map<String, dynamic>) {
       inventoryItem.category.value = Category.fromJson(json['category']);
     }
-    if (json['unit'] != null) {
+    if (json['unit'] != null && json['unit'] is Map<String, dynamic>) {
       inventoryItem.unit.value = Unit.fromJson(json['unit']);
     }
-    if (json['tax'] != null) {
+    if (json['tax'] != null && json['tax'] is Map<String, dynamic>) {
       inventoryItem.tax.value = Tax.fromJson(json['tax']);
     }
-    if (json['currency'] != null) {
+    if (json['currency'] != null && json['currency'] is Map<String, dynamic>) {
       inventoryItem.currency.value = Currency.fromJson(json['currency']);
     }
-    if (json['company'] != null) {
+    if (json['company'] != null && json['company'] is Map<String, dynamic>) {
       inventoryItem.company.value = Company.fromJson(json['company']);
     }
 

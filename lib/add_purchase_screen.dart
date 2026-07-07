@@ -80,7 +80,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
       _suppliers = supplierJson.map((e) => Supplier.fromJson(jsonDecode(e))).toList();
       
       final List<BranchStock> branchStocks = branchStockJson.map((e) => BranchStock.fromJson(jsonDecode(e))).toList();
-      _inventoryItems = branchStocks.where((bs) => bs.item != null).map((bs) => bs.item!.copyWith(quantity: bs.stock)).toList();
+      _inventoryItems = branchStocks.where((bs) => bs.item != null).map((bs) => bs.item.value!.copyWith(quantity: bs.stock)).toList();
 
       _paymentTypes = paymentTypeJson
           .map((e) => PaymentType.fromJson(jsonDecode(e)))
@@ -406,29 +406,31 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
         // Update branch specific quantity if a branch is selected
         if (_selectedBranch != null && cartItem.inventoryItem != null) {
           final bsIndex = branchStocks.indexWhere((bs) => 
-            bs.branch?.id == _selectedBranch!.id && 
-            bs.item?.id == cartItem.inventoryItem!.id
+            bs.branch.value?.id == _selectedBranch!.id && 
+            bs.item.value?.id == cartItem.inventoryItem!.id
           );
 
           if (bsIndex != -1) {
             final existingBS = branchStocks[bsIndex];
-            branchStocks[bsIndex] = BranchStock(
+            final updatedBS = BranchStock(
               id: existingBS.id,
-              branch: existingBS.branch,
-              item: cartItem.inventoryItem, // Use updated item with new prices
               stock: existingBS.stock + cartItem.quantity,
               dateCreated: existingBS.dateCreated,
               dateModified: DateTime.now().toIso8601String(),
             );
+            updatedBS.branch.value = existingBS.branch.value;
+            updatedBS.item.value = cartItem.inventoryItem; // Use updated item with new prices
+            branchStocks[bsIndex] = updatedBS;
           } else {
-            branchStocks.add(BranchStock(
+            final newBS = BranchStock(
               id: DateTime.now().millisecondsSinceEpoch.toString() + (cartItem.inventoryItem?.id ?? ''),
-              branch: _selectedBranch,
-              item: cartItem.inventoryItem,
               stock: cartItem.quantity,
               dateCreated: DateTime.now().toIso8601String(),
               dateModified: DateTime.now().toIso8601String(),
-            ));
+            );
+            newBS.branch.value = _selectedBranch;
+            newBS.item.value = cartItem.inventoryItem;
+            branchStocks.add(newBS);
           }
         }
       }

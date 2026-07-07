@@ -26,7 +26,7 @@ import 'dart:async';
 import 'package:vimbika_pro/app_constants/app_colors.dart';
 import 'package:vimbika_pro/services/mobile_shift_service.dart'; // New: MobileShiftService
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart'; // For debugPrint
+// For debugPrint
 
 class OnlineReportsController {
   final SaleService _saleService = SaleService();
@@ -263,9 +263,9 @@ class OnlineReportsController {
   }
 
   void _calculateStockTotalsFromList() {
-    final filteredStocks = branchStocks.where((s) => selectedBranch == null || s.branch?.id == selectedBranch!.id).toList();
+    final filteredStocks = branchStocks.where((s) => selectedBranch == null || s.branch.value?.id == selectedBranch!.id).toList();
     totalStockCount = filteredStocks.fold(0.0, (sum, stock) => sum + stock.stock);
-    totalStockValue = filteredStocks.fold(0.0, (sum, stock) => sum + (stock.stock * (stock.item?.sellingPrice ?? 0.0)));
+    totalStockValue = filteredStocks.fold(0.0, (sum, stock) => sum + (stock.stock * (stock.item.value?.sellingPrice ?? 0.0)));
   }
 
   Future<void> fetchStockSummary() async {
@@ -294,8 +294,8 @@ class OnlineReportsController {
     final Map<String, double> paymentTypeMap = {};
 
     for (var sale in sales) {
-      if (sale.paymentTypes != null && sale.paymentTypes!.isNotEmpty) {
-        for (var payment in sale.paymentTypes!) {
+      if (sale.allPaymentTypes.isNotEmpty) {
+        for (var payment in sale.allPaymentTypes) {
           final typeName = payment.paymentType.value?.name ?? 'Unknown';
           paymentTypeMap[typeName] = (paymentTypeMap[typeName] ?? 0.0) + payment.amount;
         }
@@ -331,12 +331,9 @@ class OnlineReportsController {
     final Map<String, double> productQuantities = {};
 
     for (var sale in sales) {
-      final items = sale.items;
-      if (items != null) {
-        for (var item in items) {
-          final productName = item.inventoryItem.value?.name ?? 'Unknown Product';
-          productQuantities[productName] = (productQuantities[productName] ?? 0.0) + item.quantity;
-        }
+      for (var item in sale.allItems) {
+        final productName = item.inventoryItem.value?.name ?? 'Unknown Product';
+        productQuantities[productName] = (productQuantities[productName] ?? 0.0) + item.quantity;
       }
     }
 

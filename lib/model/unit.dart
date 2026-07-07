@@ -23,15 +23,15 @@ class Unit extends BaseNameEntity {
 
   factory Unit.fromJson(Map<String, dynamic> json) {
     return Unit(
-      id: json['id'],
+      id: json['id']?.toString(),
       dateCreated: json['dateCreated'],
       dateModified: json['dateModified'],
       createdByName: json['createdByName'],
       modifiedByName: json['modifiedByName'],
       version: json['version'],
-      name: json['name'],
-      abbreviation: json['abbreviation'],
-      description: json['description'],
+      name: json['name']?.toString() ?? 'No Name',
+      abbreviation: json['abbreviation']?.toString(),
+      description: json['description']?.toString(),
     );
   }
 

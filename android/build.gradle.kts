@@ -22,6 +22,9 @@ subprojects {
         if (p.hasProperty("android")) {
             val android = p.extensions.findByName("android") as? com.android.build.gradle.BaseExtension
             android?.apply {
+                if (p.name != "app" && compileSdkVersion == "android-30") {
+                    compileSdkVersion(34)
+                }
                 try {
                     compileOptions {
                         sourceCompatibility = JavaVersion.VERSION_17
@@ -33,15 +36,9 @@ subprojects {
             }
         }
 
-        if (p.plugins.hasPlugin("kotlin-android")) {
-            try {
-                p.extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension> {
-                    compilerOptions {
-                        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-                    }
-                }
-            } catch (e: Exception) {
-                // Ignore if already finalized
+        p.tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+            compilerOptions {
+                jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
             }
         }
 

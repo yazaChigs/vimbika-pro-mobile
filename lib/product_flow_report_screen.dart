@@ -8,6 +8,7 @@ import 'model/inventory_item.dart';
 import 'model/purchase.dart';
 import 'model/sale.dart';
 import 'package:intl/intl.dart';
+import 'services/sale_service.dart';
 
 class ProductFlowReportScreen extends StatefulWidget {
   const ProductFlowReportScreen({super.key});
@@ -17,6 +18,7 @@ class ProductFlowReportScreen extends StatefulWidget {
 }
 
 class _ProductFlowReportScreenState extends State<ProductFlowReportScreen> {
+  final SaleService _saleService = SaleService();
   InventoryItem? _selectedProduct;
   List<InventoryItem> _products = [];
   List<Purchase> _allPurchases = [];
@@ -36,11 +38,10 @@ class _ProductFlowReportScreenState extends State<ProductFlowReportScreen> {
     // We should load from branch stock rather than just raw inventory items 
     // because products shown in reports are generally those available in stock.
     final String branchStockKey = isOffline ? AppConstants.keyOfflineBranchStock : AppConstants.keyBranchStock;
-    final String salesKey = isOffline ? AppConstants.keyOfflineSales : AppConstants.keySales;
 
     final List<String> stockJson = prefs.getStringList(branchStockKey) ?? [];
     final List<String> purchasesJson = prefs.getStringList(AppConstants.keyPurchases) ?? [];
-    final List<String> salesJson = prefs.getStringList(salesKey) ?? [];
+    final List<Sale> sales = await _saleService.getAllSales();
     
     // Extract unique items from BranchStock
     final Set<String> addedItemIds = {};
@@ -48,16 +49,16 @@ class _ProductFlowReportScreenState extends State<ProductFlowReportScreen> {
     
     for (var stockString in stockJson) {
       final stock = BranchStock.fromJson(jsonDecode(stockString));
-      if (stock.item != null && !addedItemIds.contains(stock.item!.id)) {
-        extractedProducts.add(stock.item!);
-        addedItemIds.add(stock.item!.id!);
+      if (stock.item.value != null && !addedItemIds.contains(stock.item.value!.id)) {
+        extractedProducts.add(stock.item.value!);
+        addedItemIds.add(stock.item.value!.id!);
       }
     }
 
     setState(() {
       _products = extractedProducts;
       _allPurchases = purchasesJson.map((e) => Purchase.fromJson(jsonDecode(e))).toList();
-      _allSales = salesJson.map((e) => Sale.fromJson(jsonDecode(e))).toList();
+      _allSales = sales;
       _isLoading = false;
     });
   }

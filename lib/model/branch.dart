@@ -70,7 +70,7 @@ class Branch extends BaseEntity {
       'address': address,
       'phoneNumber': phoneNumber,
       'email': email,
-      'company': company.value?.toJson(),
+      'company': company.isLoaded ? company.value?.toJson() : null,
     };
   }
 }

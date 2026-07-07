@@ -217,16 +217,16 @@ class POSScreen extends StatelessWidget {
                             onChanged: (val) {
                               if (val.isNotEmpty) {
                                 final stock = controller.filteredBranchStocks.firstWhere(
-                                  (s) => s.item?.itemCode == val,
-                                  orElse: () => BranchStock(id: '', item: null, branch: null, stock: 0),
+                                  (s) => s.item.value?.itemCode == val,
+                                  orElse: () => BranchStock(id: '', stock: 0),
                                 );
-                                if (stock.item != null) {
+                                if (stock.item.value != null) {
                                   controller.addToCart(stock);
                                   controller.scanController.clear();
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text('${stock.item!.name} added to cart.'),
+                                        content: Text('${stock.item.value!.name} added to cart.'),
                                         duration: const Duration(seconds: 1),
                                       ),
                                     );
@@ -292,7 +292,7 @@ class POSScreen extends StatelessWidget {
             itemCount: filteredStocks.length,
             itemBuilder: (context, index) {
               final stock = filteredStocks[index];
-              final product = stock.item!;
+              final product = stock.item.value!;
               return GestureDetector(
                 onTap: () => controller.addToCart(stock),
                 child: Card(
@@ -349,11 +349,13 @@ class POSScreen extends StatelessWidget {
   Widget _buildCartSummary(BuildContext context, POSScreenController controller, {bool isDialog = false}) {
     final customerBalance = controller.selectedCustomer?.currencyBalance.firstWhere(
           (cca) {
-            cca.currency.loadSync();
+            if (controller.selectedCustomer?.id != null && cca.currency.value == null) {
+              cca.currency.loadSync();
+            }
             return cca.currency.value?.id == controller.selectedCurrency?.id;
           },
-      orElse: () => CustomerCurrencyAmount(currency: controller.selectedCurrency, amount: 0.0),
-    ).amount ??
+      orElse: () => CustomerCurrencyAmount(currency: controller.selectedCurrency, balance: 0.0),
+    ).balance ??
         0.0;
 
     // Group payments by payment type
@@ -552,27 +554,35 @@ class POSScreen extends StatelessWidget {
     return Column(
       children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Subtotal:', style: TextStyle(fontSize: 15)),
-          Text('${controller.selectedCurrency?.symbol ?? ''}${subtotalConverted.toStringAsFixed(2)}', style: const TextStyle(fontSize: 15))
+          const Text('Subtotal:', style: TextStyle(fontSize: 14)),
+          Text('${controller.selectedCurrency?.symbol ?? ''}${subtotalConverted.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14))
         ]),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Tax Total:', style: TextStyle(fontSize: 15)),
-          Text('${controller.selectedCurrency?.symbol ?? ''}${taxAmountConverted.toStringAsFixed(2)}', style: const TextStyle(fontSize: 15))
+          const Text('Tax Total:', style: TextStyle(fontSize: 14)),
+          Text('${controller.selectedCurrency?.symbol ?? ''}${taxAmountConverted.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14))
         ]),
-        const SizedBox(height: 2), // Reduced height
+        const SizedBox(height: 2),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Grand Total:', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-          Text('${controller.selectedCurrency?.symbol ?? ''}${controller.grandTotalConverted.toStringAsFixed(2)}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold))
+          const Text('Grand Total:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text('${controller.selectedCurrency?.symbol ?? ''}${controller.grandTotalConverted.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))
         ]),
-        const SizedBox(height: 4), // Reduced height
+        const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            Text('Tendered: ${controller.selectedCurrency?.symbol ?? ''}${controller.totalAmountTendered.toStringAsFixed(2)}',
+                style: const TextStyle(color: Colors.blue, fontSize: 15, fontWeight: FontWeight.bold)),
             Text('Paid: ${controller.selectedCurrency?.symbol ?? ''}${controller.amountPaidConverted.toStringAsFixed(2)}',
                 style: const TextStyle(color: Colors.green, fontSize: 15, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
             Text(
               controller.balanceDueConverted <= 0.0
-                  ? 'Change: ${controller.selectedCurrency?.symbol ?? ''}${(controller.balanceDueConverted * -1).toStringAsFixed(2)}'
+                  ? 'Change: ${controller.selectedCurrency?.symbol ?? ''}${controller.changeConverted.toStringAsFixed(2)}'
                   : 'Balance Due: ${controller.selectedCurrency?.symbol ?? ''}${controller.balanceDueConverted.toStringAsFixed(2)}',
               style: TextStyle(
                   color: controller.balanceDueConverted <= 0.0 ? Colors.green : Colors.red,
@@ -581,6 +591,15 @@ class POSScreen extends StatelessWidget {
             ),
           ],
         ),
+        if (controller.amountToAccountConverted > 0.01)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('To Account:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+              Text('${controller.selectedCurrency?.symbol ?? ''}${controller.amountToAccountConverted.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+            ],
+          ),
         const SizedBox(height: 8), // Reduced height
         if (controller.payments.isNotEmpty)
           Container(
@@ -595,15 +614,15 @@ class POSScreen extends StatelessWidget {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('${controller.selectedCurrency?.symbol ?? ''}${payment.amount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14)),
+                      Text('${controller.selectedCurrency?.symbol ?? ''}${( payment.amount).toStringAsFixed(2)}', style: const TextStyle(fontSize: 14)),
                       const SizedBox(width: 4), // Reduced width
                       InkWell(
                         onTap: () {
-                          final editController = TextEditingController(text: payment.amount.toStringAsFixed(2));
+                          final editController = TextEditingController(text: (payment.amountTendered ?? payment.amount).toStringAsFixed(2));
                           showDialog(
                             context: context, // Using the correct context here
                             builder: (dialogContext) => AlertDialog(
-                              title: const Text('Edit Payment Amount'),
+                              title: const Text('Edit Tendered Amount'),
                               content: TextField(
                                 controller: editController,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -616,10 +635,8 @@ class POSScreen extends StatelessWidget {
                                 ElevatedButton(
                                   onPressed: () {
                                     final newAmt = double.tryParse(editController.text);
-                                    if (newAmt != null && newAmt > 0) {
+                                    if (newAmt != null && newAmt >= 0) {
                                       controller.updatePaymentAmount(index, newAmt);
-                                    } else if (newAmt == 0) {
-                                      controller.removePayment(index);
                                     }
                                     Navigator.pop(dialogContext);
                                   },
@@ -752,8 +769,10 @@ class POSScreen extends StatelessWidget {
                   return controller.customers; // Show all customers when text is empty
                 }
                 return controller.customers.where((customer) {
-                  return customer.name.toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
-                      (customer.accountNumber?.toLowerCase().contains(textEditingValue.text.toLowerCase()) ?? false);
+                  final lowerCaseText = textEditingValue.text.toLowerCase();
+                  return customer.name.toLowerCase().contains(lowerCaseText) ||
+                      (customer.accountNumber?.toLowerCase().contains(lowerCaseText) ?? false) ||
+                      (customer.mobilePhone?.toLowerCase().contains(lowerCaseText) ?? false);
                 });
               },
               onSelected: (Customer selection) {
@@ -774,7 +793,7 @@ class POSScreen extends StatelessWidget {
                   focusNode: focusNode, // Use the Autocomplete's provided FocusNode
                   canRequestFocus: controller.customerSelectFocus, // Manually disable focus
                   decoration: InputDecoration(
-                    hintText: 'Search or select customer...',
+                    hintText: 'Search by Name, Account No, or Phone',
                     prefixIcon: const Icon(Icons.person_search, size: 22),
                     suffixIcon: textEditingController.text.isNotEmpty || controller.selectedCustomer != null
                         ? IconButton(
@@ -800,7 +819,7 @@ class POSScreen extends StatelessWidget {
                     } else {
                       // Check if the entered value matches any customer's account number
                       final matchingCustomer = controller.customers.firstWhereOrNull(
-                            (customer) => customer.accountNumber?.toLowerCase() == value.toLowerCase(),
+                            (customer) => customer.accountNumber?.toLowerCase() == value.toLowerCase() || (customer.mobilePhone?.toLowerCase() == value.toLowerCase()),
                       );
                       if (matchingCustomer != null) {
                         controller.selectedCustomer = matchingCustomer;
@@ -831,6 +850,7 @@ class POSScreen extends StatelessWidget {
                         itemCount: options.length,
                         itemBuilder: (BuildContext context, int index) {
                           final Customer option = options.elementAt(index);
+                          final sub = '${option.accountNumber ?? ''} ${option.mobilePhone ?? ''}'.trim();
                           return GestureDetector(
                             onTap: () {
                               onSelected(option);
@@ -839,7 +859,7 @@ class POSScreen extends StatelessWidget {
                               dense: true,
                               visualDensity: VisualDensity.compact,
                               title: Text(option.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                              subtitle: option.accountNumber != null ? Text(option.accountNumber!, style: const TextStyle(fontSize: 14)) : null,
+                              subtitle: sub.isEmpty ? null : Text(sub, style: const TextStyle(fontSize: 14)),
                             ),
                           );
                         },
@@ -867,6 +887,7 @@ class POSScreen extends StatelessWidget {
 
   void _showHeldSalesDialog(BuildContext context, POSScreenController controller) async {
     final List<Sale> heldSales = await controller.retrieveHeldSales();
+    print('Held Sales: ${heldSales.last.heldItems.length}');
     if (!context.mounted) return; // Add this check
 
     showDialog(
@@ -891,13 +912,13 @@ class POSScreen extends StatelessWidget {
                     child: ExpansionTile(
                       tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), // Reduced padding
                       title: Text('Sale for ${sale.ticketName ?? 'Guest'}', style: const TextStyle(fontSize: 14)), // Reduced font size
-                      subtitle: Text('Items: ${sale.items.length}, Total: $displaySymbol${(sale.grandTotal).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)), // Reduced font size
+                      subtitle: Text('Items: ${sale.heldItems.length}, Total: $displaySymbol${(sale.ticketTotal).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)), // Reduced font size
                       children: [
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0), // Reduced padding
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: sale.items.map((item) {
+                            children: sale.heldItems.map((item) {
                               return Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 2.0), // Reduced padding
                                 child: Row(
@@ -928,9 +949,9 @@ class POSScreen extends StatelessWidget {
                               IconButton(
                                 icon: const Icon(Icons.play_arrow, color: Colors.green, size: 18), // Reduced icon size
                                 tooltip: 'Load Sale',
-                                onPressed: () {
-                                  controller.loadHeldSale(sale);
-                                  controller.removeHeldSale(sale.id!);
+                                onPressed: () async {
+                                  await controller.loadHeldSale(sale);
+                                  await controller.removeHeldSale(sale.id!);
                                   if (dialogContext.mounted) Navigator.pop(dialogContext);
                                 },
                               ),
@@ -938,7 +959,7 @@ class POSScreen extends StatelessWidget {
                                 icon: const Icon(Icons.delete, color: Colors.red, size: 18), // Reduced icon size
                                 tooltip: 'Delete Sale',
                                 onPressed: () async {
-                                  await controller.removeHeldSale(sale.id!);
+                                  await controller.removeHeldSale(sale.id.toString());
                                   setDialogState(() {
                                     heldSales.removeAt(index);
                                   });

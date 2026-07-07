@@ -184,4 +184,29 @@ class BranchStockService {
       'POST',
     );
   }
+
+  Future<void> saveBranchStocksLocally(List<BranchStock> stocks) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final bool isOfflineMode =
+        prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
+    final String stockKey =
+        isOfflineMode ? AppConstants.keyOfflineBranchStock : AppConstants.keyBranchStock;
+
+    final List<String> stockJsonList =
+        stocks.map((s) => jsonEncode(s.toJson())).toList();
+    await prefs.setStringList(stockKey, stockJsonList);
+  }
+
+  Future<List<BranchStock>> getBranchStocksLocally() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final bool isOfflineMode =
+        prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
+    final String stockKey =
+        isOfflineMode ? AppConstants.keyOfflineBranchStock : AppConstants.keyBranchStock;
+
+    final List<String> stockJson = prefs.getStringList(stockKey) ?? [];
+    return stockJson
+        .map((json) => BranchStock.fromJson(jsonDecode(json)))
+        .toList();
+  }
 }

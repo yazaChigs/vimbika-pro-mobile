@@ -142,15 +142,14 @@ class _SalesScreenState extends State<SalesScreen> {
     }
 
     // Load Customers
-    final List<String> customerJson = prefs.getStringList('customers') ?? [];
+    final String customerKey = isOfflineMode ? AppConstants.keyOfflineCustomers : AppConstants.keyCustomers;
+    final List<String> customerJson = prefs.getStringList(customerKey) ?? [];
     final List<Customer> loadedCustomers = customerJson.map((e) => Customer.fromJson(jsonDecode(e))).toList();
 
-    final String salesKey = isOfflineMode ? AppConstants.keyOfflineSales : AppConstants.keySales;
     const String backupSalesKey = 'backup_sales';
 
-    // Load local sales from SharedPreferences
-    final List<String> localSalesJson = prefs.getStringList(salesKey) ?? [];
-    final List<Sale> localSales = localSalesJson.map((e) => Sale.fromJson(jsonDecode(e))).toList();
+    // Load local sales from Isar
+    final List<Sale> localSales = await _saleService.getAllSales();
     
     // Load backup sales from SharedPreferences
     final List<String> backupSalesJson = prefs.getStringList(backupSalesKey) ?? [];
@@ -159,14 +158,14 @@ class _SalesScreenState extends State<SalesScreen> {
     final Map<String, Sale> combinedSalesMap = {};
 
     for (var sale in localSales) {
-      final String? key = sale.posReference ?? sale.id;
+      final String? key = sale.posReference ?? sale.id.toString();
       if (key != null) {
         combinedSalesMap[key] = sale;
       }
     }
     
     for (var sale in backupSales) {
-      final String? key = sale.posReference ?? sale.id;
+      final String? key = sale.posReference ?? sale.id.toString();
       if (key != null && !combinedSalesMap.containsKey(key)) {
         combinedSalesMap[key] = sale;
       }
@@ -199,7 +198,7 @@ class _SalesScreenState extends State<SalesScreen> {
     if (isOfflineMode) return;
 
     try {
-      final fetchedOnlineSales = await _saleService.fetchSales(
+      final List<Sale> fetchedOnlineSales = await _saleService.fetchSales(
         startDate: _apiStartDate,
         endDate: _apiEndDate,
         branchId: _selectedBranch?.id,
@@ -207,10 +206,10 @@ class _SalesScreenState extends State<SalesScreen> {
       );
       List<Sale> onlineSales = fetchedOnlineSales.map((s) => Sale.fromJson(s.toJson())).toList();
 
-      final Map<String, Sale> salesMap = { for (var s in _allSales) (s.posReference ?? s.id)!: s };
+      final Map<String, Sale> salesMap = { for (var s in _allSales) (s.posReference ?? s.id.toString()): s };
 
       for (var sale in onlineSales) {
-        final String? key = sale.posReference ?? sale.id;
+        final String? key = sale.posReference ?? sale.id.toString();
         if (key != null) {
           salesMap[key] = sale;
         }
@@ -232,6 +231,7 @@ class _SalesScreenState extends State<SalesScreen> {
       }
     } catch (e) {
       if (mounted) {
+        debugPrint('Error syncing online sales: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to sync online sales: $e')),
         );
@@ -289,8 +289,9 @@ class _SalesScreenState extends State<SalesScreen> {
       setState(() {
         _filteredSales = _allSales.where((sale) {
           // 1. Search Filter (Customer Name or Sale ID)
-          final matchesSearch = (sale.customer.value?.name.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) || 
-                               (sale.id?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
+          print(sale.toJson());
+          final matchesSearch = (sale.customer.value?.name.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
+                               (sale.referenceNumber!.contains(_searchQuery.toLowerCase()) ?? false) ||
                                (_searchQuery.isEmpty);
 
           // 2. Branch Filter
@@ -331,10 +332,12 @@ class _SalesScreenState extends State<SalesScreen> {
           if (sale.isSynced != true && sale.createdByName == null) {
             matchesCreatedByName = true;
           }
-          
+
+          print('match: $matchesSearch $matchesBranch $matchesCustomer $matchesStatus $matchesShift $matchesDate $matchesCreatedByName');
           return matchesSearch && matchesBranch && matchesCustomer && matchesStatus && matchesShift && matchesDate
               && matchesCreatedByName;
         }).toList();
+        print('filterd: ${_filteredSales.length}');
       });
     }
   }
@@ -392,7 +395,7 @@ class _SalesScreenState extends State<SalesScreen> {
 
         // Run to API if synced and id is not null (which means it comes from API usually)
         if (sale.isSynced == true && sale.id != null) {
-          await _saleService.reverseSale(sale.id!);
+          await _saleService.reverseSale(sale.id.toString());
         }
 
         // Record the reversal activity in the current shift
@@ -477,6 +480,37 @@ class _SalesScreenState extends State<SalesScreen> {
     }
   }
 
+  Future<void> _exportAllSalesToExcel() async {
+    if (mounted) setState(() => _isLoading = true);
+    try {
+      final allSales = await _saleService.getAllSales();
+      if (allSales.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No sales to export.'), backgroundColor: Colors.orange),
+          );
+        }
+        return;
+      }
+      await _excelExportService.exportSalesToExcel(allSales, 'isarsales');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('All sales exported to isarsales.xlsx'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to export all sales: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   Future<void> _importSales() async {
     if (mounted) setState(() => _isLoading = true);
     try {
@@ -501,13 +535,13 @@ class _SalesScreenState extends State<SalesScreen> {
             const String backupSalesKey = 'backup_sales';
             
             final List<String> existingBackupJson = prefs.getStringList(backupSalesKey) ?? [];
-            final Map<String, Sale> backupSalesMap = { 
+            final Map<String, Sale> backupSalesMap = {
                 for (var s in existingBackupJson.map((e) => Sale.fromJson(jsonDecode(e)))) 
-                    (s.posReference ?? s.id)!: s 
+                    (s.posReference ?? s.id.toString()): s
             };
 
             for (var sale in selectedSales) {
-                final String? key = sale.posReference ?? sale.id;
+                final String? key = sale.posReference ?? sale.id.toString();
                 if (key != null) {
                     backupSalesMap[key] = sale;
                 }
@@ -571,6 +605,9 @@ class _SalesScreenState extends State<SalesScreen> {
                 case 'export':
                   _exportSales();
                   break;
+                case 'export_all_isar':
+                  _exportAllSalesToExcel();
+                  break;
                 case 'import':
                   _importSales();
                   break;
@@ -596,6 +633,16 @@ class _SalesScreenState extends State<SalesScreen> {
                 child: const ListTile(
                   leading: Icon(Icons.file_download_outlined),
                   title: Text('Export Sales to Excel'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'export_all_isar',
+                enabled: !_isLoading,
+                child: const ListTile(
+                  leading: Icon(Icons.download_for_offline_outlined),
+                  title: Text('Export All Sales to Isar Excel'),
                   contentPadding: EdgeInsets.zero,
                   dense: true,
                 ),
@@ -636,18 +683,39 @@ class _SalesScreenState extends State<SalesScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Total Revenue:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      const SizedBox(height: 4),
-                      ..._totalRevenueByCurrency.entries.map((entry) => Padding(
-                        padding: const EdgeInsets.only(top: 4.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('  ${entry.key}', style: const TextStyle(fontSize: 14)),
-                            Text('${entry.key} ${entry.value.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.vimbikaBlue)),
-                          ],
-                        ),
-                      )),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text.rich(
+                            TextSpan(
+                              children: [
+                                const TextSpan(text: 'Total Sales: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                TextSpan(text: '${_filteredSales.length}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.vimbikaBlue)),
+                              ],
+                            ),
+                          ),
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                const Text('Total Revenue:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                const SizedBox(height: 4),
+                                if (_totalRevenueByCurrency.isEmpty)
+                                  const Text('0.00', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.vimbikaBlue)),
+                                ..._totalRevenueByCurrency.entries.map((entry) => Padding(
+                                  padding: const EdgeInsets.only(top: 2.0),
+                                  child: Text(
+                                    '${entry.key} ${entry.value.toStringAsFixed(2)}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.vimbikaBlue),
+                                    textAlign: TextAlign.right,
+                                  ),
+                                )),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -708,7 +776,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                                 ),
                                                 const SizedBox(height: 2),
                                                 Text(
-                                                  '${DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(sale.timeIniated!))} • ${sale.items.length} items',
+                                                  '${DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(sale.timeIniated!))} • ${sale.allItems.length} items',
                                                   style: const TextStyle(fontSize: 12, color: AppTheme.grey),
                                                 ),
                                               ],

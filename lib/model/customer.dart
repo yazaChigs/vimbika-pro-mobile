@@ -16,11 +16,21 @@ class Customer extends BaseEntity {
   final String? accountNumber;
   final String? taxNumber;
   final String? tinNumber;
-  final currencyBalance = IsarLinks<CustomerCurrencyAmount>();
+  
+  // This field is for the Isar database relationship.
+  @Name("currencyBalance")
+  final currencyBalanceLinks = IsarLinks<CustomerCurrencyAmount>();
+  
+  // This field is used for JSON serialization and general app logic.
+  // Isar will ignore it.
+  @ignore
+  List<CustomerCurrencyAmount> currencyBalance = [];
+
   final company = IsarLink<Company>();
   final branch = IsarLink<Branch>();
-  final bool isSynced; // New field
+  final bool isSynced;
   final double points;
+  final double balance;
 
   Customer({
     String? id,
@@ -37,7 +47,8 @@ class Customer extends BaseEntity {
     this.mobilePhone,
     this.address,
     this.points = 0.0,
-    this.isSynced = true, // Default to true
+    this.isSynced = true,
+    this.balance = 0.0,
   }) : super(
           id: id,
           dateCreated: dateCreated,
@@ -62,15 +73,18 @@ class Customer extends BaseEntity {
       accountNumber: json['accountNumber']?.toString(),
       taxNumber: json['taxNumber']?.toString(),
       tinNumber: json['tinNumber']?.toString(),
-      isSynced: json['isSynced'] ?? true, // Default to true for existing data
+      isSynced: json['isSynced'] ?? true,
       points: json['points']?.toDouble() ?? 0.0,
+      balance: json['balance']?.toDouble() ?? 0.0,
     );
 
+    // Deserialize from 'currencyBalance' (the API field) into our plain list.
     if (json['currencyBalance'] != null) {
-      customer.currencyBalance.addAll((json['currencyBalance'] as List<dynamic>?)
+      customer.currencyBalance = (json['currencyBalance'] as List<dynamic>?)
           ?.map((e) => CustomerCurrencyAmount.fromJson(e as Map<String, dynamic>))
-          .toList() ?? []);
+          .toList() ?? [];
     }
+
     if (json['company'] != null) {
       customer.company.value = Company.fromJson(json['company']);
     }
@@ -96,12 +110,13 @@ class Customer extends BaseEntity {
       'accountNumber': accountNumber,
       'taxNumber': taxNumber,
       'tinNumber': tinNumber,
-      'currencyBalance':
-          currencyBalance.map((e) => e.toJson()).toList(),
+      // Serialize the plain list into the 'currencyBalance' field for the API.
+      'currencyBalance': currencyBalance.map((e) => e.toJson()).toList(),
       'company': company.value?.toJson(),
       'branch': branch.value?.toJson(),
-      'isSynced': isSynced, // Include in JSON
+      'isSynced': isSynced,
       'points': points,
+      'balance': balance,
     };
   }
 
@@ -124,8 +139,10 @@ class Customer extends BaseEntity {
     Company? company,
     Branch? branch,
     List<CustomerCurrencyAmount>? currencyBalance,
+    Id? isarId,
+    double? balance,
   }) {
-    final customer = Customer(
+    final newCustomer = Customer(
       id: id ?? this.id,
       dateCreated: dateCreated ?? this.dateCreated,
       dateModified: dateModified ?? this.dateModified,
@@ -141,14 +158,32 @@ class Customer extends BaseEntity {
       address: address ?? this.address,
       points: points ?? this.points,
       isSynced: isSynced ?? this.isSynced,
+      balance: balance ?? this.balance,
     );
-    customer.company.value = company ?? this.company.value;
-    customer.branch.value = branch ?? this.branch.value;
-    if (currencyBalance != null) {
-      customer.currencyBalance.addAll(currencyBalance);
-    } else {
-      customer.currencyBalance.addAll(this.currencyBalance);
+
+    newCustomer.isarId = isarId ?? this.isarId;
+    newCustomer.company.value = company ?? this.company.value;
+    newCustomer.branch.value = branch ?? this.branch.value;
+    
+    // Deep copy the list to avoid shared state
+    newCustomer.currencyBalance = currencyBalance ?? this.currencyBalance.map((e) => e.copyWith()).toList();
+
+    // This ensures the Isar link is also kept in sync for objects already retrieved from Isar.
+    if (this.currencyBalanceLinks.isNotEmpty) {
+      newCustomer.currencyBalanceLinks.addAll(this.currencyBalanceLinks);
     }
-    return customer;
+
+    return newCustomer;
+  }
+
+  // Helper method to prepare for saving to Isar
+  void syncListToIsarLinks() {
+    currencyBalanceLinks.clear();
+    currencyBalanceLinks.addAll(currencyBalance);
+  }
+
+  // Helper method to prepare for use in the app after loading from Isar
+  void syncIsarLinksToList() {
+    currencyBalance = currencyBalanceLinks.toList();
   }
 }

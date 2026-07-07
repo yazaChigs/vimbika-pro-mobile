@@ -7,11 +7,13 @@ import '../app_constants/app_constants.dart';
 import 'base_http_client.dart';
 import 'excel_export_service.dart';
 import '../model/sale.dart';
+import 'isar_service.dart';
 
 class SaleSyncService {
   static final SaleSyncService _instance = SaleSyncService._internal();
   final BaseHttpClient _client = BaseHttpClient();
   final ExcelExportService _excelExportService = ExcelExportService();
+  final IsarService _isarService = IsarService();
   Timer? _syncTimer;
   bool _isSyncing = false;
 
@@ -45,206 +47,131 @@ class SaleSyncService {
   }
 
   Future<void> syncSales() async {
-    print('Syncing sales...');
-    if (_isSyncing) return;
+    if (_isSyncing) {
+      debugPrint('Sync already in progress...');
+      return;
+    }
     _isSyncing = true;
+    debugPrint('Starting sales sync...');
 
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      
       final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
-      final String salesKey = isOfflineMode ? AppConstants.keyOfflineSales : AppConstants.keySales;
-      
-      List<String> salesJsonList = prefs.getStringList(salesKey) ?? [];
-
-      if (salesJsonList.isEmpty) {
-        _isSyncing = false;
-        return;
-      }
-
-      debugPrint('Attempting to sync ${salesJsonList.length} sales from $salesKey...');
-
-      // Parse all sales and filter out reversed ones
-      final List<Map<String, dynamic>> allSalesMapList = [];
-      final List<Sale> allSalesForExcel = [];
-
-      for (var s in salesJsonList) {
-        if (s.trim().isEmpty || s == 'null') continue;
-        try {
-          final decoded = jsonDecode(s);
-          if (decoded is Map<String, dynamic>) {
-            if (decoded['status'] != 'Reversed') {
-              allSalesMapList.add(decoded);
-              allSalesForExcel.add(Sale.fromJson(decoded));
-            }
-          }
-        } catch (e) {
-          debugPrint('Failed to decode a sale string: $e');
-        }
-      }
-
-      // Export to Excel for the day
-      if (allSalesForExcel.isNotEmpty) {
-         final now = DateTime.now();
-         final todaySales = allSalesForExcel.where((sale) {
-           if (sale.timeIniated == null) return false;
-           final saleDate = DateTime.parse(sale.timeIniated!);
-             if (sale.dateCreated == null) return false;
-             return saleDate.year == now.year &&
-                    saleDate.month == now.month &&
-                    saleDate.day == now.day;
-         }).toList();
-
-         if (todaySales.isNotEmpty) {
-           final fileName = 'sales_backup_${DateFormat('yyyy_MM_dd').format(now)}';
-           await _excelExportService.exportSalesToExcel(todaySales, fileName);
-           debugPrint('Exported ${todaySales.length} sales to excel: $fileName');
-         }
-      }
 
       if (isOfflineMode) {
-        _isSyncing = false;
-        return; // Don't try to sync to server if in offline mode
-      }
-
-      // Check if logged in online
-      final String? userData = prefs.getString(AppConstants.keyOnlineUserData);
-      if (userData == null) {
-        _isSyncing = false;
-        return; // Not logged in online, skip sync
-      }
-      
-      final Map<String, dynamic> userMap = jsonDecode(userData);
-      final String? companyId = userMap['branch']?['company']?['id'];
-      
-      if (companyId == null) {
-         _isSyncing = false;
-         return;
-      }
-
-      if (allSalesMapList.isEmpty) { // This list now only contains non-reversed sales
+        debugPrint('Offline mode is enabled, skipping sync.');
         _isSyncing = false;
         return;
       }
-      
-      List<Map<String, dynamic>> unsyncedSalesToProcess = [];
 
-      // Separate sales into unsynced and others
-      for (var saleMap in allSalesMapList) {
-        // A sale is considered unsynced if it has no server ID and is explicitly marked as not synced.
-        if (saleMap['id'] == null && (saleMap['isSynced'] == false || saleMap['isSynced'] == null)) {
-          unsyncedSalesToProcess.add(saleMap);
-        }
+      final String? userData = prefs.getString(AppConstants.keyOnlineUserData);
+      if (userData == null) {
+        debugPrint('User not logged in online, skipping sync.');
+        _isSyncing = false;
+        return;
       }
 
-      List<Map<String, dynamic>> successfullySyncedSales = [];
-      List<Map<String, dynamic>> failedToSyncSales = [];
+      final Map<String, dynamic> userMap = jsonDecode(userData);
+      final String? companyId = userMap['branch']?['company']?['id'];
 
-      for (var saleJson in unsyncedSalesToProcess) {
-        print('syncing: $saleJson');
+      if (companyId == null) {
+        debugPrint('Company ID not found, skipping sync.');
+        _isSyncing = false;
+        return;
+      }
+
+      List<Sale> unsyncedSales = await _isarService.getAllSales();
+
+      if (unsyncedSales.isEmpty) {
+        debugPrint('No unsynced sales to process.');
+        _isSyncing = false;
+        return;
+      }
+
+      debugPrint('Attempting to sync ${unsyncedSales.length} sales from Isar...');
+      print(unsyncedSales.first.isSynced);
+
+      // Process sales one by one to avoid holding transactions open
+      for (var sale in unsyncedSales) {
+        if (sale.saleStatus == 'Reversed') {
+          continue;
+        }
+        if(sale.isSynced == true || sale.id != null){
+          continue;
+        }
+
+        debugPrint('Syncing sale: ${sale.id ?? sale.isarId}');
+        sale.customerAccBankType = 'CASH-USD';
 
         try {
           final String responseBody = await _client.postAuthWithCompanyHeader(
-            '/sale/save', 
-            jsonEncode(saleJson), 
-            companyId, 
-            'POST'
+            '/sale/save',
+            jsonEncode(sale.toJson()),
+            companyId,
+            'POST',
           );
-          
+
           final Map<String, dynamic> syncedSaleData = jsonDecode(responseBody);
 
-          // Merge original local data with synced data to ensure no fields are lost
-          final Map<String, dynamic> mergedSale = Map<String, dynamic>.from(saleJson);
-          mergedSale.addAll(syncedSaleData);
+          if (syncedSaleData.containsKey('timestamp') && syncedSaleData.containsKey('status') && syncedSaleData.containsKey('error')) {
+            debugPrint('Failed to sync sale ${sale.id ?? sale.isarId}: Server error: ${syncedSaleData['error']}');
+            continue;
+          }
 
-          // Mark as synced.
-          mergedSale['isSynced'] = true;
-          
-          debugPrint('Successfully synced sale with new ID: ${mergedSale["id"]}');
-          successfullySyncedSales.add(mergedSale);
-          
+          print(syncedSaleData);
+          // if(syncedSaleData['id'] == null) {
+          //   continue;
+          // }
+
+          // Update sale with server ID and mark as synced
+          sale.id = syncedSaleData['id'];
+          sale.isSynced = true;
+
+          // This will open a new, short-lived transaction
+          await _isarService.updateSale(sale);
+          debugPrint('Successfully synced sale with new ID: ${sale.id}');
+
         } catch (e) {
           debugPrint('Failed to sync a sale: $e');
-          failedToSyncSales.add(saleJson);
+          // Decide on error handling: retry later or mark as failed?
+          // For now, we just log and continue.
         }
       }
 
-      // Reconstruct the list of sales to be saved in SharedPreferences.
-      // This logic will keep all unsynced sales, but only synced sales from the last 7 days
-      // to prevent SharedPreferences from growing indefinitely.
-
-      // 1. Create a list of all sales that are now "current"
-      List<Map<String, dynamic>> currentSalesState = [];
-      // Add sales that were already synced or not part of the sync attempt
-      currentSalesState.addAll(allSalesMapList.where((saleMap) {
-        final isUnsynced = saleMap['id'] == null && (saleMap['isSynced'] == false || saleMap['isSynced'] == null);
-        return !isUnsynced;
-      }));
-      // Add newly synced sales
-      currentSalesState.addAll(successfullySyncedSales);
-      // Add sales that failed to sync
-      currentSalesState.addAll(failedToSyncSales);
-
-      // 2. Now filter this `currentSalesState` list for what to save.
-      List<Map<String, dynamic>> finalSalesToSave = [];
-      final DateTime sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
-
-      // Use a set of JSON strings to track duplicates. It's inefficient but safe.
-      Set<String> processedSales = {};
-
-      for (var saleMap in currentSalesState) {
-        final isSynced = saleMap['id'] != null && saleMap['isSynced'] == true;
-
-        bool shouldKeep = false;
-        if (!isSynced) {
-          shouldKeep = true; // Always keep unsynced sales.
-        } else {
-          // For synced sales, keep them if they are recent.
-          final timeInitiatedString = saleMap['timeIniated'];
-          if (timeInitiatedString != null) {
-            try {
-              final saleDate = DateTime.parse(timeInitiatedString);
-              if (saleDate.isAfter(sevenDaysAgo)) {
-                shouldKeep = true;
-              }
-            } catch (e) {
-              shouldKeep = true; // Keep if date parsing fails
-            }
-          } else {
-            shouldKeep = true; // Keep if no date info
-          }
-        }
-
-        if (shouldKeep) {
-          String saleJson = jsonEncode(saleMap);
-          if (!processedSales.contains(saleJson)) {
-            finalSalesToSave.add(saleMap);
-            processedSales.add(saleJson);
-          }
-        }
-      }
-
-      // 3. Save `finalSalesToSave` to SharedPreferences.
-      final List<String> finalSalesJsonList = finalSalesToSave
-          .map((saleMap) => jsonEncode(saleMap))
-          .toList();
-
-      if (finalSalesJsonList.isEmpty) {
-        await prefs.remove(salesKey);
-        debugPrint('Cleared all sales from $salesKey.');
-      } else {
-        await prefs.setStringList(salesKey, finalSalesJsonList);
-        debugPrint('Updated sales in $salesKey. Total count: ${finalSalesJsonList.length}');
-      }
+      // Optional: Export to Excel after sync attempt
+      await _exportTodaysSalesToExcel(unsyncedSales);
 
     } catch (e) {
-      debugPrint('Error in syncSales: $e');
+      debugPrint('An error occurred in syncSales: $e');
     } finally {
       _isSyncing = false;
+      debugPrint('Sales sync finished.');
     }
 
     await calculateSharedPreferencesSize();
   }
+
+  Future<void> _exportTodaysSalesToExcel(List<Sale> sales) async {
+    final now = DateTime.now();
+    final todaySales = sales.where((sale) {
+      if (sale.timeIniated == null || sale.saleStatus == 'Reversed') return false;
+      try {
+        final saleDate = DateFormat(AppConstants.APP_DATE_TIME_FMT).parse(sale.timeIniated!);
+        return saleDate.year == now.year &&
+               saleDate.month == now.month &&
+               saleDate.day == now.day;
+      } catch (e) {
+        return false;
+      }
+    }).toList();
+
+    if (todaySales.isNotEmpty) {
+      final fileName = 'sales_backup_${DateFormat('yyyy_MM_dd').format(now)}';
+      await _excelExportService.exportSalesToExcel(todaySales, fileName);
+      debugPrint('Exported ${todaySales.length} sales to Excel: $fileName');
+    }
+  }
+
 
   Future<List<Sale>> syncSelectedSales(List<Sale> sales, String companyId) async {
     List<Sale> syncedSales = [];
@@ -256,6 +183,7 @@ class SaleSyncService {
 
       try {
         final Map<String, dynamic> saleJson = sale.toJson();
+        print('saleitem: ${saleJson['items']}');
         final String responseBody = await _client.postAuthWithCompanyHeader(
           '/sale/save',
           jsonEncode(saleJson),
@@ -264,12 +192,19 @@ class SaleSyncService {
         );
 
         final Map<String, dynamic> syncedSaleData = jsonDecode(responseBody);
-        final Map<String, dynamic> mergedSaleJson = Map<String, dynamic>.from(saleJson);
-        mergedSaleJson.addAll(syncedSaleData);
-        mergedSaleJson['isSynced'] = true;
 
-        syncedSales.add(Sale.fromJson(mergedSaleJson));
-        debugPrint('Successfully synced selected sale with new ID: ${mergedSaleJson["id"]}');
+        if (syncedSaleData.containsKey('timestamp') && syncedSaleData.containsKey('status') && syncedSaleData.containsKey('error')) {
+          debugPrint('Failed to sync selected sale ${sale.id ?? sale.isarId}: Server error: ${syncedSaleData['error']}');
+          syncedSales.add(sale); // Add original if failed
+          continue;
+        }
+        
+        sale.id = syncedSaleData['id'];
+        sale.isSynced = true;
+        
+        await _isarService.updateSale(sale);
+        syncedSales.add(sale);
+        debugPrint('Successfully synced selected sale with new ID: ${sale.id}');
       } catch (e) {
         debugPrint('Failed to sync a selected sale: $e');
         syncedSales.add(sale); // Add original if failed
@@ -376,7 +311,7 @@ class SaleSyncService {
         }
       }
       totalSize += size;
-      debugPrint('Key: $key, Size: $size bytes');
+      // debugPrint('Key: $key, Size: $size bytes');
     }
 
     debugPrint('Total SharedPreferences size: $totalSize bytes');

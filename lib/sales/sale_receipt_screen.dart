@@ -28,7 +28,8 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
   }
 
   Future<void> _loadLogo() async {
-    print(widget.sale.items.map((item)=> item.total));
+    print(widget.sale.allItems.map((item)=> item.toJson()));
+    print(widget.sale.allPaymentTypes.map((item)=> item.paymentType.value!.toJson()));
     if (widget.sale.company.value?.id != null) {
       final defaultDataService = DefaultDataService();
       final imageFile = await defaultDataService.getImage(widget.sale.company.value!.id!);
@@ -56,6 +57,8 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
               final printerService = PrinterService();
               // Try to print
               try {
+                print(widget.sale.company.value!.toJson());
+                print(widget.sale.branch.value!.toJson());
                 // Ensure printer is initialized and connected if possible
                 await printerService.init();
                 if (printerService.isConnected) {
@@ -90,7 +93,7 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
           IconButton(
             icon: const Icon(Icons.share_outlined),
             onPressed: () {
-              print(widget.sale.items.map((item)=> item.toJson()));
+              print(widget.sale.allItems.map((item)=> item.toJson()));
               // TODO: Implement PDF sharing/printing
             },
           ),
@@ -159,7 +162,7 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
                       child: Text('ITEMS', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
                     ),
                     const SizedBox(height: 8),
-                    ...widget.sale.items.map((item) => Padding(
+                    ...widget.sale.allItems.map((item) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,

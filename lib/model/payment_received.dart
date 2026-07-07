@@ -10,6 +10,7 @@ part 'payment_received.g.dart';
 
 @collection
 class PaymentReceived {
+  @JsonKey(includeFromJson: false, includeToJson: false)
   Id isarId = Isar.autoIncrement;
   String? id;
   final paymentType = IsarLink<PaymentType>();
@@ -65,7 +66,7 @@ class PaymentReceived {
 
   factory PaymentReceived.fromJson(Map<String, dynamic> json) {
     final payment = PaymentReceived(
-      id: json['id'],
+      id: json['id']?.toString(),
       amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
       amountPaid: (json['amountPaid'] as num?)?.toDouble(),
       paymentDescription: json['paymentDescription'],
@@ -129,7 +130,7 @@ class PaymentReceived {
     String? reference,
     bool? isSynced,
   }) {
-    return PaymentReceived(
+    final newPayment = PaymentReceived(
       id: id ?? this.id,
       amount: amount ?? this.amount,
       amountPaid: amountPaid ?? this.amountPaid,
@@ -141,11 +142,13 @@ class PaymentReceived {
       amountTendered: amountTendered ?? this.amountTendered,
       reference: reference ?? this.reference,
       isSynced: isSynced ?? this.isSynced,
-    )
-      ..paymentType.value = paymentType.value
-      ..payer.value = payer.value
-      ..currency.value = currency.value
-      ..branch.value = branch.value
-      ..bank.value = bank.value;
+    );
+    newPayment.isarId = isarId;
+    newPayment.paymentType.value = paymentType.value;
+    newPayment.payer.value = payer.value;
+    newPayment.currency.value = currency.value;
+    newPayment.branch.value = branch.value;
+    newPayment.bank.value = bank.value;
+    return newPayment;
   }
 }

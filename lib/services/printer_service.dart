@@ -541,6 +541,9 @@ class PrinterService {
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     bytes += generator.text("Receipt #: ${sale.posReference ?? 'N/A'}", styles: PosStyles(align: PosAlign.left));
     bytes += generator.text("Date: ${sale.timeIniated}", styles: PosStyles(align: PosAlign.left));
+    if (sale.cashierFullName != null) {
+      bytes += generator.text("Cashier: ${sale.cashierFullName}", styles: PosStyles(align: PosAlign.left));
+    }
     if (sale.customer.value != null) {
       bytes += generator.text("Customer: ${sale.customer.value!.name}", styles: PosStyles(align: PosAlign.left));
     }
@@ -550,7 +553,7 @@ class PrinterService {
 
     String symbol = sale.currency.value?.symbol ?? "";
     num totalItems = 0;
-    for (var item in sale.items) {
+    for (var item in sale.allItems) {
       totalItems += item.quantity;
       String name = (item.inventoryItem.value?.name ?? "Item");
       // Split name into multiple lines if it's too long
@@ -579,7 +582,18 @@ class PrinterService {
     if (sale.paymentTypes != null && sale.paymentTypes!.isNotEmpty) {
       bytes += generator.text("Payment Details:", styles: PosStyles(align: PosAlign.left));
       for (var payment in sale.paymentTypes!) {
-        bytes += generator.text("${payment.paymentType.value?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+        String paymentLine = "${payment.paymentType.value?.name ?? 'N/A'}:";
+        String amountLine = "$symbol${(payment.amountTendered ?? payment.amount).toStringAsFixed(2)}";
+        bytes += generator.text(_alignLeftRight(paymentLine, amountLine), styles: PosStyles(align: PosAlign.left));
+      }
+      if (sale.amountTendered != null && sale.amountTendered! > 0) {
+        bytes += generator.text(_alignLeftRight("Total Tendered:", "$symbol${sale.amountTendered!.toStringAsFixed(2)}"), styles: PosStyles(align: PosAlign.left, bold: true));
+      }
+      if (sale.change != null && sale.change! > 0) {
+        bytes += generator.text(_alignLeftRight("Change:", "$symbol${sale.change!.toStringAsFixed(2)}"), styles: PosStyles(align: PosAlign.left, bold: true));
+      }
+      if (sale.amtToAcc != null && double.tryParse(sale.amtToAcc!) != null && double.parse(sale.amtToAcc!) > 0) {
+        bytes += generator.text(_alignLeftRight("To Account:", "$symbol${double.parse(sale.amtToAcc!).toStringAsFixed(2)}"), styles: PosStyles(align: PosAlign.left, bold: true));
       }
       bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     }
@@ -590,7 +604,7 @@ class PrinterService {
         (cb) => cb.currency.value?.id == cur?.id,
         orElse: () => sale.customer.value!.currencyBalance!.first,
       );
-      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${balanceItem.amount!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${balanceItem.balance!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
       bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     }
 
@@ -686,7 +700,10 @@ class PrinterService {
     // Removing taxNumber access as it might be missing from model
 
     await SunmiPrinter.lineWrap(1);
-    await SunmiPrinter.printText("Receipt #: ${sale.id?.substring(0, 8).toUpperCase() ?? 'N/A'}\nDate: ${sale.timeIniated}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    await SunmiPrinter.printText("Receipt #: ${sale.referenceNumber ?? 'N/A'}\nDate: ${sale.timeIniated}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    if (sale.cashierFullName != null) {
+      await SunmiPrinter.printText("Cashier: ${sale.cashierFullName}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    }
     if (sale.customer.value != null) {
       await SunmiPrinter.printText("Customer: ${sale.customer.value!.name}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
     }
@@ -696,7 +713,7 @@ class PrinterService {
     num totalItems = 0;
     await SunmiPrinter.printText("Item", style: SunmiStyle(align: SunmiPrintAlign.LEFT)); // Simpler header
     await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
-    for (var item in sale.items) {
+    for (var item in sale.allItems) {
       totalItems += item.quantity;
       String name = (item.inventoryItem.value?.name ?? "Item");
       // Split name into multiple lines if it's too long
@@ -725,7 +742,18 @@ class PrinterService {
     if (sale.paymentTypes != null && sale.paymentTypes!.isNotEmpty) {
       await SunmiPrinter.printText("Payment Details:", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
       for (var payment in sale.paymentTypes!) {
-        await SunmiPrinter.printText("${payment.paymentType.value?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+        String paymentLine = "${payment.paymentType.value?.name ?? 'N/A'}:";
+        String amountLine = "$symbol${(payment.amountTendered ?? payment.amount).toStringAsFixed(2)}";
+        await SunmiPrinter.printText(_alignLeftRight(paymentLine, amountLine), style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+      }
+      if (sale.amountTendered != null && sale.amountTendered! > 0) {
+        await SunmiPrinter.printText(_alignLeftRight("Total Tendered:", "$symbol${sale.amountTendered!.toStringAsFixed(2)}"), style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true));
+      }
+      if (sale.change != null && sale.change! > 0) {
+        await SunmiPrinter.printText(_alignLeftRight("Change:", "$symbol${sale.change!.toStringAsFixed(2)}"), style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true));
+      }
+      if (sale.amtToAcc != null && double.tryParse(sale.amtToAcc!) != null && double.parse(sale.amtToAcc!) > 0) {
+        await SunmiPrinter.printText(_alignLeftRight("To Account:", "$symbol${double.parse(sale.amtToAcc!).toStringAsFixed(2)}"), style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true));
       }
       await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
@@ -738,7 +766,7 @@ class PrinterService {
         orElse: () => sale.customer.value!.currencyBalance!.first,
       );
       await SunmiPrinter.printText(
-          "Account Balance: ${cur?.symbol ?? ''} ${balanceItem.amount!.toStringAsFixed(2)}");
+          "Account Balance: ${cur?.symbol ?? ''} ${balanceItem.balance!.toStringAsFixed(2)}");
       await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
     await SunmiPrinter.printText("\n");
@@ -830,6 +858,9 @@ class PrinterService {
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     bytes += generator.text("Receipt #: ${sale.posReference ?? 'N/A'}", styles: PosStyles(align: PosAlign.left));
     bytes += generator.text("Date: ${sale.timeIniated}", styles: PosStyles(align: PosAlign.left));
+    if (sale.cashierFullName != null) {
+      bytes += generator.text("Cashier: ${sale.cashierFullName}", styles: PosStyles(align: PosAlign.left));
+    }
     if (sale.customer.value != null) {
       bytes += generator.text("Customer: ${sale.customer.value!.name}", styles: PosStyles(align: PosAlign.left));
     }
@@ -839,7 +870,7 @@ class PrinterService {
     
     String symbol = sale.currency.value?.symbol ?? "";
     num totalItems = 0;
-    for (var item in sale.items) {
+    for (var item in sale.allItems) {
       totalItems += item.quantity;
       String name = (item.inventoryItem.value?.name ?? "Item");
       // Split name into multiple lines if it's too long
@@ -868,7 +899,18 @@ class PrinterService {
     if (sale.paymentTypes != null && sale.paymentTypes!.isNotEmpty) {
       bytes += generator.text("Payment Details:", styles: PosStyles(align: PosAlign.left));
       for (var payment in sale.paymentTypes!) {
-        bytes += generator.text("${payment.paymentType.value?.name ?? 'N/A'}: $symbol${payment.amount.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+        String paymentLine = "${payment.paymentType.value?.name ?? 'N/A'}:";
+        String amountLine = "$symbol${(payment.amountTendered ?? payment.amount).toStringAsFixed(2)}";
+        bytes += generator.text(_alignLeftRight(paymentLine, amountLine), styles: PosStyles(align: PosAlign.left));
+      }
+      if (sale.amountTendered != null && sale.amountTendered! > 0) {
+        bytes += generator.text(_alignLeftRight("Total Tendered:", "$symbol${sale.amountTendered!.toStringAsFixed(2)}"), styles: PosStyles(align: PosAlign.left, bold: true));
+      }
+      if (sale.change != null && sale.change! > 0) {
+        bytes += generator.text(_alignLeftRight("Change:", "$symbol${sale.change!.toStringAsFixed(2)}"), styles: PosStyles(align: PosAlign.left, bold: true));
+      }
+      if (sale.amtToAcc != null && double.tryParse(sale.amtToAcc!) != null && double.parse(sale.amtToAcc!) > 0) {
+        bytes += generator.text(_alignLeftRight("To Account:", "$symbol${double.parse(sale.amtToAcc!).toStringAsFixed(2)}"), styles: PosStyles(align: PosAlign.left, bold: true));
       }
       bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     }
@@ -879,7 +921,7 @@ class PrinterService {
         (cb) => cb.currency.value?.id == cur?.id,
         orElse: () => sale.customer.value!.currencyBalance!.first,
       );
-      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${balanceItem.amount!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${balanceItem.balance!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
       bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     }
 

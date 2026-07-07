@@ -28,9 +28,11 @@ class BranchReportScreen extends StatelessWidget {
 
     // Calculate hourly sales for this branch
     final Map<int, double> hourlySales = {};
-    for (int i = 0; i < 24; i++) hourlySales[i] = 0.0;
+    for (int i = 0; i < 24; i++) {
+      hourlySales[i] = 0.0;
+    }
     for (var sale in branchSales) {
-      final date = DateTime.parse(sale.timeIniated!) ;
+      final date = DateTime.tryParse(sale.timeIniated ?? '');
       if (date != null) {
         hourlySales[date.hour] = (hourlySales[date.hour] ?? 0.0) + sale.grandTotal;
       }
@@ -39,8 +41,8 @@ class BranchReportScreen extends StatelessWidget {
     // Calculate top products for this branch
     final Map<String, double> productSales = {};
     for (var sale in branchSales) {
-      if (sale.items != null) {
-        for (var item in sale.items!) {
+      if (sale.allItems.isNotEmpty) {
+        for (var item in sale.allItems) {
           final name = item.inventoryItem.value?.name ?? 'Unknown';
           productSales[name] = (productSales[name] ?? 0.0) + item.quantity;
         }
@@ -53,8 +55,11 @@ class BranchReportScreen extends StatelessWidget {
     // Sort recent transactions
     final recentTransactions = List<OnlineSale>.from(branchSales)
       ..sort((a, b) {
-        final dateA = DateTime.parse(a.timeIniated!) ;
-        final dateB = DateTime.parse(a.timeIniated!) ;
+        final dateA = DateTime.tryParse(a.timeIniated ?? '');
+        final dateB = DateTime.tryParse(b.timeIniated ?? '');
+        if (dateA == null && dateB == null) return 0;
+        if (dateA == null) return 1;
+        if (dateB == null) return -1;
         return dateB.compareTo(dateA);
       });
     final displayTransactions = recentTransactions.take(10).toList();
@@ -165,9 +170,10 @@ class BranchReportScreen extends StatelessWidget {
         separatorBuilder: (context, index) => const Divider(height: 1),
         itemBuilder: (context, index) {
           final sale = sales[index];
-          final timeStr = DateFormat('HH:mm').format(DateTime.parse(sale.timeIniated!));
+          final date = DateTime.tryParse(sale.timeIniated ?? '');
+          final timeStr = date != null ? DateFormat('HH:mm').format(date) : 'N/A';
           final agentName = sale.createdByName ?? 'Unknown Agent';
-          final itemCount = sale.items?.length ?? 0;
+          final itemCount = sale.allItems.length;
           final paymentType = sale.paymentType?.name ?? 'N/A'; // Assuming PaymentType has a 'name' field
 
           return ListTile(

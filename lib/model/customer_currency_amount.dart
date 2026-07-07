@@ -1,5 +1,4 @@
 import 'package:isar/isar.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:vimbika_pro/model/currency.dart';
 
 part 'customer_currency_amount.g.dart';
@@ -8,11 +7,11 @@ part 'customer_currency_amount.g.dart';
 class CustomerCurrencyAmount {
   Id isarId = Isar.autoIncrement;
   final currency = IsarLink<Currency>();
-  double amount;
+  double balance;
 
   CustomerCurrencyAmount({
     Currency? currency,
-    this.amount = 0.0,
+    this.balance = 0.0,
   }) {
     if (currency != null) {
       this.currency.value = currency;
@@ -21,7 +20,7 @@ class CustomerCurrencyAmount {
 
   factory CustomerCurrencyAmount.fromJson(Map<String, dynamic> json) {
     final item = CustomerCurrencyAmount(
-      amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+      balance: (json['balance'] as num?)?.toDouble() ?? 0.0,
     );
     if (json['currency'] != null) {
       item.currency.value = Currency.fromJson(json['currency']);
@@ -31,16 +30,19 @@ class CustomerCurrencyAmount {
 
   Map<String, dynamic> toJson() {
     return {
-      'amount': amount,
+      'balance': balance,
       'currency': currency.value?.toJson(),
     };
   }
 
   CustomerCurrencyAmount copyWith({
     double? amount,
+    Currency? currency,
+    Id? isarId,
   }) {
     return CustomerCurrencyAmount(
-      amount: amount ?? this.amount,
-    )..currency.value = currency.value;
+      balance: amount ?? this.balance,
+      currency: currency ?? this.currency.value,
+    )..isarId = isarId ?? this.isarId;
   }
 }

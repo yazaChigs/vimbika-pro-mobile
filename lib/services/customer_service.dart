@@ -9,9 +9,11 @@ import '../model/customer.dart';
 import '../model/user.dart';
 import '../model/ledger_response.dart'; // Import the LedgerResponse model
 import 'base_http_client.dart';
+import 'isar_service.dart';
 
 class CustomerService {
   final BaseHttpClient _client = BaseHttpClient();
+  final IsarService _isarService = IsarService();
 
   // Fetches customers from API and saves them locally, marking them as synced
   Future<List<Customer>> fetchCustomers() async {
@@ -139,28 +141,42 @@ class CustomerService {
 
   // Saves or updates a customer in local storage (SharedPreferences)
   Future<void> saveCustomerLocally(Customer customer) async {
+    await saveCustomersLocally([customer]);
+  }
+
+  // Saves multiple customers to local storage (SharedPreferences)
+  Future<void> saveCustomersLocally(List<Customer> updatedCustomers) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     List<Customer> customers = await getCustomersLocally();
 
-    int index = customers.indexWhere((c) => c.id == customer.id);
-    if (index != -1) {
-      customers[index] = customer; // Update existing customer
-    } else {
-      customers.add(customer); // Add new customer
+    for (var updatedCustomer in updatedCustomers) {
+      int index = customers.indexWhere((c) => c.id == updatedCustomer.id);
+      if (index != -1) {
+        customers[index] = updatedCustomer;
+      } else {
+        customers.add(updatedCustomer);
+      }
     }
 
-    final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
-    final String customerKey = isOfflineMode ? AppConstants.keyOfflineCustomers : AppConstants.keyCustomers;
-    await prefs.setStringList(customerKey, customers.map((c) => jsonEncode(c.toJson())).toList());
+    final bool isOfflineMode =
+        prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
+    final String customerKey =
+        isOfflineMode ? AppConstants.keyOfflineCustomers : AppConstants.keyCustomers;
+    await prefs.setStringList(
+        customerKey, customers.map((c) => jsonEncode(c.toJson())).toList());
   }
 
-  // Retrieves all customers from local storage
+  // Retrieves all customers from local storage (SharedPreferences)
   Future<List<Customer>> getCustomersLocally() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
-    final String customerKey = isOfflineMode ? AppConstants.keyOfflineCustomers : AppConstants.keyCustomers;
+    final bool isOfflineMode =
+        prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
+    final String customerKey =
+        isOfflineMode ? AppConstants.keyOfflineCustomers : AppConstants.keyCustomers;
     final List<String> customersJson = prefs.getStringList(customerKey) ?? [];
-    return customersJson.map((json) => Customer.fromJson(jsonDecode(json))).toList();
+    return customersJson
+        .map((json) => Customer.fromJson(jsonDecode(json)))
+        .toList();
   }
 
   // Retrieves customers that have not yet been synced to the API

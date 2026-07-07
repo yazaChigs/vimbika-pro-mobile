@@ -149,7 +149,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       // Add Data
       for (var i = 0; i < _allStocks.length; i++) {
         var stock = _allStocks[i];
-        var item = stock.item!;
+        var item = stock.item.value!;
         
         List<CellValue> values = [
           TextCellValue(item.name),
@@ -163,7 +163,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           DoubleCellValue(item.sellingPrice),
           DoubleCellValue(item.reorderLevel),
           TextCellValue(item.isService.toString()),
-          TextCellValue(stock.branch?.name ?? ''),
+          TextCellValue(stock.branch.value?.name ?? ''),
           DoubleCellValue(stock.stock),
         ];
 
@@ -209,7 +209,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   void _applyFilters() {
     setState(() {
       _filteredStocks = _allStocks.where((stock) {
-        final item = stock.item;
+        final item = stock.item.value;
         if (item == null) return false;
 
         // Search Filter (Name, SKU, or Item Code)
@@ -217,7 +217,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                              (item.itemCode?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
 
         // Branch Filter
-        final matchesBranch = _selectedBranch == null || stock.branch?.id == _selectedBranch!.id;
+        final matchesBranch = _selectedBranch == null || stock.branch.value?.id == _selectedBranch!.id;
 
         // Category Filter
         final matchesCategory = _selectedCategory == null || item.category.value?.id == _selectedCategory!.id;
@@ -266,7 +266,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           itemCount: _filteredStocks.length,
                           itemBuilder: (context, index) {
                             final stock = _filteredStocks[index];
-                            final item = stock.item!;
+                            final item = stock.item.value!;
 
                             return Card(
                               margin: const EdgeInsets.only(bottom: 12),

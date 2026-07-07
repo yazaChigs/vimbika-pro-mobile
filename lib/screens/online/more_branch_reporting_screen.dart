@@ -8,7 +8,6 @@ import 'package:vimbika_pro/model/online_sale.dart';
 import 'package:vimbika_pro/model/branch_stock.dart';
 import 'package:vimbika_pro/model/expense.dart';
 import 'package:vimbika_pro/screens/online/widgets/report_widgets.dart';
-import 'package:vimbika_pro/screens/online/expenses_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -92,14 +91,12 @@ class _MoreBranchReportingScreenState extends State<MoreBranchReportingScreen> {
       final matchesCurrency = _selectedCurrency == null || expense.currency?.id == _selectedCurrency!.id;
       
       bool matchesDate = false;
-      if (expense.expenseDate != null) {
-        final expDate = DateTime(expense.expenseDate.year, expense.expenseDate.month, expense.expenseDate.day);
-        final startDate = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-        final endDate = DateTime(_endDate.year, _endDate.month, _endDate.day);
-        
-        matchesDate = (expDate.isAtSameMomentAs(startDate) || expDate.isAfter(startDate)) &&
-                      (expDate.isAtSameMomentAs(endDate) || expDate.isBefore(endDate));
-      }
+      final expDate = DateTime(expense.expenseDate.year, expense.expenseDate.month, expense.expenseDate.day);
+      final startDate = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+      final endDate = DateTime(_endDate.year, _endDate.month, _endDate.day);
+
+      matchesDate = (expDate.isAtSameMomentAs(startDate) || expDate.isAfter(startDate)) &&
+                    (expDate.isAtSameMomentAs(endDate) || expDate.isBefore(endDate));
       
       return matchesBranch && matchesCurrency && matchesDate;
     }).toList();
@@ -107,7 +104,7 @@ class _MoreBranchReportingScreenState extends State<MoreBranchReportingScreen> {
 
   List<BranchStock> get _filteredStock {
     return _allStock.where((stock) {
-      return _selectedBranch == null || stock.branch?.id == _selectedBranch!.id;
+      return _selectedBranch == null || stock.branch.value?.id == _selectedBranch!.id;
     }).toList();
   }
 
@@ -214,7 +211,7 @@ class _MoreBranchReportingScreenState extends State<MoreBranchReportingScreen> {
     final double totalExpenses = expenses.fold(0.0, (sum, e) => sum + e.amount);
 
     final filteredStock = _filteredStock;
-    final double stockValue = filteredStock.fold(0.0, (sum, s) => sum + (s.stock * (s.item?.sellingPrice ?? 0.0)));
+    final double stockValue = filteredStock.fold(0.0, (sum, s) => sum + (s.stock * (s.item.value?.sellingPrice ?? 0.0)));
     final int inStock = filteredStock.where((s) => s.stock > 0).length;
     final int outOfStock = filteredStock.where((s) => s.stock <= 0).length;
 
@@ -228,11 +225,9 @@ class _MoreBranchReportingScreenState extends State<MoreBranchReportingScreen> {
 
     Map<String, double> salesByPaymentType = {};
     for (var sale in sales) {
-      if (sale.paymentTypes != null) {
-        for (var payment in sale.paymentTypes!) {
-          final paymentTypeName = payment.paymentType.value?.name ?? 'Unknown';
-          salesByPaymentType.update(paymentTypeName, (value) => value + payment.amount, ifAbsent: () => payment.amount);
-        }
+      for (var payment in sale.allPaymentTypes) {
+        final paymentTypeName = payment.paymentType.value?.name ?? 'Unknown';
+        salesByPaymentType.update(paymentTypeName, (value) => value + payment.amount, ifAbsent: () => payment.amount);
       }
     }
 

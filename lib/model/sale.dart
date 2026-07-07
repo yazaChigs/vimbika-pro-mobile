@@ -10,7 +10,9 @@ import 'package:vimbika_pro/model/currency.dart';
 part 'sale.g.dart';
 
 @collection
+@JsonSerializable(explicitToJson: true)
 class Sale {
+  @JsonKey(includeFromJson: false, includeToJson: false)
   Id isarId = Isar.autoIncrement;
   String? id;
   String? dateCreated;
@@ -22,10 +24,30 @@ class Sale {
   final customer = IsarLink<Customer>();
   final company = IsarLink<Company>();
   final branch = IsarLink<Branch>();
-  @ignore
+
+  @JsonKey(toJson: _saleItemsToJson, includeFromJson: false)
   final items = IsarLinks<SaleItem>();
+
   @ignore
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<SaleItem> itemsList = [];
+
+  @ignore
+  List<SaleItem> heldItems;
+  @ignore
+  Currency? heldCurrency;
+  @ignore
+  @JsonKey(includeToJson: false)
+  Branch? heldBranch;
+  @ignore
+  Customer? heldCustomer;
+
+  @JsonKey(toJson: _paymentsToJson, includeFromJson: false)
   final paymentTypes = IsarLinks<PaymentReceived>();
+
+  @ignore
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<PaymentReceived> paymentsList = [];
   String? timeIniated;
   String? timeCompleted;
   String? saleStatus;
@@ -34,7 +56,8 @@ class Sale {
   double? amountAfterDiscount;
   double? baseSaleAmount;
   double? totalTaxAmount;
-  bool? isSynced;
+  @JsonKey(defaultValue: false)
+  bool isSynced;
   bool? fiscalized;
   bool? taxInvoice;
   double? totalQuantity;
@@ -64,7 +87,7 @@ class Sale {
     this.amountAfterDiscount,
     this.baseSaleAmount,
     this.totalTaxAmount,
-    this.isSynced,
+    this.isSynced = false,
     this.fiscalized,
     this.taxInvoice,
     this.totalQuantity,
@@ -79,98 +102,113 @@ class Sale {
     this.amountTendered,
     this.receiptQrCode,
     this.receiptQrData,
+    this.heldItems = const [],
+    this.heldCurrency,
+    this.heldBranch,
+    this.heldCustomer,
   });
 
+  List<SaleItem> get allItems {
+    if (itemsList.isNotEmpty) return itemsList;
+    if (items.isAttached) {
+      items.loadSync();
+    }
+    return items.toList();
+  }
+
+  List<PaymentReceived> get allPaymentTypes {
+    if (paymentsList.isNotEmpty) return paymentsList;
+    if (paymentTypes.isAttached) {
+      paymentTypes.loadSync();
+    }
+    return paymentTypes.toList();
+  }
+
   double get grandTotal {
-    items.loadSync();
-    return items.fold(0.0, (sum, item) => sum + item.total);
+    return allItems.fold(0.0, (sum, item) => sum + item.total);
+  }
+  double get ticketTotal {
+    return heldItems.fold(0.00, (sum, item) => sum + item.total);
+  }
+
+  void syncListsToLinks() {
+    if (itemsList.isNotEmpty) {
+      items.clear();
+      items.addAll(itemsList);
+    }
+    if (paymentsList.isNotEmpty) {
+      paymentTypes.clear();
+      paymentTypes.addAll(paymentsList);
+    }
   }
 
   factory Sale.fromJson(Map<String, dynamic> json) {
-    final sale = Sale(
-      id: json['id'],
-      dateCreated: json['dateCreated'],
-      dateModified: json['dateModified'],
-      createdByName: json['createdByName'],
-      modifiedByName: json['modifiedByName'],
-      version: json['version'],
-      cashierFullName: json['cashierFullName'],
-      timeIniated: json['timeIniated'],
-      timeCompleted: json['timeCompleted'],
-      saleStatus: json['saleStatus'],
-      amountAfterDiscount: (json['amountAfterDiscount'] as num?)?.toDouble(),
-      baseSaleAmount: (json['baseSaleAmount'] as num?)?.toDouble(),
-      totalTaxAmount: (json['totalTaxAmount'] as num?)?.toDouble(),
-      isSynced: json['isSynced'],
-      fiscalized: json['fiscalized'],
-      taxInvoice: json['taxInvoice'],
-      totalQuantity: (json['totalQuantity'] as num?)?.toDouble(),
-      posReference: json['posReference'],
-      referenceNumber: json['referenceNumber'],
-      shiftReference: json['shiftReference'],
-      ticketName: json['ticketName'],
-      amtToAcc: json['amtToAcc'],
-      customerAccBankType: json['customerAccBankType'],
-      amountPaid: (json['amountPaid'] as num?)?.toDouble(),
-      change: (json['change'] as num?)?.toDouble(),
-      amountTendered: (json['amountTendered'] as num?)?.toDouble(),
-      receiptQrCode: json['receiptQrCode'],
-      receiptQrData: json['receiptQrData'],
-    );
-    if (json['customer'] != null) {
-      sale.customer.value = Customer.fromJson(json['customer']);
-    }
-    if (json['company'] != null) {
-      sale.company.value = Company.fromJson(json['company']);
-    }
+    final sale = _$SaleFromJson(json);
     if (json['branch'] != null) {
-      sale.branch.value = Branch.fromJson(json['branch']);
+      sale.branch.value =
+          Branch.fromJson(json['branch'] as Map<String, dynamic>);
     }
     if (json['currency'] != null) {
-      sale.currency.value = Currency.fromJson(json['currency']);
+      sale.currency.value =
+          Currency.fromJson(json['currency'] as Map<String, dynamic>);
     }
     if (json['baseCurrency'] != null) {
-      sale.baseCurrency.value = Currency.fromJson(json['baseCurrency']);
+      sale.baseCurrency.value =
+          Currency.fromJson(json['baseCurrency'] as Map<String, dynamic>);
+    }
+    if (json['customer'] != null) {
+      sale.customer.value =
+          Customer.fromJson(json['customer'] as Map<String, dynamic>);
+    }
+    if (json['company'] != null) {
+      sale.company.value =
+          Company.fromJson(json['company'] as Map<String, dynamic>);
+    }
+    if (json['items'] != null) {
+      final itemsJson = json['items'] as List<dynamic>;
+      final items = itemsJson
+          .map((i) => SaleItem.fromJson(i as Map<String, dynamic>))
+          .toList();
+      sale.itemsList = items;
+      sale.items.addAll(items);
+    }
+    if (json['paymentTypes'] != null) {
+      final paymentsJson = json['paymentTypes'] as List<dynamic>;
+      final payments = paymentsJson
+          .map((p) => PaymentReceived.fromJson(p as Map<String, dynamic>))
+          .toList();
+      sale.paymentsList = payments;
+      sale.paymentTypes.addAll(payments);
     }
     return sale;
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'dateCreated': dateCreated,
-      'dateModified': dateModified,
-      'createdByName': createdByName,
-      'modifiedByName': modifiedByName,
-      'version': version,
-      'cashierFullName': cashierFullName,
-      'timeIniated': timeIniated,
-      'timeCompleted': timeCompleted,
-      'saleStatus': saleStatus,
-      'amountAfterDiscount': amountAfterDiscount,
-      'baseSaleAmount': baseSaleAmount,
-      'totalTaxAmount': totalTaxAmount,
-      'isSynced': isSynced,
-      'fiscalized': fiscalized,
-      'taxInvoice': taxInvoice,
-      'totalQuantity': totalQuantity,
-      'posReference': posReference,
-      'referenceNumber': referenceNumber,
-      'shiftReference': shiftReference,
-      'ticketName': ticketName,
-      'amtToAcc': amtToAcc,
-      'customerAccBankType': customerAccBankType,
-      'amountPaid': amountPaid,
-      'change': change,
-      'amountTendered': amountTendered,
-      'receiptQrCode': receiptQrCode,
-      'receiptQrData': receiptQrData,
-      'customer': customer.value?.toJson(),
-      'company': company.value?.toJson(),
-      'branch': branch.value?.toJson(),
-      'currency': currency.value?.toJson(),
-      'baseCurrency': baseCurrency.value?.toJson(),
-    };
+    final json = _$SaleToJson(this);
+    if (branch.isAttached) {
+      branch.loadSync();
+    }
+    json['branch'] = branch.value?.toJson();
+
+    if (currency.isAttached) {
+      currency.loadSync();
+    }
+    json['currency'] = currency.value?.toJson();
+
+    if (baseCurrency.isAttached) {
+      baseCurrency.loadSync();
+    }
+    json['baseCurrency'] = baseCurrency.value?.toJson();
+
+    json['items'] = allItems.map((item) => item.toJson()).toList();
+
+    if (customer.isAttached) {
+      customer.loadSync();
+    }
+    json['customer'] = customer.value?.toJson();
+    json['paymentTypes'] = allPaymentTypes.map((p) => p.toJson()).toList();
+
+    return json;
   }
 
   Sale copyWith({
@@ -203,6 +241,12 @@ class Sale {
     double? amountTendered,
     String? receiptQrCode,
     String? receiptQrData,
+    List<SaleItem>? heldItems,
+    Currency? heldCurrency,
+    Branch? heldBranch,
+    Customer? heldCustomer,
+    List<SaleItem>? items,
+    IsarLinks<PaymentReceived>? paymentTypes,
   }) {
     final newSale = Sale(
       id: id ?? this.id,
@@ -233,17 +277,67 @@ class Sale {
       amountTendered: amountTendered ?? this.amountTendered,
       receiptQrCode: receiptQrCode ?? this.receiptQrCode,
       receiptQrData: receiptQrData ?? this.receiptQrData,
+      heldItems: heldItems ?? this.heldItems,
+      heldCurrency: heldCurrency ?? this.heldCurrency,
+      heldBranch: heldBranch ?? this.heldBranch,
+      heldCustomer: heldCustomer ?? this.heldCustomer,
     );
 
     newSale.isarId = isarId ?? this.isarId;
     newSale.customer.value = customer.value;
     newSale.company.value = company.value;
     newSale.branch.value = branch.value;
-    newSale.items.addAll(items);
-    newSale.paymentTypes.addAll(paymentTypes);
+    if (items != null) {
+      newSale.itemsList = items;
+      newSale.items.addAll(items);
+    } else {
+      newSale.itemsList = List.from(allItems);
+      newSale.items.addAll(allItems);
+    }
+    if (paymentTypes != null) {
+      newSale.paymentTypes.addAll(paymentTypes);
+      newSale.paymentsList = paymentTypes.toList();
+    } else {
+      newSale.paymentTypes.addAll(allPaymentTypes);
+      newSale.paymentsList = List.from(allPaymentTypes);
+    }
     newSale.currency.value = currency.value;
     newSale.baseCurrency.value = baseCurrency.value;
 
     return newSale;
   }
+}
+
+// Custom converter functions
+IsarLinks<SaleItem> _saleItemsFromJson(List<dynamic>? json) {
+  final links = IsarLinks<SaleItem>();
+  if (json != null) {
+    final items =
+        json.map((i) => SaleItem.fromJson(i as Map<String, dynamic>)).toList();
+    links.addAll(items);
+  }
+  return links;
+}
+
+List<Map<String, dynamic>> _saleItemsToJson(IsarLinks<SaleItem> items) {
+  if (items.isAttached) {
+    items.loadSync();
+  }
+  return items.map((i) => i.toJson()).toList();
+}
+
+List<Map<String, dynamic>> _paymentsToJson(IsarLinks<PaymentReceived> payments) {
+  if (payments.isAttached) {
+    payments.loadSync();
+  }
+  return payments.map((p) => p.toJson()).toList();
+}
+
+IsarLinks<PaymentReceived> _paymentsFromJson(List<dynamic> json) {
+  final links = IsarLinks<PaymentReceived>();
+  final payments = json
+      .map((p) => PaymentReceived.fromJson(p as Map<String, dynamic>))
+      .toList();
+  links.addAll(payments);
+  return links;
 }

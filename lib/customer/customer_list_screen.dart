@@ -216,7 +216,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                 children: customer.currencyBalance.map((cca) {
                   return Chip(
                     label: Text(
-                      '${cca.currency.value?.symbol ?? ''} ${cca.amount.toStringAsFixed(2)}',
+                      '${cca.currency.value?.symbol ?? ''} ${cca.balance.toStringAsFixed(2)}',
                       style: const TextStyle(fontSize: 10),
                     ),
                     backgroundColor: AppTheme.lightText.withAlpha(26),

@@ -713,18 +713,18 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             }
 
             final List<InventoryItem> items = stocks
-                .where((s) => s.item != null)
-                .map((s) => s.item!.copyWith(
+                .where((s) => s.item.value != null)
+                .map((s) => s.item.value!.copyWith(
                     quantity: s.stock,
                     company: company,
-                    currency: s.item!.currency.value ?? baseCurrency,
+                    currency: s.item.value!.currency.value ?? baseCurrency,
                 ))
                 .toList();
 
             await _branchStockService.saveAllBranchStock(
               list: items,
               company: company,
-              branch: branch ?? (stocks.isNotEmpty ? stocks.first.branch : null),
+              branch: branch ,
             );
           }
         } catch (e) {

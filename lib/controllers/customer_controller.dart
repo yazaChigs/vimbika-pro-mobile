@@ -33,6 +33,7 @@ class CustomerController extends ChangeNotifier {
   List<Currency> _currencies = [];
   List<PaymentType> _paymentTypes = [];
   bool _isLoading = false;
+  bool _isSyncingUnsyncedData = false;
   String _searchQuery = '';
   bool _isDisposed = false;
 
@@ -129,51 +130,68 @@ class CustomerController extends ChangeNotifier {
     return connectivityResult.any((result) => result != ConnectivityResult.none);
   }
 
-  Future<void> _attemptSyncUnsyncedData() async {
+  Future<void> _attemptSyncUnsyncedData({bool reload = true}) async {
+    if (_isSyncingUnsyncedData) {
+      debugPrint('Sync already in progress, skipping periodic attempt.');
+      return;
+    }
+    _isSyncingUnsyncedData = true;
+
     bool isConnected = await _checkConnectivity();
 
     if (!isConnected) {
       debugPrint('Offline. Cannot sync unsynced data.');
+      _isSyncingUnsyncedData = false;
       return;
     }
-
-    // Sync unsynced customers
-    List<Customer> unsyncedCustomers = await _customerService.getUnsyncedCustomers();
-    if (unsyncedCustomers.isNotEmpty) {
-      debugPrint('Attempting to sync ${unsyncedCustomers.length} unsynced customers...');
-      for (Customer customer in unsyncedCustomers) {
-        try {
-          await _customerService.syncCustomer(customer);
-        } catch (e) {
-          debugPrint('Failed to sync customer "${customer.name}": $e');
+    
+    try {
+      // Sync unsynced customers
+      List<Customer> unsyncedCustomers = await _customerService.getUnsyncedCustomers();
+      if (unsyncedCustomers.isNotEmpty) {
+        debugPrint('Attempting to sync ${unsyncedCustomers.length} unsynced customers...');
+        for (Customer customer in unsyncedCustomers) {
+          try {
+            await _customerService.syncCustomer(customer);
+          } catch (e) {
+            debugPrint('Failed to sync customer "${customer.name}": $e');
+          }
         }
       }
-    }
 
-    // Sync unsynced payments
-    List<PaymentReceived> unsyncedPayments =
-        await _paymentsService.getUnsyncedReceivedPaymentsLocally();
-    if (unsyncedPayments.isNotEmpty) {
-      debugPrint('Attempting to sync ${unsyncedPayments.length} unsynced payments...');
-      for (PaymentReceived payment in unsyncedPayments) {
-        try {
-          await _paymentsService.syncReceivedPayment(payment);
-        } catch (e) {
-          debugPrint('Failed to sync payment "${payment.id}": $e');
+      // Sync unsynced payments
+      List<PaymentReceived> unsyncedPayments =
+          await _paymentsService.getUnsyncedReceivedPaymentsLocally();
+      if (unsyncedPayments.isNotEmpty) {
+        debugPrint('Attempting to sync ${unsyncedPayments.length} unsynced payments...');
+        for (PaymentReceived payment in unsyncedPayments) {
+          try {
+            await _paymentsService.syncReceivedPayment(payment);
+          } catch (e) {
+            debugPrint('Failed to sync payment "${payment.id}": $e');
+          }
         }
       }
-    }
 
-    await _loadData(); // Reload data to update UI and re-evaluate unsynced count
-    if ((await _customerService.getUnsyncedCustomers()).isEmpty &&
-        (await _paymentsService.getUnsyncedReceivedPaymentsLocally()).isEmpty) {
-      debugPrint('All unsynced data synced. Stopping periodic sync check.');
-      _syncTimer?.cancel();
-      _syncTimer = null;
+      if (reload) {
+        await _loadData(); // Reload data to update UI and re-evaluate unsynced count
+      }
+      if ((await _customerService.getUnsyncedCustomers()).isEmpty &&
+          (await _paymentsService.getUnsyncedReceivedPaymentsLocally()).isEmpty) {
+        debugPrint('All unsynced data synced. Stopping periodic sync check.');
+        _syncTimer?.cancel();
+        _syncTimer = null;
+      }
+    } finally {
+      _isSyncingUnsyncedData = false;
     }
   }
 
   Future<String?> syncCustomers() async {
+    if (_isSyncingUnsyncedData) {
+      return 'Sync already in progress. Please wait.';
+    }
+    _isSyncingUnsyncedData = true;
     _setLoading(true);
     String? message;
 
@@ -185,7 +203,7 @@ class CustomerController extends ChangeNotifier {
       message = 'Offline mode or no internet connection. Displaying locally saved customers.';
       await _loadData();
     } else {
-      await _attemptSyncUnsyncedData(); // Sync both customers and payments
+      await _attemptSyncUnsyncedData(reload: false); // Sync both customers and payments
 
       try {
         await _customerService.fetchCustomers();
@@ -193,11 +211,13 @@ class CustomerController extends ChangeNotifier {
         message = 'All customers updated from API';
       } catch (e) {
         message = 'Failed to fetch customers from API: $e. Displaying locally saved customers.';
+        debugPrint(message);
         await _loadData();
       }
     }
 
     _setLoading(false);
+    _isSyncingUnsyncedData = false;
     return message;
   }
 
@@ -273,9 +293,9 @@ class CustomerController extends ChangeNotifier {
             .firstWhereOrNull((cca) => cca.currency.value?.id == selectedCurrency.id);
 
         if (existingCca != null) {
-          existingCca.amount += amount;
+          existingCca.balance += amount;
         } else {
-          final newCca = CustomerCurrencyAmount(amount: amount);
+          final newCca = CustomerCurrencyAmount(balance: amount);
           newCca.currency.value = selectedCurrency;
           currentLocalCustomer.currencyBalance.add(newCca);
         }
@@ -324,7 +344,7 @@ class CustomerController extends ChangeNotifier {
               ? 'Customer Deposit for ${customer.name}'
               : 'Account Top-up for ${customer.name}',
           amountType: isDeposit ? 'CUSTOMER_DEPOSIT' : 'ACCOUNT_TOP_UP',
-          ref: savedPayment.id ?? 'payment_${DateTime.now().millisecondsSinceEpoch}',
+          ref: savedPayment.id.toString() ?? 'payment_${DateTime.now().millisecondsSinceEpoch}',
           posReference: '${customer.name}${DateTime.now().microsecondsSinceEpoch}',
           shiftReference: currentShift.shiftReference,
           isCash: selectedPaymentType.isCash,

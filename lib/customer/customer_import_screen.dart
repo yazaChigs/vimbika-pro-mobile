@@ -23,7 +23,10 @@ class CustomerImportScreen extends BaseImportScreen {
   @override
   Future<void> onImport(BuildContext context, List<List<Data?>> rows) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final List<String> existingJson = prefs.getStringList(AppConstants.keyCustomers) ?? [];
+    final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
+    final String customerKey = isOfflineMode ? AppConstants.keyOfflineCustomers : AppConstants.keyCustomers;
+
+    final List<String> existingJson = prefs.getStringList(customerKey) ?? [];
     final List<Customer> customers = existingJson
         .map((item) => Customer.fromJson(jsonDecode(item)))
         .toList();
@@ -50,7 +53,7 @@ class CustomerImportScreen extends BaseImportScreen {
     }
 
     final List<String> updatedJson = customers.map((item) => jsonEncode(item.toJson())).toList();
-    await prefs.setStringList('customers', updatedJson);
+    await prefs.setStringList(customerKey, updatedJson);
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

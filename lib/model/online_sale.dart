@@ -61,6 +61,8 @@ class OnlineSale {
 
   // Added for compatibility with existing UI
   double get grandTotal => amountAfterDiscount ?? baseSaleAmount ?? 0.0;
+  List<SaleItem> get allItems => items ?? [];
+  List<PaymentReceived> get allPaymentTypes => paymentTypes ?? [];
 
   OnlineSale({
     this.id,

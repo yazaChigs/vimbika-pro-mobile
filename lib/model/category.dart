@@ -29,13 +29,13 @@ class Category extends BaseNameEntity {
 
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
-      id: json['id'],
+      id: json['id']?.toString(),
       dateCreated: json['dateCreated'],
       dateModified: json['dateModified'],
       createdByName: json['createdByName'],
       modifiedByName: json['modifiedByName'],
       version: json['version'],
-      name: json['name'],
+      name: json['name']?.toString() ?? 'No Name',
       description: json['description'],
     );
   }
