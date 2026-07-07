@@ -9,6 +9,7 @@ import 'package:vimbika_pro/model/company.dart';
 import 'package:vimbika_pro/model/branch.dart';
 import 'package:vimbika_pro/model/user.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:uuid/uuid.dart';
 
 class AddCustomerScreen extends StatefulWidget {
   final Customer? customer;
@@ -127,7 +128,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       }
 
       Customer customerToSave = Customer(
-        id: widget.customer?.id, // Use existing ID if editing
+        id: widget.customer?.id ?? const Uuid().v4(), // Use existing ID or generate one
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         mobilePhone: _phoneController.text.trim(),

@@ -1,7 +1,7 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:vimbika_pro/app_constants/app_constants.dart';
 import 'package:vimbika_pro/model/customer.dart';
-import 'package:vimbika_pro/model/online_sale.dart';
 import 'package:vimbika_pro/model/sale.dart';
 import 'package:vimbika_pro/model/user.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,10 +21,12 @@ class SaleService {
 
   Future<void> saveSale(Sale sale) async {
     await _isarService.saveSale(sale);
+    await _exportTodaysSalesToExcel();
   }
 
   Future<void> completeSaleTransaction(Sale sale,List<PaymentReceived> paymentTypes, List<SaleItem> items,  List<Customer> customersToUpdate) async {
     await _isarService.completeSaleTransaction(sale,paymentTypes, items, customersToUpdate);
+    await _exportTodaysSalesToExcel();
   }
 
   Future<void> syncSales() async {
@@ -72,7 +74,17 @@ class SaleService {
     );
 
     final List<dynamic> data = jsonDecode(responseStr);
-    return data.map((s) => Sale.fromJson(s)).toList();
+    return data.map((s) => Sale.fromJson(s).copyWith(isSynced: true)).toList();
+  }
+
+  Future<void> _exportTodaysSalesToExcel() async {
+    final List<Sale> todaySales = await _isarService.getTodaysSales();
+    if (todaySales.isNotEmpty) {
+      final now = DateTime.now();
+      final fileName = 'sales_backup_${DateFormat('yyyy_MM_dd').format(now)}';
+      await _excelExportService.exportSalesToExcel(todaySales, fileName);
+      debugPrint('Exported ${todaySales.length} sales to Excel: $fileName');
+    }
   }
 
   Future<void> reverseSale(String saleId) async {

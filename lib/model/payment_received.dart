@@ -78,8 +78,9 @@ class PaymentReceived {
       reference: json['reference'],
       isSynced: json['isSynced'] ?? true,
     );
-    if (json['paymentType'] != null) {
-      payment.paymentType.value = PaymentType.fromJson(json['paymentType']);
+    final paymentTypeData = json['paymentType'] ?? json['payment_type'] ?? json['paymentMethod'] ?? json['payment_method'];
+    if (paymentTypeData != null && paymentTypeData is Map<String, dynamic>) {
+      payment.paymentType.value = PaymentType.fromJson(paymentTypeData);
     }
     if (json['payer'] != null) {
       payment.payer.value = Customer.fromJson(json['payer']);

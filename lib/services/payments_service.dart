@@ -154,9 +154,7 @@ class PaymentsService {
     
     List<PaymentReceived> allPayments = [];
     for (var sale in allSales) {
-      if (sale.paymentTypes != null) {
-        allPayments.addAll(sale.paymentTypes!);
-      }
+      allPayments.addAll(sale.allPaymentTypes);
     }
 
     return allPayments.where((payment) {

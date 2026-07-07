@@ -579,9 +579,9 @@ class PrinterService {
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
 
     // Payment Details
-    if (sale.paymentTypes != null && sale.paymentTypes!.isNotEmpty) {
+    if (sale.allPaymentTypes.isNotEmpty) {
       bytes += generator.text("Payment Details:", styles: PosStyles(align: PosAlign.left));
-      for (var payment in sale.paymentTypes!) {
+      for (var payment in sale.allPaymentTypes) {
         String paymentLine = "${payment.paymentType.value?.name ?? 'N/A'}:";
         String amountLine = "$symbol${(payment.amountTendered ?? payment.amount).toStringAsFixed(2)}";
         bytes += generator.text(_alignLeftRight(paymentLine, amountLine), styles: PosStyles(align: PosAlign.left));
@@ -599,7 +599,7 @@ class PrinterService {
     }
 
     Currency? cur = sale.currency.value;
-    if((sale.paymentTypes?.any((pt) => pt.paymentType.value?.name.contains('ACC-') ?? false) ?? false) && sale.customer.value != null && sale.customer.value!.currencyBalance != null && sale.customer.value!.currencyBalance!.isNotEmpty) {
+    if((sale.allPaymentTypes.any((pt) => pt.paymentType.value?.name.contains('ACC-') ?? false)) && sale.customer.value != null && sale.customer.value!.currencyBalance != null && sale.customer.value!.currencyBalance!.isNotEmpty) {
       final balanceItem = sale.customer.value!.currencyBalance!.firstWhere(
         (cb) => cb.currency.value?.id == cur?.id,
         orElse: () => sale.customer.value!.currencyBalance!.first,
@@ -739,9 +739,9 @@ class PrinterService {
     await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
 
     // Payment Details
-    if (sale.paymentTypes != null && sale.paymentTypes!.isNotEmpty) {
+    if (sale.allPaymentTypes.isNotEmpty) {
       await SunmiPrinter.printText("Payment Details:", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
-      for (var payment in sale.paymentTypes!) {
+      for (var payment in sale.allPaymentTypes) {
         String paymentLine = "${payment.paymentType.value?.name ?? 'N/A'}:";
         String amountLine = "$symbol${(payment.amountTendered ?? payment.amount).toStringAsFixed(2)}";
         await SunmiPrinter.printText(_alignLeftRight(paymentLine, amountLine), style: SunmiStyle(align: SunmiPrintAlign.LEFT));
@@ -759,7 +759,7 @@ class PrinterService {
     }
 
     Currency? cur = sale.currency.value;
-    if((sale.paymentTypes?.any((pt) => pt.paymentType.value?.name.contains('ACC-') ?? false) ?? false) && sale.customer.value != null && sale.customer.value!.currencyBalance != null && sale.customer.value!.currencyBalance!.isNotEmpty)
+    if(sale.allPaymentTypes.any((pt) => pt.paymentType.value?.name.contains('ACC-') ?? false) && sale.customer.value != null && sale.customer.value!.currencyBalance != null && sale.customer.value!.currencyBalance!.isNotEmpty)
     {
       final balanceItem = sale.customer.value!.currencyBalance!.firstWhere(
         (cb) => cb.currency.value?.id == cur?.id,
@@ -896,9 +896,9 @@ class PrinterService {
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
 
     // Payment Details
-    if (sale.paymentTypes != null && sale.paymentTypes!.isNotEmpty) {
+    if (sale.allPaymentTypes.isNotEmpty) {
       bytes += generator.text("Payment Details:", styles: PosStyles(align: PosAlign.left));
-      for (var payment in sale.paymentTypes!) {
+      for (var payment in sale.allPaymentTypes) {
         String paymentLine = "${payment.paymentType.value?.name ?? 'N/A'}:";
         String amountLine = "$symbol${(payment.amountTendered ?? payment.amount).toStringAsFixed(2)}";
         bytes += generator.text(_alignLeftRight(paymentLine, amountLine), styles: PosStyles(align: PosAlign.left));
@@ -916,7 +916,7 @@ class PrinterService {
     }
 
     Currency? cur = sale.currency.value;
-    if((sale.paymentTypes?.any((pt) => pt.paymentType.value?.name.contains('ACC-') ?? false) ?? false) && sale.customer.value != null && sale.customer.value!.currencyBalance != null && sale.customer.value!.currencyBalance!.isNotEmpty) {
+    if((sale.allPaymentTypes.any((pt) => pt.paymentType.value?.name.contains('ACC-') ?? false)) && sale.customer.value != null && sale.customer.value!.currencyBalance != null && sale.customer.value!.currencyBalance!.isNotEmpty) {
       final balanceItem = sale.customer.value!.currencyBalance!.firstWhere(
         (cb) => cb.currency.value?.id == cur?.id,
         orElse: () => sale.customer.value!.currencyBalance!.first,

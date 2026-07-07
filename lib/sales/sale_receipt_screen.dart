@@ -183,13 +183,13 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    if (widget.sale.paymentTypes.isNotEmpty) ...[
+                    if (widget.sale.allPaymentTypes.isNotEmpty) ...[
                       const Align(
                         alignment: Alignment.centerLeft,
                         child: Text('PAYMENT DETAILS', style: TextStyle(fontSize: 10, color: AppTheme.grey)),
                       ),
                       const SizedBox(height: 4),
-                      ...widget.sale.paymentTypes.map((p) => Row(
+                      ...widget.sale.allPaymentTypes.map((p) => Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(p.paymentType.value?.name ?? 'Method', style: const TextStyle(fontSize: 12)),

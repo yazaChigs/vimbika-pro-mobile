@@ -2,18 +2,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:vimbika_pro/model/currency.dart';
 import 'package:vimbika_pro/services/customer_sync_service.dart';
 import '../app_constants/app_constants.dart';
 import '../model/customer.dart';
 import '../model/user.dart';
 import '../model/ledger_response.dart'; // Import the LedgerResponse model
 import 'base_http_client.dart';
-import 'isar_service.dart';
 
 class CustomerService {
   final BaseHttpClient _client = BaseHttpClient();
-  final IsarService _isarService = IsarService();
 
   // Fetches customers from API and saves them locally, marking them as synced
   Future<List<Customer>> fetchCustomers() async {
@@ -150,7 +147,11 @@ class CustomerService {
     List<Customer> customers = await getCustomersLocally();
 
     for (var updatedCustomer in updatedCustomers) {
-      int index = customers.indexWhere((c) => c.id == updatedCustomer.id);
+      int index = customers.indexWhere((c) =>
+          (updatedCustomer.id != null && c.id == updatedCustomer.id) ||
+          (updatedCustomer.id == null &&
+              c.id == null &&
+              c.name == updatedCustomer.name));
       if (index != -1) {
         customers[index] = updatedCustomer;
       } else {

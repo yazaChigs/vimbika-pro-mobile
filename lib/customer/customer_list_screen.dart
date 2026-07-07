@@ -270,8 +270,9 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                   MaterialPageRoute(builder: (context) => AddCustomerScreen(customer: customer)),
                 );
                 if (result != null) {
+                  await controller.loadDataFromLocal();
                   final message = await controller.syncCustomers();
-                  if (mounted && message != null) {
+                  if (mounted && message != null && !message.contains('already in progress')) {
                     scaffoldMessenger.showSnackBar(
                       SnackBar(content: Text(message)),
                     );
@@ -408,8 +409,9 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                   MaterialPageRoute(builder: (context) => const AddCustomerScreen()),
                 );
                 if (mounted && result != null) { // Add mounted check
+                  await controller.loadDataFromLocal();
                   final message = await controller.syncCustomers();
-                  if (mounted && message != null) {
+                  if (mounted && message != null && !message.contains('already in progress')) {
                     scaffoldMessenger.showSnackBar(
                       SnackBar(content: Text(message)),
                     );

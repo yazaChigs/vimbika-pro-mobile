@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:isar/isar.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:vimbika_pro/model/sale.dart';
 import 'package:vimbika_pro/model/sale_item.dart';
@@ -65,6 +66,7 @@ class IsarService {
   }
 
   void _putCustomerSync(Isar isar, Customer customer) {
+    customer.syncListToIsarLinks();
     if (customer.company.value != null) isar.companys.putSync(customer.company.value!);
     if (customer.branch.value != null) {
       final b = customer.branch.value!;
@@ -138,6 +140,8 @@ class IsarService {
 
       // 5. Now, put the Sale itself
       isar.sales.putSync(sale);
+      sale.items.saveSync();
+      sale.paymentTypes.saveSync();
     });
   }
 
@@ -174,12 +178,25 @@ class IsarService {
 
       // 4. Now put the Sale object.
       isar.sales.putSync(sale);
+      sale.items.saveSync();
+      sale.paymentTypes.saveSync();
     });
   }
 
   Future<List<Sale>> getUnsyncedSales() async {
     final isar = await db;
     return await isar.sales.filter().isSyncedEqualTo(false).findAll();
+  }
+
+  Future<List<Sale>> getTodaysSales() async {
+    final isar = await db;
+    final now = DateTime.now();
+    final todayStr = DateFormat('yyyy-MM-dd').format(now);
+    return await isar.sales.filter()
+        .timeIniatedStartsWith(todayStr)
+        .and()
+        .not().saleStatusEqualTo('Reversed')
+        .findAll();
   }
 
   Future<List<Sale>> getAllSales() async {
@@ -193,6 +210,8 @@ class IsarService {
     isar.writeTxnSync(() {
       sale.syncListsToLinks();
       isar.sales.putSync(sale);
+      sale.items.saveSync();
+      sale.paymentTypes.saveSync();
     });
   }
 

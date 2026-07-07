@@ -56,11 +56,11 @@ class Sale {
   double? amountAfterDiscount;
   double? baseSaleAmount;
   double? totalTaxAmount;
-  @JsonKey(defaultValue: false)
   bool isSynced;
   bool? fiscalized;
   bool? taxInvoice;
   double? totalQuantity;
+  double? totalDiscount;
   String? posReference;
   String? referenceNumber;
   String? shiftReference;
@@ -106,8 +106,10 @@ class Sale {
     this.heldCurrency,
     this.heldBranch,
     this.heldCustomer,
+    this.totalDiscount,
   });
 
+  @ignore
   List<SaleItem> get allItems {
     if (itemsList.isNotEmpty) return itemsList;
     if (items.isAttached) {
@@ -116,6 +118,7 @@ class Sale {
     return items.toList();
   }
 
+  @ignore
   List<PaymentReceived> get allPaymentTypes {
     if (paymentsList.isNotEmpty) return paymentsList;
     if (paymentTypes.isAttached) {
@@ -124,9 +127,11 @@ class Sale {
     return paymentTypes.toList();
   }
 
+  @ignore
   double get grandTotal {
     return allItems.fold(0.0, (sum, item) => sum + item.total);
   }
+  @ignore
   double get ticketTotal {
     return heldItems.fold(0.00, (sum, item) => sum + item.total);
   }
@@ -164,20 +169,31 @@ class Sale {
       sale.company.value =
           Company.fromJson(json['company'] as Map<String, dynamic>);
     }
-    if (json['items'] != null) {
-      final itemsJson = json['items'] as List<dynamic>;
-      final items = itemsJson
+    final itemsData = json['items'] ?? json['saleItems'] ?? json['sale_items'] ?? json['saleItemsList'];
+    if (itemsData != null && itemsData is List) {
+      final items = itemsData
+          .where((i) => i != null && i is Map<String, dynamic>)
           .map((i) => SaleItem.fromJson(i as Map<String, dynamic>))
           .toList();
       sale.itemsList = items;
+      sale.items.clear();
       sale.items.addAll(items);
     }
-    if (json['paymentTypes'] != null) {
-      final paymentsJson = json['paymentTypes'] as List<dynamic>;
-      final payments = paymentsJson
+    final paymentsData = json['paymentTypes'] ??
+        json['payments'] ??
+        json['payment_types'] ??
+        json['salePayments'] ??
+        json['sale_payments'] ??
+        json['paymentReceiveds'] ??
+        json['payment_receiveds'] ??
+        json['sale_payment_receiveds'];
+    if (paymentsData != null && paymentsData is List) {
+      final payments = paymentsData
+          .where((p) => p != null && p is Map<String, dynamic>)
           .map((p) => PaymentReceived.fromJson(p as Map<String, dynamic>))
           .toList();
       sale.paymentsList = payments;
+      sale.paymentTypes.clear();
       sale.paymentTypes.addAll(payments);
     }
     return sale;
@@ -247,6 +263,7 @@ class Sale {
     Customer? heldCustomer,
     List<SaleItem>? items,
     IsarLinks<PaymentReceived>? paymentTypes,
+    double? totalDiscount,
   }) {
     final newSale = Sale(
       id: id ?? this.id,
@@ -281,6 +298,7 @@ class Sale {
       heldCurrency: heldCurrency ?? this.heldCurrency,
       heldBranch: heldBranch ?? this.heldBranch,
       heldCustomer: heldCustomer ?? this.heldCustomer,
+      totalDiscount: totalDiscount ?? this.totalDiscount,
     );
 
     newSale.isarId = isarId ?? this.isarId;

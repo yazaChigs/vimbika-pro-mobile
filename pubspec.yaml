@@ -54,7 +54,7 @@ dependencies:
     esc_pos_utils_plus: ^2.0.0 # Added for ESC/POS command generation
     isar: ^3.1.0+1
     isar_flutter_libs: ^3.1.0+1
-    json_annotation: ^4.8.1
+    json_annotation: ^4.9.0
 
 dependency_overrides:
   archive: ^3.4.9

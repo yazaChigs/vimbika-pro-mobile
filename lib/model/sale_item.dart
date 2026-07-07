@@ -35,13 +35,19 @@ class SaleItem {
   }
 
   factory SaleItem.fromJson(Map<String, dynamic> json) {
+    double quantity = (json['quantity'] as num?)?.toDouble() ?? 0.0;
+    double sellingPrice = (json['sellingPrice'] as num?)?.toDouble() ?? 0.0;
+    double discountAmount = (json['discountAmount'] as num?)?.toDouble() ?? 0.0;
+    double taxAmount = (json['taxAmount'] as num?)?.toDouble() ?? 0.0;
+    double total = (json['total'] as num?)?.toDouble() ?? (quantity * sellingPrice - discountAmount);
+
     final item = SaleItem(
       id: json['id']?.toString(),
-      quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
-      sellingPrice: (json['sellingPrice'] as num?)?.toDouble() ?? 0.0,
-      discountAmount: (json['discountAmount'] as num?)?.toDouble() ?? 0.0,
-      total: (json['total'] as num?)?.toDouble() ?? 0.0,
-      taxAmount: (json['taxAmount'] as num?)?.toDouble() ?? 0.0,
+      quantity: quantity,
+      sellingPrice: sellingPrice,
+      discountAmount: discountAmount,
+      total: total,
+      taxAmount: taxAmount,
       isMobile: json['isMobile'] ?? false,
       amountTendered: (json['amountTendered'] as num?)?.toDouble(),
     );

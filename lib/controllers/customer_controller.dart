@@ -49,7 +49,7 @@ class CustomerController extends ChangeNotifier {
 
   CustomerController() {
     _setupConnectivityListener();
-    _loadData();
+    loadDataFromLocal();
   }
 
   void _setLoading(bool value) {
@@ -81,7 +81,7 @@ class CustomerController extends ChangeNotifier {
     });
   }
 
-  Future<void> _loadData() async {
+  Future<void> loadDataFromLocal() async {
     _setLoading(true);
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -174,7 +174,7 @@ class CustomerController extends ChangeNotifier {
       }
 
       if (reload) {
-        await _loadData(); // Reload data to update UI and re-evaluate unsynced count
+        await loadDataFromLocal(); // Reload data to update UI and re-evaluate unsynced count
       }
       if ((await _customerService.getUnsyncedCustomers()).isEmpty &&
           (await _paymentsService.getUnsyncedReceivedPaymentsLocally()).isEmpty) {
@@ -201,18 +201,18 @@ class CustomerController extends ChangeNotifier {
 
     if (!isConnected || isOfflineMode) {
       message = 'Offline mode or no internet connection. Displaying locally saved customers.';
-      await _loadData();
+      await loadDataFromLocal();
     } else {
       await _attemptSyncUnsyncedData(reload: false); // Sync both customers and payments
 
       try {
         await _customerService.fetchCustomers();
-        await _loadData();
+        await loadDataFromLocal();
         message = 'All customers updated from API';
       } catch (e) {
         message = 'Failed to fetch customers from API: $e. Displaying locally saved customers.';
         debugPrint(message);
-        await _loadData();
+        await loadDataFromLocal();
       }
     }
 

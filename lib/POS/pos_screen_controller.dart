@@ -1157,6 +1157,15 @@ class POSScreenController extends ChangeNotifier {
       final saleTotal = grandTotalConverted;
       final change = totalAmountTendered > saleTotal ? totalAmountTendered - saleTotal : 0.0;
 
+      double totalDiscount = 0.0;
+      for (var item in convertedCart) {
+        totalDiscount += item.discountAmount;
+        final double originalPriceConverted = (item.inventoryItem.value?.sellingPrice ?? 0.0) * exchangeRate;
+        if (item.sellingPrice < originalPriceConverted) {
+          totalDiscount += (originalPriceConverted - item.sellingPrice) * item.quantity;
+        }
+      }
+
       final newSale = Sale(
           createdByName: currentShift.createdByName,
           cashierFullName: currentShift.userFullName,
@@ -1178,6 +1187,7 @@ class POSScreenController extends ChangeNotifier {
           amountPaid: amountPaidConverted,
           amountTendered: totalAmountTendered,
           change: change,
+          totalDiscount: totalDiscount,
       );
       newSale.customer.value = _selectedCustomer;
       newSale.company.value = _selectedBranch!.company.value;
@@ -1462,6 +1472,16 @@ class POSScreenController extends ChangeNotifier {
 
     final double exchangeRate = _selectedCurrency?.rate ?? 1.0;
 
+    double totalDiscount = 0.0;
+    for (var item in _cart) {
+      totalDiscount += item.discountAmount * exchangeRate;
+      final double originalPriceConverted = (item.inventoryItem.value?.sellingPrice ?? 0.0) * exchangeRate;
+      final double actualPriceConverted = item.sellingPrice * exchangeRate;
+      if (actualPriceConverted < originalPriceConverted) {
+        totalDiscount += (originalPriceConverted - actualPriceConverted) * item.quantity;
+      }
+    }
+
     final heldSale = Sale(
       id: 'held_${DateTime.now().millisecondsSinceEpoch}',
       createdByName: currentShift?.createdByName,
@@ -1474,6 +1494,7 @@ class POSScreenController extends ChangeNotifier {
       ticketName: ticketName,
       amountTendered: totalAmountTendered,
       heldItems: List<SaleItem>.from(_cart), // Store cart items in heldItems
+      totalDiscount: totalDiscount,
     );
     heldSale.customer.value = _selectedCustomer;
     heldSale.branch.value = _selectedBranch;
@@ -1509,7 +1530,7 @@ class POSScreenController extends ChangeNotifier {
 
     try {
       _cart.addAll(heldSale.heldItems); // Load items from heldItems
-      _payments.addAll(heldSale.paymentTypes);
+      _payments.addAll(heldSale.allPaymentTypes);
       _selectedCustomer = heldSale.customer.value;
       _selectedCurrency = heldSale.currency.value;
       _ticketName = heldSale.ticketName;

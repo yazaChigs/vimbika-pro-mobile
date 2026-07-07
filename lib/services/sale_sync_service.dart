@@ -2,17 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart';
 import '../app_constants/app_constants.dart';
 import 'base_http_client.dart';
-import 'excel_export_service.dart';
 import '../model/sale.dart';
 import 'isar_service.dart';
 
 class SaleSyncService {
   static final SaleSyncService _instance = SaleSyncService._internal();
   final BaseHttpClient _client = BaseHttpClient();
-  final ExcelExportService _excelExportService = ExcelExportService();
   final IsarService _isarService = IsarService();
   Timer? _syncTimer;
   bool _isSyncing = false;
@@ -80,7 +77,7 @@ class SaleSyncService {
         return;
       }
 
-      List<Sale> unsyncedSales = await _isarService.getAllSales();
+      List<Sale> unsyncedSales = await _isarService.getUnsyncedSales();
 
       if (unsyncedSales.isEmpty) {
         debugPrint('No unsynced sales to process.');
@@ -89,7 +86,6 @@ class SaleSyncService {
       }
 
       debugPrint('Attempting to sync ${unsyncedSales.length} sales from Isar...');
-      print(unsyncedSales.first.isSynced);
 
       // Process sales one by one to avoid holding transactions open
       for (var sale in unsyncedSales) {
@@ -138,40 +134,13 @@ class SaleSyncService {
         }
       }
 
-      // Optional: Export to Excel after sync attempt
-      await _exportTodaysSalesToExcel(unsyncedSales);
-
     } catch (e) {
       debugPrint('An error occurred in syncSales: $e');
     } finally {
       _isSyncing = false;
       debugPrint('Sales sync finished.');
     }
-
-    await calculateSharedPreferencesSize();
   }
-
-  Future<void> _exportTodaysSalesToExcel(List<Sale> sales) async {
-    final now = DateTime.now();
-    final todaySales = sales.where((sale) {
-      if (sale.timeIniated == null || sale.saleStatus == 'Reversed') return false;
-      try {
-        final saleDate = DateFormat(AppConstants.APP_DATE_TIME_FMT).parse(sale.timeIniated!);
-        return saleDate.year == now.year &&
-               saleDate.month == now.month &&
-               saleDate.day == now.day;
-      } catch (e) {
-        return false;
-      }
-    }).toList();
-
-    if (todaySales.isNotEmpty) {
-      final fileName = 'sales_backup_${DateFormat('yyyy_MM_dd').format(now)}';
-      await _excelExportService.exportSalesToExcel(todaySales, fileName);
-      debugPrint('Exported ${todaySales.length} sales to Excel: $fileName');
-    }
-  }
-
 
   Future<List<Sale>> syncSelectedSales(List<Sale> sales, String companyId) async {
     List<Sale> syncedSales = [];
@@ -213,109 +182,4 @@ class SaleSyncService {
     return syncedSales;
   }
 
-
-  Future<void> calculateSharedPreferencesSize() async {
-    final prefs = await SharedPreferences.getInstance();
-    final keys = [
-      AppConstants.keyHasUser,
-      AppConstants.keyHasLoggedIn,
-      AppConstants.keyUserData,
-      AppConstants.keyOnlineUserData,
-      AppConstants.keyOfflineUserData,
-      AppConstants.keyAllUsers,
-      AppConstants.keyCompanyData,
-      AppConstants.keyOnlineCompanyData,
-      AppConstants.keyOfflineCompanyData,
-      AppConstants.keyDefaultBranch,
-      AppConstants.keyOfflineBranch,
-      AppConstants.keyBranches,
-      AppConstants.keyOfflineBranches,
-      AppConstants.keyUserRoles,
-      AppConstants.keySubscriptions,
-      AppConstants.keyOfflineSubscriptions,
-      AppConstants.keySubscriptionDaysRemaining,
-      AppConstants.keySelectedSubscription,
-      AppConstants.keySubscriptionEndDate,
-      AppConstants.keyConfig,
-      AppConstants.keyUnsyncedClosedShift,
-      AppConstants.keyCurrencies,
-      AppConstants.keyOfflineCurrencies,
-      AppConstants.keyTaxes,
-      AppConstants.keyOfflineTaxes,
-      AppConstants.keyCategories,
-      AppConstants.keyOfflineCategories,
-      AppConstants.keyExpenseCategories,
-      AppConstants.keyUnits,
-      AppConstants.keyOfflineUnits,
-      AppConstants.keyBanks,
-      AppConstants.keyOfflineBanks,
-      AppConstants.keyOfflinePendingBanks,
-      AppConstants.keyPaymentTypes,
-      AppConstants.keyOfflinePaymentTypes,
-      AppConstants.keySuppliers,
-      AppConstants.keyCustomers,
-      AppConstants.keyOfflineCustomers,
-      AppConstants.keySales,
-      AppConstants.keyOfflineSales,
-      AppConstants.keyPurchases,
-      AppConstants.keyInventoryItems,
-      AppConstants.keyOfflineInventoryItems,
-      AppConstants.keyExpenses,
-      AppConstants.keyOnlineExpenses,
-      AppConstants.keyBranchStock,
-      AppConstants.keyOfflineBranchStock,
-      AppConstants.keyOutOfStockItems,
-      AppConstants.keyLastSelectedDate,
-      AppConstants.keyPaymentsReceived,
-      AppConstants.keyOfflinePaymentsReceived,
-      AppConstants.keyPaymentsPaid,
-      AppConstants.keyMobileShifts,
-      AppConstants.keyOfflineMobileShifts,
-      AppConstants.keyCurrentOpenShift,
-      AppConstants.keyHeldSales,
-      AppConstants.keyUnsyncedReceivedPayments,
-      AppConstants.keyCachedPastShifts,
-      AppConstants.keyLastFetchedUserId,
-      AppConstants.keyAllowOutOfStockSales,
-      AppConstants.keyIsOfflineMode,
-      AppConstants.keyIsPriceInclusiveTax,
-      AppConstants.keyCompanySettings,
-      AppConstants.keyPrinterType,
-      AppConstants.keyPrinterMacAddress,
-      AppConstants.keyPrinterName,
-      AppConstants.keyAlwaysPrintReceipt,
-      AppConstants.keyNumberOfReceiptsPerSale,
-      AppConstants.keyUsbPrinterDevice,
-    ];
-
-    int totalSize = 0;
-
-    for (final key in keys) {
-      final dynamic value = prefs.get(key);
-      if (value == null) {
-        continue;
-      }
-
-      int size = 0;
-      if (value is String) {
-        size = utf8.encode(value).length;
-      } else if (value is bool) {
-        size = 1;
-      } else if (value is int) {
-        size = 8;
-      } else if (value is double) {
-        size = 8;
-      } else if (value is List<String>) {
-        for (final str in value) {
-          size += utf8.encode(str).length;
-        }
-      }
-      totalSize += size;
-      // debugPrint('Key: $key, Size: $size bytes');
-    }
-
-    debugPrint('Total SharedPreferences size: $totalSize bytes');
-    debugPrint('Total SharedPreferences size: ${totalSize / 1024} KB');
-    debugPrint('Total SharedPreferences size: ${totalSize / (1024 * 1024)} MB');
-  }
 }
