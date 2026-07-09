@@ -5,12 +5,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../account_settings_screen.dart';
 import '../../../printer_settings_screen.dart'; // Import the printer settings screen
 import 'bulk_price_adjustment_screen.dart';
+import 'fiscalization_settings_screen.dart';
 import 'configuration_settings_screen.dart';
 import 'general_settings_screen.dart';
 import 'help_support_screen.dart';
 import 'subscription_screen.dart';
 import 'sales_backup_screen.dart';
 import 'dart:convert';
+import 'package:vimbika_pro/services/printer_service.dart';
 import '../../../model/user.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -21,6 +23,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isOfflineMode = true; // Default to true
   User? _currentUser;
+  final PrinterService _printerService = PrinterService();
 
   @override
   void initState() {
@@ -57,6 +60,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     
     return false;
+  }
+
+  Future<void> _openDrawer() async {
+    try {
+      await _printerService.init();
+      await _printerService.openDrawer();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Drawer opening command sent')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening drawer: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -106,6 +127,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       );
                     },
                   ),
+                  _buildSettingItem(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'Fiscalization',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const FiscalizationSettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
                   if (_isOfflineMode) // Conditionally show Account settings
                     _buildSettingItem(
                       icon: Icons.person_outline,
@@ -130,6 +163,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       );
                     },
+                  ),
+                  _buildSettingItem(
+                    icon: Icons.money_outlined,
+                    title: 'Open Cash Drawer',
+                    onTap: _openDrawer,
                   ),
                   _buildSettingItem(
                     icon: Icons.settings_outlined,

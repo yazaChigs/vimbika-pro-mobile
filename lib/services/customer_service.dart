@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:collection/collection.dart';
 import 'package:vimbika_pro/services/customer_sync_service.dart';
 import '../app_constants/app_constants.dart';
 import '../model/customer.dart';
@@ -34,14 +35,47 @@ class CustomerService {
     // Save to shared preferences, overwriting existing synced customers
     // but preserving unsynced ones
     List<Customer> localCustomers = await getCustomersLocally();
-    List<Customer> unsyncedCustomers = localCustomers.where((c) => !c.isSynced).toList();
-
-    List<Customer> allCustomersToSave = [...customers, ...unsyncedCustomers];
-    final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
-    // We only fetch when online, but let's be safe. We save online customers to the general customer key.
-    if (!isOfflineMode) {
-      await prefs.setStringList(AppConstants.keyCustomers, allCustomersToSave.map((c) => jsonEncode(c.toJson())).toList());
+    
+    Map<String, Customer> mergedCustomers = {};
+    // Start with all currently known customers
+    for (var c in localCustomers) {
+      String key = c.id ?? 'name_${c.name.toLowerCase()}';
+      mergedCustomers[key] = c;
     }
+    
+    // Add/Update with newly fetched customers from API
+    for (var c in customers) {
+      if (c.id != null) {
+        // Find existing by ID or Name
+        String? existingKey = mergedCustomers.containsKey(c.id) 
+            ? c.id 
+            : mergedCustomers.keys.firstWhereOrNull((k) => 
+                mergedCustomers[k]!.name.toLowerCase() == c.name.toLowerCase()
+              );
+
+        if (existingKey == null) {
+          mergedCustomers[c.id!] = c;
+        } else {
+          final existing = mergedCustomers[existingKey]!;
+          // Only overwrite if the local version is already synced
+          if (existing.isSynced) {
+            // If ID changed (null -> real ID), remove old name-based key
+            if (existing.id == null) {
+              mergedCustomers.remove(existingKey);
+            }
+            mergedCustomers[c.id!] = c;
+          }
+        }
+      }
+    }
+    
+    final List<Customer> allCustomersToSave = mergedCustomers.values.toList();
+    final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
+    
+    // We always save to both keys or just the online key if we are online.
+    // To be safest, we save the full merged list to the appropriate key.
+    final String customerKey = isOfflineMode ? AppConstants.keyOfflineCustomers : AppConstants.keyCustomers;
+    await prefs.setStringList(customerKey, allCustomersToSave.map((c) => jsonEncode(c.toJson())).toList());
     
     return allCustomersToSave;
   }
@@ -191,19 +225,24 @@ class CustomerService {
     try {
       // Attempt to save to API
       final Customer apiCustomer = await saveCustomer(unsyncedCustomer);
-      
+      final Customer syncedCustomer = apiCustomer.copyWith(isSynced: true);
+
       // Update the locally stored customer with the API response (new ID, isSynced: true)
-      await removeCustomerLocally(unsyncedCustomer.id!); // Remove old unsynced entry
-      await saveCustomerLocally(apiCustomer.copyWith(isSynced: true)); // Save the new synced entry
-      
-      return apiCustomer;
+      // We remove by the OLD ID and then save the NEW one.
+      // saveCustomersLocally will handle merging and cleaning up other buckets.
+      // if (unsyncedCustomer.id != null) {
+      //   await removeCustomerLocally(unsyncedCustomer.id!);
+      // } // COMMENTED SO THAT CLIENT DOESNT IMMEDIATELY DISAPPEAR AFTER ADDING DEPOSIT
+      await saveCustomerLocally(syncedCustomer.copyWith(isSynced: true));
+
+      return syncedCustomer;
     } catch (e) {
       // If API sync fails, re-throw to indicate failure
       rethrow;
     }
   }
 
-  // Removes a customer from local storage by ID
+  // Removes a customer from local storage by ID from ALL buckets
   Future<void> removeCustomerLocally(String customerId) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     List<Customer> customers = await getCustomersLocally();

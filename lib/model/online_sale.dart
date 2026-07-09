@@ -56,6 +56,7 @@ class OnlineSale {
   final String? ticketName;
   final String? ticketComment;
   final double? totalQuantity;
+  final double? totalDiscount;
   final String? amtToAcc;
   final String? customerAccBankType;
 
@@ -113,6 +114,7 @@ class OnlineSale {
     this.ticketName,
     this.ticketComment,
     this.totalQuantity,
+    this.totalDiscount,
     this.amtToAcc,
     this.customerAccBankType,
   });
@@ -178,6 +180,7 @@ class OnlineSale {
       ticketName: json['ticketName']?.toString(),
       ticketComment: json['ticketComment']?.toString(),
       totalQuantity: parseDouble(json['totalQuantity']),
+      totalDiscount: parseDouble(json['totalDiscount']),
       amtToAcc: json['amtToAcc']?.toString(),
       customerAccBankType: json['customerAccBankType']?.toString(),
     );
@@ -233,6 +236,7 @@ class OnlineSale {
       'ticketName': ticketName,
       'ticketComment': ticketComment,
       'totalQuantity': totalQuantity,
+      'totalDiscount': totalDiscount,
       'amtToAcc': amtToAcc,
       'customerAccBankType': customerAccBankType,
     };

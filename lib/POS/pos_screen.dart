@@ -662,17 +662,52 @@ class POSScreen extends StatelessWidget {
         const SizedBox(height: 4), // Reduced height
         // New "Print Receipt" checkbox
         if (controller.cart.isNotEmpty)
-          SwitchListTile(
-            title: const Text('Print Receipt for this Sale', style: TextStyle(fontSize: 15)),
-            value: controller.printReceiptForThisSale,
-            onChanged: (value) {
-              controller.printReceiptForThisSale = value;
-            },
-            secondary: const Icon(Icons.print, size: 22),
-            contentPadding: EdgeInsets.zero, // Adjust padding as needed
-            dense: true, // Make SwitchListTile more compact
+          Row(
+            children: [
+              Expanded(
+                child: SwitchListTile(
+                  title: const Text('Print Receipt', style: TextStyle(fontSize: 13)),
+                  value: controller.printReceiptForThisSale,
+                  onChanged: (value) {
+                    controller.printReceiptForThisSale = value;
+                  },
+                  secondary: const Icon(Icons.print, size: 20),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+              Expanded(
+                child: SwitchListTile(
+                  title: const Text('Fiscalize', style: TextStyle(fontSize: 13)),
+                  value: controller.fiscalizeThisSale,
+                  onChanged: !controller.isFiscalisationEnabled ? null : (value) {
+                    controller.fiscalizeThisSale = value;
+                  },
+                  secondary: const Icon(Icons.receipt_long, size: 20),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+            ],
           ),
         const SizedBox(height: 4), // Reduced height
+        if (controller.useKOT && controller.cart.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => controller.printKOT(),
+                icon: const Icon(Icons.restaurant, size: 18, color: AppTheme.vimbikaBlue),
+                label: const Text('Print KOT', style: TextStyle(fontSize: 14, color: AppTheme.vimbikaBlue)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  side: const BorderSide(color: AppTheme.vimbikaBlue),
+                ),
+              ),
+            ),
+          ),
         if (controller.balanceDueConverted > 0.01 || (controller.cart.isEmpty && controller.selectedCustomer != null))
           Column(
             children: [
@@ -946,6 +981,11 @@ class POSScreen extends StatelessWidget {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
+                              IconButton(
+                                icon: const Icon(Icons.print, color: AppTheme.vimbikaBlue, size: 18),
+                                tooltip: 'Print Bill',
+                                onPressed: () => controller.printBill(sale),
+                              ),
                               IconButton(
                                 icon: const Icon(Icons.play_arrow, color: Colors.green, size: 18), // Reduced icon size
                                 tooltip: 'Load Sale',

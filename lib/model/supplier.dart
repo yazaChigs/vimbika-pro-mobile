@@ -30,7 +30,7 @@ class Supplier extends BaseEntity {
 
   factory Supplier.fromJson(Map<String, dynamic> json) {
     return Supplier(
-      id: json['id'],
+      id: json['id']?.toString(),
       dateCreated: json['dateCreated'] ,
       dateModified: json['dateModified'],
       createdByName: json['createdByName'],

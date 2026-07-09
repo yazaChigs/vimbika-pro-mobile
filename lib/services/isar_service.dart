@@ -78,19 +78,26 @@ class IsarService {
       if (cca.currency.value != null) isar.currencys.putSync(cca.currency.value!);
       isar.customerCurrencyAmounts.putSync(cca);
     }
-    isar.customers.putSync(customer);
+    customer.isarId = isar.customers.putSync(customer);
+    if (customer.currencyBalanceLinks.isAttached) {
+      customer.currencyBalanceLinks.saveSync();
+    }
   }
 
   void _putPaymentReceivedSync(Isar isar, PaymentReceived payment) {
     if (payment.paymentType.value != null) {
       final pt = payment.paymentType.value!;
-      if (pt.banks != null && pt.banks!.isNotEmpty) {
-        for (var bank in pt.banks!) {
+      pt.syncListToIsarLinks();
+      if (pt.allBanks.isNotEmpty) {
+        for (var bank in pt.allBanks) {
           isar.banks.putSync(bank);
         }
       }
       if (pt.currency.value != null) isar.currencys.putSync(pt.currency.value!);
-      isar.paymentTypes.putSync(pt);
+      pt.isarId = isar.paymentTypes.putSync(pt);
+      if (pt.banks.isAttached) {
+        pt.banks.saveSync();
+      }
     }
     if (payment.currency.value != null) isar.currencys.putSync(payment.currency.value!);
     if (payment.branch.value != null) {
@@ -99,7 +106,10 @@ class IsarService {
       isar.branchs.putSync(b);
     }
     if (payment.bank.value != null) isar.banks.putSync(payment.bank.value!);
-    isar.paymentReceiveds.putSync(payment);
+    payment.isarId = isar.paymentReceiveds.putSync(payment);
+    if (payment.bank.isAttached) {
+      payment.bank.saveSync();
+    }
   }
 
   Future<void> completeSaleTransaction(Sale sale, List<PaymentReceived> paymentTypes, List<SaleItem> items, List<Customer> customersToUpdate, ) async {
@@ -116,7 +126,7 @@ class IsarService {
         if (item.inventoryItem.value != null) {
           _putInventoryItemSync(isar, item.inventoryItem.value!);
         }
-        isar.saleItems.putSync(item);
+        item.isarId = isar.saleItems.putSync(item);
       }
 
       // 3. Put PaymentReceived and their nested entities
@@ -139,10 +149,15 @@ class IsarService {
       if (sale.baseCurrency.value != null) isar.currencys.putSync(sale.baseCurrency.value!);
 
       // 5. Now, put the Sale itself
-      isar.sales.putSync(sale);
-      sale.items.saveSync();
-      sale.paymentTypes.saveSync();
+      sale.isarId = isar.sales.putSync(sale);
+      if (sale.items.isAttached) {
+        sale.items.saveSync();
+      }
+      if (sale.paymentTypes.isAttached) {
+        sale.paymentTypes.saveSync();
+      }
     });
+    print('totalDiscount after: ${sale.totalDiscount}');
   }
 
   Future<void> saveSale(Sale sale) async {
@@ -154,7 +169,7 @@ class IsarService {
         if (item.inventoryItem.value != null) {
           _putInventoryItemSync(isar, item.inventoryItem.value!);
         }
-        isar.saleItems.putSync(item);
+        item.isarId = isar.saleItems.putSync(item);
       }
 
       // 2. Put PaymentReceived objects
@@ -177,9 +192,13 @@ class IsarService {
       if (sale.baseCurrency.value != null) isar.currencys.putSync(sale.baseCurrency.value!);
 
       // 4. Now put the Sale object.
-      isar.sales.putSync(sale);
-      sale.items.saveSync();
-      sale.paymentTypes.saveSync();
+      sale.isarId = isar.sales.putSync(sale);
+      if (sale.items.isAttached) {
+        sale.items.saveSync();
+      }
+      if (sale.paymentTypes.isAttached) {
+        sale.paymentTypes.saveSync();
+      }
     });
   }
 
@@ -209,9 +228,40 @@ class IsarService {
     final isar = await db;
     isar.writeTxnSync(() {
       sale.syncListsToLinks();
-      isar.sales.putSync(sale);
-      sale.items.saveSync();
-      sale.paymentTypes.saveSync();
+      // 1. Put all SaleItems
+      for (var item in sale.allItems) {
+        if (item.inventoryItem.value != null) {
+          _putInventoryItemSync(isar, item.inventoryItem.value!);
+        }
+        item.isarId = isar.saleItems.putSync(item);
+      }
+
+      // 2. Put PaymentReceived objects
+      for (var payment in sale.allPaymentTypes) {
+        if (payment.payer.value != null) {
+          _putCustomerSync(isar, payment.payer.value!);
+        }
+        _putPaymentReceivedSync(isar, payment);
+      }
+
+      // 3. Put the Sale's direct related entities
+      if (sale.customer.value != null) _putCustomerSync(isar, sale.customer.value!);
+      if (sale.company.value != null) isar.companys.putSync(sale.company.value!);
+      if (sale.branch.value != null) {
+        final b = sale.branch.value!;
+        if (b.company.value != null) isar.companys.putSync(b.company.value!);
+        isar.branchs.putSync(b);
+      }
+      if (sale.currency.value != null) isar.currencys.putSync(sale.currency.value!);
+      if (sale.baseCurrency.value != null) isar.currencys.putSync(sale.baseCurrency.value!);
+
+      sale.isarId = isar.sales.putSync(sale);
+      if (sale.items.isAttached) {
+        sale.items.saveSync();
+      }
+      if (sale.paymentTypes.isAttached) {
+        sale.paymentTypes.saveSync();
+      }
     });
   }
 
@@ -235,7 +285,7 @@ class IsarService {
         }
 
         // 3. Put the BranchStock now that dependencies are saved
-        isar.branchStocks.putSync(stock);
+        stock.isarId = isar.branchStocks.putSync(stock);
       }
     });
   }

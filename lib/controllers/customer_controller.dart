@@ -82,6 +82,10 @@ class CustomerController extends ChangeNotifier {
   }
 
   Future<void> loadDataFromLocal() async {
+
+
+    List<Customer> unsyncedCustomers =  await _customerService.getUnsyncedCustomers();
+    print(unsyncedCustomers.length);
     _setLoading(true);
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -148,9 +152,11 @@ class CustomerController extends ChangeNotifier {
     try {
       // Sync unsynced customers
       List<Customer> unsyncedCustomers = await _customerService.getUnsyncedCustomers();
+      print(unsyncedCustomers.length);
       if (unsyncedCustomers.isNotEmpty) {
         debugPrint('Attempting to sync ${unsyncedCustomers.length} unsynced customers...');
         for (Customer customer in unsyncedCustomers) {
+          print(customer.toJson());
           try {
             await _customerService.syncCustomer(customer);
           } catch (e) {
@@ -277,49 +283,40 @@ class CustomerController extends ChangeNotifier {
         notes: isDeposit ? 'Customer deposit from mobile app' : 'Balance addition from mobile app',
         isMobile: true,
         isSynced: false,
+        paymentType: selectedPaymentType,
+        payer: customer,
+        currency: selectedCurrency,
+        branch: defaultBranch ?? customer.branch.value,
+        bank: selectedBank,
       );
 
-      newPayment.paymentType.value = selectedPaymentType;
-      newPayment.payer.value = customer;
-      newPayment.currency.value = selectedCurrency;
-      newPayment.branch.value = defaultBranch ?? customer.branch.value;
-      newPayment.bank.value = selectedBank;
-
-      int customerIndex = _customers.indexWhere((c) => c.id == customer.id);
+      int customerIndex = _customers.indexWhere((c) => 
+        (customer.id != null && c.id == customer.id) ||
+        (c.name.toLowerCase() == customer.name.toLowerCase())
+      );
       if (customerIndex != -1) {
         Customer currentLocalCustomer = _customers[customerIndex];
+        
+        // Create a new list of CCA objects to avoid modifying the original one in-place
+        List<CustomerCurrencyAmount> updatedCurrencyBalance = 
+            currentLocalCustomer.currencyBalance.map((cca) => cca.copyWith()).toList();
 
-        CustomerCurrencyAmount? existingCca = currentLocalCustomer.currencyBalance
+        CustomerCurrencyAmount? existingCca = updatedCurrencyBalance
             .firstWhereOrNull((cca) => cca.currency.value?.id == selectedCurrency.id);
 
         if (existingCca != null) {
           existingCca.balance += amount;
         } else {
-          final newCca = CustomerCurrencyAmount(balance: amount);
-          newCca.currency.value = selectedCurrency;
-          currentLocalCustomer.currencyBalance.add(newCca);
+          updatedCurrencyBalance.add(CustomerCurrencyAmount(
+            currency: selectedCurrency,
+            balance: amount,
+          ));
         }
 
-        final updatedCustomer = Customer(
-          id: currentLocalCustomer.id,
-          dateCreated: currentLocalCustomer.dateCreated,
-          dateModified: currentLocalCustomer.dateModified,
-          createdByName: currentLocalCustomer.createdByName,
-          modifiedByName: currentLocalCustomer.modifiedByName,
-          version: currentLocalCustomer.version,
-          name: currentLocalCustomer.name,
-          email: currentLocalCustomer.email,
-          mobilePhone: currentLocalCustomer.mobilePhone,
-          address: currentLocalCustomer.address,
-          accountNumber: currentLocalCustomer.accountNumber,
-          taxNumber: currentLocalCustomer.taxNumber,
-          tinNumber: currentLocalCustomer.tinNumber,
-          isSynced: false, // Mark as unsynced
+        final updatedCustomer = currentLocalCustomer.copyWith(
+          isSynced: false,
+          currencyBalance: updatedCurrencyBalance,
         );
-
-        updatedCustomer.currencyBalance.addAll(currentLocalCustomer.currencyBalance);
-        updatedCustomer.company.value = currentLocalCustomer.company.value;
-        updatedCustomer.branch.value = currentLocalCustomer.branch.value;
 
         _customers[customerIndex] = updatedCustomer;
         await _customerService.saveCustomerLocally(updatedCustomer);
@@ -327,6 +324,9 @@ class CustomerController extends ChangeNotifier {
         if (!_isDisposed) {
           notifyListeners();
         }
+      }
+      if (newPayment.bank.value != null) {
+        debugPrint('Bank added to payment: ${newPayment.bank.value!.name}');
       }
 
       final savedPayment = await _paymentsService.savePaymentReceived(newPayment);
@@ -344,7 +344,7 @@ class CustomerController extends ChangeNotifier {
               ? 'Customer Deposit for ${customer.name}'
               : 'Account Top-up for ${customer.name}',
           amountType: isDeposit ? 'CUSTOMER_DEPOSIT' : 'ACCOUNT_TOP_UP',
-          ref: savedPayment.id.toString() ?? 'payment_${DateTime.now().millisecondsSinceEpoch}',
+          ref: savedPayment.id ?? 'payment_${DateTime.now().millisecondsSinceEpoch}',
           posReference: '${customer.name}${DateTime.now().microsecondsSinceEpoch}',
           shiftReference: currentShift.shiftReference,
           isCash: selectedPaymentType.isCash,

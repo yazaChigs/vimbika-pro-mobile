@@ -192,10 +192,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
     if (isConnected && !isOfflineMode) {
       try {
-        final savedCustomer = await _customerService.saveCustomer(customer);
-        // Update local storage with the API-saved customer, marking as synced
-         _customerService.saveCustomerLocally(savedCustomer.copyWith(isSynced: true));
-        debugPrint('Customer synced to API successfully: ${savedCustomer.id}');
+        final syncedCustomer = await _customerService.syncCustomer(customer);
+        debugPrint('Customer synced to API successfully: ${syncedCustomer.id}');
       } catch (e) {
         debugPrint('Failed to sync customer ${customer.id} to API: $e');
         // Customer remains unsynced locally. A separate retry mechanism will handle this.

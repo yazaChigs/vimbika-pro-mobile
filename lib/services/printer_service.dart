@@ -13,6 +13,7 @@ import 'package:sunmi_printer_plus/sunmi_style.dart';
 import 'package:vimbika_pro/app_constants/app_constants.dart';
 import 'package:vimbika_pro/model/product_feature.dart';
 import 'package:vimbika_pro/model/sale.dart';
+import 'package:vimbika_pro/model/sale_item.dart';
 import 'package:vimbika_pro/model/mobile_pos_shift.dart';
 import 'package:vimbika_pro/model/currency.dart';
 import 'package:vimbika_pro/model/company.dart'; // Import the Company model
@@ -112,6 +113,9 @@ class PrinterService {
   bool _sunmiBound = false;
   bool _alwaysPrintReceipt = true; // Changed default to true
   int _numberOfReceiptsPerSale = 1; // Added for the new setting
+  bool _openCashDrawer = false;
+  bool _fiscalisationEnabled = false;
+  bool _alwaysFiscalize = false;
   bool _waScan = false;
 
   // USB Printer specific variables
@@ -156,6 +160,9 @@ class PrinterService {
     // Load the new settings
     _alwaysPrintReceipt = prefs.getBool(AppConstants.keyAlwaysPrintReceipt) ?? true; // Changed default to true
     _numberOfReceiptsPerSale = prefs.getInt(AppConstants.keyNumberOfReceiptsPerSale) ?? 1;
+    _openCashDrawer = prefs.getBool(AppConstants.keyOpenCashDrawer) ?? false;
+    _fiscalisationEnabled = prefs.getBool(AppConstants.keyFiscalisationEnabled) ?? false;
+    _alwaysFiscalize = prefs.getBool(AppConstants.keyAlwaysFiscalize) ?? false;
     final String? settings = prefs.getString(AppConstants.keyCompanySettings);
     if (settings != null) {
       final json = jsonDecode(settings);
@@ -182,6 +189,9 @@ class PrinterService {
     // Save the new settings
     await prefs.setBool(AppConstants.keyAlwaysPrintReceipt, _alwaysPrintReceipt);
     await prefs.setInt(AppConstants.keyNumberOfReceiptsPerSale, _numberOfReceiptsPerSale);
+    await prefs.setBool(AppConstants.keyOpenCashDrawer, _openCashDrawer);
+    await prefs.setBool(AppConstants.keyFiscalisationEnabled, _fiscalisationEnabled);
+    await prefs.setBool(AppConstants.keyAlwaysFiscalize, _alwaysFiscalize);
   }
 
   Future<void> _initPrinters() async {
@@ -411,9 +421,60 @@ class PrinterService {
     await _savePrinterSettings();
   }
 
+  bool getOpenCashDrawer() {
+    return _openCashDrawer;
+  }
+
+  Future<void> setOpenCashDrawer(bool value) async {
+    _openCashDrawer = value;
+    await _savePrinterSettings();
+  }
+
+  bool getFiscalisationEnabled() {
+    return _fiscalisationEnabled;
+  }
+
+  Future<void> setFiscalisationEnabled(bool value) async {
+    _fiscalisationEnabled = value;
+    await _savePrinterSettings();
+  }
+
+  bool getAlwaysFiscalize() {
+    return _alwaysFiscalize;
+  }
+
+  Future<void> setAlwaysFiscalize(bool value) async {
+    _alwaysFiscalize = value;
+    await _savePrinterSettings();
+  }
+
+  Future<void> openDrawer() async {
+    try {
+      if (_printerType == PrinterTypes.sunmi) {
+        await SunmiPrinter.openDrawer();
+      } else {
+        // For Bluetooth and USB printers, we send the ESC/POS open drawer command.
+        final profile = await CapabilityProfile.load();
+        final Generator generator = Generator(PaperSize.mm58, profile);
+        List<int> bytes = generator.drawer();
+        if (_printerType == PrinterTypes.bluetooth) {
+          await _printerManager.send(type: PrinterType.bluetooth, bytes: bytes);
+        } else if (_printerType == PrinterTypes.usb) {
+          await _printerManager.send(type: PrinterType.usb, bytes: bytes);
+        }
+      }
+    } catch (e) {
+      print("Error opening drawer: $e");
+    }
+  }
+
   Future<void> printPaymentReceipt(PaymentReceived payment) async {
     if (!_isConnected) {
       return;
+    }
+
+    if (_openCashDrawer) {
+      await openDrawer();
     }
 
     try {
@@ -466,6 +527,10 @@ class PrinterService {
       return;
     }
 
+    if (_openCashDrawer) {
+      await openDrawer();
+    }
+
     try {
       for (int i = 0; i < _numberOfReceiptsPerSale; i++) {
         if (_printerType == PrinterTypes.bluetooth) {
@@ -483,6 +548,351 @@ class PrinterService {
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// Prints a Kitchen Order Ticket (KOT).
+  Future<void> printKOT(List<SaleItem> items, {String? ticketName, String? orderNumber}) async {
+    if (!_isConnected) {
+      return;
+    }
+
+    try {
+      if (_printerType == PrinterTypes.bluetooth) {
+        await _printBluetoothKOT(items, ticketName: ticketName, orderNumber: orderNumber);
+      } else if (_printerType == PrinterTypes.sunmi) {
+        await _printSunmiKOT(items, ticketName: ticketName, orderNumber: orderNumber);
+      } else if (_printerType == PrinterTypes.usb) {
+        await _printUsbKOT(items, ticketName: ticketName, orderNumber: orderNumber);
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> _printBluetoothKOT(List<SaleItem> items, {String? ticketName, String? orderNumber}) async {
+    if (!(Platform.isAndroid || Platform.isIOS)) return;
+    if (_selectedBluetoothDevice == null || !_isConnected) {
+      throw Exception('Bluetooth printer not selected or not connected.');
+    }
+
+    List<int> bytes = [];
+    final profile = await CapabilityProfile.load();
+    final Generator generator = Generator(PaperSize.mm58, profile);
+
+    bytes += generator.text("KITCHEN ORDER TICKET", styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+    
+    if (orderNumber != null) {
+      bytes += generator.text("Order #: $orderNumber", styles: const PosStyles(align: PosAlign.left, bold: true));
+    }
+    if (ticketName != null) {
+      bytes += generator.text("Ticket: $ticketName", styles: const PosStyles(align: PosAlign.left, bold: true));
+    }
+    bytes += generator.text("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}", styles: const PosStyles(align: PosAlign.left));
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+    bytes += generator.text("Item", styles: const PosStyles(align: PosAlign.left, bold: true));
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+
+    for (var item in items) {
+      String name = (item.inventoryItem.value?.name ?? "Item");
+      String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
+      
+      bytes += generator.text(name, styles: const PosStyles(align: PosAlign.left, bold: true));
+      bytes += generator.text(qty, styles: const PosStyles(align: PosAlign.left));
+      bytes += generator.text(" ", styles: const PosStyles(align: PosAlign.left)); // Spacer
+    }
+
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+    bytes += generator.feed(2);
+    bytes += generator.cut();
+
+    await _printerManager.send(type: PrinterType.bluetooth, bytes: bytes);
+  }
+
+  Future<void> _printSunmiKOT(List<SaleItem> items, {String? ticketName, String? orderNumber}) async {
+    await SunmiPrinter.initPrinter();
+    await SunmiPrinter.startTransactionPrint(true);
+
+    await SunmiPrinter.printText('KITCHEN ORDER TICKET\n', style: SunmiStyle(fontSize: SunmiFontSize.XL, align: SunmiPrintAlign.CENTER, bold: true));
+    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+
+    if (orderNumber != null) {
+      await SunmiPrinter.printText("Order #: $orderNumber\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true));
+    }
+    if (ticketName != null) {
+      await SunmiPrinter.printText("Ticket: $ticketName\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true));
+    }
+    await SunmiPrinter.printText("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    await SunmiPrinter.printText("Item\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true));
+    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+
+    for (var item in items) {
+      String name = (item.inventoryItem.value?.name ?? "Item");
+      String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
+      
+      await SunmiPrinter.printText("$name\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true, fontSize: SunmiFontSize.LG));
+      await SunmiPrinter.printText("$qty\n\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    }
+
+    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    await SunmiPrinter.lineWrap(3);
+    await SunmiPrinter.exitTransactionPrint(true);
+  }
+
+  Future<void> _printUsbKOT(List<SaleItem> items, {String? ticketName, String? orderNumber}) async {
+    if (_selectedUsbDevice == null || !_isConnected) {
+      throw Exception('USB printer not selected or not connected.');
+    }
+
+    List<int> bytes = [];
+    final profile = await CapabilityProfile.load();
+    final Generator generator = Generator(PaperSize.mm80, profile);
+
+    bytes += generator.text("KITCHEN ORDER TICKET", styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+    
+    if (orderNumber != null) {
+      bytes += generator.text("Order #: $orderNumber", styles: const PosStyles(align: PosAlign.left, bold: true));
+    }
+    if (ticketName != null) {
+      bytes += generator.text("Ticket: $ticketName", styles: const PosStyles(align: PosAlign.left, bold: true));
+    }
+    bytes += generator.text("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}", styles: const PosStyles(align: PosAlign.left));
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+    bytes += generator.text("Item", styles: const PosStyles(align: PosAlign.left, bold: true));
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+
+    for (var item in items) {
+      String name = (item.inventoryItem.value?.name ?? "Item");
+      String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
+      
+      bytes += generator.text(name, styles: const PosStyles(align: PosAlign.left, bold: true));
+      bytes += generator.text(qty, styles: const PosStyles(align: PosAlign.left));
+      bytes += generator.text(" ", styles: const PosStyles(align: PosAlign.left)); // Spacer
+    }
+
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+    bytes += generator.feed(2);
+    bytes += generator.cut();
+
+    await _printerManager.send(type: PrinterType.usb, bytes: bytes);
+  }
+
+  /// Prints a bill for a held sale.
+  Future<void> printBill(Sale sale, {List<Currency>? currencies}) async {
+    if (!_isConnected) {
+      return;
+    }
+
+    try {
+      if (_printerType == PrinterTypes.bluetooth) {
+        await _printBluetoothBill(sale, currencies: currencies);
+      } else if (_printerType == PrinterTypes.sunmi) {
+        await _printSunmiBill(sale, currencies: currencies);
+      } else if (_printerType == PrinterTypes.usb) {
+        await _printUsbBill(sale, currencies: currencies);
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> _printBluetoothBill(Sale sale, {List<Currency>? currencies}) async {
+    if (!(Platform.isAndroid || Platform.isIOS)) return;
+    if (_selectedBluetoothDevice == null || !_isConnected) {
+      throw Exception('Bluetooth printer not selected or not connected.');
+    }
+
+    List<int> bytes = [];
+    final profile = await CapabilityProfile.load();
+    final Generator generator = Generator(PaperSize.mm58, profile);
+
+    // Header
+    bytes += generator.text("BILL", styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+
+    bytes += generator.text(sale.company.value?.name ?? "Vimbika Pro", styles: const PosStyles(align: PosAlign.center, bold: true));
+    if (sale.branch.value != null) {
+      bytes += generator.text(sale.branch.value!.name ?? "", styles: const PosStyles(align: PosAlign.center));
+    }
+    bytes += generator.text("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}", styles: const PosStyles(align: PosAlign.left));
+    if (sale.ticketName != null) {
+      bytes += generator.text("Ticket: ${sale.ticketName}", styles: const PosStyles(align: PosAlign.left));
+    }
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+
+    double baseGrandTotal = sale.allItems.fold(0.0, (sum, item) => sum + item.total);
+    if (baseGrandTotal == 0 && sale.heldItems.isNotEmpty) {
+      baseGrandTotal = sale.ticketTotal;
+    }
+
+    String currentSymbol = sale.currency.value?.symbol ?? "";
+    double currentRate = sale.currency.value?.rate ?? 1.0;
+    
+    for (var item in (sale.allItems.isNotEmpty ? sale.allItems : sale.heldItems)) {
+      String name = (item.inventoryItem.value?.name ?? "Item");
+      bytes += generator.text(name, styles: const PosStyles(align: PosAlign.left));
+      String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
+      String total = "$currentSymbol${(item.total * currentRate).toStringAsFixed(2)}";
+      bytes += generator.text(_alignLeftRight(qty, total), styles: const PosStyles(align: PosAlign.left));
+    }
+
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+    bytes += generator.text(_alignLeftRight("TOTAL:", "$currentSymbol${(baseGrandTotal * currentRate).toStringAsFixed(2)}"), styles: const PosStyles(align: PosAlign.left, bold: true));
+    
+    if (currencies != null && currencies.isNotEmpty) {
+      bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+      bytes += generator.text("Other Currencies:", styles: const PosStyles(align: PosAlign.left, bold: true));
+      for (var currency in currencies) {
+        if (currency.id == sale.currency.value?.id) continue;
+        double convertedTotal = baseGrandTotal * (currency.rate ?? 1.0);
+        String symbol = currency.symbol ?? "";
+        bytes += generator.text(_alignLeftRight("${currency.name ?? currency.code}:", "$symbol${convertedTotal.toStringAsFixed(2)}"), styles: const PosStyles(align: PosAlign.left));
+      }
+    }
+    
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+
+    bytes += generator.feed(1);
+    bytes += generator.text("Tip: ________________________", styles: const PosStyles(align: PosAlign.left));
+    bytes += generator.feed(1);
+    bytes += generator.text("Total: ______________________", styles: const PosStyles(align: PosAlign.left));
+    bytes += generator.feed(1);
+    bytes += generator.text("Signature: __________________", styles: const PosStyles(align: PosAlign.left));
+    
+    bytes += generator.feed(2);
+    bytes += generator.cut();
+
+    await _printerManager.send(type: PrinterType.bluetooth, bytes: bytes);
+  }
+
+  Future<void> _printSunmiBill(Sale sale, {List<Currency>? currencies}) async {
+    await SunmiPrinter.initPrinter();
+    await SunmiPrinter.startTransactionPrint(true);
+
+    await SunmiPrinter.printText('BILL\n', style: SunmiStyle(fontSize: SunmiFontSize.XL, align: SunmiPrintAlign.CENTER, bold: true));
+    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+
+    await SunmiPrinter.printText("${sale.company.value?.name ?? "Vimbika Pro"}\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER, bold: true));
+    if (sale.branch.value != null) {
+      await SunmiPrinter.printText("${sale.branch.value!.name ?? ""}\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    }
+    await SunmiPrinter.printText("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    if (sale.ticketName != null) {
+      await SunmiPrinter.printText("Ticket: ${sale.ticketName}\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    }
+    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+
+    double baseGrandTotal = sale.allItems.fold(0.0, (sum, item) => sum + item.total);
+    if (baseGrandTotal == 0 && sale.heldItems.isNotEmpty) {
+      baseGrandTotal = sale.ticketTotal;
+    }
+
+    String currentSymbol = sale.currency.value?.symbol ?? "";
+    double currentRate = sale.currency.value?.rate ?? 1.0;
+
+    for (var item in (sale.allItems.isNotEmpty ? sale.allItems : sale.heldItems)) {
+      String name = (item.inventoryItem.value?.name ?? "Item");
+      await SunmiPrinter.printText("$name\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+      String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
+      String total = "$currentSymbol${(item.total * currentRate).toStringAsFixed(2)}";
+      await SunmiPrinter.printText("${_alignLeftRight(qty, total)}\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    }
+
+    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    await SunmiPrinter.printText("${_alignLeftRight("TOTAL:", "$currentSymbol${(baseGrandTotal * currentRate).toStringAsFixed(2)}")}\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true));
+    
+    if (currencies != null && currencies.isNotEmpty) {
+      await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+      await SunmiPrinter.printText("Other Currencies:\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true));
+      for (var currency in currencies) {
+        if (currency.id == sale.currency.value?.id) continue;
+        double convertedTotal = baseGrandTotal * (currency.rate ?? 1.0);
+        String symbol = currency.symbol ?? "";
+        await SunmiPrinter.printText("${_alignLeftRight("${currency.name ?? currency.code}:", "$symbol${convertedTotal.toStringAsFixed(2)}")}\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+      }
+    }
+
+    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+
+    await SunmiPrinter.lineWrap(1);
+    await SunmiPrinter.printText("Tip: ________________________\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    await SunmiPrinter.lineWrap(1);
+    await SunmiPrinter.printText("Total: ______________________\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    await SunmiPrinter.lineWrap(1);
+    await SunmiPrinter.printText("Signature: __________________\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+
+    await SunmiPrinter.lineWrap(3);
+    await SunmiPrinter.exitTransactionPrint(true);
+  }
+
+  Future<void> _printUsbBill(Sale sale, {List<Currency>? currencies}) async {
+    if (_selectedUsbDevice == null || !_isConnected) {
+      throw Exception('USB printer not selected or not connected.');
+    }
+
+    List<int> bytes = [];
+    final profile = await CapabilityProfile.load();
+    final Generator generator = Generator(PaperSize.mm80, profile);
+
+    // Header
+    bytes += generator.text("BILL", styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+
+    bytes += generator.text(sale.company.value?.name ?? "Vimbika Pro", styles: const PosStyles(align: PosAlign.center, bold: true));
+    if (sale.branch.value != null) {
+      bytes += generator.text(sale.branch.value!.name ?? "", styles: const PosStyles(align: PosAlign.center));
+    }
+    bytes += generator.text("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}", styles: const PosStyles(align: PosAlign.left));
+    if (sale.ticketName != null) {
+      bytes += generator.text("Ticket: ${sale.ticketName}", styles: const PosStyles(align: PosAlign.left));
+    }
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+
+    double baseGrandTotal = sale.allItems.fold(0.0, (sum, item) => sum + item.total);
+    if (baseGrandTotal == 0 && sale.heldItems.isNotEmpty) {
+      baseGrandTotal = sale.ticketTotal;
+    }
+
+    String currentSymbol = sale.currency.value?.symbol ?? "";
+    double currentRate = sale.currency.value?.rate ?? 1.0;
+
+    for (var item in (sale.allItems.isNotEmpty ? sale.allItems : sale.heldItems)) {
+      String name = (item.inventoryItem.value?.name ?? "Item");
+      bytes += generator.text(name, styles: const PosStyles(align: PosAlign.left));
+      String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
+      String total = "$currentSymbol${(item.total * currentRate).toStringAsFixed(2)}";
+      bytes += generator.text(_alignLeftRight(qty, total, width: 48), styles: const PosStyles(align: PosAlign.left));
+    }
+
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+    bytes += generator.text(_alignLeftRight("TOTAL:", "$currentSymbol${(baseGrandTotal * currentRate).toStringAsFixed(2)}", width: 48), styles: const PosStyles(align: PosAlign.left, bold: true));
+    
+    if (currencies != null && currencies.isNotEmpty) {
+      bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+      bytes += generator.text("Other Currencies:", styles: const PosStyles(align: PosAlign.left, bold: true));
+      for (var currency in currencies) {
+        if (currency.id == sale.currency.value?.id) continue;
+        double convertedTotal = baseGrandTotal * (currency.rate ?? 1.0);
+        String symbol = currency.symbol ?? "";
+        bytes += generator.text(_alignLeftRight("${currency.name ?? currency.code}:", "$symbol${convertedTotal.toStringAsFixed(2)}", width: 48), styles: const PosStyles(align: PosAlign.left));
+      }
+    }
+
+    bytes += generator.text("--------------------------------", styles: const PosStyles(align: PosAlign.center));
+
+    bytes += generator.feed(1);
+    bytes += generator.text("Tip: ________________________", styles: const PosStyles(align: PosAlign.left));
+    bytes += generator.feed(1);
+    bytes += generator.text("Total: ______________________", styles: const PosStyles(align: PosAlign.left));
+    bytes += generator.feed(1);
+    bytes += generator.text("Signature: __________________", styles: const PosStyles(align: PosAlign.left));
+    
+    bytes += generator.feed(2);
+    bytes += generator.cut();
+
+    await _printerManager.send(type: PrinterType.usb, bytes: bytes);
   }
 
   Future<void> _printBluetoothSale(Sale sale) async {
@@ -599,12 +1009,12 @@ class PrinterService {
     }
 
     Currency? cur = sale.currency.value;
-    if((sale.allPaymentTypes.any((pt) => pt.paymentType.value?.name.contains('ACC-') ?? false)) && sale.customer.value != null && sale.customer.value!.currencyBalance != null && sale.customer.value!.currencyBalance!.isNotEmpty) {
-      final balanceItem = sale.customer.value!.currencyBalance!.firstWhere(
+    if((sale.allPaymentTypes.any((pt) => pt.paymentType.value?.name.contains('ACC-') ?? false)) && sale.customer.value != null && sale.customer.value!.currencyBalance.isNotEmpty) {
+      final balanceItem = sale.customer.value!.currencyBalance.firstWhere(
         (cb) => cb.currency.value?.id == cur?.id,
-        orElse: () => sale.customer.value!.currencyBalance!.first,
+        orElse: () => sale.customer.value!.currencyBalance.first,
       );
-      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${balanceItem.balance!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${balanceItem.balance.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
       bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     }
 
@@ -630,7 +1040,10 @@ class PrinterService {
           gapless: true,
         );
         final picData = await painter.toImageData(200);
-        final img.Image baseSizeImage = img.decodeImage(picData!.buffer.asUint8List())!;
+        final img.Image qrImage = img.decodeImage(picData!.buffer.asUint8List())!;
+        final img.Image baseSizeImage = img.Image(qrImage.width, qrImage.height);
+        img.fill(baseSizeImage, img.getColor(255, 255, 255));
+        img.drawImage(baseSizeImage, qrImage);
         final img.Image grayscaleImage = img.grayscale(baseSizeImage);
         final Uint8List qrImageBytes = Uint8List.fromList(img.encodePng(grayscaleImage));
 
@@ -759,14 +1172,14 @@ class PrinterService {
     }
 
     Currency? cur = sale.currency.value;
-    if(sale.allPaymentTypes.any((pt) => pt.paymentType.value?.name.contains('ACC-') ?? false) && sale.customer.value != null && sale.customer.value!.currencyBalance != null && sale.customer.value!.currencyBalance!.isNotEmpty)
+    if(sale.allPaymentTypes.any((pt) => pt.paymentType.value?.name.contains('ACC-') ?? false) && sale.customer.value != null && sale.customer.value!.currencyBalance.isNotEmpty)
     {
-      final balanceItem = sale.customer.value!.currencyBalance!.firstWhere(
+      final balanceItem = sale.customer.value!.currencyBalance.firstWhere(
         (cb) => cb.currency.value?.id == cur?.id,
-        orElse: () => sale.customer.value!.currencyBalance!.first,
+        orElse: () => sale.customer.value!.currencyBalance.first,
       );
       await SunmiPrinter.printText(
-          "Account Balance: ${cur?.symbol ?? ''} ${balanceItem.balance!.toStringAsFixed(2)}");
+          "Account Balance: ${cur?.symbol ?? ''} ${balanceItem.balance.toStringAsFixed(2)}");
       await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
     await SunmiPrinter.printText("\n");
@@ -916,12 +1329,12 @@ class PrinterService {
     }
 
     Currency? cur = sale.currency.value;
-    if((sale.allPaymentTypes.any((pt) => pt.paymentType.value?.name.contains('ACC-') ?? false)) && sale.customer.value != null && sale.customer.value!.currencyBalance != null && sale.customer.value!.currencyBalance!.isNotEmpty) {
-      final balanceItem = sale.customer.value!.currencyBalance!.firstWhere(
+    if((sale.allPaymentTypes.any((pt) => pt.paymentType.value?.name.contains('ACC-') ?? false)) && sale.customer.value != null && sale.customer.value!.currencyBalance.isNotEmpty) {
+      final balanceItem = sale.customer.value!.currencyBalance.firstWhere(
         (cb) => cb.currency.value?.id == cur?.id,
-        orElse: () => sale.customer.value!.currencyBalance!.first,
+        orElse: () => sale.customer.value!.currencyBalance.first,
       );
-      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${balanceItem.balance!.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
+      bytes += generator.text("Account Balance: ${cur?.symbol ?? ''} ${balanceItem.balance.toStringAsFixed(2)}", styles: PosStyles(align: PosAlign.left));
       bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     }
 
@@ -947,7 +1360,10 @@ class PrinterService {
           gapless: true,
         );
         final picData = await painter.toImageData(200);
-        final img.Image baseSizeImage = img.decodeImage(picData!.buffer.asUint8List())!;
+        final img.Image qrImage = img.decodeImage(picData!.buffer.asUint8List())!;
+        final img.Image baseSizeImage = img.Image(qrImage.width, qrImage.height);
+        img.fill(baseSizeImage, img.getColor(255, 255, 255));
+        img.drawImage(baseSizeImage, qrImage);
         final img.Image grayscaleImage = img.grayscale(baseSizeImage);
         final Uint8List qrImageBytes = Uint8List.fromList(img.encodePng(grayscaleImage));
         
@@ -984,6 +1400,10 @@ class PrinterService {
   Future<void> printReceipt(String receiptContent) async {
     if (!_isConnected) {
       throw Exception('Printer not connected.');
+    }
+
+    if (_openCashDrawer) {
+      await openDrawer();
     }
 
     try {
@@ -1054,7 +1474,10 @@ class PrinterService {
     // ByteData? byteData = await painter.toImageData(300);
     // Uint8List imageBytes = byteData!.buffer.asUint8List();
     final picData = await painter.toImageData(200); // Adjust size if needed
-    final img.Image baseSizeImage = img.decodeImage(picData!.buffer.asUint8List())!;
+    final img.Image qrImage = img.decodeImage(picData!.buffer.asUint8List())!;
+    final img.Image baseSizeImage = img.Image(qrImage.width, qrImage.height);
+    img.fill(baseSizeImage, img.getColor(255, 255, 255));
+    img.drawImage(baseSizeImage, qrImage);
     final img.Image grayscaleImage = img.grayscale(baseSizeImage);
     final Uint8List qrImageBytes = Uint8List.fromList(img.encodePng(grayscaleImage));
     return qrImageBytes;

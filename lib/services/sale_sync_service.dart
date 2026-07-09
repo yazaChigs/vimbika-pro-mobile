@@ -96,13 +96,17 @@ class SaleSyncService {
           continue;
         }
 
-        debugPrint('Syncing sale: ${sale.id ?? sale.isarId}');
-        sale.customerAccBankType = 'CASH-USD';
+        if (sale.allPaymentTypes.isNotEmpty && sale.allPaymentTypes.first.bank.value != null) {
+          print('Saving sale to API: ${sale.totalDiscount}');
+        }
+        debugPrint('Syncing sale: ${sale.totalDiscount}');
+        final saleJson = sale.toJson();
+        print('totalDiscount: ${saleJson['totalDiscount']}');
 
         try {
           final String responseBody = await _client.postAuthWithCompanyHeader(
             '/sale/save',
-            jsonEncode(sale.toJson()),
+            jsonEncode(saleJson),
             companyId,
             'POST',
           );

@@ -65,19 +65,19 @@ class Company extends BaseEntity {
 
   factory Company.fromJson(Map<String, dynamic> json) {
     return Company(
-      id: json['id'],
-      dateCreated: json['dateCreated'],
-      dateModified: json['dateModified'],
-      createdByName: json['createdByName'],
-      modifiedByName: json['modifiedByName'],
-      version: json['version'],
-      name: json['name'],
-      description: json['description'],
-      address: json['address'],
-      phoneNumber: json['phoneNumber'],
-      email: json['email'],
-      website: json['website'],
-      logo: json['logo'],
+      id: json['id']?.toString(),
+      dateCreated: json['dateCreated']?.toString(),
+      dateModified: json['dateModified']?.toString(),
+      createdByName: json['createdByName']?.toString(),
+      modifiedByName: json['modifiedByName']?.toString(),
+      version: json['version'] is int ? json['version'] : (json['version'] is num ? (json['version'] as num).toInt() : null),
+      name: json['name']?.toString(),
+      description: json['description']?.toString(),
+      address: json['address']?.toString(),
+      phoneNumber: json['phoneNumber']?.toString(),
+      email: json['email']?.toString(),
+      website: json['website']?.toString(),
+      logo: json['logo']?.toString(),
     );
   }
 

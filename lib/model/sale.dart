@@ -148,6 +148,32 @@ class Sale {
   }
 
   factory Sale.fromJson(Map<String, dynamic> json) {
+    // Ensure string fields are strings to avoid type cast errors during _$SaleFromJson
+    final stringFields = [
+      'id',
+      'dateCreated',
+      'dateModified',
+      'createdByName',
+      'modifiedByName',
+      'cashierFullName',
+      'timeIniated',
+      'timeCompleted',
+      'saleStatus',
+      'posReference',
+      'referenceNumber',
+      'shiftReference',
+      'ticketName',
+      'amtToAcc',
+      'customerAccBankType',
+      'receiptQrCode',
+      'receiptQrData',
+    ];
+    for (var field in stringFields) {
+      if (json[field] != null && json[field] is! String) {
+        json[field] = json[field].toString();
+      }
+    }
+
     final sale = _$SaleFromJson(json);
     if (json['branch'] != null) {
       sale.branch.value =

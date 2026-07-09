@@ -37,18 +37,18 @@ class Currency extends BaseEntity {
 
   factory Currency.fromJson(Map<String, dynamic> json) {
     return Currency(
-      id: json['id'],
-      dateCreated: json['dateCreated'],
-      dateModified: json['dateModified'],
-      createdByName: json['createdByName'],
-      modifiedByName: json['modifiedByName'],
-      version: json['version'],
-      name: json['name'],
-      code: json['code'],
-      symbol: json['symbol'],
-      isBaseCurrency: json['isBaseCurrency'],
-      rate: json['rate']?.toDouble(),
-      isSystemCreated: json['isSystemCreated'],
+      id: json['id']?.toString(),
+      dateCreated: json['dateCreated']?.toString(),
+      dateModified: json['dateModified']?.toString(),
+      createdByName: json['createdByName']?.toString(),
+      modifiedByName: json['modifiedByName']?.toString(),
+      version: json['version'] is int ? json['version'] : (json['version'] is num ? (json['version'] as num).toInt() : null),
+      name: json['name']?.toString(),
+      code: json['code']?.toString(),
+      symbol: json['symbol']?.toString(),
+      isBaseCurrency: json['isBaseCurrency'] as bool?,
+      rate: (json['rate'] as num?)?.toDouble(),
+      isSystemCreated: json['isSystemCreated'] as bool?,
     );
   }
 

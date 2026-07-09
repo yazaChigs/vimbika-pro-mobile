@@ -54,7 +54,8 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     }
 
     PaymentType? selectedPaymentType = validPaymentTypes.first;
-    Bank? selectedBank = selectedPaymentType?.banks?.isNotEmpty == true ? selectedPaymentType!.banks!.first : null;
+    debugPrint(selectedPaymentType.toJson().toString());
+    Bank? selectedBank = selectedPaymentType.allBanks.isNotEmpty ? selectedPaymentType.allBanks.first : null;
     final TextEditingController amountController = TextEditingController();
     bool isSavingBalance = false;
 
@@ -75,7 +76,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                     selectedCurrency = val;
                     validPaymentTypes = controller.paymentTypes.where((pt) => !pt.isCredit && (pt.currency.value == null || pt.currency.value?.id == selectedCurrency?.id)).toList();
                     selectedPaymentType = validPaymentTypes.isNotEmpty ? validPaymentTypes.first : null;
-                    selectedBank = selectedPaymentType?.banks?.isNotEmpty == true ? selectedPaymentType!.banks!.first : null; // Reset selectedBank
+                    selectedBank = (selectedPaymentType != null && selectedPaymentType!.allBanks.isNotEmpty) ? selectedPaymentType!.allBanks.first : null; // Reset selectedBank
                   });
                 },
               ),
@@ -87,21 +88,20 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                 onChanged: (val) {
                   setDialogState(() {
                     selectedPaymentType = val;
-                    selectedBank = selectedPaymentType?.banks?.isNotEmpty == true ? selectedPaymentType!.banks!.first : null; // Reset selectedBank
+                    selectedBank = (selectedPaymentType != null && selectedPaymentType!.allBanks.isNotEmpty) ? selectedPaymentType!.allBanks.first : null; // Reset selectedBank
                   });
                 },
               ),
-              if (selectedPaymentType?.banks?.isNotEmpty == true) // Conditionally display bank selection
+              if (selectedPaymentType != null && selectedPaymentType!.allBanks.isNotEmpty) // Conditionally display bank selection
                 Padding(
                   padding: const EdgeInsets.only(top: 16.0),
                   child: DropdownButtonFormField<Bank>(
                     initialValue: selectedBank,
                     decoration: const InputDecoration(labelText: 'Bank'),
-                    items: selectedPaymentType!.banks!.map((bank) => DropdownMenuItem(value: bank, child: Text(bank.name))).toList(), // Use bank.name for display
+                    items: selectedPaymentType!.allBanks.map((bank) => DropdownMenuItem(value: bank, child: Text(bank.name))).toList(), // Use bank.name for display
                     onChanged: (val) {
                       setDialogState(() {
                         selectedBank = val;
-                        print(selectedBank!.toJson());
                       });
                     },
                   ),
@@ -128,7 +128,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                         return; 
                       }
                       // If payment type requires a bank but none is selected
-                      if (selectedPaymentType!.banks?.isNotEmpty == true && selectedBank == null) {
+                      if (selectedPaymentType != null && selectedPaymentType!.allBanks.isNotEmpty && selectedBank == null) {
                         if (mounted) {
                           scaffoldMessenger.showSnackBar(
                             const SnackBar(content: Text('Please select a bank'), backgroundColor: Colors.red),
@@ -148,7 +148,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                           scaffoldMessenger.showSnackBar(
                             SnackBar(content: Text(isDeposit ? 'Deposit added successfully' : 'Balance added successfully'), backgroundColor: Colors.green),
                           );
-                          Navigator.pop(dialogContext); // Close the dialog
+                          navigator.pop(); // Close the dialog
                           navigator.push(
                             MaterialPageRoute(
                               builder: (context) => PaymentReceiptScreen(payment: payment),

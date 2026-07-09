@@ -1,4 +1,5 @@
 import 'package:isar/isar.dart';
+import 'package:json_annotation/json_annotation.dart';
 import 'package:vimbika_pro/model/base_name_entity.dart';
 import 'package:vimbika_pro/model/currency.dart';
 import 'package:vimbika_pro/model/bank.dart';
@@ -15,8 +16,13 @@ class PaymentType extends BaseNameEntity {
   final bool isMobileMoney;
   final bool isBankTransfer;
   final bool? isSystemCreated;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final banks = IsarLinks<Bank>();
+
   @ignore
-  final List<Bank>? banks;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<Bank> banksList = [];
+
   final currency = IsarLink<Currency>();
 
   PaymentType({
@@ -35,11 +41,30 @@ class PaymentType extends BaseNameEntity {
     this.isMobileMoney = false,
     this.isBankTransfer = false,
     this.isSystemCreated,
-    this.banks,
+    List<Bank>? banks,
     Currency? currency,
-  }) {
+  }) : banksList = banks ?? [] {
+    if (banks != null) {
+      this.banks.addAll(banks);
+    }
     if (currency != null) {
       this.currency.value = currency;
+    }
+  }
+
+  @ignore
+  List<Bank> get allBanks {
+    if (banksList.isNotEmpty) return banksList;
+    if (banks.isAttached) {
+      banks.loadSync();
+    }
+    return banks.toList();
+  }
+
+  void syncListToIsarLinks() {
+    if (banksList.isNotEmpty) {
+      banks.clear();
+      banks.addAll(banksList);
     }
   }
 
@@ -78,7 +103,7 @@ class PaymentType extends BaseNameEntity {
       isMobileMoney: isMobileMoney ?? this.isMobileMoney,
       isBankTransfer: isBankTransfer ?? this.isBankTransfer,
       isSystemCreated: isSystemCreated ?? this.isSystemCreated,
-      banks: banks ?? this.banks,
+      banks: banks ?? allBanks,
     );
     if (currency != null) {
       newPaymentType.currency.value = currency;
@@ -90,13 +115,13 @@ class PaymentType extends BaseNameEntity {
 
   factory PaymentType.fromJson(Map<String, dynamic> json) {
     final paymentType = PaymentType(
-      id: json['id'],
+      id: json['id']?.toString(),
       dateCreated: json['dateCreated'],
       dateModified: json['dateModified'],
       createdByName: json['createdByName'],
       modifiedByName: json['modifiedByName'],
       version: json['version'],
-      name: json['name'],
+      name: json['name'] ?? '',
       description: json['description'],
       active: json['active'] ?? true,
       isCash: json['isCash'] ?? false,
@@ -118,6 +143,7 @@ class PaymentType extends BaseNameEntity {
   }
 
   Map<String, dynamic> toJson() {
+    if (currency.isAttached) currency.loadSync();
     return {
       'id': id,
       'dateCreated': dateCreated,
@@ -134,7 +160,7 @@ class PaymentType extends BaseNameEntity {
       'isMobileMoney': isMobileMoney,
       'isBankTransfer': isBankTransfer,
       'isSystemCreated': isSystemCreated,
-      'banks': banks?.map((b) => b.toJson()).toList(),
+      'banks': allBanks.map((b) => b.toJson()).toList(),
       'currency': currency.value?.toJson(),
     };
   }

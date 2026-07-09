@@ -15,6 +15,8 @@ import '../../services/branch_service.dart';
 import '../../services/mobile_shift_service.dart';
 import '../../services/default_data_service.dart';
 
+enum _ShiftActionResult { continueWithExisting, closeAndOpenNew, cancel }
+
 class SelectCompanyBranchScreen extends StatefulWidget {
   final User user;
 
@@ -231,9 +233,11 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
                                openingDateTime.month == DateTime.now().month &&
                                openingDateTime.day == DateTime.now().day;
 
+        _ShiftActionResult? result;
         if (isSameDay) {
           // Prompt to log into existing shift
-          await showDialog(
+          if (!mounted) return;
+          result = await showDialog<_ShiftActionResult>(
             context: context,
             barrierDismissible: false, // Prevent dialog from closing on outside tap
             builder: (BuildContext context) {
@@ -251,6 +255,7 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
                           });
                           try {
                             await prefs.setString(AppConstants.keyCurrentOpenShift, existingShift.toJson());
+                            if (!context.mounted) return;
                             if (mounted) {
                               // Check if default data needs to be fetched
                               final String? lastFetchedUserId = prefs.getString(AppConstants.keyLastFetchedUserId);
@@ -259,8 +264,7 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
                                 await defaultDataService.fetchAndSaveDefaultData(widget.user);
                                 await prefs.setString(AppConstants.keyLastFetchedUserId, widget.user.id!);
                               }
-                              Navigator.of(context).pop(); // Close dialog
-                              _navigateToHomeScreen();
+                              Navigator.of(context).pop(_ShiftActionResult.continueWithExisting); // Close dialog
                             }
                           } catch (e) {
                             debugPrint("Error fetching default data: $e");
@@ -273,9 +277,11 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
                               );
                             }
                           } finally {
-                            setDialogState(() {
-                              dialogButtonLoading = false;
-                            });
+                            if (mounted) {
+                              setDialogState(() {
+                                dialogButtonLoading = false;
+                              });
+                            }
                           }
                         },
                         child: dialogButtonLoading
@@ -298,13 +304,13 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
                             existingShift.closingTime = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
                             existingShift.isShiftClosed = true;
                             await shiftService.updateShift(existingShift);
+                            if (!context.mounted) return;
                             if (mounted) {
-                              Navigator.of(context).pop(); // Close dialog
-                              // After closing, proceed to create a new shift
-                              await _createNewShiftAndNavigate(shiftService);
+                              Navigator.of(context).pop(_ShiftActionResult.closeAndOpenNew); // Close dialog
                             }
                           } catch (e) {
                             debugPrint("Error closing shift and creating new one: $e");
+                            if (!context.mounted) return;
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
@@ -314,9 +320,11 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
                               );
                             }
                           } finally {
-                            setDialogState(() {
-                              dialogButtonLoading = false;
-                            });
+                            if (mounted) {
+                              setDialogState(() {
+                                dialogButtonLoading = false;
+                              });
+                            }
                           }
                         },
                         child: dialogButtonLoading
@@ -335,50 +343,88 @@ class _SelectCompanyBranchScreenState extends State<SelectCompanyBranchScreen> {
               );
             },
           );
-          return; // Exit if user chose to continue with existing shift or cancelled
         } else {
           // Prompt to close previous day's shift
-          await showDialog(
+          if (!mounted) return;
+          result = await showDialog<_ShiftActionResult>(
             context: context,
+            barrierDismissible: false,
             builder: (BuildContext context) {
+              bool dialogButtonLoading = false;
               final formattedOpeningDate = DateFormat('yyyy-MM-dd').format(openingDateTime);
-              return AlertDialog(
-                title: const Text('Previous Day\'s Shift Found'),
-                content: Text('An open shift from a previous day ($formattedOpeningDate, Shift: ${existingShift.shiftReference}) was found. Please close it to continue.'),
-                actions: <Widget>[
-                  TextButton(
-                    onPressed: () async {
-                      // Close the existing shift
-                      existingShift.closingTime = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
-                      existingShift.isShiftClosed = true;
-                      await shiftService.updateShift(existingShift);
-                      if (mounted) {
-                        Navigator.of(context).pop(); // Close dialog
-                        // After closing, proceed to create a new shift
-                        _createNewShiftAndNavigate(shiftService);
-                      }
-                    },
-                    child: const Text('Close shift & Open New'),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop(); // Close dialog
-                      if (mounted) {
-                        setState(() { _isLoading = false; });
-                      }
-                    },
-                    child: const Text('Cancel'),
-                  ),
-                ],
+              return StatefulBuilder(
+                builder: (context, setDialogState) {
+                  return AlertDialog(
+                    title: const Text('Previous Day\'s Shift Found'),
+                    content: Text('An open shift from a previous day ($formattedOpeningDate, Shift: ${existingShift.shiftReference}) was found. Please close it to continue.'),
+                    actions: <Widget>[
+                      TextButton(
+                        onPressed: dialogButtonLoading ? null : () async {
+                          setDialogState(() {
+                            dialogButtonLoading = true;
+                          });
+                          try {
+                            // Close the existing shift
+                            existingShift.closingTime = DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now());
+                            existingShift.isShiftClosed = true;
+                            await shiftService.updateShift(existingShift);
+                            if (!context.mounted) return;
+                            if (mounted) {
+                              Navigator.of(context).pop(_ShiftActionResult.closeAndOpenNew); // Close dialog
+                            }
+                          } catch (e) {
+                            debugPrint("Error closing previous shift: $e");
+                            if (!context.mounted) return;
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to close previous shift: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              setDialogState(() {
+                                dialogButtonLoading = false;
+                              });
+                            }
+                          }
+                        },
+                        child: dialogButtonLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Close shift & Open New'),
+                      ),
+                      TextButton(
+                        onPressed: dialogButtonLoading ? null : () {
+                          Navigator.of(context).pop(_ShiftActionResult.cancel); // Close dialog
+                        },
+                        child: const Text('Cancel'),
+                      ),
+                    ],
+                  );
+                },
               );
             },
           );
-          return; // Exit if user chose to close shift or cancelled
+        }
+
+        if (result == _ShiftActionResult.continueWithExisting) {
+          _navigateToHomeScreen();
+          return;
+        } else if (result != _ShiftActionResult.closeAndOpenNew) {
+          return;
         }
       }
 
       // If no open shift is found, proceed to create a new one
-      _createNewShiftAndNavigate(shiftService);
+      await _createNewShiftAndNavigate(shiftService);
 
     } catch (e) {
       debugPrint("Error in _createShiftAndContinue: $e");

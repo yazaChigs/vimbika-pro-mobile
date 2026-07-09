@@ -28,6 +28,7 @@ class PaymentReceived {
   double? amountTendered;
   String? reference;
   bool isSynced;
+  double amountAddedToAccount; // In-memory only for POS overpayment handling
 
   PaymentReceived({
     this.id,
@@ -46,6 +47,7 @@ class PaymentReceived {
     this.amountTendered,
     this.reference,
     this.isSynced = true,
+    this.amountAddedToAccount = 0.0,
   }) {
     if (paymentType != null) {
       this.paymentType.value = paymentType;
@@ -98,6 +100,12 @@ class PaymentReceived {
   }
 
   Map<String, dynamic> toJson() {
+    if (paymentType.isAttached) paymentType.loadSync();
+    if (payer.isAttached) payer.loadSync();
+    if (currency.isAttached) currency.loadSync();
+    if (branch.isAttached) branch.loadSync();
+    if (bank.isAttached) bank.loadSync();
+
     return {
       'id': id,
       'amount': amount,
@@ -130,6 +138,7 @@ class PaymentReceived {
     double? amountTendered,
     String? reference,
     bool? isSynced,
+    double? amountAddedToAccount,
   }) {
     final newPayment = PaymentReceived(
       id: id ?? this.id,
@@ -143,6 +152,7 @@ class PaymentReceived {
       amountTendered: amountTendered ?? this.amountTendered,
       reference: reference ?? this.reference,
       isSynced: isSynced ?? this.isSynced,
+      amountAddedToAccount: amountAddedToAccount ?? this.amountAddedToAccount,
     );
     newPayment.isarId = isarId;
     newPayment.paymentType.value = paymentType.value;

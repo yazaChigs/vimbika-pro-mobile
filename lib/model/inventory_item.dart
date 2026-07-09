@@ -64,11 +64,11 @@ class InventoryItem extends BaseNameEntity {
   factory InventoryItem.fromJson(Map<String, dynamic> json) {
     final inventoryItem = InventoryItem(
       id: json['id']?.toString(),
-      dateCreated: json['dateCreated'] ,
-      dateModified: json['dateModified'] ,
-      createdByName: json['createdByName'],
-      modifiedByName: json['modifiedByName'],
-      version: json['version'] ,
+      dateCreated: json['dateCreated']?.toString(),
+      dateModified: json['dateModified']?.toString(),
+      createdByName: json['createdByName']?.toString(),
+      modifiedByName: json['modifiedByName']?.toString(),
+      version: json['version'] is int ? json['version'] : (json['version'] is num ? (json['version'] as num).toInt() : null),
       name: json['name']?.toString() ?? 'Unknown Item',
       description: json['description']?.toString(),
       itemCode: json['itemCode']?.toString(),
@@ -77,10 +77,10 @@ class InventoryItem extends BaseNameEntity {
       quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
       reorderLevel: (json['reorderLevel'] as num?)?.toDouble() ?? 0.0,
       isService: json['isService'] as bool? ?? false,
-      imageUrl: json['imageUrl'],
-      itemType: json['itemType'],
+      imageUrl: json['imageUrl']?.toString(),
+      itemType: json['itemType']?.toString(),
       isSynced: json['isSynced'] as bool? ?? false, // Parse isSynced
-      renewalInterval: json['renewalInterval'],
+      renewalInterval: json['renewalInterval']?.toString(),
     );
 
     if (json['category'] != null && json['category'] is Map<String, dynamic>) {

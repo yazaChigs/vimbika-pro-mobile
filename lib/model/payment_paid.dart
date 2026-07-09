@@ -78,7 +78,7 @@ class PaymentPaid extends BaseEntity {
 
   factory PaymentPaid.fromJson(Map<String, dynamic> json) {
     return PaymentPaid(
-      id: json['id'],
+      id: json['id']?.toString(),
       dateCreated: json['dateCreated'] ,
       dateModified: json['dateModified'] ,
       createdByName: json['createdByName'],

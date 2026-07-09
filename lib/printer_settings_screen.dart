@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vimbika_pro/services/printer_service.dart';
 import 'app_constants/app_theme.dart';
-import 'package:flutter_pos_printer_platform_image_3/flutter_pos_printer_platform_image_3.dart' hide BluetoothPrinterDevice; // Hide to avoid collision
 
 class PrinterSettingsScreen extends StatefulWidget {
   @override
@@ -14,6 +13,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
   List<BluetoothPrinterDeviceModel> _bluetoothDevices = [];
   List<UsbPrinterDevice> _usbDevices = []; // List to hold discovered USB devices
   bool _alwaysPrintReceipt = true; // Initial state for the UI
+  bool _openCashDrawer = false;
   int _numberOfReceiptsPerSale = 1; // Added for the new setting
   final TextEditingController _receiptCountController = TextEditingController(); // Controller for the text field
 
@@ -26,8 +26,9 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
   Future<void> _initPrinterSettings() async {
     setState(() => _isLoading = true);
     await _printerService.init();
-    _alwaysPrintReceipt = await _printerService.getAlwaysPrintReceipt();
-    _numberOfReceiptsPerSale = await _printerService.getNumberOfReceiptsPerSale(); // Load initial state
+    _alwaysPrintReceipt = _printerService.getAlwaysPrintReceipt();
+    _openCashDrawer = _printerService.getOpenCashDrawer();
+    _numberOfReceiptsPerSale = _printerService.getNumberOfReceiptsPerSale(); // Load initial state
     _receiptCountController.text = _numberOfReceiptsPerSale.toString(); // Set controller text
     setState(() {
       _isLoading = false;
@@ -89,6 +90,13 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
       _alwaysPrintReceipt = value;
     });
     await _printerService.setAlwaysPrintReceipt(value);
+  }
+
+  void _onOpenCashDrawerChanged(bool value) async {
+    setState(() {
+      _openCashDrawer = value;
+    });
+    await _printerService.setOpenCashDrawer(value);
   }
 
   void _onNumberOfReceiptsChanged(String value) async {
@@ -156,6 +164,15 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
       _showSnackBar('Test page(s) sent to printer');
     } catch (e) {
       _showSnackBar('Print Error: $e');
+    }
+  }
+
+  Future<void> _openDrawer() async {
+    try {
+      await _printerService.openDrawer();
+      _showSnackBar('Drawer opening command sent');
+    } catch (e) {
+      _showSnackBar('Error opening drawer: $e');
     }
   }
 
@@ -230,6 +247,15 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                   ),
                   SizedBox(height: 16),
                   Card(
+                    child: SwitchListTile(
+                      title: const Text('Open Cash Drawer'),
+                      value: _openCashDrawer,
+                      onChanged: _onOpenCashDrawerChanged,
+                      secondary: Icon(Icons.money),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
@@ -274,6 +300,18 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                           padding: EdgeInsets.symmetric(vertical: 16),
                         ),
                         child: Text('Print Test Page', style: TextStyle(fontSize: 16)),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: ElevatedButton(
+                        onPressed: _openDrawer,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.vimbikaBlue,
+                          foregroundColor: AppTheme.white,
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: Text('Open Cash Drawer', style: TextStyle(fontSize: 16)),
                       ),
                     ),
                     Padding(

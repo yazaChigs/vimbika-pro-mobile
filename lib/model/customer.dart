@@ -61,21 +61,21 @@ class Customer extends BaseEntity {
   factory Customer.fromJson(Map<String, dynamic> json) {
     final customer = Customer(
       id: json['id']?.toString(),
-      dateCreated: json['dateCreated'],
-      dateModified: json['dateModified'],
-      createdByName: json['createdByName'],
-      modifiedByName: json['modifiedByName'],
-      version: json['version'],
-      name: json['name'] ?? 'Unknown',
-      email: json['email'],
-      mobilePhone: json['mobilePhone'],
-      address: json['address'],
+      dateCreated: json['dateCreated']?.toString(),
+      dateModified: json['dateModified']?.toString(),
+      createdByName: json['createdByName']?.toString(),
+      modifiedByName: json['modifiedByName']?.toString(),
+      version: json['version'] is int ? json['version'] : (json['version'] is num ? (json['version'] as num).toInt() : null),
+      name: json['name']?.toString() ?? 'Unknown',
+      email: json['email']?.toString(),
+      mobilePhone: json['mobilePhone']?.toString(),
+      address: json['address']?.toString(),
       accountNumber: json['accountNumber']?.toString(),
       taxNumber: json['taxNumber']?.toString(),
       tinNumber: json['tinNumber']?.toString(),
       isSynced: json['isSynced'] ?? true,
-      points: json['points']?.toDouble() ?? 0.0,
-      balance: json['balance']?.toDouble() ?? 0.0,
+      points: (json['points'] as num?)?.toDouble() ?? 0.0,
+      balance: (json['balance'] as num?)?.toDouble() ?? 0.0,
     );
 
     // Deserialize from 'currencyBalance' (the API field) into our plain list.
@@ -96,6 +96,8 @@ class Customer extends BaseEntity {
   }
 
   Map<String, dynamic> toJson() {
+    if (company.isAttached) company.loadSync();
+    if (branch.isAttached) branch.loadSync();
     return {
       'id': id,
       'dateCreated': dateCreated,

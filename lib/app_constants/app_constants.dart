@@ -1,11 +1,11 @@
 class AppConstants {
   static const String appName = 'Vimbika Lite';
-  // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
+  static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
   // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.africa/vimbika-africa/api";
   // static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
   // static const VIMBIKA_BACKEND_URL = "https://mashwede.vimbika.africa/mashwede/api";
   //     static const VIMBIKA_BACKEND_URL = "http://192.168.1.217:8080/vimbika-pro/api";
-      static const VIMBIKA_BACKEND_URL = "http://192.168.1.99:8080/vimbika-pro/api";
+  //     static const VIMBIKA_BACKEND_URL = "http://192.168.1.99:8080/vimbika-pro/api";
           // static const VIMBIKA_BACKEND_URL = "http://192.168.1.148:8080/vimbika-pro/api";
   // static const VIMBIKA_BACKEND_URL = "http://172.20.10.4:8080/vimbika-pro/api";
   static const int defaultTimeout = 30000;
@@ -78,6 +78,7 @@ class AppConstants {
   static const String keyAllowOutOfStockSales = 'allow_out_of_stock_sales';
   static const String keyIsOfflineMode = 'is_offline_mode';
   static const String keyIsPriceInclusiveTax = 'is_price_inclusive_tax'; // Added this
+  static const String keyUseKOT = 'use_kot';
   static const String keyCompanySettings = 'company_settings';
 
   // Printer Settings
@@ -86,6 +87,9 @@ class AppConstants {
   static const String keyPrinterName = 'printer_name';
   static const String keyAlwaysPrintReceipt = 'always_print_receipt'; // Added for printer settings
   static const String keyNumberOfReceiptsPerSale = 'number_of_receipts_per_sale';
+  static const String keyOpenCashDrawer = 'open_cash_drawer';
+  static const String keyFiscalisationEnabled = 'fiscalisation_enabled';
+  static const String keyAlwaysFiscalize = 'always_fiscalize';
 
   static String get keyUsbPrinterDevice => 'usb_printer_device'; // Added for number of receipts
 }

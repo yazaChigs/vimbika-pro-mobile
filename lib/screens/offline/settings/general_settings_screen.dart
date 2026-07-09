@@ -2,6 +2,7 @@ import 'package:vimbika_pro/app_constants/app_theme.dart';
 import 'package:vimbika_pro/app_constants/app_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vimbika_pro/services/printer_service.dart';
 
 class GeneralSettingsScreen extends StatefulWidget {
   const GeneralSettingsScreen({super.key});
@@ -13,7 +14,9 @@ class GeneralSettingsScreen extends StatefulWidget {
 class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
   bool _allowOutOfStockSales = false;
   bool _isPriceInclusiveTax = true;
+  bool _useKOT = false;
   bool _isLoading = true;
+  final PrinterService _printerService = PrinterService();
 
   @override
   void initState() {
@@ -23,9 +26,11 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
 
   Future<void> _loadSettings() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await _printerService.init();
     setState(() {
       _allowOutOfStockSales = prefs.getBool(AppConstants.keyAllowOutOfStockSales) ?? false;
       _isPriceInclusiveTax = prefs.getBool(AppConstants.keyIsPriceInclusiveTax) ?? true;
+      _useKOT = prefs.getBool(AppConstants.keyUseKOT) ?? false;
       _isLoading = false;
     });
   }
@@ -45,6 +50,15 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
       _isPriceInclusiveTax = value;
     });
   }
+
+  Future<void> _toggleUseKOT(bool value) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(AppConstants.keyUseKOT, value);
+    setState(() {
+      _useKOT = value;
+    });
+  }
+
 
   Future<void> _deleteAllInventory() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -103,6 +117,24 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
                   subtitle: 'Enable or disable tax processing in sales.',
                   value: _isPriceInclusiveTax,
                   onChanged: _togglePriceInclusiveTax,
+                ),
+                _buildSwitchTile(
+                  title: 'Use KOT',
+                  subtitle: 'Enable Kitchen Order Ticket printing in POS.',
+                  value: _useKOT,
+                  onChanged: _toggleUseKOT,
+                ),
+                const SizedBox(height: 24),
+                _buildSettingSection('Danger Zone'),
+                Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: ListTile(
+                    title: const Text('Delete All Inventory',
+                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                    subtitle: const Text('Permanently remove all products and stock records.'),
+                    trailing: const Icon(Icons.delete_forever, color: Colors.red),
+                    onTap: _deleteAllInventory,
+                  ),
                 ),
               ],
             ),

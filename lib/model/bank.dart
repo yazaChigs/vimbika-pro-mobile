@@ -35,7 +35,7 @@ class Bank extends BaseNameEntity {
 
   factory Bank.fromJson(Map<String, dynamic> json) {
     final bank = Bank(
-      id: json['id'],
+      id: json['id']?.toString(),
       dateCreated: json['dateCreated'],
       dateModified: json['dateModified'],
       createdByName: json['createdByName'],
@@ -57,6 +57,7 @@ class Bank extends BaseNameEntity {
   }
 
   Map<String, dynamic> toJson() {
+    if (currency.isAttached) currency.loadSync();
     return {
       'id': id,
       'dateCreated': dateCreated,
