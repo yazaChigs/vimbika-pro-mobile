@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:vimbika_pro/services/inventory_item_service.dart';
+import 'package:uuid/uuid.dart';
 
 import '../model/currency.dart'; // Import the new service
 
@@ -168,9 +169,10 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
 
     // 1. Create/Update InventoryItem
     final existingItem = widget.item ?? widget.branchStock?.item.value;
+    final String itemId = existingItem?.id ?? const Uuid().v4();
     
     InventoryItem newItem = InventoryItem(
-      id: existingItem?.id, // Preserve ID if editing
+      id: itemId, // Preserve ID if editing or generate new one
       name: _nameController.text,
       description: _descriptionController.text,
       itemCode: _codeController.text,

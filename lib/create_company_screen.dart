@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import 'package:vimbika_pro/services/company_service.dart';
 import 'package:vimbika_pro/app_constants/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -24,7 +25,8 @@ class _CreateCompanyScreenState extends State<CreateCompanyScreen> {
   final TextEditingController _websiteController = TextEditingController();
 
   bool _isLoading = false;
-  bool _showOptionalFields = false; // New state variable
+    bool _showOptionalFields = false; // New state variable
+    final Uuid _uuid = const Uuid(); // Initialize Uuid
 
   Future<void> _handleCreateCompany() async {
     if (_nameController.text.isEmpty || _branchNameController.text.isEmpty) {
@@ -41,6 +43,7 @@ class _CreateCompanyScreenState extends State<CreateCompanyScreen> {
     try {
       // Create Company object
       final company = Company(
+        id: _uuid.v4(),
         name: _nameController.text,
         address: _addressController.text.isNotEmpty ? _addressController.text : null,
         phoneNumber: _phoneController.text.isNotEmpty ? _phoneController.text : null,
@@ -50,6 +53,7 @@ class _CreateCompanyScreenState extends State<CreateCompanyScreen> {
 
       // Create Default Branch object using company's contact info
       final defaultBranch = Branch(
+        id: _uuid.v4(),
         name: _branchNameController.text,
         address: company.address,
         phoneNumber: company.phoneNumber,

@@ -230,7 +230,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                 'Points: ${customer.points.toStringAsFixed(2)}',
                 style: const TextStyle(fontSize: 12, color: AppTheme.vimbikaBlue, fontWeight: FontWeight.bold),
               ),
-            if (!customer.isSynced) // Indicate unsynced status
+            if (!customer.isSynced && false) // Indicate unsynced status. hidden until process is fine tuned for accuracy
               const Padding(
                 padding: EdgeInsets.only(top: 4.0),
                 child: Text(

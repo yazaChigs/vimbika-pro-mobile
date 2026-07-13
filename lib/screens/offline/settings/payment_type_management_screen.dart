@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import 'package:vimbika_pro/app_constants/app_constants.dart';
 import 'package:vimbika_pro/app_constants/app_theme.dart';
 import 'package:vimbika_pro/model/user.dart';
@@ -25,6 +26,7 @@ class _PaymentTypeManagementScreenState extends State<PaymentTypeManagementScree
   bool _isLoading = true;
   bool _isOfflineMode = false; // New state variable
   bool _canEdit = true;
+  final Uuid _uuid = const Uuid(); // Initialize Uuid
 
   final PaymentsService _paymentsService = PaymentsService(); // Initialize PaymentService
   final CurrencyService _currencyService = CurrencyService(); // Initialize CurrencyService
@@ -387,7 +389,7 @@ class _PaymentTypeManagementScreenState extends State<PaymentTypeManagementScree
                           banks: isBankTransfer ? selectedBanks : null,
                         )
                       : PaymentType(
-                          id: null,
+                          id: _uuid.v4(),
                           name: nameController.text,
                           description: descriptionController.text.isNotEmpty ? descriptionController.text : null,
                           isCash: isCash,

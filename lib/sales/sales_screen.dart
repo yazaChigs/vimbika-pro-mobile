@@ -1,4 +1,5 @@
 import 'package:vimbika_pro/model/sale_status.dart';
+import 'package:vimbika_pro/services/isar_service.dart';
 
 import '../services/printer_service.dart';
 import 'package:vimbika_pro/app_constants/app_theme.dart';
@@ -17,6 +18,7 @@ import '../services/sale_service.dart'; // Import SaleService
 import '../services/mobile_shift_service.dart'; // Import MobileShiftService
 import 'imported_sales_preview_screen.dart'; // Import the new preview screen
 import '../model/user.dart'; // Import User model
+import 'package:vimbika_pro/model/branch_stock.dart';
 
 class SalesScreen extends StatefulWidget {
   const SalesScreen({super.key});
@@ -44,12 +46,14 @@ class _SalesScreenState extends State<SalesScreen> {
   String? _loggedInUserName; // Added to store the logged-in user's username
 
   DateTime? _filterStartDate;
+  bool _isOnline = false; // Added for offline/online mode
   DateTime? _filterEndDate;
 
   final DateTime _apiStartDate = DateTime.now().subtract(const Duration(days: 7)).copyWith(hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0);
   final DateTime _apiEndDate = DateTime.now().copyWith(hour: 23, minute: 59, second: 59, millisecond: 999, microsecond: 999);
 
   final SaleService _saleService = SaleService(); // Initialize SaleService
+  final IsarService _isarService = IsarService();
   final ExcelExportService _excelExportService = ExcelExportService();
   final MobilePosShiftService _mobileShiftService = MobilePosShiftService(); // Initialize MobilePosShiftService
 
@@ -79,8 +83,8 @@ class _SalesScreenState extends State<SalesScreen> {
 
   void _sortSales(List<Sale> sales) {
     sales.sort((a, b) {
-      final bool aSynced = a.isSynced ?? false;
-      final bool bSynced = b.isSynced ?? false;
+      final bool aSynced = a.isSynced;
+      final bool bSynced = b.isSynced;
       
       if (aSynced != bSynced) {
         return aSynced ? 1 : -1;
@@ -114,7 +118,7 @@ class _SalesScreenState extends State<SalesScreen> {
         _loggedInUserName = loggedInUser.userName;
       } catch (e) {
         // ignore: avoid_print
-        print('Error decoding user data: $e');
+        debugPrint('Error decoding user data: $e');
       }
     }
 
@@ -158,15 +162,13 @@ class _SalesScreenState extends State<SalesScreen> {
     final Map<String, Sale> combinedSalesMap = {};
 
     for (var sale in localSales) {
-      final String? key = sale.posReference ?? sale.id.toString();
-      if (key != null) {
-        combinedSalesMap[key] = sale;
-      }
+      final String key = sale.posReference ?? sale.id.toString();
+      combinedSalesMap[key] = sale;
     }
     
     for (var sale in backupSales) {
-      final String? key = sale.posReference ?? sale.id.toString();
-      if (key != null && !combinedSalesMap.containsKey(key)) {
+      final String key = sale.posReference ?? sale.id.toString();
+      if (!combinedSalesMap.containsKey(key)) {
         combinedSalesMap[key] = sale;
       }
     }
@@ -209,10 +211,8 @@ class _SalesScreenState extends State<SalesScreen> {
       final Map<String, Sale> salesMap = { for (var s in _allSales) (s.posReference ?? s.id.toString()): s };
 
       for (var sale in onlineSales) {
-        final String? key = sale.posReference ?? sale.id.toString();
-        if (key != null) {
-          salesMap[key] = sale;
-        }
+        final String key = sale.posReference ?? sale.id.toString();
+        salesMap[key] = sale;
       }
 
       List<Sale> combinedSales = salesMap.values.toList();
@@ -289,9 +289,8 @@ class _SalesScreenState extends State<SalesScreen> {
       setState(() {
         _filteredSales = _allSales.where((sale) {
           // 1. Search Filter (Customer Name or Sale ID)
-          print(sale.toJson());
           final matchesSearch = (sale.customer.value?.name.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-                               (sale.referenceNumber!.contains(_searchQuery.toLowerCase()) ?? false) ||
+                               (sale.referenceNumber?.contains(_searchQuery.toLowerCase()) ?? false) ||
                                (_searchQuery.isEmpty);
 
           // 2. Branch Filter
@@ -333,11 +332,9 @@ class _SalesScreenState extends State<SalesScreen> {
             matchesCreatedByName = true;
           }
 
-          print('match: $matchesSearch $matchesBranch $matchesCustomer $matchesStatus $matchesShift $matchesDate $matchesCreatedByName');
           return matchesSearch && matchesBranch && matchesCustomer && matchesStatus && matchesShift && matchesDate
               && matchesCreatedByName;
         }).toList();
-        print('filterd: ${_filteredSales.length}');
       });
     }
   }
@@ -357,6 +354,16 @@ class _SalesScreenState extends State<SalesScreen> {
   }
 
   Future<void> _reverseSale(Sale sale) async {
+    // 1. Check if the sale is already reversed
+    if (sale.saleStatus == SaleStatus.REVERSED.toString() || sale.saleStatus == SaleStatus.CREDIT_NOTE.toString()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This sale has already been reversed.'), backgroundColor: Colors.orange),
+        );
+      }
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -379,19 +386,43 @@ class _SalesScreenState extends State<SalesScreen> {
         });
       }
       try {
-        final SharedPreferences prefs = await SharedPreferences.getInstance();
-        final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
-        final String salesKey = isOfflineMode ? AppConstants.keyOfflineSales : AppConstants.keySales;
+        // Update sale status and save to Isar
+        final reversedSale = sale.copyWith(saleStatus: SaleStatus.REVERSED.toString());
+        await _saleService.saveSale(reversedSale);
 
-        final List<String> localSalesJson = prefs.getStringList(salesKey) ?? [];
-        final List<Sale> localSales = localSalesJson.map((e) => Sale.fromJson(jsonDecode(e))).toList();
-
-        // Update local status
-        int localIndex = localSales.indexWhere((s) => s.id == sale.id || s.posReference == sale.posReference);
-        if (localIndex != -1) {
-          localSales[localIndex] = localSales[localIndex].copyWith(saleStatus: SaleStatus.CREDIT_NOTE.toString());
-          await prefs.setStringList(salesKey, localSales.map((s) => jsonEncode(s.toJson())).toList());
+        // Revert stock quantities in Isar
+        final branchStocks = await _isarService.getAllBranchStocks();
+        for (final item in sale.allItems) {
+          final stockIndex = branchStocks.indexWhere((bs) => bs.item.value?.id == item.inventoryItem.value?.id);
+          if (stockIndex != -1) {
+            final currentStock = branchStocks[stockIndex];
+            final updatedStock = currentStock.copyWith(stock: currentStock.stock + item.quantity);
+            branchStocks[stockIndex] = updatedStock;
+          }
         }
+        await _isarService.saveBranchStocks(branchStocks);
+
+        // Revert stock quantities in SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        _isOnline = !(prefs.getBool(AppConstants.keyIsOfflineMode) ?? false);
+        final String branchStockKey = _isOnline ? AppConstants.keyBranchStock : AppConstants.keyOfflineBranchStock;
+        
+        // Load branch stock from SharedPreferences
+        final List<String> currentBranchStockJson = prefs.getStringList(branchStockKey) ?? [];
+        List<BranchStock> branchStocksFromPrefs = currentBranchStockJson.map((e) => BranchStock.fromJson(jsonDecode(e))).toList();
+
+        for (final item in sale.allItems) {
+          final stockIndex = branchStocksFromPrefs.indexWhere((bs) => bs.item.value?.id == item.inventoryItem.value?.id);
+          if (stockIndex != -1) {
+            final currentStock = branchStocksFromPrefs[stockIndex];
+            final updatedStock = currentStock.copyWith(stock: currentStock.stock + item.quantity);
+            branchStocksFromPrefs[stockIndex] = updatedStock;
+          }
+        }
+
+        final List<String> updatedBranchStockJson = branchStocksFromPrefs.map((bs) => jsonEncode(bs.toJson())).toList();
+        await prefs.setStringList(branchStockKey, updatedBranchStockJson);
+
 
         // Run to API if synced and id is not null (which means it comes from API usually)
         if (sale.isSynced == true && sale.id != null) {
@@ -541,10 +572,8 @@ class _SalesScreenState extends State<SalesScreen> {
             };
 
             for (var sale in selectedSales) {
-                final String? key = sale.posReference ?? sale.id.toString();
-                if (key != null) {
-                    backupSalesMap[key] = sale;
-                }
+                final String key = sale.posReference ?? sale.id.toString();
+                backupSalesMap[key] = sale;
             }
 
             final List<String> combinedBackupJson = backupSalesMap.values.map((s) => jsonEncode(s.toJson())).toList();
@@ -734,7 +763,7 @@ class _SalesScreenState extends State<SalesScreen> {
                               margin: const EdgeInsets.only(bottom: 12),
                               elevation: 1,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              color: (sale.saleStatus == SaleStatus.REVERSED.toString() || sale.saleStatus == SaleStatus.CREDIT_NOTE.toString()) ? Colors.grey.shade100 : AppTheme.white, // Added this line
+                              color: (sale.saleStatus == SaleStatus.REVERSED.toString() || sale.saleStatus == SaleStatus.CREDIT_NOTE.toString()) ? Colors.red.withOpacity(0.1) : AppTheme.white, // Added this line
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(12),
                                 onTap: () {
@@ -743,11 +772,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                     MaterialPageRoute(builder: (context) => SaleReceiptScreen(sale: sale)),
                                   );
                                 },
-                                onLongPress: () {
-                                  if (sale.saleStatus != SaleStatus.REVERSED.toString() && sale.saleStatus != SaleStatus.CREDIT_NOTE.toString()) {
-                                    _reverseSale(sale);
-                                  }
-                                },
+                                onLongPress: () => _reverseSale(sale),
                                 child: Padding(
                                   padding: const EdgeInsets.all(12.0),
                                   child: Column(
@@ -989,7 +1014,7 @@ class _SalesScreenState extends State<SalesScreen> {
                        }
                    ),
                 const SizedBox(width: 8),
-                _buildFilterChip('Status', [SaleStatus.COMPLETE.toString(), SaleStatus.PENDING.toString(), SaleStatus.REVERSED.toString(), SaleStatus.CREDIT_NOTE.toString(), SaleStatus.COMPLETE.toString()], _selectedStatus, (val) {
+                _buildFilterChip('Status', [SaleStatus.COMPLETE.toString(), SaleStatus.PENDING.toString(), SaleStatus.REVERSED.toString(), SaleStatus.CREDIT_NOTE.toString()], _selectedStatus, (val) {
                   if (mounted) setState(() => _selectedStatus = val);
                   _applyFilters();
                 }),

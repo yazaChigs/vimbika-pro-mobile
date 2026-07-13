@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:uuid/uuid.dart';
 import 'package:vimbika_pro/app_constants/app_constants.dart';
 import 'package:vimbika_pro/base_import_screen.dart';
 import 'package:vimbika_pro/model/branch.dart';
@@ -118,7 +119,7 @@ class InventoryImportScreen extends BaseImportScreen {
       }
 
       final inventoryItem = InventoryItem(
-        id: null,
+        id: const Uuid().v4(),
         name: name,
         description: row[1]?.value?.toString().trim() ?? '',
         itemCode: code,

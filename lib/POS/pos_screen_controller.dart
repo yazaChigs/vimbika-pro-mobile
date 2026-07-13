@@ -685,12 +685,12 @@ class POSScreenController extends ChangeNotifier {
       itemTaxAmount = totalInclusive - (totalInclusive / (1 + taxRate / 100));
 
       _cart[index] = SaleItem(
+        id: existingItem.id,
         quantity: newQty,
         sellingPrice: product.sellingPrice,
         total: totalInclusive,
         taxAmount: itemTaxAmount,
         isMobile: true,
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
       );
       _cart[index].inventoryItem.value = product;
     } else {
@@ -781,7 +781,7 @@ class POSScreenController extends ChangeNotifier {
     itemTaxAmount = subtotalAfterDiscount - (subtotalAfterDiscount / (1 + taxRate / 100));
 
     _cart[index] = SaleItem(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: existingItem.id,
       // inventoryItem: product,
       quantity: newQuantity,
       sellingPrice: newSellingPrice,

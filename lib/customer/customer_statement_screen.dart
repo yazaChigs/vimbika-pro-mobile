@@ -409,7 +409,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
           Text(widget.customer.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Text(widget.customer.email ?? widget.customer.mobilePhone ?? '', style: const TextStyle(color: AppTheme.grey)),
-          const SizedBox(height: 24),
+         /* const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -417,7 +417,7 @@ class _CustomerStatementScreenState extends State<CustomerStatementScreen> {
               _buildSummaryItem('Total Credits', _totalPaid, Colors.green),
               _buildSummaryItem('Balance', _balanceDue, Colors.black),
             ],
-          ),
+          ),*/ // hidden until accuracy is implememnted
         ],
       ),
     );

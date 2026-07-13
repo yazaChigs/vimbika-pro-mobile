@@ -70,6 +70,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
     double salesSum = 0.0;
     double costOfSalesSum = 0.0;
     for (final sale in sales) {
+      if (sale.saleStatus == 'Reversed') {
+        continue;
+      }
       DateTime? saleDate;
       if (sale.dateCreated != null) saleDate = DateTime.tryParse(sale.dateCreated!);
       if (saleDate == null && sale.timeIniated != null && sale.timeIniated!.isNotEmpty) {

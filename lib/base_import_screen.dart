@@ -4,6 +4,7 @@ import 'package:excel/excel.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:file_picker/file_picker.dart';
 
 abstract class BaseImportScreen extends StatelessWidget {
   final String title;
@@ -104,36 +105,24 @@ abstract class BaseImportScreen extends StatelessWidget {
 
   Future<void> _importFile(BuildContext context) async {
     try {
-      if (!await _requestPermissions()) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Storage permission denied'), backgroundColor: Colors.red),
-          );
-        }
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'xls'],
+      );
+
+      if (result == null || result.files.single.path == null) {
         return;
       }
 
-      Directory? directory;
-      if (Platform.isAndroid) {
-        directory = Directory('/storage/emulated/0/Download');
-        if (!await directory.exists()) {
-          directory = await getExternalStorageDirectory();
-        }
-      } else {
-        directory = await getApplicationDocumentsDirectory();
-      }
-
-      if (directory == null) throw Exception('Could not access storage');
-
-      final String filePath = '${directory.path}/$templateFileName';
+      final String filePath = result.files.single.path!;
       final File file = File(filePath);
 
       if (!await file.exists()) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Please fill and save the $entityName template first.'),
-              backgroundColor: Colors.orange,
+            const SnackBar(
+              content: Text('Selected file does not exist.'),
+              backgroundColor: Colors.red,
             ),
           );
         }
