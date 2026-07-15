@@ -1,6 +1,11 @@
+import 'package:isar/isar.dart';
 import 'base_entity.dart';
 
+part 'supplier.g.dart';
+
+@collection
 class Supplier extends BaseEntity {
+  Id isarId = Isar.autoIncrement;
   final String name;
   final String? email;
   final String? phoneNumber;
@@ -8,25 +13,18 @@ class Supplier extends BaseEntity {
   final String? contactPerson;
 
   Supplier({
-    String? id,
-    String? dateCreated,
-    String? dateModified,
-    String? createdByName,
-    String? modifiedByName,
-    int? version,
+    super.id,
+    super.dateCreated,
+    super.dateModified,
+    super.createdByName,
+    super.modifiedByName,
+    super.version,
     required this.name,
     this.email,
     this.phoneNumber,
     this.address,
     this.contactPerson,
-  }) : super(
-          id: id,
-          dateCreated: dateCreated,
-          dateModified: dateModified,
-          createdByName: createdByName,
-          modifiedByName: modifiedByName,
-          version: version,
-        );
+  });
 
   factory Supplier.fromJson(Map<String, dynamic> json) {
     return Supplier(

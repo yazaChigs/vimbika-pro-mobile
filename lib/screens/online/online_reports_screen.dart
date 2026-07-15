@@ -475,7 +475,7 @@ class _OnlineReportsScreenState extends State<OnlineReportsScreen> {
                         ),
                       ),
                       Text(
-                        item.quantity.toStringAsFixed(0),
+                        item.availableItems.toStringAsFixed(0),
                         style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.danger),
                       ),
                     ],

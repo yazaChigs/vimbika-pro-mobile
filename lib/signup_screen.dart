@@ -19,6 +19,9 @@ import 'model/expense_category.dart';
 import 'model/mobile_pos_shift.dart';
 import 'model/subscription.dart';
 import 'model/inventory_item.dart';
+import 'model/supplier.dart';
+import 'model/company.dart';
+import 'services/company_service.dart';
 import 'quick_start_screen.dart'; // Import the new quick start screen
 
 class SignupScreen extends StatefulWidget {
@@ -46,6 +49,15 @@ class _SignupScreenState extends State<SignupScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Username and PIN are required')),
+        );
+      }
+      return;
+    }
+
+    if (_usernameController.text.length < 4) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Username must be at least 4 characters')),
         );
       }
       return;
@@ -297,8 +309,8 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!prefs.containsKey(AppConstants.keyOfflineTaxes)) {
       final defaultTaxes = [
         Tax(id: _uuid.v4(), name: 'Exempt', taxPercentage: 0.0, description: 'Exempt items'), // Assign a unique ID
-        Tax(id: _uuid.v4(), name: 'Zero rated', taxPercentage: 0.0, description: 'Zero rated items'), // Assign a unique ID
-        Tax(id: _uuid.v4(), name: 'Standard rated', taxPercentage: 15.5, description: 'Standard standard items'), // Assign a unique ID
+        Tax(id: _uuid.v4(), name: 'Zero rate 0%', taxPercentage: 0.0, description: 'Zero rated items'), // Assign a unique ID
+        Tax(id: _uuid.v4(), name: 'Standard rated 15.5%', taxPercentage: 15.5, description: 'Standard standard items'), // Assign a unique ID
       ];
       await prefs.setStringList(
         AppConstants.keyOfflineTaxes,
@@ -322,6 +334,23 @@ class _SignupScreenState extends State<SignupScreen> {
         Unit(id: _uuid.v4(), name: 'Unit(s)', abbreviation: 'unit(s)', description: 'Volume in litres'), // Assign a unique ID
       ];
       await prefs.setStringList(AppConstants.keyOfflineUnits, defaultUnits.map((u) => jsonEncode(u.toJson())).toList());
+    }
+
+    if (!prefs.containsKey(AppConstants.keyOfflineSuppliers)) {
+      final Company? company = await CompanyService().getCompany();
+      if (company != null) {
+        final defaultSupplier = Supplier(
+          id: company.id != null ? 'supplier_${company.id}' : _uuid.v4(),
+          name: company.name ?? 'Default Supplier',
+          email: company.email,
+          phoneNumber: company.phoneNumber,
+          address: company.address,
+        );
+        await prefs.setStringList(
+          AppConstants.keyOfflineSuppliers,
+          [jsonEncode(defaultSupplier.toJson())]
+        );
+      }
     }
 
     if (!prefs.containsKey(AppConstants.keyExpenseCategories)) {

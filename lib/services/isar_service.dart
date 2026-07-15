@@ -17,6 +17,7 @@ import 'package:vimbika_pro/model/category.dart';
 import 'package:vimbika_pro/model/unit.dart';
 import 'package:vimbika_pro/model/tax.dart';
 import 'package:vimbika_pro/model/branch_stock.dart';
+import 'package:vimbika_pro/model/supplier.dart';
 
 class IsarService {
   static final IsarService _instance = IsarService._internal();
@@ -47,6 +48,7 @@ class IsarService {
           UnitSchema,
           TaxSchema,
           BranchStockSchema,
+          SupplierSchema,
         ],
         directory: dir.path,
         inspector: true,
@@ -60,8 +62,10 @@ class IsarService {
     if (item.category.value != null) isar.categorys.putSync(item.category.value!);
     if (item.unit.value != null) isar.units.putSync(item.unit.value!);
     if (item.tax.value != null) isar.taxs.putSync(item.tax.value!);
+    if (item.purchaseTax.value != null) isar.taxs.putSync(item.purchaseTax.value!);
     if (item.currency.value != null) isar.currencys.putSync(item.currency.value!);
     if (item.company.value != null) isar.companys.putSync(item.company.value!);
+    if (item.supplier.value != null) isar.suppliers.putSync(item.supplier.value!);
     isar.inventoryItems.putSync(item);
   }
 

@@ -4,15 +4,15 @@ import 'package:vimbika_pro/model/category.dart';
 import 'package:vimbika_pro/model/inventory_item.dart';
 import 'package:vimbika_pro/model/branch_stock.dart';
 import 'package:vimbika_pro/model/branch.dart';
+import 'package:vimbika_pro/model/item_type.dart';
 import 'package:vimbika_pro/model/tax.dart';
 import 'package:vimbika_pro/model/unit.dart';
+import 'package:vimbika_pro/model/supplier.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:vimbika_pro/services/inventory_item_service.dart';
 import 'package:uuid/uuid.dart';
-
-import '../model/currency.dart'; // Import the new service
 
 class AddInventoryItemScreen extends StatefulWidget {
   final InventoryItem? item;
@@ -32,18 +32,23 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
   late TextEditingController _codeController;
   late TextEditingController _costPriceController;
   late TextEditingController _sellingPriceController;
+  late TextEditingController _priceWithoutTaxController;
+  late TextEditingController _taxAmountController;
   late TextEditingController _reorderLevelController;
   
   bool _isService = false;
+  bool _isCalculating = false;
   
   Category? _selectedCategory;
   Unit? _selectedUnit;
+  Supplier? _selectedSupplier;
   Tax? _selectedTax;
+  Tax? _selectedPurchaseTax;
   Branch? _selectedBranch;
-  Currency? _baseCurrency;
 
   List<Category> _categories = [];
   List<Unit> _units = [];
+  List<Supplier> _suppliers = [];
   List<Tax> _taxes = [];
   
   bool _isLoading = true;
@@ -61,8 +66,13 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
     _codeController = TextEditingController(text: item?.itemCode);
     _costPriceController = TextEditingController(text: item?.purchasePrice.toString() ?? '0.0');
     _sellingPriceController = TextEditingController(text: item?.sellingPrice.toString() ?? '0.0');
+    _priceWithoutTaxController = TextEditingController(text: item?.priceWithoutTax.toString() ?? '0.0');
+    _taxAmountController = TextEditingController(text: item?.taxAmount.toString() ?? '0.0');
     _reorderLevelController = TextEditingController(text: item?.reorderLevel.toString() ?? '0.0');
     _isService = item?.isService ?? false;
+
+    _costPriceController.addListener(_calculateTaxes);
+    _priceWithoutTaxController.addListener(_calculateTaxesBackward);
     
     _loadData();
   }
@@ -79,6 +89,9 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
     final List<String> unitJson = _isOnline
         ? (prefs.getStringList(AppConstants.keyUnits) ?? [])
         : (prefs.getStringList(AppConstants.keyOfflineUnits) ?? []);
+    final List<String> supplierJson = _isOnline
+        ? (prefs.getStringList(AppConstants.keySuppliers) ?? [])
+        : (prefs.getStringList(AppConstants.keyOfflineSuppliers) ?? []);
     final List<String> taxJson = _isOnline
         ? (prefs.getStringList(AppConstants.keyTaxes) ?? [])
         : (prefs.getStringList(AppConstants.keyOfflineTaxes) ?? []);
@@ -90,6 +103,7 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
       _isTaxEnabled = prefs.getBool(AppConstants.keyIsPriceInclusiveTax) ?? true;
       _categories = catJson.map((e) => Category.fromJson(jsonDecode(e))).toList();
       _units = unitJson.map((e) => Unit.fromJson(jsonDecode(e))).toList();
+      _suppliers = supplierJson.map((e) => Supplier.fromJson(jsonDecode(e))).toList();
       _taxes = taxJson.map((e) => Tax.fromJson(jsonDecode(e))).toList();
 
       final item = widget.item ?? widget.branchStock?.item.value;
@@ -100,8 +114,14 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
         if (item.unit.value != null) {
           _selectedUnit = _units.cast<Unit?>().firstWhere((element) => element?.id == item.unit.value!.id, orElse: () => null); // Changed orElse to null
         }
+        if (item.supplier.value != null) {
+          _selectedSupplier = _suppliers.cast<Supplier?>().firstWhere((element) => element?.id == item.supplier.value!.id, orElse: () => null);
+        }
         if (item.tax.value != null) {
           _selectedTax = _taxes.cast<Tax?>().firstWhere((element) => element?.id == item.tax.value!.id, orElse: () => null); // Changed orElse to null
+        }
+        if (item.purchaseTax.value != null) {
+          _selectedPurchaseTax = _taxes.cast<Tax?>().firstWhere((element) => element?.id == item.purchaseTax.value!.id, orElse: () => null);
         }
       }
 
@@ -110,17 +130,50 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
         _selectedBranch = Branch.fromJson(jsonDecode(defaultBranchJson));
       }
 
-      // Pre-select base currency for inventory item company if available
-      final String currencyKey = _isOnline ? AppConstants.keyCurrencies : AppConstants.keyOfflineCurrencies;
-      final List<String> currenciesJson = prefs.getStringList(currencyKey) ?? [];
-      final List<Currency> currencies = currenciesJson.map((e) => Currency.fromJson(jsonDecode(e))).toList();
-      _baseCurrency = currencies.cast<Currency?>().firstWhere(
-        (c) => c?.isBaseCurrency == true,
-        orElse: () => null,
-      );
-      
       _isLoading = false;
+      _calculateTaxes();
     });
+  }
+
+  void _calculateTaxes() {
+    if (_isCalculating) return;
+    _isCalculating = true;
+
+    final double costPrice = double.tryParse(_costPriceController.text) ?? 0.0;
+    double purchasePriceAfterTax = costPrice;
+    double taxAmount = 0.0;
+
+    if (_selectedPurchaseTax != null && _selectedPurchaseTax!.taxPercentage != null) {
+      double taxRate = _selectedPurchaseTax!.taxPercentage! / 100;
+      taxAmount = costPrice * taxRate;
+      purchasePriceAfterTax = costPrice + taxAmount;
+    }
+    
+    _priceWithoutTaxController.text = purchasePriceAfterTax.toStringAsFixed(2);
+    _taxAmountController.text = taxAmount.toStringAsFixed(2);
+
+    _isCalculating = false;
+  }
+
+  void _calculateTaxesBackward() {
+    if (_isCalculating) return;
+    _isCalculating = true;
+
+    final double purchasePriceAfterTax = double.tryParse(_priceWithoutTaxController.text) ?? 0.0;
+    double costPrice = purchasePriceAfterTax;
+    double taxAmount = 0.0;
+
+    if (_selectedPurchaseTax != null && _selectedPurchaseTax!.taxPercentage != null) {
+      double taxRate = _selectedPurchaseTax!.taxPercentage! / 100;
+      // CostPrice = PriceAfterTax / (1 + TaxRate)
+      costPrice = purchasePriceAfterTax / (1 + taxRate);
+      taxAmount = purchasePriceAfterTax - costPrice;
+    }
+
+    _costPriceController.text = costPrice.toStringAsFixed(2);
+    _taxAmountController.text = taxAmount.toStringAsFixed(2);
+
+    _isCalculating = false;
   }
 
   Future<void> _saveItem() async {
@@ -170,6 +223,16 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
     // 1. Create/Update InventoryItem
     final existingItem = widget.item ?? widget.branchStock?.item.value;
     final String itemId = existingItem?.id ?? const Uuid().v4();
+
+    final double costPrice = double.tryParse(_costPriceController.text) ?? 0.0;
+    double purchasePriceAfterTax = costPrice;
+    double taxAmount = 0.0;
+
+    if (_selectedPurchaseTax != null && _selectedPurchaseTax!.taxPercentage != null) {
+      double taxRate = _selectedPurchaseTax!.taxPercentage! / 100;
+      taxAmount = costPrice * taxRate;
+      purchasePriceAfterTax = costPrice + taxAmount;
+    }
     
     InventoryItem newItem = InventoryItem(
       id: itemId, // Preserve ID if editing or generate new one
@@ -178,12 +241,17 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
       itemCode: _codeController.text,
       category: _selectedCategory,
       unit: _selectedUnit,
+      supplier: _selectedSupplier,
       tax: _selectedTax,
+      purchaseTax: _selectedPurchaseTax,
       // currency: existingItem?.currency ?? _baseCurrency,
-      purchasePrice: double.tryParse(_costPriceController.text) ?? 0.0,
+      purchasePrice: costPrice,
       sellingPrice: double.tryParse(_sellingPriceController.text) ?? 0.0,
+      priceWithoutTax: purchasePriceAfterTax,
+      taxAmount: taxAmount,
       reorderLevel: double.tryParse(_reorderLevelController.text) ?? 0.0,
       isService: _isService,
+      itemType: _isService ? ItemType.SERVICE : ItemType.INVENTORY,
       // company: _selectedBranch?.company, // Ensure company is set
       isSynced: false, // Default to not synced
     );
@@ -258,6 +326,8 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
     _codeController.dispose();
     _costPriceController.dispose();
     _sellingPriceController.dispose();
+    _priceWithoutTaxController.dispose();
+    _taxAmountController.dispose();
     _reorderLevelController.dispose();
     super.dispose();
   }
@@ -283,19 +353,27 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildTextField(_nameController, 'Item Name', 'Enter item name', required: true),
-                  _buildTextField(_descriptionController, 'Description', 'Enter description'),
-                  _buildTextField(_codeController, 'Item Code', 'Barcode/Internal Code'),
-                  const SizedBox(height: 12),
-                  _buildDropdown<Category>(
-                    'Category', 
-                    _categories, 
-                    _selectedCategory, 
-                    (val) => setState(() => _selectedCategory = val),
-                    (cat) => cat.name
-                  ),
                   Row(
                     children: [
+                      Expanded(child: _buildTextField(_nameController, 'Item Name', 'Enter item name', required: true)),
+                      const SizedBox(width: 12),
+                      Expanded(child: _buildTextField(_codeController, 'Item Code', 'Barcode/Internal Code')),
+                    ],
+                  ),
+                  _buildTextField(_descriptionController, 'Description', 'Enter description'),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDropdown<Category>(
+                          'Category', 
+                          _categories, 
+                          _selectedCategory, 
+                          (val) => setState(() => _selectedCategory = val),
+                          (cat) => cat.name
+                        ),
+                      ),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: _buildDropdown<Unit>(
                           'Unit', 
@@ -305,26 +383,66 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
                           (unit) => unit.name
                         ),
                       ),
-                      if (_isTaxEnabled)
-                        const SizedBox(width: 12),
+                    ],
+                  ),
+                  _buildDropdown<Supplier>(
+                    'Supplier', 
+                    _suppliers, 
+                    _selectedSupplier, 
+                    (val) => setState(() => _selectedSupplier = val),
+                    (s) => s.name
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
                       if (_isTaxEnabled)
                         Expanded(
                           child: _buildDropdown<Tax>(
-                            'Tax', 
+                            'Sales Tax', 
                             _taxes, 
                             _selectedTax, 
-                            (val) => setState(() => _selectedTax = val),
+                            (val) {
+                              setState(() {
+                                _selectedTax = val;
+                              });
+                            },
                             (tax) => '${tax.name} (${tax.taxPercentage}%)'
                           ),
                         ),
+                      if (_isTaxEnabled)
+                        const SizedBox(width: 12),
+                      Expanded(child: _buildTextField(_sellingPriceController, 'Selling Price', '0.0', keyboardType: TextInputType.number)),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: _buildTextField(_costPriceController, 'Cost Price', '0.0', keyboardType: TextInputType.number)),
+                      if (_isTaxEnabled)
+                        Expanded(
+                          child: _buildDropdown<Tax>(
+                              'Purchase Tax',
+                              _taxes,
+                              _selectedPurchaseTax,
+                                  (val) {
+                                setState(() {
+                                  _selectedPurchaseTax = val;
+                                  _calculateTaxes();
+                                });
+                              },
+                                  (tax) => '${tax.name} (${tax.taxPercentage}%)'
+                          ),
+                        ),
+                      if (_isTaxEnabled)
+                        const SizedBox(width: 12),
+                      Expanded(child: _buildTextField(_costPriceController, 'Cost Price (Before Tax)', '0.0', keyboardType: TextInputType.number)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(child: _buildTextField(_priceWithoutTaxController, 'Purchase Price (After Tax)', '0.0', keyboardType: TextInputType.number)),
                       const SizedBox(width: 12),
-                      Expanded(child: _buildTextField(_sellingPriceController, 'Selling Price', '0.0', keyboardType: TextInputType.number)),
+                      Expanded(child: _buildTextField(_taxAmountController, 'Tax Amount', '0.0', keyboardType: TextInputType.number, enabled: false)),
                     ],
                   ),
                   _buildTextField(_reorderLevelController, 'Reorder Level', '0.0', keyboardType: TextInputType.number),
@@ -356,18 +474,19 @@ class _AddInventoryItemScreenState extends State<AddInventoryItemScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, String hint, {bool required = false, TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildTextField(TextEditingController controller, String label, String hint, {bool required = false, TextInputType keyboardType = TextInputType.text, bool enabled = true}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
+        enabled: enabled,
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           filled: true,
-          fillColor: AppTheme.white,
+          fillColor: enabled ? AppTheme.white : Colors.grey[200],
         ),
         validator: required ? (value) => value == null || value.isEmpty ? 'This field is required' : null : null,
         onTap: () {

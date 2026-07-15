@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vimbika_pro/model/company_sync_dto.dart';
 import '../app_constants/app_constants.dart';
 import '../model/company.dart';
 import '../model/user.dart';
@@ -101,6 +102,15 @@ class CompanyService {
       return response;
     }
     return null;
+  }
+
+  Future<Map<String, dynamic>?> syncCompanyData(CompanySyncDto dto) async {
+    final String responseStr = await BaseHttpClient().post(
+      '/company/sync-company',
+      jsonEncode(dto.toJson()),
+    );
+    final Map<String, dynamic> response = jsonDecode(responseStr);
+    return response;
   }
 
   Future<List<Company>> getUserCompanies(User user) async {

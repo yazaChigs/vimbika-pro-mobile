@@ -80,7 +80,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
       _suppliers = supplierJson.map((e) => Supplier.fromJson(jsonDecode(e))).toList();
       
       final List<BranchStock> branchStocks = branchStockJson.map((e) => BranchStock.fromJson(jsonDecode(e))).toList();
-      _inventoryItems = branchStocks.where((bs) => bs.item.value != null).map((bs) => bs.item.value!.copyWith(quantity: bs.stock)).toList();
+      _inventoryItems = branchStocks.where((bs) => bs.item.value != null).map((bs) => bs.item.value!.copyWith(availableItems: bs.stock)).toList();
 
       _paymentTypes = paymentTypeJson
           .map((e) => PaymentType.fromJson(jsonDecode(e)))
@@ -97,7 +97,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
             _selectedBranch = Branch.fromJson(branchData);
             // After loading branch, refresh items list to ensure they have branch info if needed
             final List<BranchStock> branchStocks = branchStockJson.map((e) => BranchStock.fromJson(jsonDecode(e))).toList();
-            _inventoryItems = branchStocks.where((bs) => bs.item.value != null).map((bs) => bs.item.value!.copyWith(quantity: bs.stock)).toList();
+            _inventoryItems = branchStocks.where((bs) => bs.item.value != null).map((bs) => bs.item.value!.copyWith(availableItems: bs.stock)).toList();
           } catch (e) {
             // Error decoding branch
           }
@@ -114,7 +114,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
 
   double get _subTotalBase => _cartItems.fold(0, (sum, item) => sum + (item.price * item.quantity));
   double get _taxTotalBase => _cartItems.fold(0, (sum, item) => sum + item.taxAmount);
-  double get _grandTotalBase => _subTotalBase;
+  double get _grandTotalBase => _subTotalBase + _taxTotalBase;
   
   double get _subTotalConverted => _subTotalBase * (_selectedCurrency?.rate ?? 1.0);
   double get _taxTotalConverted => _taxTotalBase * (_selectedCurrency?.rate ?? 1.0);
@@ -125,30 +125,32 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
   void _addItemToCart(InventoryItem item) {
     setState(() {
       final existingIndex = _cartItems.indexWhere((i) => i.inventoryItem?.id != null && item.id != null && i.inventoryItem?.id == item.id);
-      final taxPercent = item.tax.value?.taxPercentage ?? 0.0;
+      final taxPercent = item.purchaseTax.value?.taxPercentage ?? 0.0;
       if (existingIndex != -1) {
         final existingItem = _cartItems[existingIndex];
         final newQuantity = existingItem.quantity + 1;
-        final totalAmount = item.purchasePrice * newQuantity;
-        final newTaxAmount = totalAmount - (totalAmount / (1 + taxPercent / 100));
+        final double taxPerItem = item.purchasePrice * (taxPercent / 100);
+        final double totalPerItem = item.purchasePrice + taxPerItem;
+        final totalAmount = totalPerItem * newQuantity;
+        final newTaxAmount = taxPerItem * newQuantity;
         _cartItems[existingIndex] = PurchaseItem(
           id: existingItem.id,
           inventoryItem: existingItem.inventoryItem,
           quantity: newQuantity,
-          price: existingItem.price,
+          price: item.purchasePrice,
           taxAmount: newTaxAmount,
           total: totalAmount,
         );
       } else {
-        final totalAmount = item.purchasePrice;
-        final taxAmount = totalAmount - (totalAmount / (1 + taxPercent / 100));
+        final double taxPerItem = item.purchasePrice * (taxPercent / 100);
+        final double totalPerItem = item.purchasePrice + taxPerItem;
         _cartItems.add(PurchaseItem(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           inventoryItem: item,
           quantity: 1,
           price: item.purchasePrice,
-          taxAmount: taxAmount,
-          total: totalAmount,
+          taxAmount: taxPerItem,
+          total: totalPerItem,
         ));
       }
     });
@@ -201,31 +203,26 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
 
               if (qty > 0) {
                 setState(() {
-                  final updatedInventoryItem = InventoryItem(
-                    id: item.inventoryItem?.id,
-                    name: item.inventoryItem?.name ?? '',
+                  final taxPercent = item.inventoryItem?.purchaseTax.value?.taxPercentage ?? 0.0;
+                  final double purchaseTaxAmountPerItem = pPriceBase * (taxPercent / 100);
+                  final double purchasePriceAfterTax = pPriceBase + purchaseTaxAmountPerItem;
+
+                  final updatedInventoryItem = item.inventoryItem!.copyWith(
                     purchasePrice: pPriceBase,
                     sellingPrice: sPriceBase,
-                    quantity: item.inventoryItem?.quantity ?? 0.0,
-                    category: item.inventoryItem!.category.value,
-                    unit: item.inventoryItem!.unit.value,
-                    tax: item.inventoryItem!.tax.value,
-                    itemCode: item.inventoryItem?.itemCode,
-                    reorderLevel: item.inventoryItem?.reorderLevel ?? 0.0,
-                    description: item.inventoryItem?.description,
-                    isService: item.inventoryItem?.isService ?? false,
+                    priceWithoutTax: purchasePriceAfterTax,
+                    taxAmount: purchaseTaxAmountPerItem,
                   );
 
-                  final taxPercent = updatedInventoryItem.tax.value?.taxPercentage ?? 0.0;
-                  final totalAmount = pPriceBase * qty;
-                  final taxAmount = totalAmount - (totalAmount / (1 + taxPercent / 100));
+                  final totalAmount = purchasePriceAfterTax * qty;
+                  final totalTaxAmount = purchaseTaxAmountPerItem * qty;
 
                   _cartItems[index] = PurchaseItem(
                     id: item.id,
                     inventoryItem: updatedInventoryItem,
                     quantity: qty,
                     price: pPriceBase,
-                    taxAmount: taxAmount,
+                    taxAmount: totalTaxAmount,
                     total: totalAmount,
                   );
                 });
@@ -247,7 +244,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
 
     final List<PaymentType> availablePaymentTypes = _paymentTypes.where((pt) => 
       (pt.currency.value == null || pt.currency.value?.id == _selectedCurrency?.id) &&
-      !(pt.name ?? '').startsWith('ACC-') &&
+      !pt.name.startsWith('ACC-') &&
       !_payments.any((p) => p.paymentType?.id == pt.id) // Filter out already selected payment types
     ).toList();
 
@@ -350,7 +347,20 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
       supplier: _selectedSupplier,
       branch: _selectedBranch,
       currency: _selectedCurrency,
-      items: _cartItems,
+      items: _cartItems.map((item) => PurchaseItem(
+        id: item.id,
+        dateCreated: item.dateCreated,
+        dateModified: item.dateModified,
+        createdByName: item.createdByName,
+        modifiedByName: item.modifiedByName,
+        version: item.version,
+        inventoryItem: item.inventoryItem?.copyWith(supplier: _selectedSupplier),
+        quantity: item.quantity,
+        price: item.price,
+        taxAmount: item.taxAmount,
+        discountAmount: item.discountAmount,
+        total: item.total,
+      )).toList(),
       payments: _payments,
       subTotal: _subTotalBase,
       taxTotal: _taxTotalBase,
@@ -396,26 +406,18 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
         final index = items.indexWhere((i) => i.id != null && cartItem.inventoryItem?.id != null && i.id == cartItem.inventoryItem?.id);
         if (index != -1) {
           final item = items[index];
-          items[index] = InventoryItem(
-            id: item.id,
-            name: item.name,
+          items[index] = item.copyWith(
             purchasePrice: cartItem.price,
             sellingPrice: cartItem.inventoryItem?.sellingPrice ?? item.sellingPrice,
-            quantity: item.quantity + cartItem.quantity,
-            category: item.category.value,
-            unit: item.unit.value,
-            tax: item.tax.value,
-            itemCode: item.itemCode,
-            reorderLevel: item.reorderLevel,
-            description: item.description,
-            isService: item.isService,
+            priceWithoutTax: cartItem.inventoryItem?.priceWithoutTax ?? item.priceWithoutTax,
+            taxAmount: cartItem.inventoryItem?.taxAmount ?? item.taxAmount,
+            availableItems: item.availableItems + cartItem.quantity,
+            supplier: _selectedSupplier,
           );
         }
 
         // Update branch specific quantity if a branch is selected
         if (_selectedBranch != null && cartItem.inventoryItem != null) {
-          print('selected branch:  ${_selectedBranch?.toJson()}');
-          print('first branch:  ${branchStocks.first.toJson()}');
           final bsIndex = branchStocks.indexWhere((bs) =>
             bs.branch.value?.id != null && _selectedBranch!.id != null && bs.branch.value?.id == _selectedBranch!.id && 
             bs.item.value?.id != null && cartItem.inventoryItem!.id != null && bs.item.value?.id == cartItem.inventoryItem!.id
@@ -430,7 +432,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
               dateModified: DateTime.now().toIso8601String(),
             );
             updatedBS.branch.value = existingBS.branch.value;
-            updatedBS.item.value = cartItem.inventoryItem; // Use updated item with new prices
+            updatedBS.item.value = cartItem.inventoryItem?.copyWith(supplier: _selectedSupplier); // Use updated item with new prices and supplier
             branchStocks[bsIndex] = updatedBS;
           } else {
             final newBS = BranchStock(
@@ -440,7 +442,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
               dateModified: DateTime.now().toIso8601String(),
             );
             newBS.branch.value = _selectedBranch;
-            newBS.item.value = cartItem.inventoryItem;
+            newBS.item.value = cartItem.inventoryItem?.copyWith(supplier: _selectedSupplier);
             branchStocks.add(newBS);
           }
         }
@@ -661,7 +663,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
               children: [
                 Text('Qty: ${item.quantity.toStringAsFixed(0)} | Cost: ${_selectedCurrency?.symbol ?? ""}${priceConverted.toStringAsFixed(2)}'),
                 if (item.taxAmount > 0)
-                  Text('Tax: ${_selectedCurrency?.symbol ?? ""}${taxAmountConverted.toStringAsFixed(2)} (${item.inventoryItem?.tax.value!.taxPercentage ?? 0}%)', style: const TextStyle(fontSize: 12, color: AppTheme.grey)),
+                  Text('Tax: ${_selectedCurrency?.symbol ?? ""}${taxAmountConverted.toStringAsFixed(2)} (${item.inventoryItem?.purchaseTax.value!.taxPercentage ?? 0}%)', style: const TextStyle(fontSize: 12, color: AppTheme.grey)),
                 Text('Sell Price: ${_selectedCurrency?.symbol ?? ""}${sellingPriceConverted.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: AppTheme.grey)),
               ],
             ),
@@ -832,7 +834,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
                               final item = filteredItems[index];
                               return ListTile(
                                 title: Text(item.name),
-                                subtitle: Text('Current Stock: ${item.quantity}'),
+                                subtitle: Text('Current Stock: ${item.availableItems}'),
                                 trailing: const Icon(Icons.add_circle_outline),
             onTap: () {
               _addItemToCart(item);

@@ -50,6 +50,7 @@ class AppConstants {
   static const String keyPaymentTypes = 'payment_types';
   static const String keyOfflinePaymentTypes = 'offline_payment_types'; // Added
   static const String keySuppliers = 'suppliers';
+  static const String keyOfflineSuppliers = 'offline_suppliers';
   
   static const String keyCustomers = 'customers';
   static const String keyOfflineCustomers = 'offline_customers';

@@ -28,6 +28,11 @@ import 'dart:async';
 import '../../../model/company.dart';
 import '../../../model/customer.dart';
 import '../../../model/currency.dart';
+import '../../../model/company_sync_dto.dart';
+import '../../../model/unit.dart';
+import '../../../model/category.dart';
+import '../../../model/tax.dart';
+import '../../../model/supplier.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -411,11 +416,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     });
 
     final selectedPlan = _proSubscriptions.firstWhere((sub) => sub['name'] == _selectedSubscription);
-    await _saveUserAndCompanyAfterPayment(selectedPlan);
+    // await _saveUserAndCompanyAfterPayment(selectedPlan);
     final amount = selectedPlan['price'];
     final clientCorrelator = const Uuid().v4();
 
-    return;
+    // return;
     final request = EcocashChargeRequest(
       clientCorrelator: clientCorrelator,
       notifyUrl: 'https://demo.vimbika.africa/uat-vimbika/api/payments/ecocash/notification',
@@ -426,7 +431,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       transactionOperationStatus: 'Charged',
       paymentAmount: PaymentAmount(
         charginginformation: ChargingInformation(
-          amount: (amount as num).toDouble(),
+          // amount: (amount as num).toDouble(),
+          amount: 2.00,
           currency: 'USD',
           description: 'Vimbika Pro Subscription Upgrade',
         ),
@@ -467,7 +473,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             ),
           );
         }
-        await _saveUserAndCompanyAfterPayment(selectedPlan);
+        // await _saveUserAndCompanyAfterPayment(selectedPlan);
 
         final statusResponseMap = await _ecocashService.checkStatus(clientCorrelator);
         final statusResponse = statusResponseMap['status'];
@@ -479,7 +485,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Payment ${statusResponse['status'] ?? 'Failed'}'),
+                content: Text('Payment ${statusResponse ?? 'Failed'}'),
                 backgroundColor: Colors.red,
               ),
             );
@@ -503,6 +509,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             backgroundColor: Colors.red,
           ),
         );
+        debugPrint('An error occurred during upgrade: $e');
       }
     } finally {
       if (mounted) {
@@ -544,335 +551,233 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   Future<void> _saveUserAndCompanyAfterPayment(Map<String, dynamic> selectedPlan) async {
     try {
-      User? savedUser = _loggedInUser;
-      String password = _loggedInUser!.password!;
-      // Save user to API
-      if (_loggedInUser != null) {
-        try {
-          print('user: ${_loggedInUser!.toJson()}');
-          final returnedUser = await _subscriptionService.saveVimbikaUser(_loggedInUser!);
-          if (returnedUser != null) {
-            savedUser = returnedUser;
-            if (mounted) {
-              setState(() {
-                _loggedInUser = returnedUser;
-              });
-            }
-            final SharedPreferences prefs = await SharedPreferences.getInstance();
-            await prefs.setString(AppConstants.keyOfflineUserData, jsonEncode(returnedUser.toJson()));
-          }
-        } catch (e) {
-          debugPrint('Error saving user to Vimbika after payment: $e');
-        }
-      }
-
-      // Save company to API
-      Company? company;
-      Branch? branch;
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      var currentCompany = await _companyService.getCompany();
-      if (currentCompany != null && savedUser != null) {
+      final User? savedUser = _loggedInUser;
+      final String password = _loggedInUser!.password!;
+
+      // Prepare company
+      Company? company = await _companyService.getCompany();
+      if (company == null || savedUser == null) {
+        throw Exception('User or company not found');
+      }
+      Branch? branch;
+      final String? offlineBranchJson = prefs.getString(AppConstants.keyOfflineBranch);
+      if (offlineBranchJson != null) {
         try {
-          String? defaultBranchName;
-          final String? offlineBranchJson = prefs.getString(AppConstants.keyOfflineBranch);
-          if (offlineBranchJson != null) {
-            try {
-              final branchData = jsonDecode(offlineBranchJson);
-              defaultBranchName = branchData['name'];
-            } catch (e) {
-              debugPrint('Error decoding offline branch for defaultBranch: $e');
-            }
-          }
-
-          currentCompany = currentCompany.copyWith(
-            // newOfflineUser: savedUser,
-            defaultBranch: defaultBranchName,
-            name: 'Vimbika Pro Test 3'
-          );
-          final response = await _companyService.saveCompany(currentCompany);
-          if (response != null && response.containsKey('item')) {
-            final savedCompany = Company.fromJson(response['item']);
-            company = savedCompany;
-
-            // Save currencies from response
-            if (response.containsKey('currencies') && response['currencies'] != null) {
-              final List<dynamic> currenciesData = response['currencies'];
-              final List<String> currenciesJsonList = currenciesData.map((c) => jsonEncode(c)).toList();
-              // await prefs.setStringList(AppConstants.keyCurrencies, currenciesJsonList);
-              print('currenciesData: ${currenciesJsonList}');
-              print('currencies: ${currenciesJsonList.length}');
-              await prefs.setStringList(AppConstants.keyOfflineCurrencies, currenciesJsonList);
-            }
-
-            if (response.containsKey('branch') && response['branch'] != null) {
-              branch = Branch.fromJson(response['branch']);
-              await prefs.setString(AppConstants.keyOfflineBranch, jsonEncode(branch.toJson()));
-            }
-            await _companyService.saveOfflineCompany(savedCompany);
-
-            // Attempt login to get JWT token for subsequent API calls
-            await _attemptLogin(password);
-          }else if(response != null && response.containsKey('duplicate')){
-
-          }
+          final branchData = jsonDecode(offlineBranchJson);
+          branch = Branch.fromJson(branchData);
         } catch (e) {
-          company = await _companyService.getCompany();
-          debugPrint('Error saving company to Vimbika after payment: $e');
+          debugPrint('Error decoding offline branch for defaultBranch: $e');
         }
       }
 
-      // Finalize subscription state
-      if (mounted) {
-        setState(() {
-          _currentSubscription = _selectedSubscription!;
-        });
+      // Prepare subscription
+      DateTime now = DateTime.now();
+      DateTime subscriptionEndDate;
+      final InventoryItem? subscriptionItem = selectedPlan['item'] as InventoryItem?;
+      final List<String> currenciesJson = prefs.getStringList(AppConstants.keyOfflineCurrencies) ?? [];
+      Currency? baseCurrency;
+      if (currenciesJson.isNotEmpty) {
+        final List<Currency> currencies = currenciesJson.map((e) => Currency.fromJson(jsonDecode(e))).toList();
+        baseCurrency = currencies.firstWhere((c) => c.isBaseCurrency == true, orElse: () => currencies.first);
+      }
+      final InventoryItem? updatedSubscriptionItem = subscriptionItem?.copyWith(
+        currency: baseCurrency,
+        company: company,
+      );
+      if (updatedSubscriptionItem?.renewalInterval == 'MONTHLY') {
+        subscriptionEndDate = DateTime(now.year, now.month + 1, now.day);
+      } else if (subscriptionItem?.renewalInterval == 'QUARTERLY') {
+        subscriptionEndDate = DateTime(now.year, now.month + 3, now.day);
+      } else if (subscriptionItem?.renewalInterval == 'HALF_YEARLY') {
+        subscriptionEndDate = DateTime(now.year, now.month + 6, now.day);
+      } else if (subscriptionItem?.renewalInterval == 'ANNUALLY') {
+        subscriptionEndDate = DateTime(now.year + 1, now.month, now.day);
+      } else if (subscriptionItem?.renewalInterval == 'DAILY') {
+        subscriptionEndDate = now.add(const Duration(days: 1));
+      } else {
+        subscriptionEndDate = DateTime(now.year, now.month + 1, now.day);
+      }
+      final DateFormat formatter = DateFormat('yyyy-MM-dd');
+      final String formattedEndDate = formatter.format(subscriptionEndDate);
+      Subscription currentSubscription = Subscription(
+        name: _selectedSubscription!,
+        renewalDate: formattedEndDate,
+        subscription: updatedSubscriptionItem,
+        active: true,
+        company: company,
+      );
 
-        final SharedPreferences prefsForSub = await SharedPreferences.getInstance();
-        await prefsForSub.setString(AppConstants.keySelectedSubscription, _selectedSubscription!);
+      Supplier companySupplier = Supplier(
+        id: company.id != null ? 'supplier_${company.id}' : const Uuid().v4(),
+        name: company.name ?? '',
+        email: company.email,
+        phoneNumber: company.phoneNumber,
+        address: company.address,
+      );
 
-        DateTime now = DateTime.now();
-        DateTime subscriptionEndDate;
-        final InventoryItem? subscriptionItem = selectedPlan['item'] as InventoryItem?;
-        
-        // Get base currency to add to inventoryItem/currency
-        Currency? baseCurrency;
-        final List<String> currenciesJson = prefs.getStringList(AppConstants.keyOfflineCurrencies) ?? [];
-        if (currenciesJson.isNotEmpty) {
-          final List<Currency> currencies = currenciesJson.map((e) => Currency.fromJson(jsonDecode(e))).toList();
-          baseCurrency = currencies.cast<Currency?>().firstWhere(
-            (c) => c?.isBaseCurrency == true,
-            orElse: () => null,
+      // Prepare Inventory Items from BranchStock
+      final List<String> stockJsonList = prefs.getStringList(AppConstants.keyOfflineBranchStock) ?? [];
+      final List<BranchStock> stocks = stockJsonList.map((s) => BranchStock.fromJson(jsonDecode(s))).toList();
+      final List<InventoryItem> inventoryItems = stocks
+          .where((s) => s.item.value != null)
+          .map((s) {
+            final item = s.item.value!;
+            final updatedItem = item.copyWith(
+              availableItems: s.stock, // The stock count from BranchStock becomes the quantity
+              company: company,
+              currency: item.currency.value ?? baseCurrency,
+              supplier: item.supplier.value ?? companySupplier,
+            );
+            s.item.value = updatedItem;
+            return updatedItem;
+          })
+          .toList();
+
+      // Prepare other data
+      final List<String> bankJsonList = prefs.getStringList(AppConstants.keyOfflineBanks) ?? [];
+      final List<Bank> banks = bankJsonList.map((s) => Bank.fromJson(jsonDecode(s))).toList();
+      final List<String> paymentTypeJsonList = prefs.getStringList(AppConstants.keyOfflinePaymentTypes) ?? [];
+      final List<PaymentType> paymentTypes = paymentTypeJsonList.map((s) => PaymentType.fromJson(jsonDecode(s))).toList();
+      final List<String> customerJsonList = prefs.getStringList(AppConstants.keyOfflineCustomers) ?? [];
+      final List<Customer> customers = customerJsonList.map((s) => Customer.fromJson(jsonDecode(s))).toList();
+      final List<Currency> currencies = currenciesJson.map((e) => Currency.fromJson(jsonDecode(e))).toList();
+      final List<String> unitJsonList = prefs.getStringList(AppConstants.keyOfflineUnits) ?? [];
+      final List<Unit> units = unitJsonList.map((s) => Unit.fromJson(jsonDecode(s))).toList();
+      final List<String> categoryJsonList = prefs.getStringList(AppConstants.keyOfflineCategories) ?? [];
+      final List<Category> categories = categoryJsonList.map((s) => Category.fromJson(jsonDecode(s))).toList();
+      final List<String> taxJsonList = prefs.getStringList(AppConstants.keyOfflineTaxes) ?? [];
+      final List<Tax> taxes = taxJsonList.map((s) => Tax.fromJson(jsonDecode(s))).toList();
+      final List<String> supplierJsonList = prefs.getStringList(AppConstants.keyOfflineSuppliers) ?? prefs.getStringList(AppConstants.keySuppliers) ?? [];
+      final List<Supplier> suppliers = supplierJsonList.map((s) => Supplier.fromJson(jsonDecode(s))).toList();
+      suppliers.add(companySupplier);
+
+      // Create DTO
+      final companySyncDto = CompanySyncDto(
+        user: savedUser,
+        company: company,
+        branch: branch!,
+        subscription: currentSubscription,
+        currencies: currencies,
+        banks: banks,
+        customers: customers,
+        suppliers: suppliers,
+        inventoryItems: inventoryItems,
+        paymentTypes: paymentTypes,
+        units: units,
+        categories: categories,
+        taxes: taxes,
+      );
+
+      // Make the API call
+      final response = await _companyService.syncCompanyData(companySyncDto);
+
+      // Process response
+      if (response != null) {
+        // Save updated data from response
+        if (response['company'] != null) {
+          final savedCompany = Company.fromJson(response['company']);
+          await _companyService.saveOfflineCompany(savedCompany);
+        }
+        if (response.containsKey('branch') && response['branch'] != null) {
+          final branch = Branch.fromJson(response['branch']);
+          await prefs.setString(AppConstants.keyOfflineBranch, jsonEncode(branch.toJson()));
+        }
+        if (response.containsKey('currencies') && response['currencies'] != null) {
+          final List<dynamic> currenciesData = response['currencies'];
+          final List<String> currenciesJsonList = currenciesData.map((c) => jsonEncode(c)).toList();
+          await prefs.setStringList(AppConstants.keyOfflineCurrencies, currenciesJsonList);
+        }
+        if (response.containsKey('banks') && response['banks'] != null) {
+          final List<dynamic> banksData = response['banks'];
+          final List<String> banksJsonList = banksData.map((c) => jsonEncode(c)).toList();
+          await prefs.setStringList(AppConstants.keyOfflineBanks, banksJsonList);
+        }
+        if (response.containsKey('paymentTypes') && response['paymentTypes'] != null) {
+          final List<dynamic> paymentTypesData = response['paymentTypes'];
+          final List<String> paymentTypesJsonList = paymentTypesData.map((c) => jsonEncode(c)).toList();
+          await prefs.setStringList(AppConstants.keyOfflinePaymentTypes, paymentTypesJsonList);
+        }
+        if (response.containsKey('customers') && response['customers'] != null) {
+          final List<dynamic> customersData = response['customers'];
+          final List<String> customersJsonList = customersData.map((c) => jsonEncode(c)).toList();
+          await prefs.setStringList(AppConstants.keyOfflineCustomers, customersJsonList);
+        }
+        if (response.containsKey('inventoryItems') && response['inventoryItems'] != null) {
+          final List<dynamic> inventoryItemsData = response['inventoryItems'];
+          final List<String> inventoryItemsJsonList = inventoryItemsData.map((c) => jsonEncode(c)).toList();
+          await prefs.setStringList(AppConstants.keyOfflineBranchStock, inventoryItemsJsonList);
+        }
+        if (response.containsKey('units') && response['units'] != null) {
+          final List<dynamic> unitsData = response['units'];
+          final List<String> unitsJsonList = unitsData.map((c) => jsonEncode(c)).toList();
+          await prefs.setStringList(AppConstants.keyOfflineUnits, unitsJsonList);
+        }
+        if (response.containsKey('categories') && response['categories'] != null) {
+          final List<dynamic> categoriesData = response['categories'];
+          final List<String> categoriesJsonList = categoriesData.map((c) => jsonEncode(c)).toList();
+          await prefs.setStringList(AppConstants.keyOfflineCategories, categoriesJsonList);
+        }
+        if (response.containsKey('taxes') && response['taxes'] != null) {
+          final List<dynamic> taxesData = response['taxes'];
+          final List<String> taxesJsonList = taxesData.map((c) => jsonEncode(c)).toList();
+          await prefs.setStringList(AppConstants.keyOfflineTaxes, taxesJsonList);
+        }
+        if (response.containsKey('suppliers') && response['suppliers'] != null) {
+          final List<dynamic> suppliersData = response['suppliers'];
+          final List<String> suppliersJsonList = suppliersData.map((c) => jsonEncode(c)).toList();
+          await prefs.setStringList(AppConstants.keyOfflineSuppliers, suppliersJsonList);
+          // Also update the legacy key for backward compatibility if needed, 
+          // though typically sync should transition to the new key.
+          await prefs.setStringList(AppConstants.keySuppliers, suppliersJsonList);
+        }
+        if (response.containsKey('subscription') && response['subscription'] != null) {
+          final savedSubscription = Subscription.fromJson(response['subscription']);
+          await prefs.setString(AppConstants.keySubscriptions, jsonEncode(savedSubscription.toJson()));
+        }
+        if (response.containsKey('user') && response['user'] != null) {
+          final returnedUser = User.fromJson(response['user']);
+          if (mounted) {
+            setState(() {
+              _loggedInUser = returnedUser;
+            });
+          }
+          await prefs.setString(AppConstants.keyOfflineUserData, jsonEncode(returnedUser.toJson()));
+        }
+
+        // Attempt login
+        await _attemptLogin(password);
+
+        // Update UI
+        if (mounted) {
+          setState(() {
+            _currentSubscription = _selectedSubscription!;
+            _renewalDate = formattedEndDate;
+          });
+          final SharedPreferences prefsForSub = await SharedPreferences.getInstance();
+          await prefsForSub.setString(AppConstants.keySelectedSubscription, _selectedSubscription!);
+          await prefsForSub.setString(AppConstants.keySubscriptionEndDate, formattedEndDate);
+          final startOfDay = DateTime(now.year, now.month, now.day);
+          final daysRemaining = subscriptionEndDate.difference(startOfDay).inDays;
+          await prefs.setInt(AppConstants.keySubscriptionDaysRemaining, daysRemaining);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Upgrade successful! You are now on $_currentSubscription'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
-
-        final InventoryItem? updatedSubscriptionItem = subscriptionItem?.copyWith(
-          currency: baseCurrency,
-          company: company,
-        );
-
-        if (updatedSubscriptionItem?.renewalInterval == 'MONTHLY') {
-          subscriptionEndDate = DateTime(now.year, now.month + 1, now.day);
-        } else if (subscriptionItem?.renewalInterval == 'QUARTERLY') {
-          subscriptionEndDate = DateTime(now.year , now.month + 3, now.day);
-        } else if (subscriptionItem?.renewalInterval == 'HALF_YEARLY') {
-          subscriptionEndDate = DateTime(now.year, now.month + 6, now.day);
-        } else if (subscriptionItem?.renewalInterval == 'ANNUALLY') {
-          subscriptionEndDate = DateTime(now.year + 1, now.month, now.day);
-        } else if (subscriptionItem?.renewalInterval == 'DAILY') {
-          subscriptionEndDate = now.add(const Duration(days: 1));
-        } else {
-          subscriptionEndDate = DateTime(now.year, now.month + 1, now.day);
-        }
-
-        final DateFormat formatter = DateFormat('yyyy-MM-dd');
-        final String formattedEndDate = formatter.format(subscriptionEndDate);
-        await prefs.setString(AppConstants.keySubscriptionEndDate, formattedEndDate);
-
-        setState(() {
-          _renewalDate = formattedEndDate;
-        });
-
-        Subscription currentSubscription = Subscription(
-          name: _currentSubscription,
-          renewalDate: formattedEndDate,
-          subscription: updatedSubscriptionItem,
-          active: true,
-          company: company
-        );
-
-        final startOfDay = DateTime(now.year, now.month, now.day);
-        final daysRemaining = subscriptionEndDate.difference(startOfDay).inDays;
-        await prefs.setInt(AppConstants.keySubscriptionDaysRemaining, daysRemaining);
-        await prefs.setString(AppConstants.keySubscriptions, jsonEncode(currentSubscription.toJson()));
-
-        // Save currentSubscription to API via /subscription/save-pro
-        try {
-          final savedSubscription = await _subscriptionService.saveSubscriptionPro(currentSubscription);
-          if (savedSubscription != null) {
-            await prefs.setString(AppConstants.keySubscriptions, jsonEncode(savedSubscription.toJson()));
-          }
-        } catch (e) {
-          debugPrint('Error saving subscription to Vimbika after payment: $e');
-        }
-
-        // Save all local branchstock to API as list
-        try {
-          final List<String> stockJsonList = prefs.getStringList(AppConstants.keyOfflineBranchStock) ?? [];
-          if (stockJsonList.isNotEmpty && company != null && company.id != null) {
-            final List<BranchStock> stocks = stockJsonList.map((s) => BranchStock.fromJson(jsonDecode(s))).toList();
-            
-            // Get base currency for inventory items
-            Currency? baseCurrency;
-            final List<String> currenciesJson = prefs.getStringList(AppConstants.keyOfflineCurrencies) ?? [];
-            if (currenciesJson.isNotEmpty) {
-              final List<Currency> currencies = currenciesJson.map((e) => Currency.fromJson(jsonDecode(e))).toList();
-              baseCurrency = currencies.cast<Currency?>().firstWhere(
-                (c) => c?.isBaseCurrency == true,
-                orElse: () => null,
-              );
-            }
-
-            final List<InventoryItem> items = stocks
-                .where((s) => s.item.value != null)
-                .map((s) => s.item.value!.copyWith(
-                    quantity: s.stock,
-                    company: company,
-                    currency: s.item.value!.currency.value ?? baseCurrency,
-                ))
-                .toList();
-
-            await _branchStockService.saveAllBranchStock(
-              list: items,
-              company: company,
-              branch: branch ,
-            );
-          }
-        } catch (e) {
-          debugPrint('Error saving branch stocks to Vimbika after payment: $e');
-        }
-
-        print('saving banks');
-        // Save all none-system created banks to API separately
-        try {
-          final List<String> bankJsonList = prefs.getStringList(AppConstants.keyOfflineBanks) ?? [];
-          print(bankJsonList);
-          print(company?.toJson());
-          if (bankJsonList.isNotEmpty && company != null && company.id != null) {
-            final List<Bank> banks = bankJsonList.map((s) => Bank.fromJson(jsonDecode(s))).toList();
-            print('banks: ${banks.length}');
-            final List<Bank> updatedBanks = [];
-
-            // Get base currency for banks if they don't have one
-            Currency? baseCurrency;
-            final List<String> currenciesJson = prefs.getStringList(AppConstants.keyOfflineCurrencies) ?? [];
-            if (currenciesJson.isNotEmpty) {
-              final List<Currency> currencies = currenciesJson.map((e) => Currency.fromJson(jsonDecode(e))).toList();
-              baseCurrency = currencies.cast<Currency?>().firstWhere(
-                    (c) => c?.isBaseCurrency == true,
-                orElse: () => null,
-              );
-            }
-            print('baseCurrency: ${baseCurrency?.toJson()}');
-
-
-            for (var bank in banks) {
-              print('bank currency: ${bank.currency.value?.toJson()}');
-              if (bank.isSystemCreated != true) {
-                // Ensure bank has a currency
-                final bankWithCurrency = Bank(
-                  id: bank.id,
-                  name: bank.name,
-                  accountNumber: bank.accountNumber,
-                  branch: bank.branch,
-                  description: bank.description,
-                  currency: baseCurrency ?? bank.currency.value,
-                  isSystemCreated: bank.isSystemCreated,
-                  bankName: bank.bankName,
-                  dateCreated: bank.dateCreated,
-                  dateModified: bank.dateModified,
-                  createdByName: bank.createdByName,
-                  modifiedByName: bank.modifiedByName,
-                  version: bank.version,
-                );
-
-                final savedBank = await _bankService.saveBankWithCompany(bankWithCurrency, company.id!);
-                if (savedBank != null) {
-                  updatedBanks.add(savedBank);
-                } else {
-                  updatedBanks.add(bankWithCurrency);
-                }
-              } else {
-                updatedBanks.add(bank);
-              }
-            }
-            await prefs.setStringList(
-              AppConstants.keyOfflineBanks,
-              updatedBanks.map((b) => jsonEncode(b.toJson())).toList(),
-            );
-          }
-        } catch (e) {
-          debugPrint('Error saving banks to Vimbika after payment: $e');
-        }
-
-        // Save all none-system created payment methods to API separately
-        try {
-          final List<String> paymentTypeJsonList = prefs.getStringList(AppConstants.keyOfflinePaymentTypes) ?? [];
-          if (paymentTypeJsonList.isNotEmpty && company != null && company.id != null) {
-            final List<PaymentType> paymentTypes = paymentTypeJsonList.map((s) => PaymentType.fromJson(jsonDecode(s))).toList();
-            final List<PaymentType> updatedPaymentTypes = [];
-
-            // Get base currency for payment types if they don't have one
-            Currency? baseCurrency;
-            final List<String> currenciesJson = prefs.getStringList(AppConstants.keyOfflineCurrencies) ?? [];
-            if (currenciesJson.isNotEmpty) {
-              final List<Currency> currencies = currenciesJson.map((e) => Currency.fromJson(jsonDecode(e))).toList();
-              baseCurrency = currencies.cast<Currency?>().firstWhere(
-                    (c) => c?.isBaseCurrency == true,
-                orElse: () => null,
-              );
-            }
-
-            for (var pt in paymentTypes) {
-              if (pt.isSystemCreated != true) {
-                // Ensure payment type has a currency
-                final ptWithCurrency = pt.copyWith(
-                  currency:  baseCurrency ?? pt.currency.value ,
-                );
-
-                final savedPt = await _paymentTypeService.savePaymentTypeWithCompany(ptWithCurrency, company.id!);
-                if (savedPt != null) {
-                  updatedPaymentTypes.add(savedPt);
-                } else {
-                  updatedPaymentTypes.add(ptWithCurrency);
-                }
-              } else {
-                updatedPaymentTypes.add(pt);
-              }
-            }
-            await prefs.setStringList(
-              AppConstants.keyOfflinePaymentTypes,
-              updatedPaymentTypes.map((pt) => jsonEncode(pt.toJson())).toList(),
-            );
-          }
-        } catch (e) {
-          debugPrint('Error saving payment methods to Vimbika after payment: $e');
-        }
-
-        // Save all customers to API separately
-        try {
-          final List<String> customerJsonList = prefs.getStringList(AppConstants.keyOfflineCustomers) ?? [];
-          if (customerJsonList.isNotEmpty && company != null && company.id != null) {
-            final List<Customer> customers = customerJsonList.map((s) => Customer.fromJson(jsonDecode(s))).toList();
-            final List<Customer> updatedCustomers = [];
-            for (var customer in customers) {
-              final customerWithBranch = customer.copyWith(
-                company: company,
-                branch: branch,
-              );
-              final savedCustomer = await _customerService.saveCustomerWithCompany(customerWithBranch, company.id!);
-              updatedCustomers.add(savedCustomer);
-            }
-            await prefs.setStringList(
-              AppConstants.keyOfflineCustomers,
-              updatedCustomers.map((c) => jsonEncode(c.toJson())).toList(),
-            );
-          }
-        } catch (e) {
-          debugPrint('Error saving customers to Vimbika after payment: $e');
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Upgrade successful! You are now on $_currentSubscription'),
-            backgroundColor: Colors.green,
-          ),
-        );
+      } else {
+        throw Exception('Failed to sync company data');
       }
     } catch (e) {
       debugPrint('Error finalizing upgrade: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error finalizing upgrade: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error finalizing upgrade: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 

@@ -5,9 +5,13 @@ import 'package:vimbika_pro/base_import_screen.dart';
 import 'package:vimbika_pro/model/branch.dart';
 import 'package:vimbika_pro/model/branch_stock.dart';
 import 'package:vimbika_pro/model/category.dart';
+import 'package:vimbika_pro/model/company.dart';
 import 'package:vimbika_pro/model/inventory_item.dart';
+import 'package:vimbika_pro/model/item_type.dart';
+import 'package:vimbika_pro/model/supplier.dart';
 import 'package:vimbika_pro/model/tax.dart';
 import 'package:vimbika_pro/model/unit.dart';
+import 'package:vimbika_pro/services/company_service.dart';
 import 'package:excel/excel.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,6 +28,7 @@ class InventoryImportScreen extends BaseImportScreen {
             'Code',
             'Category',
             'Unit',
+            'Supplier',
             'Tax Name',
             'Tax Rate (%)',
             'Cost Price',
@@ -56,6 +61,27 @@ class InventoryImportScreen extends BaseImportScreen {
       defaultBranch = Branch.fromJson(jsonDecode(defaultBranchJson));
     }
 
+    final bool isTaxInclusive = prefs.getBool(AppConstants.keyIsPriceInclusiveTax) ?? true;
+    
+    // Load suppliers for lookup
+    final List<String> supplierJsonList = prefs.getStringList(AppConstants.keyOfflineSuppliers) ?? [];
+    final List<Supplier> offlineSuppliers = supplierJsonList.map((s) => Supplier.fromJson(jsonDecode(s))).toList();
+
+    // Get company name for default supplier
+    final Company? company = await CompanyService().getCompany();
+    final String companyName = company?.name ?? '';
+
+    Supplier? defaultSupplier;
+    if (companyName.isNotEmpty) {
+      try {
+        defaultSupplier = offlineSuppliers.firstWhere(
+          (s) => s.name.toLowerCase() == companyName.toLowerCase()
+        );
+      } catch (_) {
+        defaultSupplier = Supplier(name: companyName);
+      }
+    }
+
     int importCount = 0;
     int skipCount = 0;
     List<String> errors = [];
@@ -65,7 +91,7 @@ class InventoryImportScreen extends BaseImportScreen {
       final List<Data?> row = rows[i];
       if (row.isEmpty) continue;
 
-      if (row.length < 13) {
+      if (row.length < 14) {
         errors.add('Line ${i + 1}: Invalid column count');
         skipCount++;
         continue;
@@ -73,7 +99,7 @@ class InventoryImportScreen extends BaseImportScreen {
 
       final String name = row[0]?.value?.toString().trim() ?? '';
       final String code = row[2]?.value?.toString().trim() ?? '';
-      final String branchNameInCsv = row[11]?.value?.toString().trim() ?? '';
+      final String branchNameInCsv = row[12]?.value?.toString().trim() ?? '';
 
       // VALIDATION 1: Required Name
       if (name.isEmpty) {
@@ -118,6 +144,39 @@ class InventoryImportScreen extends BaseImportScreen {
         continue;
       }
 
+      final bool isService = row[11]?.value?.toString().toLowerCase() == 'true';
+      final double costPriceFromCsv = double.tryParse(row[8]?.value?.toString() ?? '') ?? 0.0;
+      final double sPrice = double.tryParse(row[9]?.value?.toString() ?? '') ?? 0.0;
+      final double taxRate = double.tryParse(row[7]?.value?.toString() ?? '') ?? 0.0;
+      
+      double purchasePriceBeforeTax;
+      double purchasePriceAfterTax;
+      double tAmt;
+
+      if (isTaxInclusive) {
+        purchasePriceAfterTax = costPriceFromCsv;
+        purchasePriceBeforeTax = purchasePriceAfterTax / (1 + taxRate / 100);
+        tAmt = purchasePriceAfterTax - purchasePriceBeforeTax;
+      } else {
+        purchasePriceBeforeTax = costPriceFromCsv;
+        tAmt = purchasePriceBeforeTax * (taxRate / 100);
+        purchasePriceAfterTax = purchasePriceBeforeTax + tAmt;
+      }
+
+      final String supplierNameInCsv = row[5]?.value?.toString().trim() ?? '';
+      Supplier? rowSupplier;
+      if (supplierNameInCsv.isNotEmpty) {
+        try {
+          rowSupplier = offlineSuppliers.firstWhere(
+            (s) => s.name.toLowerCase() == supplierNameInCsv.toLowerCase()
+          );
+        } catch (_) {
+          rowSupplier = defaultSupplier;
+        }
+      } else {
+        rowSupplier = defaultSupplier;
+      }
+
       final inventoryItem = InventoryItem(
         id: const Uuid().v4(),
         name: name,
@@ -125,18 +184,25 @@ class InventoryImportScreen extends BaseImportScreen {
         itemCode: code,
         category: (row[3]?.value?.toString().trim() ?? '').isNotEmpty ? Category(name: row[3]?.value?.toString().trim() ?? '') : null,
         unit: (row[4]?.value?.toString().trim() ?? '').isNotEmpty ? Unit(name: row[4]?.value?.toString().trim() ?? '') : null,
-        tax: (row[5]?.value?.toString().trim() ?? '').isNotEmpty 
-            ? Tax(name: row[5]?.value?.toString().trim() ?? '', taxPercentage: double.tryParse(row[6]?.value?.toString() ?? '') ?? 0.0)
+        supplier: rowSupplier,
+        tax: (row[6]?.value?.toString().trim() ?? '').isNotEmpty 
+            ? Tax(name: row[6]?.value?.toString().trim() ?? '', taxPercentage: taxRate)
             : null,
-        purchasePrice: double.tryParse(row[7]?.value?.toString() ?? '') ?? 0.0,
-        sellingPrice: double.tryParse(row[8]?.value?.toString() ?? '') ?? 0.0,
-        reorderLevel: double.tryParse(row[9]?.value?.toString() ?? '') ?? 0.0,
-        isService: row[10]?.value?.toString().toLowerCase() == 'true',
+        purchaseTax: (row[6]?.value?.toString().trim() ?? '').isNotEmpty 
+            ? Tax(name: row[6]?.value?.toString().trim() ?? '', taxPercentage: taxRate)
+            : null,
+        purchasePrice: purchasePriceBeforeTax,
+        sellingPrice: sPrice,
+        priceWithoutTax: purchasePriceAfterTax,
+        taxAmount: tAmt,
+        reorderLevel: double.tryParse(row[10]?.value?.toString() ?? '') ?? 0.0,
+        isService: isService,
+        itemType: isService ? ItemType.SERVICE : ItemType.INVENTORY,
       );
 
       final branchStock = BranchStock(
         id: '${nowStr}_bs_$i',
-        stock: double.tryParse(row[12]?.value?.toString() ?? '') ?? 0.0,
+        stock: double.tryParse(row[13]?.value?.toString() ?? '') ?? 0.0,
       );
       branchStock.item.value = inventoryItem;
       branchStock.branch.value = targetBranch;
