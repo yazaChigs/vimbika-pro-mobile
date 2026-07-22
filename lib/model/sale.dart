@@ -62,6 +62,7 @@ class Sale {
   double? totalQuantity;
   double? totalDiscount;
   String? posReference;
+  int? kotNumber;
   String? referenceNumber;
   String? shiftReference;
   String? ticketName;
@@ -92,6 +93,7 @@ class Sale {
     this.taxInvoice,
     this.totalQuantity,
     this.posReference,
+    this.kotNumber,
     this.referenceNumber,
     this.shiftReference,
     this.ticketName,
@@ -174,6 +176,9 @@ class Sale {
       }
     }
 
+    if (json['kotNumber'] != null && json['kotNumber'] is String) {
+      json['kotNumber'] = int.tryParse(json['kotNumber'] as String);
+    }
     final sale = _$SaleFromJson(json);
     if (json['branch'] != null) {
       sale.branch.value =
@@ -281,6 +286,7 @@ class Sale {
     double? amountPaid,
     double? change,
     double? amountTendered,
+    int? kotNumber,
     String? receiptQrCode,
     String? receiptQrData,
     List<SaleItem>? heldItems,
@@ -309,6 +315,7 @@ class Sale {
       fiscalized: fiscalized ?? this.fiscalized,
       taxInvoice: taxInvoice ?? this.taxInvoice,
       totalQuantity: totalQuantity ?? this.totalQuantity,
+      kotNumber: kotNumber ?? this.kotNumber,
       posReference: posReference ?? this.posReference,
       referenceNumber: referenceNumber ?? this.referenceNumber,
       shiftReference: shiftReference ?? this.shiftReference,

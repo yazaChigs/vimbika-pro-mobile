@@ -193,7 +193,7 @@ class POSScreen extends StatelessWidget {
 
   Widget _buildProductList(BuildContext context, POSScreenController controller, BoxConstraints constraints, bool isSmallScreen) {
     final filteredStocks = controller.filteredBranchStocks;
-    final crossAxisCount = isSmallScreen ? (constraints.maxWidth < 450 ? 2 : 3) : (constraints.maxWidth < 1000 ? 3 : 4);
+    final crossAxisCount = isSmallScreen ? (constraints.maxWidth < 450 ? 2 : 3) : (constraints.maxWidth < 1000 ? 4 : 5);
 
     return Column(
       children: [
@@ -285,9 +285,9 @@ class POSScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: crossAxisCount,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 0.85,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 0.9,
             ),
             itemCount: filteredStocks.length,
             itemBuilder: (context, index) {
@@ -301,13 +301,13 @@ class POSScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(child: Container(decoration: BoxDecoration(color: AppTheme.vimbikaBlue.withAlpha(20), borderRadius: const BorderRadius.vertical(top: Radius.circular(12))), child: Icon(product.isService ? Icons.room_service_outlined : Icons.inventory_2_outlined, color: AppTheme.vimbikaBlue, size: 32))),
+                      Expanded(child: Container(decoration: BoxDecoration(color: AppTheme.vimbikaBlue.withAlpha(20), borderRadius: const BorderRadius.vertical(top: Radius.circular(12))), child: Icon(product.isService ? Icons.room_service_outlined : Icons.inventory_2_outlined, color: AppTheme.vimbikaBlue, size: 24))),
                       Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text(product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                             Text('${controller.selectedCurrency?.symbol ?? ''}${(product.sellingPrice * (controller.selectedCurrency?.rate ?? 1.0)).toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.vimbikaBlue, fontWeight: FontWeight.bold, fontSize: 12)),
                             if (!controller.allowOutOfStockSales) // Conditionally display stock
                               Text(product.isService ? 'Service' : 'In Stock: ${stock.stock.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: product.isService ? Colors.green : (stock.stock <= 0 ? Colors.red : AppTheme.vimbikaBlue))),
@@ -405,6 +405,7 @@ class POSScreen extends StatelessWidget {
                 TextEditingController? quantityController = controller.quantityControllers[itemId];
                 TextEditingController? priceController = controller.priceControllers[itemId];
                 TextEditingController? discountController = controller.discountControllers[itemId];
+                TextEditingController? noteController = controller.noteControllers[itemId];
 
                 if (quantityController == null) {
                   quantityController = TextEditingController(text: item.quantity.toStringAsFixed(2));
@@ -436,6 +437,15 @@ class POSScreen extends StatelessWidget {
                   }
                 }
 
+                if (noteController == null) {
+                  noteController = TextEditingController(text: item.notes ?? '');
+                  controller.noteControllers[itemId] = noteController;
+                } else {
+                  if (noteController.text != (item.notes ?? '')) {
+                    noteController.text = item.notes ?? '';
+                  }
+                }
+
                 return Card(
                   margin: const EdgeInsets.only(bottom: 1),
                   child: Container(
@@ -460,6 +470,14 @@ class POSScreen extends StatelessWidget {
                             ),
                           ],
                         ),
+                        if (item.notes != null && item.notes!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2.0, bottom: 2.0),
+                            child: Text(
+                              'Note: ${item.notes}',
+                              style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.blueGrey),
+                            ),
+                          ),
                         Row(
                           children: [
                             const Text(
@@ -505,6 +523,7 @@ class POSScreen extends StatelessWidget {
                               itemBuilder: (context) => [
                                 const PopupMenuItem(value: 'price', child: Text('Edit Price', style: TextStyle(fontSize: 13))),
                                 const PopupMenuItem(value: 'discount', child: Text('Edit Discount', style: TextStyle(fontSize: 13))),
+                                const PopupMenuItem(value: 'note', child: Text('Add Note', style: TextStyle(fontSize: 13))),
                               ],
                               onSelected: (value) {
                                 if (value == 'price') {
@@ -515,6 +534,10 @@ class POSScreen extends StatelessWidget {
                                   _showEditDialog(context, 'Edit Discount', discountController!, controller, (val) {
                                     controller.updateCartItemDetails(controller.cart.length - 1 - index, discountAmount: val);
                                   }, item: item);
+                                } else if (value == 'note') {
+                                  _showNoteDialog(context, 'Item Note', noteController!, controller, (val) {
+                                    controller.updateCartItemNote(controller.cart.length - 1 - index, val);
+                                  });
                                 }
                               },
                             ),
@@ -1108,6 +1131,36 @@ class POSScreen extends StatelessWidget {
               ],
             );
           },
+        );
+      },
+    );
+  }
+
+  void _showNoteDialog(BuildContext context, String title, TextEditingController textController, POSScreenController controller, Function(String) onSubmitted) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: TextField(
+            controller: textController,
+            decoration: const InputDecoration(hintText: 'Enter note here...'),
+            maxLines: 3,
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                onSubmitted(textController.text);
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            ),
+          ],
         );
       },
     );

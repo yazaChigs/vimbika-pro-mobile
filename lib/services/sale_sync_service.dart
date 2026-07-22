@@ -25,7 +25,7 @@ class SaleSyncService {
       return;
     }
     // Run every 20 minutes
-    _syncTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    _syncTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
       syncSales();
     });
     // Also run once immediately

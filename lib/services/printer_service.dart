@@ -598,6 +598,9 @@ class PrinterService {
       String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
       
       bytes += generator.text(name, styles: const PosStyles(align: PosAlign.left, bold: true));
+      if (item.notes != null && item.notes!.isNotEmpty) {
+        bytes += generator.text("Note: ${item.notes}", styles: const PosStyles(align: PosAlign.left));
+      }
       bytes += generator.text(qty, styles: const PosStyles(align: PosAlign.left));
       bytes += generator.text(" ", styles: const PosStyles(align: PosAlign.left)); // Spacer
     }
@@ -613,29 +616,32 @@ class PrinterService {
     await SunmiPrinter.initPrinter();
     await SunmiPrinter.startTransactionPrint(true);
 
-    await SunmiPrinter.printText('KITCHEN ORDER TICKET\n', style: SunmiStyle(fontSize: SunmiFontSize.XL, align: SunmiPrintAlign.CENTER, bold: true));
-    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    await SunmiPrinter.printText('KOT\n', style: SunmiStyle(fontSize: SunmiFontSize.XL, align: SunmiPrintAlign.CENTER, bold: true));
+    // await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
 
     if (orderNumber != null) {
-      await SunmiPrinter.printText("Order #: $orderNumber\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true));
+      await SunmiPrinter.printText("Order #: $orderNumber\n", style: SunmiStyle(fontSize: SunmiFontSize.XL,align: SunmiPrintAlign.LEFT, bold: true));
     }
     if (ticketName != null) {
-      await SunmiPrinter.printText("Ticket: $ticketName\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true));
+      // await SunmiPrinter.printText("Ticket: $ticketName\n", style: SunmiStyle(fontSize: SunmiFontSize.XL,align: SunmiPrintAlign.LEFT, bold: true));
     }
-    await SunmiPrinter.printText("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
-    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
-    await SunmiPrinter.printText("Item\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true));
-    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    // await SunmiPrinter.printText("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}\n", style: SunmiStyle(fontSize: SunmiFontSize.XL,align: SunmiPrintAlign.LEFT));
+    // await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(fontSize: SunmiFontSize.XL,align: SunmiPrintAlign.CENTER));
+    // await SunmiPrinter.printText("Item", style: SunmiStyle(fontSize: SunmiFontSize.XL,align: SunmiPrintAlign.LEFT, bold: true));
+    await SunmiPrinter.printText("-----------------\n", style: SunmiStyle(fontSize: SunmiFontSize.XL,align: SunmiPrintAlign.CENTER));
 
     for (var item in items) {
       String name = (item.inventoryItem.value?.name ?? "Item");
       String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
       
-      await SunmiPrinter.printText("$name\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true, fontSize: SunmiFontSize.LG));
-      await SunmiPrinter.printText("$qty\n\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+      await SunmiPrinter.printText("$name", style: SunmiStyle(fontSize: SunmiFontSize.XL,align: SunmiPrintAlign.LEFT, bold: true));
+      if (item.notes != null && item.notes!.isNotEmpty) {
+        await SunmiPrinter.printText("Note: ${item.notes}\n", style: SunmiStyle(fontSize: SunmiFontSize.XL,align: SunmiPrintAlign.LEFT));
+      }
+      await SunmiPrinter.printText("$qty\n", style: SunmiStyle(fontSize: SunmiFontSize.XL,align: SunmiPrintAlign.LEFT));
     }
 
-    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    // await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     await SunmiPrinter.lineWrap(3);
     await SunmiPrinter.exitTransactionPrint(true);
   }
@@ -668,6 +674,9 @@ class PrinterService {
       String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
       
       bytes += generator.text(name, styles: const PosStyles(align: PosAlign.left, bold: true));
+      if (item.notes != null && item.notes!.isNotEmpty) {
+        bytes += generator.text("Note: ${item.notes}", styles: const PosStyles(align: PosAlign.left));
+      }
       bytes += generator.text(qty, styles: const PosStyles(align: PosAlign.left));
       bytes += generator.text(" ", styles: const PosStyles(align: PosAlign.left)); // Spacer
     }
@@ -717,6 +726,9 @@ class PrinterService {
       bytes += generator.text(sale.branch.value!.name ?? "", styles: const PosStyles(align: PosAlign.center));
     }
     bytes += generator.text("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}", styles: const PosStyles(align: PosAlign.left));
+    if (sale.kotNumber != null) {
+      bytes += generator.text("Order #: ${sale.kotNumber}", styles: const PosStyles(align: PosAlign.left, bold: true));
+    }
     if (sale.ticketName != null) {
       bytes += generator.text("Ticket: ${sale.ticketName}", styles: const PosStyles(align: PosAlign.left));
     }
@@ -733,6 +745,9 @@ class PrinterService {
     for (var item in (sale.allItems.isNotEmpty ? sale.allItems : sale.heldItems)) {
       String name = (item.inventoryItem.value?.name ?? "Item");
       bytes += generator.text(name, styles: const PosStyles(align: PosAlign.left));
+      if (item.notes != null && item.notes!.isNotEmpty) {
+        bytes += generator.text("Note: ${item.notes}", styles: const PosStyles(align: PosAlign.left));
+      }
       String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
       String total = "$currentSymbol${(item.total * currentRate).toStringAsFixed(2)}";
       bytes += generator.text(_alignLeftRight(qty, total), styles: const PosStyles(align: PosAlign.left));
@@ -772,17 +787,20 @@ class PrinterService {
     await SunmiPrinter.startTransactionPrint(true);
 
     await SunmiPrinter.printText('BILL\n', style: SunmiStyle(fontSize: SunmiFontSize.XL, align: SunmiPrintAlign.CENTER, bold: true));
-    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    // await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
 
-    await SunmiPrinter.printText("${sale.company.value?.name ?? "Vimbika Pro"}\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER, bold: true));
+    await SunmiPrinter.printText("${sale.company.value?.name ?? "Vimbika Pro"}", style: SunmiStyle(align: SunmiPrintAlign.CENTER, bold: true));
     if (sale.branch.value != null) {
       await SunmiPrinter.printText("${sale.branch.value!.name ?? ""}\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
-    await SunmiPrinter.printText("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
-    if (sale.ticketName != null) {
-      await SunmiPrinter.printText("Ticket: ${sale.ticketName}\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    await SunmiPrinter.printText("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    if (sale.kotNumber != null) {
+      await SunmiPrinter.printText("Order #: ${sale.kotNumber}\n", style: SunmiStyle(fontSize: SunmiFontSize.XL, align: SunmiPrintAlign.LEFT, bold: true));
     }
-    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    if (sale.ticketName != null) {
+      await SunmiPrinter.printText("Ticket: ${sale.ticketName}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    }
+    await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
 
     double baseGrandTotal = sale.allItems.fold(0.0, (sum, item) => sum + item.total);
     if (baseGrandTotal == 0 && sale.heldItems.isNotEmpty) {
@@ -794,18 +812,21 @@ class PrinterService {
 
     for (var item in (sale.allItems.isNotEmpty ? sale.allItems : sale.heldItems)) {
       String name = (item.inventoryItem.value?.name ?? "Item");
-      await SunmiPrinter.printText("$name\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+      await SunmiPrinter.printText(name, style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+      if (item.notes != null && item.notes!.isNotEmpty) {
+        await SunmiPrinter.printText("Note: ${item.notes}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+      }
       String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
       String total = "$currentSymbol${(item.total * currentRate).toStringAsFixed(2)}";
-      await SunmiPrinter.printText("${_alignLeftRight(qty, total)}\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+      await SunmiPrinter.printText(_alignLeftRight(qty, total), style: SunmiStyle(align: SunmiPrintAlign.LEFT));
     }
 
-    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
-    await SunmiPrinter.printText("${_alignLeftRight("TOTAL:", "$currentSymbol${(baseGrandTotal * currentRate).toStringAsFixed(2)}")}\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true));
+    await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    await SunmiPrinter.printText(_alignLeftRight("TOTAL:", "$currentSymbol${(baseGrandTotal * currentRate).toStringAsFixed(2)}"), style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true));
     
     if (currencies != null && currencies.isNotEmpty) {
-      await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
-      await SunmiPrinter.printText("Other Currencies:\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true));
+      await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+      await SunmiPrinter.printText("Other Currencies:", style: SunmiStyle(align: SunmiPrintAlign.LEFT, bold: true));
       for (var currency in currencies) {
         if (currency.id == sale.currency.value?.id) continue;
         double convertedTotal = baseGrandTotal * (currency.rate ?? 1.0);
@@ -814,14 +835,14 @@ class PrinterService {
       }
     }
 
-    await SunmiPrinter.printText("--------------------------------\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    await SunmiPrinter.printText("--------------------------------", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
 
     await SunmiPrinter.lineWrap(1);
-    await SunmiPrinter.printText("Tip: ________________________\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    await SunmiPrinter.printText("Tip: ________________________", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
     await SunmiPrinter.lineWrap(1);
-    await SunmiPrinter.printText("Total: ______________________\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    await SunmiPrinter.printText("Total: ______________________", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
     await SunmiPrinter.lineWrap(1);
-    await SunmiPrinter.printText("Signature: __________________\n", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    await SunmiPrinter.printText("Signature: __________________", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
 
     await SunmiPrinter.lineWrap(3);
     await SunmiPrinter.exitTransactionPrint(true);
@@ -845,6 +866,9 @@ class PrinterService {
       bytes += generator.text(sale.branch.value!.name ?? "", styles: const PosStyles(align: PosAlign.center));
     }
     bytes += generator.text("Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}", styles: const PosStyles(align: PosAlign.left));
+    if (sale.kotNumber != null) {
+      bytes += generator.text("Order #: ${sale.kotNumber}", styles: const PosStyles(align: PosAlign.left, bold: true));
+    }
     if (sale.ticketName != null) {
       bytes += generator.text("Ticket: ${sale.ticketName}", styles: const PosStyles(align: PosAlign.left));
     }
@@ -861,6 +885,9 @@ class PrinterService {
     for (var item in (sale.allItems.isNotEmpty ? sale.allItems : sale.heldItems)) {
       String name = (item.inventoryItem.value?.name ?? "Item");
       bytes += generator.text(name, styles: const PosStyles(align: PosAlign.left));
+      if (item.notes != null && item.notes!.isNotEmpty) {
+        bytes += generator.text("Note: ${item.notes}", styles: const PosStyles(align: PosAlign.left));
+      }
       String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
       String total = "$currentSymbol${(item.total * currentRate).toStringAsFixed(2)}";
       bytes += generator.text(_alignLeftRight(qty, total, width: 48), styles: const PosStyles(align: PosAlign.left));
@@ -950,6 +977,9 @@ class PrinterService {
     
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     bytes += generator.text("Receipt #: ${sale.posReference ?? 'N/A'}", styles: PosStyles(align: PosAlign.left));
+    if (sale.kotNumber != null) {
+      bytes += generator.text("Order #: ${sale.kotNumber}", styles: const PosStyles(align: PosAlign.left, bold: true));
+    }
     bytes += generator.text("Date: ${sale.timeIniated}", styles: PosStyles(align: PosAlign.left));
     if (sale.cashierFullName != null) {
       bytes += generator.text("Cashier: ${sale.cashierFullName}", styles: PosStyles(align: PosAlign.left));
@@ -974,6 +1004,10 @@ class PrinterService {
       }
       for (String line in nameLines) {
         bytes += generator.text(line, styles: PosStyles(align: PosAlign.left));
+      }
+
+      if (item.notes != null && item.notes!.isNotEmpty) {
+        bytes += generator.text("Note: ${item.notes}", styles: const PosStyles(align: PosAlign.left));
       }
       
       String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";
@@ -1114,6 +1148,9 @@ class PrinterService {
 
     await SunmiPrinter.lineWrap(1);
     await SunmiPrinter.printText("Receipt #: ${sale.referenceNumber ?? 'N/A'}\nDate: ${sale.timeIniated}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
+    if (sale.kotNumber != null) {
+      await SunmiPrinter.printText("Order #: ${sale.kotNumber}\n", style: SunmiStyle(fontSize: SunmiFontSize.XL, align: SunmiPrintAlign.LEFT, bold: true));
+    }
     if (sale.cashierFullName != null) {
       await SunmiPrinter.printText("Cashier: ${sale.cashierFullName}", style: SunmiStyle(align: SunmiPrintAlign.LEFT));
     }
@@ -1270,6 +1307,9 @@ class PrinterService {
 
     bytes += generator.text("--------------------------------", styles: PosStyles(align: PosAlign.center));
     bytes += generator.text("Receipt #: ${sale.posReference ?? 'N/A'}", styles: PosStyles(align: PosAlign.left));
+    if (sale.kotNumber != null) {
+      bytes += generator.text("Order #: ${sale.kotNumber}", styles: const PosStyles(align: PosAlign.left, bold: true));
+    }
     bytes += generator.text("Date: ${sale.timeIniated}", styles: PosStyles(align: PosAlign.left));
     if (sale.cashierFullName != null) {
       bytes += generator.text("Cashier: ${sale.cashierFullName}", styles: PosStyles(align: PosAlign.left));
@@ -1294,6 +1334,10 @@ class PrinterService {
       }
       for (String line in nameLines) {
         bytes += generator.text(line, styles: PosStyles(align: PosAlign.left));
+      }
+
+      if (item.notes != null && item.notes!.isNotEmpty) {
+        bytes += generator.text("Note: ${item.notes}", styles: const PosStyles(align: PosAlign.left));
       }
       
       String qty = "Qty: ${item.quantity.toStringAsFixed(0)}";

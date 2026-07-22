@@ -98,7 +98,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                   child: DropdownButtonFormField<Bank>(
                     initialValue: selectedBank,
                     decoration: const InputDecoration(labelText: 'Bank'),
-                    items: selectedPaymentType!.allBanks.map((bank) => DropdownMenuItem(value: bank, child: Text(bank.name))).toList(), // Use bank.name for display
+                    items: selectedPaymentType!.allBanks.map((bank) => DropdownMenuItem(value: bank, child: Text(bank.bankName!))).toList(), // Use bank.name for display
                     onChanged: (val) {
                       setDialogState(() {
                         selectedBank = val;

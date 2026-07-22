@@ -75,6 +75,7 @@ class AppConstants {
   static const String keyUnsyncedReceivedPayments = 'unsynced_received_payments'; // Added for unsynced received payments
   static const String keyCachedPastShifts = 'cached_past_shifts'; // Added for caching past shifts
   static const String keyLastFetchedUserId = 'last_fetched_user_id'; // Added for tracking last fetched user
+  static const String keyLastKOTNumber = 'last_kot_number';
   // Application Settings
   static const String keyAllowOutOfStockSales = 'allow_out_of_stock_sales';
   static const String keyIsOfflineMode = 'is_offline_mode';

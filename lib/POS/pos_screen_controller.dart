@@ -96,6 +96,7 @@ class POSScreenController extends ChangeNotifier {
   final Map<String, TextEditingController> _quantityControllers = {};
   final Map<String, TextEditingController> _priceControllers = {};
   final Map<String, TextEditingController> _discountControllers = {};
+  final Map<String, TextEditingController> _noteControllers = {};
 
   bool _isDownloadingStock = false;
   bool _isProcessingSale = false;
@@ -107,8 +108,38 @@ class POSScreenController extends ChangeNotifier {
   bool _printReceiptForThisSale = false; // New setting for individual sale printing
   bool _fiscalizeThisSale = false; // New setting for individual sale fiscalisation
   bool _customerSelectFocus = true;
+  int? _currentOrderKOTNumber;
+  int? _heldOrderKOTNumber;
 
   final TextEditingController _amountTenderedController = TextEditingController(); // Controller for tendered amount
+
+  Future<int?> _getOrGenerateKOTNumber() async {
+    if (_currentOrderKOTNumber != null) return _currentOrderKOTNumber;
+
+    if (!_useKOT) return null;
+
+    final MobilePosShift? currentShift = await _getCurrentShift();
+    if (currentShift != null && !(currentShift.isShiftClosed ?? true)) {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      
+      // Get the current kotNumber from shift and from separate local storage for tracking
+      int shiftKOT = currentShift.kotNumber ?? 0;
+      int lastSavedKOT = prefs.getInt(AppConstants.keyLastKOTNumber) ?? 0;
+      
+      // Ensure we use the highest tracked number to avoid duplicates after sync resets
+      int nextNumber = (shiftKOT > lastSavedKOT ? shiftKOT : lastSavedKOT) + 1;
+      
+      currentShift.kotNumber = nextNumber;
+      await _saveShift(currentShift);
+      
+      // Also update the separate local storage as a backup
+      await prefs.setInt(AppConstants.keyLastKOTNumber, nextNumber);
+      
+      _currentOrderKOTNumber = nextNumber;
+      return _currentOrderKOTNumber;
+    }
+    return null;
+  }
 
   double get totalAmtToAcc => amountToAccountConverted;
 
@@ -140,6 +171,7 @@ class POSScreenController extends ChangeNotifier {
   Map<String, TextEditingController> get quantityControllers => _quantityControllers;
   Map<String, TextEditingController> get priceControllers => _priceControllers;
   Map<String, TextEditingController> get discountControllers => _discountControllers;
+  Map<String, TextEditingController> get noteControllers => _noteControllers;
   bool get isDownloadingStock => _isDownloadingStock;
   bool get isProcessingSale => _isProcessingSale;
   int get heldSalesCount => _heldSalesCount;
@@ -241,6 +273,8 @@ class POSScreenController extends ChangeNotifier {
     _priceControllers.clear();
     _discountControllers.forEach((key, controller) => controller.dispose());
     _discountControllers.clear();
+    _noteControllers.forEach((key, controller) => controller.dispose());
+    _noteControllers.clear();
   }
 
   void _onCustomerSearchChanged() {
@@ -691,6 +725,7 @@ class POSScreenController extends ChangeNotifier {
         total: totalInclusive,
         taxAmount: itemTaxAmount,
         isMobile: true,
+        notes: existingItem.notes,
       );
       _cart[index].inventoryItem.value = product;
     } else {
@@ -724,6 +759,8 @@ class POSScreenController extends ChangeNotifier {
     _priceControllers.remove(itemId);
     _discountControllers[itemId]?.dispose();
     _discountControllers.remove(itemId);
+    _noteControllers[itemId]?.dispose();
+    _noteControllers.remove(itemId);
     _adjustPayments();
     _amountTenderedController.clear(); // Clear tendered amount controller
     notifyListeners();
@@ -789,6 +826,7 @@ class POSScreenController extends ChangeNotifier {
       total: subtotalAfterDiscount,
       taxAmount: itemTaxAmount,
       isMobile: true,
+      notes: existingItem.notes,
     );
     _cart[index].inventoryItem.value = product;
     _adjustPayments();
@@ -799,6 +837,15 @@ class POSScreenController extends ChangeNotifier {
   void updateCartItemQuantity(int index, double newQuantity) {
     final existingItem = _cart[index];
     updateCartItemDetails(index, quantity: newQuantity, sellingPrice: existingItem.sellingPrice, discountAmount: existingItem.discountAmount);
+  }
+
+  void updateCartItemNote(int index, String note) {
+    final existingItem = _cart[index];
+    final product = existingItem.inventoryItem.value!;
+
+    _cart[index] = existingItem.copyWith(notes: note);
+    _cart[index].inventoryItem.value = product;
+    notifyListeners();
   }
 
   Future<MobilePosShift?> _getCurrentShift() async {
@@ -1169,9 +1216,11 @@ class POSScreenController extends ChangeNotifier {
     }
 
     try {
+      final int? kotNumber = await _getOrGenerateKOTNumber();
       await _printerService.printKOT(
         _cart,
         ticketName: _ticketName ?? _selectedCustomer?.name ?? 'Guest',
+        orderNumber: kotNumber?.toString(),
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('KOT sent to printer.')));
@@ -1184,7 +1233,11 @@ class POSScreenController extends ChangeNotifier {
   }
 
   Future<void> printBill(Sale sale) async {
+
     try {
+      if (sale.kotNumber == null && _useKOT) {
+        sale.kotNumber = await _getOrGenerateKOTNumber();
+      }
       await _printerService.printBill(sale, currencies: _currencies);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bill sent to printer.')));
@@ -1296,6 +1349,7 @@ class POSScreenController extends ChangeNotifier {
           taxInvoice: _printerService.getFiscalisationEnabled() && _fiscalizeThisSale,
           totalQuantity: _cart.fold(0.0, (sum, item) => sum! + item.quantity),
           posReference: generatedReference,
+          kotNumber: _currentOrderKOTNumber ?? await _getOrGenerateKOTNumber(),
           referenceNumber: generatedReference,
           shiftReference: currentShift.shiftReference,
           ticketName: _ticketName, // Include ticket name in the completed sale
@@ -1313,7 +1367,6 @@ class POSScreenController extends ChangeNotifier {
       newSale.paymentTypes.addAll(_payments);
       newSale.currency.value = _selectedCurrency;
       newSale.baseCurrency.value = _selectedCurrency;
-      print('totalDiscount : $totalDiscount');
 
       await _saleService.completeSaleTransaction(newSale,_payments ,convertedCart,customersToUpdate);
 
@@ -1525,6 +1578,7 @@ class POSScreenController extends ChangeNotifier {
     _pendingAccountCredits.clear();
     _pendingCustomerBalanceUpdates.clear();
     _selectedCustomer = newCustomer;
+    _currentOrderKOTNumber = null;
     _ticketName = null;
     _heldSaleId = null;
     _amountTenderedController.clear();
@@ -1568,30 +1622,41 @@ class POSScreenController extends ChangeNotifier {
 
     final TextEditingController ticketNameController = TextEditingController(text: suggestedTicketName);
 
-    String? ticketName = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Hold Sale as Ticket'),
-        content: TextField(
-          controller: ticketNameController,
-          decoration: const InputDecoration(
-            labelText: 'Ticket Name',
-            hintText: 'e.g., Customer A, Order #123',
+    String? ticketName;
+    try {
+      ticketName = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Hold Sale as Ticket'),
+          content: TextField(
+            controller: ticketNameController,
+            decoration: const InputDecoration(
+              labelText: 'Ticket Name',
+              hintText: 'e.g., Customer A, Order #123',
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                FocusScope.of(dialogContext).unfocus();
+                Navigator.pop(dialogContext, null); // Return null if cancelled
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                FocusScope.of(dialogContext).unfocus();
+                Navigator.pop(dialogContext, ticketNameController.text);
+              },
+              child: const Text('Hold'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, null), // Return null if cancelled
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(dialogContext, ticketNameController.text),
-            child: const Text('Hold'),
-          ),
-        ],
-      ),
-    );
+      );
+    } finally {
+      ticketNameController.dispose();
+    }
 
     if (ticketName == null || ticketName.trim().isEmpty) {
       // User cancelled or entered empty name, do not hold sale
@@ -1618,6 +1683,7 @@ class POSScreenController extends ChangeNotifier {
 
     final heldSale = Sale(
       id: 'held_${DateTime.now().millisecondsSinceEpoch}',
+      kotNumber:  prefs.getInt(AppConstants.keyLastKOTNumber) ?? 0,
       createdByName: currentShift?.createdByName,
       cashierFullName: currentShift?.userFullName,
       timeIniated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
@@ -1669,6 +1735,7 @@ class POSScreenController extends ChangeNotifier {
       _selectedCurrency = heldSale.currency.value;
       _ticketName = heldSale.ticketName;
       _heldSaleId = heldSale.id;
+      _currentOrderKOTNumber = heldSale.kotNumber;
       _amountTenderedController.text = (heldSale.amountTendered ?? 0.0).toStringAsFixed(2);
 
       // Re-associate inventory items from local stock

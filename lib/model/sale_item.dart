@@ -17,6 +17,7 @@ class SaleItem {
   double taxAmount;
   bool isMobile;
   double? amountTendered;
+  String? notes;
 
   SaleItem({
     this.id,
@@ -28,6 +29,7 @@ class SaleItem {
     this.taxAmount = 0.0,
     this.isMobile = false,
     this.amountTendered,
+    this.notes,
   }) {
     // if (inventoryItem != null) {
     //   this.inventoryItem.value = inventoryItem;
@@ -50,6 +52,7 @@ class SaleItem {
       taxAmount: taxAmount,
       isMobile: json['isMobile'] ?? false,
       amountTendered: (json['amountTendered'] as num?)?.toDouble(),
+      notes: json['notes']?.toString(),
     );
     if (json['inventoryItem'] != null) {
       item.inventoryItem.value = InventoryItem.fromJson(json['inventoryItem']);
@@ -70,6 +73,7 @@ class SaleItem {
       'taxAmount': taxAmount,
       'isMobile': isMobile,
       'amountTendered': amountTendered,
+      'notes': notes,
       'inventoryItem': inventoryItem.value?.toJson(),
     };
   }
@@ -84,6 +88,7 @@ class SaleItem {
     double? taxAmount,
     bool? isMobile,
     double? amountTendered,
+    String? notes,
   }) {
     final newItem = SaleItem(
       id: id ?? this.id,
@@ -94,6 +99,7 @@ class SaleItem {
       taxAmount: taxAmount ?? this.taxAmount,
       isMobile: isMobile ?? this.isMobile,
       amountTendered: amountTendered ?? this.amountTendered,
+      notes: notes ?? this.notes,
     );
     newItem.inventoryItem.value = inventoryItem ?? this.inventoryItem.value;
     newItem.isarId = isarId;

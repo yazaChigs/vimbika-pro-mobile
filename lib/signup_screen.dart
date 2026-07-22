@@ -281,6 +281,7 @@ class _SignupScreenState extends State<SignupScreen> {
           name: 'CREDIT-${currency.name}',
           currency: currency,
           banks: [arBank],
+          isCredit: true,
           isSystemCreated: true,
           active: true
         ));
@@ -290,6 +291,7 @@ class _SignupScreenState extends State<SignupScreen> {
           id: _uuid.v4(), // Assign a unique ID
           name: 'ACC-${currency.name}',
           currency: currency,
+          isCredit: true,
           banks: [arBank],
           isSystemCreated: true,
             active: true

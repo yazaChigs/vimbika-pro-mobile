@@ -208,6 +208,11 @@ class MobilePosShiftService {
     }
     final MobilePosShift createdShift = MobilePosShift.fromJson(items.first);
     
+    // Preserve kotNumber if it'\''s missing from server response
+    if (createdShift.kotNumber == null || createdShift.kotNumber == 0) {
+      createdShift.kotNumber = shift.kotNumber;
+    }
+    
     // Save current open shift to shared prefs
     if (!(createdShift.isShiftClosed ?? false)) {
       await prefs.setString(AppConstants.keyCurrentOpenShift, createdShift.toJson());
@@ -270,6 +275,11 @@ class MobilePosShiftService {
        throw Exception('No shift returned from the server.');
     }
     final MobilePosShift updatedShift = MobilePosShift.fromJson(items.first);
+
+    // Preserve kotNumber if it'\''s missing from server response
+    if (updatedShift.kotNumber == null || updatedShift.kotNumber == 0) {
+      updatedShift.kotNumber = shift.kotNumber;
+    }
     
     // Update current open shift in shared prefs
     if (!(updatedShift.isShiftClosed ?? false)) {

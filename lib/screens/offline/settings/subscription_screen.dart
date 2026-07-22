@@ -431,8 +431,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       transactionOperationStatus: 'Charged',
       paymentAmount: PaymentAmount(
         charginginformation: ChargingInformation(
-          // amount: (amount as num).toDouble(),
-          amount: 2.00,
+          amount: (amount as num).toDouble(),
+          // amount: 2.00,
           currency: 'USD',
           description: 'Vimbika Pro Subscription Upgrade',
         ),
