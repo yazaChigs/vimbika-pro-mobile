@@ -130,6 +130,12 @@ class PrinterService {
   List<BluetoothPrinterDeviceModel> get bluetoothDevices => _bluetoothDevices;
   UsbPrinterDevice? get selectedUsbDevice => _selectedUsbDevice;
   List<UsbPrinterDevice> get usbDevices => _usbDevices;
+  bool get isPrinterConfigured {
+    if (_printerType == PrinterTypes.sunmi) return true;
+    if (_printerType == PrinterTypes.bluetooth) return _selectedBluetoothDevice != null;
+    if (_printerType == PrinterTypes.usb) return _selectedUsbDevice != null;
+    return false;
+  }
 
   Future<void> init() async {
     await _loadPrinterSettings();

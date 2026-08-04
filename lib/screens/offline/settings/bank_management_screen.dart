@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import 'package:vimbika_pro/app_constants/app_constants.dart';
 import 'package:vimbika_pro/app_constants/app_theme.dart';
 import 'package:vimbika_pro/model/user.dart';
@@ -22,6 +23,7 @@ class _BankManagementScreenState extends State<BankManagementScreen> {
   bool _isLoading = true;
   bool _isOfflineMode = false; // Track offline mode status
   bool _canEdit = true;
+  final Uuid _uuid = const Uuid();
 
   final BankService _bankService = BankService(); // Initialize BankService
   final CurrencyService _currencyService = CurrencyService(); // Initialize CurrencyService
@@ -210,7 +212,7 @@ class _BankManagementScreenState extends State<BankManagementScreen> {
                 modifiedByName: bank.modifiedByName,
                 version: bank.version,
               ) : Bank(
-                id: null,
+                id: _uuid.v4(),
                 name: nameController.text,
                 accountNumber: accountController.text,
                 branch: branchController.text,

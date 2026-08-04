@@ -179,11 +179,13 @@ class POSScreenController extends ChangeNotifier {
   bool get printReceiptForThisSale => _printReceiptForThisSale; // Getter for new setting
   bool get fiscalizeThisSale => _fiscalizeThisSale; // Getter for new setting
   bool get isFiscalisationEnabled => _printerService.getFiscalisationEnabled();
+  bool get isPrinterConfigured => _printerService.isPrinterConfigured;
   bool get customerSelectFocus => _customerSelectFocus; // Getter for new setting
   TextEditingController get amountTenderedController => _amountTenderedController; // Getter for amount tendered controller
 
   // Setter for new setting
   set printReceiptForThisSale(bool value) {
+    if (!isPrinterConfigured) return;
     _printReceiptForThisSale = value;
     notifyListeners();
   }
@@ -202,7 +204,7 @@ class POSScreenController extends ChangeNotifier {
 
   Future<void> _loadPrinterSettings() async {
     await _printerService.init(); // Ensure printer service is initialized
-    _printReceiptForThisSale = _printerService.getAlwaysPrintReceipt(); // Initialize with global setting
+    _printReceiptForThisSale = _printerService.getAlwaysPrintReceipt() && _printerService.isPrinterConfigured; // Initialize with global setting
     _fiscalizeThisSale = _printerService.getFiscalisationEnabled() && _printerService.getAlwaysFiscalize(); // Initialize with global setting
     notifyListeners();
   }
@@ -1595,7 +1597,7 @@ class POSScreenController extends ChangeNotifier {
         (c.name.toLowerCase() == _selectedCustomer!.name.toLowerCase())
       ) ?? _selectedCustomer;
     }
-    _printReceiptForThisSale = _printerService.getAlwaysPrintReceipt();
+    _printReceiptForThisSale = _printerService.getAlwaysPrintReceipt() && _printerService.isPrinterConfigured;
     _fiscalizeThisSale = _printerService.getFiscalisationEnabled() && _printerService.getAlwaysFiscalize();
     notifyListeners();
   }
@@ -1760,7 +1762,7 @@ class POSScreenController extends ChangeNotifier {
           SnackBar(content: Text('Held sale for ${heldSale.ticketName ?? 'Guest'} loaded.'), backgroundColor: Colors.green),
         );
       }
-      _printReceiptForThisSale = _printerService.getAlwaysPrintReceipt();
+      _printReceiptForThisSale = _printerService.getAlwaysPrintReceipt() && _printerService.isPrinterConfigured;
     } finally {
       _isLoading = false;
       notifyListeners();

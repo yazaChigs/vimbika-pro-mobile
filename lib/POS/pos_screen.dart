@@ -683,38 +683,39 @@ class POSScreen extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 4), // Reduced height
-        // New "Print Receipt" checkbox
-        if (controller.cart.isNotEmpty)
+        if (controller.cart.isNotEmpty && (controller.isPrinterConfigured || controller.isFiscalisationEnabled))
           Row(
             children: [
-              Expanded(
-                child: SwitchListTile(
-                  title: const Text('Print Receipt', style: TextStyle(fontSize: 13)),
-                  value: controller.printReceiptForThisSale,
-                  onChanged: (value) {
-                    controller.printReceiptForThisSale = value;
-                  },
-                  secondary: const Icon(Icons.print, size: 20),
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
+              if (controller.isPrinterConfigured)
+                Expanded(
+                  child: SwitchListTile(
+                    title: const Text('Print Receipt', style: TextStyle(fontSize: 13)),
+                    value: controller.printReceiptForThisSale,
+                    onChanged: (value) {
+                      controller.printReceiptForThisSale = value;
+                    },
+                    secondary: const Icon(Icons.print, size: 20),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: SwitchListTile(
-                  title: const Text('Fiscalize', style: TextStyle(fontSize: 13)),
-                  value: controller.fiscalizeThisSale,
-                  onChanged: !controller.isFiscalisationEnabled ? null : (value) {
-                    controller.fiscalizeThisSale = value;
-                  },
-                  secondary: const Icon(Icons.receipt_long, size: 20),
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
+              if (controller.isFiscalisationEnabled)
+                Expanded(
+                  child: SwitchListTile(
+                    title: const Text('Fiscalize', style: TextStyle(fontSize: 13)),
+                    value: controller.fiscalizeThisSale,
+                    onChanged: (value) {
+                      controller.fiscalizeThisSale = value;
+                    },
+                    secondary: const Icon(Icons.receipt_long, size: 20),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
                 ),
-              ),
             ],
           ),
         const SizedBox(height: 4), // Reduced height
-        if (controller.useKOT && controller.cart.isNotEmpty)
+        if (controller.useKOT && controller.cart.isNotEmpty && controller.isPrinterConfigured)
           Padding(
             padding: const EdgeInsets.only(bottom: 4.0),
             child: SizedBox(
@@ -1004,11 +1005,12 @@ class POSScreen extends StatelessWidget {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              IconButton(
-                                icon: const Icon(Icons.print, color: AppTheme.vimbikaBlue, size: 18),
-                                tooltip: 'Print Bill',
-                                onPressed: () => controller.printBill(sale),
-                              ),
+                              if (controller.isPrinterConfigured)
+                                IconButton(
+                                  icon: const Icon(Icons.print, color: AppTheme.vimbikaBlue, size: 18),
+                                  tooltip: 'Print Bill',
+                                  onPressed: () => controller.printBill(sale),
+                                ),
                               IconButton(
                                 icon: const Icon(Icons.play_arrow, color: Colors.green, size: 18), // Reduced icon size
                                 tooltip: 'Load Sale',

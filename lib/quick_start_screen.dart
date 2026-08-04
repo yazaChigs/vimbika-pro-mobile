@@ -3,6 +3,7 @@ import 'package:vimbika_pro/app_constants/app_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:uuid/uuid.dart';
 
 import 'model/currency.dart';
 import 'model/tax.dart';
@@ -23,6 +24,7 @@ class QuickStartScreen extends StatefulWidget {
 
 class _QuickStartScreenState extends State<QuickStartScreen> {
   bool _isLoading = false;
+  final Uuid _uuid = const Uuid();
 
   // State variables for the quick start configuration
   bool _chargeTax = true;
@@ -80,7 +82,7 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
     final List<String> paymentTypeJson = prefs.getStringList(AppConstants.keyOfflinePaymentTypes) ?? [];
     if (paymentTypeJson.isNotEmpty) {
       _paymentTypes = paymentTypeJson.map((e) => PaymentType.fromJson(jsonDecode(e))).toList();
-      _displayPaymentTypes = _paymentTypes.where((c)=>!c.isSystemCreated!).toList();
+      _displayPaymentTypes = _paymentTypes.where((c)=>c.isSystemCreated != true).toList();
     } else {
       _paymentTypes = []; // Initialize as empty if no saved data
     }
@@ -89,7 +91,7 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
     final List<String> bankJson = prefs.getStringList(AppConstants.keyOfflineBanks) ?? [];
     if (bankJson.isNotEmpty) {
       _banks = bankJson.map((e) => Bank.fromJson(jsonDecode(e))).toList();
-      _DisplayBanks = _banks.where((c)=>!c.isSystemCreated!).toList();
+      _DisplayBanks = _banks.where((c)=>c.isSystemCreated != true).toList();
     } else {
       _banks = []; // Initialize as empty if no saved data
     }
@@ -197,10 +199,11 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
             onPressed: () {
               if (name.isNotEmpty && symbol.isNotEmpty) {
                 final newCurrency = Currency(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  id: _uuid.v4(),
                   name: name,
                   symbol: symbol,
                   isBaseCurrency: _availableCurrencies.isEmpty,
+                  isSystemCreated: false,
                 );
                 setState(() {
                   _availableCurrencies.add(newCurrency);
@@ -248,7 +251,7 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
             onPressed: () {
               if (name.isNotEmpty) {
                 final newTax = Tax(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  id: _uuid.v4(),
                   name: name,
                   taxPercentage: percentage,
                 );
@@ -347,11 +350,13 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
                     }
 
                     final newPaymentType = PaymentType(
-                      id:null,
+                      id: _uuid.v4(),
                       name: name,
                       active: true,
+                      isBankTransfer: selectedBanks.isNotEmpty,
                       currency: selectedCurrency,
                       banks: selectedBanks.isNotEmpty ? selectedBanks : null,
+                      isSystemCreated: false,
                     );
                     setState(() {
                       _paymentTypes.add(newPaymentType);
@@ -373,51 +378,80 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
     String name = '';
     String accountNumber = '';
     String branch = '';
+    String? selectedCurrencyId = _selectedBaseCurrencyId;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Bank'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              decoration: const InputDecoration(labelText: 'Bank Name'),
-              onChanged: (val) => name = val,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Add Bank'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    decoration: const InputDecoration(labelText: 'Bank Name'),
+                    onChanged: (val) => name = val,
+                  ),
+                  TextField(
+                    decoration: const InputDecoration(labelText: 'Account Number'),
+                    onChanged: (val) => accountNumber = val,
+                  ),
+                  TextField(
+                    decoration: const InputDecoration(labelText: 'Branch Name'),
+                    onChanged: (val) => branch = val,
+                  ),
+                  const SizedBox(height: 16),
+                  if (_availableCurrencies.isNotEmpty)
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: 'Currency'),
+                      value: selectedCurrencyId,
+                      items: _availableCurrencies.map((c) => DropdownMenuItem(
+                        value: c.id,
+                        child: Text('${c.name} (${c.symbol})'),
+                      )).toList(),
+                      onChanged: (val) => setDialogState(() => selectedCurrencyId = val),
+                    ),
+                ],
+              ),
             ),
-            TextField(
-              decoration: const InputDecoration(labelText: 'Account Number'),
-              onChanged: (val) => accountNumber = val,
-            ),
-            TextField(
-              decoration: const InputDecoration(labelText: 'Branch Name'),
-              onChanged: (val) => branch = val,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (name.isNotEmpty) {
-                final newBank = Bank(
-                  id: null,
-                  name: name,
-                  accountNumber: accountNumber,
-                  branch: branch,
-                );
-                setState(() {
-                  _banks.add(newBank);
-                  _DisplayBanks.add(newBank);
-                });
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (name.isNotEmpty) {
+                    Currency? currency;
+                    if (selectedCurrencyId != null) {
+                      try {
+                        currency = _availableCurrencies.firstWhere((c) => c.id == selectedCurrencyId);
+                      } catch (e) {
+                        // Ignore
+                      }
+                    }
+                    final newBank = Bank(
+                      id: _uuid.v4(),
+                      name: name,
+                      accountNumber: accountNumber,
+                      branch: branch,
+                      currency: currency,
+                      isSystemCreated: false,
+                    );
+                    setState(() {
+                      _banks.add(newBank);
+                      _DisplayBanks.add(newBank);
+                    });
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text('Add'),
+              ),
+            ],
+          );
+        }
       ),
     );
   }
