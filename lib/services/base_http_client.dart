@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../app_constants/app_constants.dart';
 import 'app_exceptions.dart';
 import 'auth_http_client.dart';
+import 'auth_service.dart';
 
 class BaseHttpClient {
   static const int TIME_OUT_DURATION = 800; // Changed from 800 to 30 seconds
@@ -97,7 +99,6 @@ class BaseHttpClient {
   Future<dynamic> postAuthWithCompanyHeader(String api, dynamic payloadObj, String companyId, String method) async {
     var uri = Uri.parse(BASE_URL + api);
     var httpClient = AuthenticatedHttpClient();
-    print(uri.toString());
     try {
       var response;
       if (method == "POST") {
@@ -140,6 +141,9 @@ class BaseHttpClient {
     }
   }
 
+  @visibleForTesting
+  dynamic processResponse(http.Response response) => _processResponse(response);
+
   dynamic _processResponse(http.Response response) {
     print(response.body.toString());
     print(response.statusCode.toString());
@@ -153,6 +157,11 @@ class BaseHttpClient {
       case 400:
         throw BadRequestException(utf8.decode(response.bodyBytes), response.request!.url.toString());
       case 401:
+        final urlPath = response.request?.url.path ?? '';
+        if (!urlPath.endsWith('/authentication') && !AuthService.isLoginScreenActive) {
+          AuthService.showRegenerateTokenDialog();
+        }
+        throw UnAuthorizedException(utf8.decode(response.bodyBytes), response.request?.url.toString() ?? '');
       case 403:
         throw UnAuthorizedException(utf8.decode(response.bodyBytes), response.request!.url.toString());
       case 422:

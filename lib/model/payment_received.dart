@@ -20,6 +20,7 @@ class PaymentReceived {
   double amount;
   double? amountPaid;
   String? paymentDescription;
+  String? accountType;
   String? paymentDate;
   String? dateTime;
   String? notes;
@@ -27,6 +28,7 @@ class PaymentReceived {
   bool isMobile;
   double? amountTendered;
   String? reference;
+  String? posReference;
   bool isSynced;
   double amountAddedToAccount; // In-memory only for POS overpayment handling
 
@@ -48,6 +50,8 @@ class PaymentReceived {
     this.reference,
     this.isSynced = true,
     this.amountAddedToAccount = 0.0,
+    this.accountType,
+    this.posReference,
   }) {
     if (paymentType != null) {
       this.paymentType.value = paymentType;
@@ -78,7 +82,9 @@ class PaymentReceived {
       isMobile: json['isMobile'] ?? false,
       amountTendered: (json['amountTendered'] as num?)?.toDouble(),
       reference: json['reference'],
+      posReference: json['posReference'],
       isSynced: json['isSynced'] ?? true,
+        accountType:json['accountType']
     );
     final paymentTypeData = json['paymentType'] ?? json['payment_type'] ?? json['paymentMethod'] ?? json['payment_method'];
     if (paymentTypeData != null && paymentTypeData is Map<String, dynamic>) {
@@ -123,6 +129,8 @@ class PaymentReceived {
       'currency': currency.value?.toJson(),
       'branch': branch.value?.toJson(),
       'bank': bank.value?.toJson(),
+      'accountType': accountType,
+      'posReference': posReference,
     };
   }
 
@@ -131,12 +139,14 @@ class PaymentReceived {
     double? amount,
     double? amountPaid,
     String? paymentDescription,
+    String? accountType,
     String? paymentDate,
     String? dateTime,
     String? notes,
     bool? isMobile,
     double? amountTendered,
     String? reference,
+    String? posReference,
     bool? isSynced,
     double? amountAddedToAccount,
   }) {
@@ -145,12 +155,14 @@ class PaymentReceived {
       amount: amount ?? this.amount,
       amountPaid: amountPaid ?? this.amountPaid,
       paymentDescription: paymentDescription ?? this.paymentDescription,
+      accountType: accountType ?? this.accountType,
       paymentDate: paymentDate ?? this.paymentDate,
       dateTime: dateTime ?? this.dateTime,
       notes: notes ?? this.notes,
       isMobile: isMobile ?? this.isMobile,
       amountTendered: amountTendered ?? this.amountTendered,
       reference: reference ?? this.reference,
+      posReference: posReference ?? this.posReference,
       isSynced: isSynced ?? this.isSynced,
       amountAddedToAccount: amountAddedToAccount ?? this.amountAddedToAccount,
     );

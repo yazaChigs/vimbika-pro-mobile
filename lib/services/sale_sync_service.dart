@@ -118,11 +118,6 @@ class SaleSyncService {
             continue;
           }
 
-          print(syncedSaleData);
-          // if(syncedSaleData['id'] == null) {
-          //   continue;
-          // }
-
           // Update sale with server ID and mark as synced
           sale.id = syncedSaleData['id'];
           sale.isSynced = true;

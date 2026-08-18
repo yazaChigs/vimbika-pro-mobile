@@ -65,6 +65,7 @@ class MyApp extends StatelessWidget {
     );
 
     return MaterialApp(
+      navigatorKey: AppConstants.navigatorKey,
       title: 'Vimbika POS',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

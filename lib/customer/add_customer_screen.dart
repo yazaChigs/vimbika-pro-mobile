@@ -128,7 +128,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       }
 
       Customer customerToSave = Customer(
-        id: widget.customer?.id ?? const Uuid().v4(), // Use existing ID or generate one
+        id: widget.customer?.id ??( isOfflineMode ? const Uuid().v4() : null ), // Use existing ID or generate one
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         mobilePhone: _phoneController.text.trim(),
@@ -193,7 +193,6 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     if (isConnected && !isOfflineMode) {
       try {
         final syncedCustomer = await _customerService.syncCustomer(customer);
-        debugPrint('Customer synced to API successfully: ${syncedCustomer.id}');
       } catch (e) {
         debugPrint('Failed to sync customer ${customer.id} to API: $e');
         // Customer remains unsynced locally. A separate retry mechanism will handle this.

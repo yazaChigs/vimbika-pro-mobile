@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:uuid/uuid.dart';
+import 'package:vimbika_pro/model/base_name_model.dart';
 import '../model/mobile_pos_shift.dart';
 import '../online_navigation_home_screen.dart';
 import 'package:vimbika_pro/screens/online/online_reports_screen.dart';
@@ -40,7 +41,6 @@ class LoginController extends ChangeNotifier {
 
   LoginController({String? initialUsername, String? initialPassword}) {
     if (initialUsername != null) {
-      print('initialUsername: $initialUsername');
       identifierController.text = initialUsername;
     }
     if (initialPassword != null) {
@@ -207,7 +207,7 @@ class LoginController extends ChangeNotifier {
         userFullName: '${user.firstName ?? ''} ${user.lastName ?? ''}'.trim(),
         createdByName: user.userName,
         dateCreated: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-        openingTime: DateTime.now().toIso8601String(),
+        openingTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
         active: true,
         isShiftClosed: false,
         synced: false,
@@ -215,6 +215,12 @@ class LoginController extends ChangeNotifier {
         kotNumber: 0,
         shiftReference: 'SF${DateTime.now().millisecondsSinceEpoch}',
         shiftCurrencyAmounts: [],
+        company: user.branch?.company.value != null
+            ? BaseNameModel(
+                id: user.branch!.company.value!.id,
+                name: user.branch!.company.value!.name,
+              )
+            : null,
       );
 
       // Set as current open shift

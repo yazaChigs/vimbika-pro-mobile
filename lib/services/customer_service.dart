@@ -11,7 +11,9 @@ import '../model/ledger_response.dart'; // Import the LedgerResponse model
 import 'base_http_client.dart';
 
 class CustomerService {
-  final BaseHttpClient _client = BaseHttpClient();
+  final BaseHttpClient _client;
+
+  CustomerService({BaseHttpClient? client}) : _client = client ?? BaseHttpClient();
 
   // Fetches customers from API and saves them locally, marking them as synced
   Future<List<Customer>> fetchCustomers() async {
@@ -39,33 +41,27 @@ class CustomerService {
     Map<String, Customer> mergedCustomers = {};
     // Start with all currently known customers
     for (var c in localCustomers) {
-      String key = c.id ?? 'name_${c.name.toLowerCase()}';
+      String key = c.id ?? 'name_${c.name.toLowerCase().trim()}';
       mergedCustomers[key] = c;
     }
     
     // Add/Update with newly fetched customers from API
     for (var c in customers) {
       if (c.id != null) {
-        // Find existing by ID or Name
-        String? existingKey = mergedCustomers.containsKey(c.id) 
-            ? c.id 
-            : mergedCustomers.keys.firstWhereOrNull((k) => 
-                mergedCustomers[k]!.name.toLowerCase() == c.name.toLowerCase()
-              );
+        // Remove any local existing entries that match this customer by ID or Name
+        final keysToRemove = mergedCustomers.keys.where((k) {
+          final existing = mergedCustomers[k]!;
+          return k == c.id ||
+              (existing.id != null && existing.id == c.id) ||
+              existing.name.toLowerCase().trim() == c.name.toLowerCase().trim();
+        }).toList();
 
-        if (existingKey == null) {
-          mergedCustomers[c.id!] = c;
-        } else {
-          final existing = mergedCustomers[existingKey]!;
-          // Only overwrite if the local version is already synced
-          if (existing.isSynced) {
-            // If ID changed (null -> real ID), remove old name-based key
-            if (existing.id == null) {
-              mergedCustomers.remove(existingKey);
-            }
-            mergedCustomers[c.id!] = c;
-          }
+        for (var k in keysToRemove) {
+          mergedCustomers.remove(k);
         }
+
+        // Add the fetched customer from API (source of truth)
+        mergedCustomers[c.id!] = c;
       }
     }
     
@@ -107,7 +103,8 @@ class CustomerService {
       'POST'
     );
 
-    final Customer savedCustomer = Customer.fromJson(jsonDecode(responseStr));
+    final Map<String, dynamic> responseJson = jsonDecode(responseStr);
+    final Customer savedCustomer = Customer.fromJson(responseJson['item']);
     return savedCustomer.copyWith(isSynced: true); // Ensure returned customer is marked as synced
   }
 
@@ -125,7 +122,8 @@ class CustomerService {
       'POST'
     );
 
-    final Customer savedCustomer = Customer.fromJson(jsonDecode(responseStr));
+    final Map<String, dynamic> responseJson = jsonDecode(responseStr);
+    final Customer savedCustomer = Customer.fromJson(responseJson['item']);
     return savedCustomer.copyWith(isSynced: true);
   }
 
@@ -181,16 +179,12 @@ class CustomerService {
     List<Customer> customers = await getCustomersLocally();
 
     for (var updatedCustomer in updatedCustomers) {
-      int index = customers.indexWhere((c) =>
-          (updatedCustomer.id != null && c.id == updatedCustomer.id) ||
-          (updatedCustomer.id == null &&
-              c.id == null &&
-              c.name == updatedCustomer.name));
-      if (index != -1) {
-        customers[index] = updatedCustomer;
-      } else {
-        customers.add(updatedCustomer);
-      }
+      // Remove any existing entries matching this customer by ID or by name
+      customers.removeWhere((c) =>
+          (updatedCustomer.id != null && c.id != null && c.id == updatedCustomer.id) ||
+          (c.name.toLowerCase().trim() == updatedCustomer.name.toLowerCase().trim()));
+      
+      customers.add(updatedCustomer);
     }
 
     final bool isOfflineMode =
@@ -223,17 +217,31 @@ class CustomerService {
   // Syncs a single unsynced customer to the API
   Future<Customer> syncCustomer(Customer unsyncedCustomer) async {
     try {
+      // Check if this customer has already been synced locally
+      List<Customer> currentLocal = await getCustomersLocally();
+      final existingSynced = currentLocal.firstWhereOrNull((c) =>
+          c.isSynced &&
+          ((unsyncedCustomer.id != null && c.id == unsyncedCustomer.id) ||
+           (c.name.toLowerCase().trim() == unsyncedCustomer.name.toLowerCase().trim())));
+      if (existingSynced != null) {
+        debugPrint('Customer ${unsyncedCustomer.name} is already synced.');
+        return existingSynced;
+      }
+
       // Attempt to save to API
       final Customer apiCustomer = await saveCustomer(unsyncedCustomer);
+      if (apiCustomer.id == null) {
+        throw Exception('API did not return a customer ID');
+      }
       final Customer syncedCustomer = apiCustomer.copyWith(isSynced: true);
 
-      // Update the locally stored customer with the API response (new ID, isSynced: true)
-      // We remove by the OLD ID and then save the NEW one.
-      // saveCustomersLocally will handle merging and cleaning up other buckets.
-      // if (unsyncedCustomer.id != null) {
-      //   await removeCustomerLocally(unsyncedCustomer.id!);
-      // } // COMMENTED SO THAT CLIENT DOESNT IMMEDIATELY DISAPPEAR AFTER ADDING DEPOSIT
-      await saveCustomerLocally(syncedCustomer.copyWith(isSynced: true));
+      // Remove the old unsynced customer (by old ID or name) before saving the synced one
+      if (unsyncedCustomer.id != null && unsyncedCustomer.id != syncedCustomer.id) {
+        await removeCustomerLocally(unsyncedCustomer.id!);
+      }
+      await removeCustomerLocallyByName(unsyncedCustomer.name);
+
+      await saveCustomerLocally(syncedCustomer);
 
       return syncedCustomer;
     } catch (e) {
@@ -247,6 +255,18 @@ class CustomerService {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     List<Customer> customers = await getCustomersLocally();
     customers.removeWhere((c) => c.id == customerId);
+    
+    final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
+    final String customerKey = isOfflineMode ? AppConstants.keyOfflineCustomers : AppConstants.keyCustomers;
+
+    await prefs.setStringList(customerKey, customers.map((c) => jsonEncode(c.toJson())).toList());
+  }
+
+  // Removes a customer from local storage by Name from ALL buckets
+  Future<void> removeCustomerLocallyByName(String customerName) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<Customer> customers = await getCustomersLocally();
+    customers.removeWhere((c) => c.name.toLowerCase().trim() == customerName.toLowerCase().trim());
     
     final bool isOfflineMode = prefs.getBool(AppConstants.keyIsOfflineMode) ?? false;
     final String customerKey = isOfflineMode ? AppConstants.keyOfflineCustomers : AppConstants.keyCustomers;

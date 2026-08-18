@@ -345,10 +345,43 @@ class IsarService {
     return await isar.paymentReceiveds.filter().isSyncedEqualTo(false).findAll();
   }
 
-  Future<void> deletePaymentReceived(String paymentId) async {
+  Future<void> deletePaymentReceived({String? paymentId, String? posReference, Id? isarId}) async {
     final isar = await db;
     isar.writeTxnSync(() {
-      isar.paymentReceiveds.filter().idEqualTo(paymentId).deleteAllSync();
+      if (posReference != null && posReference.isNotEmpty) {
+        isar.paymentReceiveds.filter().posReferenceEqualTo(posReference).deleteAllSync();
+      }
+      if (paymentId != null && paymentId.isNotEmpty && paymentId != 'null') {
+        isar.paymentReceiveds.filter().idEqualTo(paymentId).deleteAllSync();
+      }
+      if (isarId != null && isarId != Isar.autoIncrement) {
+        isar.paymentReceiveds.deleteSync(isarId);
+      }
+    });
+  }
+
+  Future<void> deletePaymentReceivedByPosReference(String posReference) async {
+    final isar = await db;
+    isar.writeTxnSync(() {
+      isar.paymentReceiveds.filter().posReferenceEqualTo(posReference).deleteAllSync();
+    });
+  }
+
+  Future<void> updatePaymentReceivedSyncStatus({
+    required String posReference,
+    required bool isSynced,
+    String? serverId,
+  }) async {
+    final isar = await db;
+    isar.writeTxnSync(() {
+      final matches = isar.paymentReceiveds.filter().posReferenceEqualTo(posReference).findAllSync();
+      for (var p in matches) {
+        p.isSynced = isSynced;
+        if (serverId != null) {
+          p.id = serverId;
+        }
+        isar.paymentReceiveds.putSync(p);
+      }
     });
   }
 }

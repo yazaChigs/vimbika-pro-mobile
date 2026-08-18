@@ -26,6 +26,8 @@ import 'dart:async';
 import 'package:vimbika_pro/app_constants/app_colors.dart';
 import 'package:vimbika_pro/services/mobile_shift_service.dart'; // New: MobileShiftService
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:vimbika_pro/services/default_data_service.dart';
+import 'package:vimbika_pro/navigation_home_screen.dart';
 // For debugPrint
 
 class OnlineReportsController {
@@ -640,6 +642,51 @@ class OnlineReportsController {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString(AppConstants.keyLastSelectedDate, searchDate.toIso8601String());
       fetchReportData();
+    }
+  }
+
+  Future<void> navigateToDashboard() async {
+    if (currentUser == null) {
+      if (context.mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => NavigationHomeScreen()),
+          (Route<dynamic> route) => false,
+        );
+      }
+      return;
+    }
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
+
+    try {
+      final DefaultDataService _defaultDataService = DefaultDataService();
+      await _defaultDataService.fetchAndSaveDefaultData(currentUser!);
+    } catch (e) {
+      debugPrint('Error downloading default data: $e');
+      // Optionally show an error snackbar here, but proceed with navigation anyway?
+      // Or should we stay on the screen? Usually best to let the user through even if some data fails.
+    } finally {
+      // Dismiss loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+
+        // Navigate to dashboard
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => NavigationHomeScreen()),
+          (Route<dynamic> route) => false,
+        );
+      }
     }
   }
 }

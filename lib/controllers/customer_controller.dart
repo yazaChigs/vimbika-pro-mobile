@@ -288,6 +288,7 @@ class CustomerController extends ChangeNotifier {
         currency: selectedCurrency,
         branch: defaultBranch ?? customer.branch.value,
         bank: selectedBank,
+        posReference: 'CA_${DateTime.now().millisecondsSinceEpoch}',
       );
 
       int customerIndex = _customers.indexWhere((c) => 

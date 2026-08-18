@@ -13,7 +13,9 @@ import 'subscription_screen.dart';
 import 'sales_backup_screen.dart';
 import 'dart:convert';
 import 'package:vimbika_pro/services/printer_service.dart';
+import 'package:vimbika_pro/services/auth_service.dart';
 import '../../../model/user.dart';
+import 'package:vimbika_pro/login/login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   @override
@@ -77,6 +79,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SnackBar(content: Text('Error opening drawer: $e')),
         );
       }
+    }
+  }
+
+  Future<void> _showRegenerateTokenDialog() async {
+    AuthService.showRegenerateTokenDialog();
+  }
+
+  Future<void> _logout() async {
+    bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Log Out?'),
+        content: const Text('Are you sure you want to log out of your current session?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Log Out', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (confirm) {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.remove(AppConstants.keyUserData);
+      await prefs.remove(AppConstants.keyOnlineUserData);
+      await prefs.remove(AppConstants.keyOfflineUserData);
+      await prefs.remove(AppConstants.CACHED_ACCESS_TOKEN);
+      await prefs.setBool(AppConstants.keyHasUser, false);
+      await prefs.setBool(AppConstants.keyHasLoggedIn, false);
+      await prefs.setBool(AppConstants.keyIsOfflineMode, true);
+
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (Route<dynamic> route) => false,
+      );
     }
   }
 
@@ -193,6 +238,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       );
                     },
                   ),
+                  if (!_isOfflineMode)
+                    _buildSettingItem(
+                      icon: Icons.refresh_outlined,
+                      title: 'Regenerate Server Token',
+                      onTap: _showRegenerateTokenDialog,
+                    ),
                   // if (_isSuperAdmin())
                     _buildSettingItem(
                       icon: Icons.backup_table,
@@ -244,6 +295,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       );
                     },
+                  ),
+                  _buildSettingItem(
+                    icon: Icons.logout,
+                    title: 'Log Out',
+                    onTap: _logout,
                   ),
                 ],
               ),

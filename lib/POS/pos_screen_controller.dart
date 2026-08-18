@@ -585,7 +585,14 @@ class POSScreenController extends ChangeNotifier {
     if (currency != null && paymentType != null) {
       final banks = paymentType.allBanks;
       if (banks.isNotEmpty) {
+        if(paymentType.name.toLowerCase().startsWith('cash')){
+          Bank? bank = banks.firstWhereOrNull((test)=>test.bankName!.toLowerCase().startsWith('cash'));
+          if(bank != null){
+            return bank;
+          }
+        }
         for (Bank bank in banks) {
+          print('bank: ${bank.bankName}');
           if (bank.currency.value?.id == currency.id) {
             return bank;
           }
@@ -631,7 +638,7 @@ class POSScreenController extends ChangeNotifier {
       );
       _payments.add(updatedPayment);
 
-      if (_selectedCustomer != null) {
+      if (_selectedCustomer != null && _selectedCustomer!.id != null) {
         if (updatedPayment.paymentType.value?.isCredit == true) {
           _pendingCustomerBalanceUpdates.add(PendingCustomerBalanceUpdate(
             customerId: _selectedCustomer!.id!,
@@ -886,6 +893,13 @@ class POSScreenController extends ChangeNotifier {
     if (_selectedCustomer == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a customer to pay from account.'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+    if (_selectedCustomer!.id == null) {
+      print(_selectedCustomer!.toJson());
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selected customer does not have a valid ID. Cannot pay from account.'), backgroundColor: Colors.red),
       );
       return;
     }
@@ -1468,8 +1482,10 @@ class POSScreenController extends ChangeNotifier {
         currency: selectedCurrency,
         branch: _selectedBranch,
         amount: amount,
+        posReference: 'CA_${DateTime.now().millisecondsSinceEpoch}',
         amountPaid: amount,
         paymentDescription: 'PAY_ACCOUNT',
+        accountType: 'CUSTOMER_ACCOUNT',
         paymentDate:DateFormat('yyyy-MM-dd').format(DateTime.now()),
         dateTime:DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
         notes: 'Customer deposit from mobile POS',
@@ -1795,10 +1811,15 @@ class POSScreenController extends ChangeNotifier {
         return;
       }
 
-      final cashPaymentType = _paymentTypes.firstWhere(
+      final cashPaymentType = _paymentTypes.firstWhereOrNull(
         (pt) => (pt.isCash == true || pt.name.toLowerCase().startsWith('cash')) && (pt.currency.value == null || pt.currency.value?.id == _selectedCurrency?.id),
-        orElse: () => PaymentType(id: 'cash_default', name: 'Cash', isCash: true),
       );
+
+      if (cashPaymentType == null) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cash payment type not configured for this currency.')));
+        return;
+      }
 
       _payments.clear();
       _payments.add(

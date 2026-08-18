@@ -190,7 +190,7 @@ class _SignupScreenState extends State<SignupScreen> {
       userFullName: '${user.firstName ?? ''} ${user.lastName ?? ''}'.trim(),
       createdByName: user.userName,
       dateCreated: DateTime.now().toIso8601String(),
-      openingTime: DateTime.now().toIso8601String(),
+      openingTime: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
       active: true,
       isShiftClosed: false,
       synced: false,

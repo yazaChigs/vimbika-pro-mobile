@@ -160,13 +160,7 @@ class _OnlineReportsScreenState extends State<OnlineReportsScreen> {
                                 onRefresh: _controller.fetchReportData,
                                 onLogout: _controller.logout,
                                 isSyncing: _controller.isSyncing,
-                                onDashboard: () {
-                                  Navigator.pushAndRemoveUntil(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => NavigationHomeScreen()),
-                                    (Route<dynamic> route) => false,
-                                  );
-                                },
+                                onDashboard: _controller.navigateToDashboard,
                             ),
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

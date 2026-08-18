@@ -4,6 +4,7 @@ import 'dart:async'; // Import for TimeoutException
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart'; // Import connectivity_plus
 import 'package:flutter/foundation.dart'; // For debugPrint
+import 'package:isar/isar.dart';
 import 'package:vimbika_pro/services/isar_service.dart';
 
 import '../app_constants/app_constants.dart';
@@ -17,8 +18,12 @@ import '../model/user.dart';
 import 'base_http_client.dart';
 
 class PaymentsService {
-  final BaseHttpClient _client = BaseHttpClient();
-  final IsarService _isarService = IsarService();
+  final BaseHttpClient _client;
+  final IsarService _isarService;
+
+  PaymentsService({BaseHttpClient? client, IsarService? isarService})
+      : _client = client ?? BaseHttpClient(),
+        _isarService = isarService ?? IsarService();
 
   Future<bool> _checkConnectivity() async {
     final connectivityResult = await (Connectivity().checkConnectivity());
@@ -223,21 +228,75 @@ class PaymentsService {
   }
 
   Future<PaymentReceived> savePaymentReceivedLocally(PaymentReceived payment) async {
-    // Assign a temporary ID if it doesn't have one
-    if (payment.id == null || payment.id!.isEmpty) {
-      payment = payment.copyWith(id: DateTime.now().millisecondsSinceEpoch.toString());
-    }
-    
-    await _isarService.savePaymentReceived(payment.copyWith(isSynced: false));
-    return payment;
+    final String posRef = (payment.posReference != null && payment.posReference!.isNotEmpty)
+        ? payment.posReference!
+        : 'PR_${DateTime.now().microsecondsSinceEpoch}';
+
+    final paymentToSave = payment.copyWith(
+      posReference: posRef,
+      isSynced: false,
+    );
+    await _isarService.savePaymentReceived(paymentToSave);
+    return paymentToSave;
   }
 
   Future<List<PaymentReceived>> getUnsyncedReceivedPaymentsLocally() async {
     return await _isarService.getUnsyncedPayments();
   }
 
-  Future<void> removeUnsyncedReceivedPaymentLocally(String paymentId) async {
-    await _isarService.deletePaymentReceived(paymentId);
+  Future<void> removeUnsyncedReceivedPaymentLocally({
+    String? paymentId,
+    String? posReference,
+    Id? isarId,
+  }) async {
+    await _isarService.deletePaymentReceived(
+      paymentId: paymentId,
+      posReference: posReference,
+      isarId: isarId,
+    );
+    await _removePaymentFromSharedPreferences(
+      posReference: posReference,
+      paymentId: paymentId,
+    );
+  }
+
+  Future<void> _removePaymentFromSharedPreferences({
+    String? posReference,
+    String? paymentId,
+  }) async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      for (String key in [
+        AppConstants.keyUnsyncedReceivedPayments,
+        AppConstants.keyOfflinePaymentsReceived,
+      ]) {
+        final list = prefs.getStringList(key);
+        if (list != null && list.isNotEmpty) {
+          final updatedList = list.where((item) {
+            try {
+              final json = jsonDecode(item);
+              if (posReference != null &&
+                  posReference.isNotEmpty &&
+                  json['posReference'] == posReference) {
+                return false;
+              }
+              if (paymentId != null &&
+                  paymentId.isNotEmpty &&
+                  paymentId != 'null' &&
+                  json['id']?.toString() == paymentId) {
+                return false;
+              }
+              return true;
+            } catch (_) {
+              return true;
+            }
+          }).toList();
+          await prefs.setStringList(key, updatedList);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error cleaning payment from SharedPreferences: $e');
+    }
   }
 
   Future<bool> syncReceivedPayment(PaymentReceived payment) async {
@@ -262,9 +321,26 @@ class PaymentsService {
       return false;
     }
 
+    // If payment is already synced with a server ID, isolate/remove from unsynced list
+    if (payment.isSynced == true && payment.id != null && payment.id!.isNotEmpty && payment.id != 'null') {
+      await removeUnsyncedReceivedPaymentLocally(
+        paymentId: payment.id,
+        posReference: payment.posReference,
+        isarId: payment.isarId,
+      );
+      debugPrint('Payment ${payment.posReference ?? payment.id} is already marked as synced.');
+      return true;
+    }
+
+    // Ensure payment has a posReference for tracking/isolation
+    final String posRef = (payment.posReference != null && payment.posReference!.isNotEmpty)
+        ? payment.posReference!
+        : 'PR_${DateTime.now().microsecondsSinceEpoch}';
+    final paymentToSync = payment.copyWith(posReference: posRef);
+
     try {
-      final String jsonPayment = jsonEncode(payment.toJson());
-      final String responseStr = await _client.postAuthWithCompanyHeader( // Removed unused variable assignment
+      final String jsonPayment = jsonEncode(paymentToSync.toJson());
+      final String responseStr = await _client.postAuthWithCompanyHeader(
         '/payments/received/receive-payment',
         jsonPayment,
         companyId,
@@ -272,22 +348,26 @@ class PaymentsService {
       );
       final Map<String, dynamic> responseData = jsonDecode(responseStr);
       if (responseData.containsKey('item')) {
-        // If successful, remove from local unsynced list
-        await removeUnsyncedReceivedPaymentLocally(payment.id.toString());
-        debugPrint('Payment ${payment.id} synced successfully.');
+        // If successful, remove/isolate the synced payment using posReference
+        await removeUnsyncedReceivedPaymentLocally(
+          paymentId: paymentToSync.id,
+          posReference: paymentToSync.posReference,
+          isarId: paymentToSync.isarId,
+        );
+        debugPrint('Payment with posReference ${paymentToSync.posReference} synced successfully.');
         return true;
       } else {
         debugPrint('Invalid response format during syncReceivedPayment: "item" key not found.');
         return false;
       }
     } on SocketException catch (e) {
-      debugPrint('SocketException during syncReceivedPayment for ${payment.id}: $e');
+      debugPrint('SocketException during syncReceivedPayment for ${paymentToSync.posReference}: $e');
       return false;
     } on TimeoutException catch (e) {
-      debugPrint('TimeoutException during syncReceivedPayment for ${payment.id}: $e');
+      debugPrint('TimeoutException during syncReceivedPayment for ${paymentToSync.posReference}: $e');
       return false;
     } catch (e) {
-      debugPrint('Error during syncReceivedPayment for ${payment.id}: $e');
+      debugPrint('Error during syncReceivedPayment for ${paymentToSync.posReference}: $e');
       return false;
     }
   }

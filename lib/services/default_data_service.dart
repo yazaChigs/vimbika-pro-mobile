@@ -109,16 +109,8 @@ class DefaultDataService {
       // Get the application directory for storing files
       final directory = await getApplicationDocumentsDirectory();
       final imagePath = '${directory.path}/company_logo.png';
-
-
-      print('Attempting to download image from: $imageUrl');
       // Download the image from the URL
       final http.Response response = await _client.getAuthRaw(imageUrl);
-      
-      print('Download Response Status Code: ${response.statusCode}');
-      print('Download Response Content-Type: ${response.headers['content-type']}');
-      print('Download Response Content-Length: ${response.headers['content-length']}');
-      print('Download Response Body Length: ${response.bodyBytes.length} bytes');
 
       if (response.statusCode == 200) {
         if(response.bodyBytes.isEmpty) {
