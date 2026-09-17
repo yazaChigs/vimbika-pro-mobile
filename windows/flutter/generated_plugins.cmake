@@ -3,17 +3,18 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  audioplayers_windows
   connectivity_plus
+  file_selector_windows
   flutter_pos_printer_platform_image_3
+  isar_flutter_libs
   permission_handler_windows
   printing
   share_plus
   url_launcher_windows
-  windows_taskbar
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  jni
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)
