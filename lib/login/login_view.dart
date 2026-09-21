@@ -98,9 +98,7 @@ class LoginView extends StatelessWidget {
                     const SizedBox(height: 32),
                   if (controller.hasUserData) // Conditionally show Forgot Password
                     TextButton(
-                      onPressed: () {
-                        // TODO: Implement forgot password
-                      },
+                      onPressed: () => controller.navigateToForgotPassword(context),
                       child: Text(
                         'Forgot Password?',
                         style: AppTheme.subtitle.copyWith(color: AppTheme.vimbikaBlue),

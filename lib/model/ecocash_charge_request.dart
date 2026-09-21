@@ -1,6 +1,3 @@
-import 'customer.dart';
-import 'inventory_item.dart';
-
 class EcocashChargeRequest {
   final String clientCorrelator;
   final String notifyUrl;

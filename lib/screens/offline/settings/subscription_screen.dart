@@ -13,6 +13,7 @@ import 'package:vimbika_pro/services/branch_stock_service.dart';
 import 'package:vimbika_pro/services/bank_service.dart';
 import 'package:vimbika_pro/services/payment_type_service.dart';
 import 'package:vimbika_pro/services/customer_service.dart';
+import 'package:vimbika_pro/services/app_exceptions.dart';
 import 'package:vimbika_pro/model/jwt_request_model.dart';
 import 'package:vimbika_pro/services/base_http_client.dart';
 import 'package:vimbika_pro/model/branch.dart';
@@ -33,6 +34,7 @@ import '../../../model/unit.dart';
 import '../../../model/category.dart';
 import '../../../model/tax.dart';
 import '../../../model/supplier.dart';
+import '../../../utils/license_key_formatter.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -54,11 +56,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   final CustomerService _customerService = CustomerService();
   final BaseHttpClient _client = BaseHttpClient();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _licenseKeyController = TextEditingController();
   bool _isLoading = false; // Added loading state
+  bool _isRedeemingKey = false;
   bool _isFetchingSubscriptions = false;
   bool _isOffline = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   User? _loggedInUser;
+
+  bool _hasPendingUpgrade = false;
+  Map<String, dynamic>? _pendingUpgradePlan;
+  String? _pendingUpgradeCorrelator;
 
   List<Map<String, dynamic>> _availableSubscriptions = [];
   List<Map<String, dynamic>> _proSubscriptions = [];
@@ -69,6 +77,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     super.initState();
     _loadUser();
     _loadSubscriptionDetails(); // Load subscription details including renewal date
+    _checkPendingUpgrade();
     _fetchSubscriptions();
     _setupConnectivityListener();
   }
@@ -77,6 +86,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   void dispose() {
     _connectivitySubscription?.cancel();
     _phoneController.dispose();
+    _licenseKeyController.dispose();
     super.dispose();
   }
 
@@ -113,10 +123,107 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
   }
 
+  DateTime? _tryParseDate(dynamic dateValue) {
+    if (dateValue == null) return null;
+    if (dateValue is DateTime) return dateValue;
+    if (dateValue is int) {
+      if (dateValue > 100000000000) {
+        return DateTime.fromMillisecondsSinceEpoch(dateValue);
+      } else {
+        return DateTime.fromMillisecondsSinceEpoch(dateValue * 1000);
+      }
+    }
+    final String str = dateValue.toString().trim();
+    if (str.isEmpty) return null;
+
+    final int? timestamp = int.tryParse(str);
+    if (timestamp != null) {
+      if (timestamp > 100000000000) {
+        return DateTime.fromMillisecondsSinceEpoch(timestamp);
+      } else {
+        return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+      }
+    }
+
+    final parsedIso = DateTime.tryParse(str);
+    if (parsedIso != null) return parsedIso;
+
+    try {
+      if (str.contains('/')) {
+        final parts = str.split('/');
+        if (parts.length == 3) {
+          if (parts[0].length == 4) {
+            return DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+          } else if (parts[2].length == 4) {
+            return DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+          }
+        }
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  DateTime _calculateIncreasedRenewalDate({
+    DateTime? currentExpiry,
+    DateTime? serverDate,
+    String? interval,
+    int? durationDays,
+  }) {
+    final DateTime now = DateTime.now();
+    final DateTime baseDate = (currentExpiry != null && currentExpiry.isAfter(now))
+        ? currentExpiry
+        : now;
+
+    DateTime calculatedDate;
+    final String upperInterval = (interval ?? '').toUpperCase();
+    if (upperInterval == 'ANNUALLY' || upperInterval == 'YEARLY') {
+      calculatedDate = DateTime(baseDate.year + 1, baseDate.month, baseDate.day);
+    } else if (upperInterval == 'QUARTERLY') {
+      calculatedDate = DateTime(baseDate.year, baseDate.month + 3, baseDate.day);
+    } else if (upperInterval == 'HALF_YEARLY' || upperInterval == 'SEMI_ANNUALLY') {
+      calculatedDate = DateTime(baseDate.year, baseDate.month + 6, baseDate.day);
+    } else if (upperInterval == 'WEEKLY') {
+      calculatedDate = baseDate.add(const Duration(days: 7));
+    } else if (upperInterval == 'DAILY') {
+      calculatedDate = baseDate.add(const Duration(days: 1));
+    } else if (durationDays != null && durationDays > 0) {
+      calculatedDate = baseDate.add(Duration(days: durationDays));
+    } else {
+      // Default to 1 month extension
+      calculatedDate = DateTime(baseDate.year, baseDate.month + 1, baseDate.day);
+    }
+
+    if (serverDate != null && serverDate.isAfter(calculatedDate)) {
+      return serverDate;
+    }
+    if (serverDate != null && serverDate.isAfter(baseDate)) {
+      return serverDate;
+    }
+    return calculatedDate;
+  }
+
   Future<void> _loadSubscriptionDetails() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? selectedSubscription = prefs.getString(AppConstants.keySelectedSubscription);
-    final String? subscriptionEndDate = prefs.getString(AppConstants.keySubscriptionEndDate);
+    String? subscriptionEndDate = prefs.getString(AppConstants.keySubscriptionEndDate);
+
+    if (subscriptionEndDate == null || subscriptionEndDate.isEmpty) {
+      final String? subsJson = prefs.getString(AppConstants.keyOfflineSubscriptions) ??
+          prefs.getString(AppConstants.keySubscriptions);
+      if (subsJson != null) {
+        try {
+          final decoded = jsonDecode(subsJson);
+          if (decoded is List && decoded.isNotEmpty) {
+            final sub = Subscription.fromMap(decoded.first);
+            subscriptionEndDate = sub.renewalDate;
+          } else if (decoded is Map<String, dynamic>) {
+            final sub = Subscription.fromMap(decoded);
+            subscriptionEndDate = sub.renewalDate;
+          }
+        } catch (_) {}
+      }
+    }
 
     setState(() {
       if (selectedSubscription != null) {
@@ -124,6 +231,124 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       }
       _renewalDate = subscriptionEndDate;
     });
+
+    await _checkPendingUpgrade();
+  }
+
+  Future<void> _checkPendingUpgrade() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final bool isPaid = prefs.getBool(AppConstants.keyPendingUpgradePaid) ?? false;
+    final String? correlator = prefs.getString(AppConstants.keyPendingUpgradeCorrelator);
+    final String? planJson = prefs.getString(AppConstants.keyPendingUpgradePlan);
+
+    if (isPaid && correlator != null) {
+      Map<String, dynamic>? planMap;
+      if (planJson != null) {
+        try {
+          planMap = jsonDecode(planJson);
+        } catch (_) {}
+      }
+      if (mounted) {
+        setState(() {
+          _hasPendingUpgrade = true;
+          _pendingUpgradeCorrelator = correlator;
+          _pendingUpgradePlan = planMap;
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _hasPendingUpgrade = false;
+          _pendingUpgradeCorrelator = null;
+          _pendingUpgradePlan = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _resumePendingUpgrade() async {
+    if (_isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot complete upgrade while offline. Please connect to the internet.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      Map<String, dynamic>? plan = _pendingUpgradePlan;
+      if (plan == null) {
+        final String? planJson = prefs.getString(AppConstants.keyPendingUpgradePlan);
+        if (planJson != null) {
+          try {
+            plan = jsonDecode(planJson);
+          } catch (_) {}
+        }
+      }
+
+      if (plan == null && _proSubscriptions.isNotEmpty) {
+        for (final sub in _proSubscriptions) {
+          if (sub['name'] == _selectedSubscription) {
+            plan = Map<String, dynamic>.from(sub);
+            break;
+          }
+        }
+        plan ??= Map<String, dynamic>.from(_proSubscriptions.first);
+      }
+
+      plan ??= {
+        'name': _selectedSubscription ?? 'Pro Plan',
+        'price': 2.00,
+      };
+
+      final success = await _saveUserAndCompanyAfterPayment(plan);
+      if (success) {
+        await prefs.remove(AppConstants.keyPendingUpgradeCorrelator);
+        await prefs.remove(AppConstants.keyPendingUpgradePlan);
+        await prefs.remove(AppConstants.keyPendingUpgradePaid);
+        if (mounted) {
+          setState(() {
+            _hasPendingUpgrade = false;
+            _pendingUpgradeCorrelator = null;
+            _pendingUpgradePlan = null;
+          });
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Upgrade setup failed. Your payment is preserved, please tap "Complete Upgrade Now" to retry.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error resuming pending upgrade: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Upgrade setup failed: $e. Your payment is preserved, you can retry anytime without repaying.'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _fetchSubscriptions() async {
@@ -134,8 +359,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       final subscriptions = await _subscriptionService.getAvailableSubscriptions('OFFLINE');
       if (mounted) {
         setState(() {
-          _availableSubscriptions = subscriptions.map((item) {
-            return {
+          _availableSubscriptions = subscriptions.map<Map<String, dynamic>>((item) {
+            return <String, dynamic>{
               'name': item.name,
               'price': item.sellingPrice,
               'displayPrice': '\$${item.sellingPrice} / month',
@@ -147,7 +372,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           // If currently empty, you might want to add a default Free Tier if not returned by API
           if (_availableSubscriptions.isEmpty) {
             _availableSubscriptions = [
-              {
+              <String, dynamic>{
                 'name': 'Free Tier',
                 'price': 0.0,
                 'displayPrice': '\$0 / month',
@@ -185,11 +410,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
     try {
       final subscriptions = await _subscriptionService.getPublicSubscriptions('MAIN');
-      print('subscriptions: ${subscriptions.length}');
       if (setDialogState != null) {
         setDialogState(() {
-          _proSubscriptions = subscriptions.map((item) {
-            return {
+          _proSubscriptions = subscriptions.map<Map<String, dynamic>>((item) {
+            return <String, dynamic>{
               'name': item.name,
               'price': item.sellingPrice,
               'displayPrice': '\$${item.sellingPrice} / ${item.renewalInterval}',
@@ -200,8 +424,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         });
       } else {
         setState(() {
-          _proSubscriptions = subscriptions.map((item) {
-            return {
+          _proSubscriptions = subscriptions.map<Map<String, dynamic>>((item) {
+            return <String, dynamic>{
               'name': item.name,
               'price': item.sellingPrice,
               'displayPrice': '\$${item.sellingPrice} / ${item.renewalInterval}',
@@ -228,6 +452,385 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           _isFetchingProSubscriptions = false;
         });
       }
+    }
+  }
+
+  void _showRedeemKeyDialog({String availability = 'OFFLINE'}) {
+    if (_isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot redeem license key while offline. Please connect to the internet.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    String? dialogError;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: const [
+                  Icon(Icons.vpn_key_rounded, color: AppTheme.vimbikaBlue),
+                  SizedBox(width: 8),
+                  Text('Redeem License Key', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Enter your license key or voucher code to renew or upgrade your subscription plan.',
+                      style: TextStyle(fontSize: 13, color: AppTheme.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _licenseKeyController,
+                      textCapitalization: TextCapitalization.characters,
+                      autofocus: true,
+                      inputFormatters: [
+                        LicenseKeyInputFormatter(),
+                      ],
+                      decoration: InputDecoration(
+                        labelText: 'License Key Code',
+                        hintText: 'e.g. ABCD-1234-EFGH-5678',
+                        prefixIcon: const Icon(Icons.key, color: AppTheme.vimbikaBlue),
+                        suffixIcon: _licenseKeyController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 20),
+                                onPressed: () {
+                                  setDialogState(() {
+                                    _licenseKeyController.clear();
+                                    dialogError = null;
+                                  });
+                                },
+                              )
+                            : null,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: AppTheme.vimbikaBlue, width: 2),
+                        ),
+                      ),
+                      onChanged: (_) {
+                        setDialogState(() {
+                          dialogError = null;
+                        });
+                      },
+                    ),
+                    if (dialogError != null) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                dialogError!,
+                                style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: _isRedeemingKey ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: (_isRedeemingKey || _licenseKeyController.text.trim().isEmpty)
+                      ? null
+                      : () async {
+                          await _redeemLicenseKey(
+                            _licenseKeyController.text,
+                            setDialogState,
+                            availability: availability,
+                            onError: (msg) {
+                              setDialogState(() {
+                                dialogError = msg;
+                              });
+                            },
+                          );
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.vimbikaBlue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: _isRedeemingKey
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Redeem Key'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _redeemLicenseKey(
+    String keyCode,
+    void Function(void Function()) setDialogState, {
+    String availability = 'OFFLINE',
+    void Function(String)? onError,
+  }) async {
+    final trimmedKey = keyCode.trim().toUpperCase().replaceAll(RegExp(r'-+$'), '');
+    if (trimmedKey.isEmpty) {
+      if (onError != null) {
+        onError('Please enter a license key');
+      }
+      return;
+    }
+
+    if (_isOffline) {
+      if (onError != null) {
+        onError('No internet connection. Please connect to redeem key.');
+      }
+      return;
+    }
+
+    setDialogState(() {
+      _isRedeemingKey = true;
+    });
+
+    try {
+      final Company? company = await _companyService.getCompany();
+      final String? companyId = company?.id ?? _loggedInUser?.companyId;
+
+      final response = await _subscriptionService.redeemLicenseKey(
+        trimmedKey,
+        companyId: companyId,
+        availability: availability,
+      );
+
+      Map<String, dynamic>? subMap;
+      if (response['subscription'] is Map<String, dynamic>) {
+        subMap = response['subscription'] as Map<String, dynamic>;
+      } else if (response['data'] is Map<String, dynamic>) {
+        if (response['data']['subscription'] is Map<String, dynamic>) {
+          subMap = response['data']['subscription'] as Map<String, dynamic>;
+        } else {
+          subMap = response['data'] as Map<String, dynamic>;
+        }
+      } else if (response['license'] is Map<String, dynamic>) {
+        if (response['license']['subscription'] is Map<String, dynamic>) {
+          subMap = response['license']['subscription'] as Map<String, dynamic>;
+        } else {
+          subMap = response['license'] as Map<String, dynamic>;
+        }
+      } else if (response['status'] == 'SUCCESS' || response['status'] == 'OK' || response['statusCode'] == 200) {
+        subMap = response;
+      } else if (response.containsKey('renewalDate') || response.containsKey('name') || response.containsKey('id')) {
+        subMap = response;
+      }
+
+      if (subMap != null) {
+        final Subscription updatedSub = Subscription.fromJson(subMap);
+        final String planName = (updatedSub.subscription?.name ?? updatedSub.name).trim();
+
+        final dynamic rawDate = subMap['renewalDate'] ??
+            subMap['renewal_date'] ??
+            subMap['endDate'] ??
+            subMap['end_date'] ??
+            subMap['expiryDate'] ??
+            subMap['expiry_date'] ??
+            subMap['expirationDate'] ??
+            response['renewalDate'] ??
+            response['renewal_date'] ??
+            response['endDate'] ??
+            response['expiryDate'] ??
+            (response['license'] is Map ? response['license']['expiryDate'] ?? response['license']['renewalDate'] : null);
+
+        final DateTime? serverRenewalDate = _tryParseDate(rawDate) ?? updatedSub.getRenewalDate();
+
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        DateTime? currentRenewalDateTime;
+        if (_renewalDate != null) {
+          currentRenewalDateTime = _tryParseDate(_renewalDate);
+        }
+        if (currentRenewalDateTime == null) {
+          final String? savedEndDate = prefs.getString(AppConstants.keySubscriptionEndDate);
+          if (savedEndDate != null) {
+            currentRenewalDateTime = _tryParseDate(savedEndDate);
+          }
+        }
+
+        final String? interval = updatedSub.subscription?.renewalInterval ??
+            (subMap['subscription'] is Map ? subMap['subscription']['renewalInterval']?.toString() : null) ??
+            subMap['renewalInterval']?.toString();
+
+        final int? durationDays = (subMap['durationDays'] as num?)?.toInt() ??
+            (subMap['duration'] as num?)?.toInt() ??
+            (response['license'] is Map ? (response['license']['durationDays'] as num?)?.toInt() : null);
+
+        final DateTime finalRenewalDateTime = _calculateIncreasedRenewalDate(
+          currentExpiry: currentRenewalDateTime,
+          serverDate: serverRenewalDate,
+          interval: interval,
+          durationDays: durationDays,
+        );
+
+        final DateFormat formatter = DateFormat('yyyy-MM-dd');
+        final String formattedRenewalDate = formatter.format(finalRenewalDateTime);
+
+        final now = DateTime.now();
+        final startOfDay = DateTime(now.year, now.month, now.day);
+        final int daysRemaining = finalRenewalDateTime.difference(startOfDay).inDays;
+
+        final Subscription finalSub = updatedSub.copyWith(
+          name: planName.isNotEmpty ? planName : (updatedSub.name.isNotEmpty ? updatedSub.name : 'Pro Plan'),
+          renewalDate: formattedRenewalDate,
+          active: true,
+        );
+
+        final String finalPlanName = planName.isNotEmpty ? planName : _currentSubscription;
+
+        if (finalPlanName.isNotEmpty) {
+          await prefs.setString(AppConstants.keySelectedSubscription, finalPlanName);
+        }
+        await prefs.setString(AppConstants.keySubscriptionEndDate, formattedRenewalDate);
+        await prefs.setInt(AppConstants.keySubscriptionDaysRemaining, daysRemaining);
+        await prefs.setString(AppConstants.keySubscriptions, jsonEncode([finalSub.toJson()]));
+        await prefs.setString(AppConstants.keyOfflineSubscriptions, jsonEncode([finalSub.toJson()]));
+
+        if (mounted) {
+          setState(() {
+            if (finalPlanName.isNotEmpty) {
+              _currentSubscription = finalPlanName;
+            }
+            _renewalDate = formattedRenewalDate;
+          });
+
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+
+          _licenseKeyController.clear();
+
+          if (availability.toUpperCase() == 'PUBLIC') {
+            final planMap = {
+              'name': finalPlanName.isNotEmpty ? finalPlanName : 'Pro Plan',
+              'item': finalSub.subscription,
+              'price': finalSub.renewalAmount ?? finalSub.subscription?.sellingPrice ?? 0,
+              'renewalDate': formattedRenewalDate,
+            };
+            await _saveUserAndCompanyAfterPayment(planMap);
+          } else {
+            final String successMsg = response['message']?.toString() ??
+                'License key redeemed successfully. Subscription extended until $_renewalDate';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(successMsg),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        }
+      } else {
+        final String errorMsg = response['message']?.toString() ??
+            response['error']?.toString() ??
+            response['errorMessage']?.toString() ??
+            'Failed to redeem license key';
+        if (onError != null) {
+          onError(errorMsg);
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error redeeming license key: $e');
+      String errorMessage = 'Failed to redeem license key';
+      String? rawErrorStr;
+      if (e is AppException && e.message != null && e.message!.isNotEmpty) {
+        rawErrorStr = e.message;
+      } else {
+        rawErrorStr = e.toString();
+      }
+
+      if (rawErrorStr != null) {
+        rawErrorStr = rawErrorStr.trim();
+        if (rawErrorStr.startsWith('Exception:')) {
+          rawErrorStr = rawErrorStr.substring(10).trim();
+        }
+        if (rawErrorStr.startsWith('Bad Request:')) {
+          rawErrorStr = rawErrorStr.substring(12).trim();
+        }
+        if (rawErrorStr.startsWith('Unable to process:')) {
+          rawErrorStr = rawErrorStr.substring(18).trim();
+        }
+
+        try {
+          final int jsonStart = rawErrorStr.indexOf('{');
+          final int jsonEnd = rawErrorStr.lastIndexOf('}');
+          if (jsonStart != -1 && jsonEnd > jsonStart) {
+            final jsonSub = rawErrorStr.substring(jsonStart, jsonEnd + 1);
+            final decoded = jsonDecode(jsonSub);
+            if (decoded is Map) {
+              if (decoded.containsKey('message') && decoded['message'] != null && decoded['message'].toString().isNotEmpty) {
+                errorMessage = decoded['message'].toString();
+              } else if (decoded.containsKey('error') && decoded['error'] != null && decoded['error'].toString().isNotEmpty) {
+                errorMessage = decoded['error'].toString();
+              } else if (decoded.containsKey('errorMessage') && decoded['errorMessage'] != null && decoded['errorMessage'].toString().isNotEmpty) {
+                errorMessage = decoded['errorMessage'].toString();
+              } else {
+                errorMessage = jsonSub;
+              }
+            } else {
+              errorMessage = rawErrorStr;
+            }
+          } else {
+            errorMessage = rawErrorStr;
+          }
+        } catch (_) {
+          errorMessage = rawErrorStr;
+        }
+      }
+
+      if (onError != null) {
+        onError(errorMessage);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      setDialogState(() {
+        _isRedeemingKey = false;
+      });
     }
   }
 
@@ -354,6 +957,15 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   onPressed: () => Navigator.pop(context),
                   child: const Text('Cancel'),
                 ),
+                TextButton(
+                  onPressed: _isOffline
+                      ? null
+                      : () {
+                          Navigator.pop(context);
+                          _showRedeemKeyDialog(availability: 'PUBLIC');
+                        },
+                  child: const Text('Redeem Key'),
+                ),
                 ElevatedButton(
                   onPressed: _selectedSubscription == null || _isOffline
                       ? null
@@ -372,6 +984,34 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   void _showUpgradePaymentDialog() {
+    if (_hasPendingUpgrade) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Upgrade Payment Already Recorded'),
+            content: Text(
+              'A successful payment for ${_pendingUpgradePlan?['name'] ?? _selectedSubscription ?? 'Pro Plan'} is already verified on this device. You do not need to pay again.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _resumePendingUpgrade();
+                },
+                child: const Text('Complete Upgrade Now'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) {
@@ -411,16 +1051,34 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Future<void> _initiateUpgradePayment() async {
+    if (_hasPendingUpgrade) {
+      await _resumePendingUpgrade();
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
-    final selectedPlan = _proSubscriptions.firstWhere((sub) => sub['name'] == _selectedSubscription);
-    // await _saveUserAndCompanyAfterPayment(selectedPlan);
-    final amount = selectedPlan['price'];
+    Map<String, dynamic>? plan;
+    for (final sub in _proSubscriptions) {
+      if (sub['name'] == _selectedSubscription) {
+        plan = Map<String, dynamic>.from(sub);
+        break;
+      }
+    }
+    final Map<String, dynamic> selectedPlan = plan ?? <String, dynamic>{
+      'name': _selectedSubscription ?? 'Pro Plan',
+      'price': 2.00,
+    };
+    final amount = selectedPlan['price'] ?? 2.00;
     final clientCorrelator = const Uuid().v4();
 
-    // return;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.keyPendingUpgradeCorrelator, clientCorrelator);
+    await prefs.setString(AppConstants.keyPendingUpgradePlan, jsonEncode(selectedPlan));
+    await prefs.setBool(AppConstants.keyPendingUpgradePaid, false);
+
     final request = EcocashChargeRequest(
       clientCorrelator: clientCorrelator,
       notifyUrl: 'https://demo.vimbika.africa/uat-vimbika/api/payments/ecocash/notification',
@@ -431,8 +1089,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       transactionOperationStatus: 'Charged',
       paymentAmount: PaymentAmount(
         charginginformation: ChargingInformation(
-          amount: (amount as num).toDouble(),
-          // amount: 2.00,
+          // amount: (amount as num).toDouble(),
+          amount: 2.00,
           currency: 'USD',
           description: 'Vimbika Pro Subscription Upgrade',
         ),
@@ -473,14 +1131,45 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             ),
           );
         }
-        // await _saveUserAndCompanyAfterPayment(selectedPlan);
 
         final statusResponseMap = await _ecocashService.checkStatus(clientCorrelator);
         final statusResponse = statusResponseMap['status'];
 
         if (statusResponse == 'COMPLETED') {
-          // PAYMENT SUCCESSFUL - NOW SAVE USER AND COMPANY
-          await _saveUserAndCompanyAfterPayment(selectedPlan);
+          // PAYMENT SUCCESSFUL - RECORD THAT PAYMENT WAS COMPLETED
+          await prefs.setBool(AppConstants.keyPendingUpgradePaid, true);
+          if (mounted) {
+            setState(() {
+              _hasPendingUpgrade = true;
+              _pendingUpgradeCorrelator = clientCorrelator;
+              _pendingUpgradePlan = selectedPlan;
+            });
+          }
+
+          // NOW ATTEMPT TO SAVE USER AND COMPANY
+          final success = await _saveUserAndCompanyAfterPayment(selectedPlan);
+          if (success) {
+            await prefs.remove(AppConstants.keyPendingUpgradeCorrelator);
+            await prefs.remove(AppConstants.keyPendingUpgradePlan);
+            await prefs.remove(AppConstants.keyPendingUpgradePaid);
+            if (mounted) {
+              setState(() {
+                _hasPendingUpgrade = false;
+                _pendingUpgradeCorrelator = null;
+                _pendingUpgradePlan = null;
+              });
+            }
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Upgrade setup failed. Your payment is preserved, tap "Complete Upgrade Now" to retry without repaying.'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 5),
+                ),
+              );
+            }
+          }
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -549,11 +1238,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
   }
 
-  Future<void> _saveUserAndCompanyAfterPayment(Map<String, dynamic> selectedPlan) async {
+  Future<bool> _saveUserAndCompanyAfterPayment(Map<String, dynamic> selectedPlan) async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final User? savedUser = _loggedInUser;
-      final String password = _loggedInUser!.password!;
+      final String? password = _loggedInUser?.password;
 
       // Prepare company
       Company? company = await _companyService.getCompany();
@@ -570,10 +1259,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           debugPrint('Error decoding offline branch for defaultBranch: $e');
         }
       }
+      if (branch == null) {
+        branch = Branch(
+          name: 'Main Branch',
+        );
+        branch.company.value = company;
+      }
 
       // Prepare subscription
-      DateTime now = DateTime.now();
-      DateTime subscriptionEndDate;
       final InventoryItem? subscriptionItem = selectedPlan['item'] as InventoryItem?;
       final List<String> currenciesJson = prefs.getStringList(AppConstants.keyOfflineCurrencies) ?? [];
       Currency? baseCurrency;
@@ -585,23 +1278,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         currency: baseCurrency,
         company: company,
       );
-      if (updatedSubscriptionItem?.renewalInterval == 'MONTHLY') {
-        subscriptionEndDate = DateTime(now.year, now.month + 1, now.day);
-      } else if (subscriptionItem?.renewalInterval == 'QUARTERLY') {
-        subscriptionEndDate = DateTime(now.year, now.month + 3, now.day);
-      } else if (subscriptionItem?.renewalInterval == 'HALF_YEARLY') {
-        subscriptionEndDate = DateTime(now.year, now.month + 6, now.day);
-      } else if (subscriptionItem?.renewalInterval == 'ANNUALLY') {
-        subscriptionEndDate = DateTime(now.year + 1, now.month, now.day);
-      } else if (subscriptionItem?.renewalInterval == 'DAILY') {
-        subscriptionEndDate = now.add(const Duration(days: 1));
-      } else {
-        subscriptionEndDate = DateTime(now.year, now.month + 1, now.day);
-      }
+      final DateTime subscriptionEndDate = _calculateIncreasedRenewalDate(
+        currentExpiry: _tryParseDate(_renewalDate ?? prefs.getString(AppConstants.keySubscriptionEndDate)),
+        serverDate: _tryParseDate(selectedPlan['renewalDate']),
+        interval: updatedSubscriptionItem?.renewalInterval ?? subscriptionItem?.renewalInterval,
+      );
       final DateFormat formatter = DateFormat('yyyy-MM-dd');
       final String formattedEndDate = formatter.format(subscriptionEndDate);
+      final String planName = (selectedPlan['name']?.toString() ?? _selectedSubscription ?? 'Pro Plan').trim();
       Subscription currentSubscription = Subscription(
-        name: _selectedSubscription!,
+        name: planName,
         renewalDate: formattedEndDate,
         subscription: updatedSubscriptionItem,
         active: true,
@@ -734,6 +1420,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         if (response.containsKey('subscription') && response['subscription'] != null) {
           final savedSubscription = Subscription.fromJson(response['subscription']);
           await prefs.setString(AppConstants.keySubscriptions, jsonEncode(savedSubscription.toJson()));
+          await prefs.setString(AppConstants.keyOfflineSubscriptions, jsonEncode([savedSubscription.toJson()]));
+        } else {
+          await prefs.setString(AppConstants.keySubscriptions, jsonEncode(currentSubscription.toJson()));
+          await prefs.setString(AppConstants.keyOfflineSubscriptions, jsonEncode([currentSubscription.toJson()]));
         }
         if (response.containsKey('user') && response['user'] != null) {
           final returnedUser = User.fromJson(response['user']);
@@ -745,29 +1435,46 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           await prefs.setString(AppConstants.keyOfflineUserData, jsonEncode(returnedUser.toJson()));
         }
 
+        // Check for any incomplete/failed processes from the backend sync
+        final List<dynamic>? failedProcesses = response['failedProcesses'] as List<dynamic>?;
+        final List<dynamic>? completedProcesses = response['completedProcesses'] as List<dynamic>?;
+
         // Attempt login
-        await _attemptLogin(password);
+        if (password != null && password.isNotEmpty) {
+          try {
+            await _attemptLogin(password);
+          } catch (loginErr) {
+            debugPrint('Login attempt failed after sync: $loginErr');
+          }
+        }
 
         // Update UI
         if (mounted) {
           setState(() {
-            _currentSubscription = _selectedSubscription!;
+            _currentSubscription = planName;
             _renewalDate = formattedEndDate;
           });
           final SharedPreferences prefsForSub = await SharedPreferences.getInstance();
-          await prefsForSub.setString(AppConstants.keySelectedSubscription, _selectedSubscription!);
+          await prefsForSub.setString(AppConstants.keySelectedSubscription, planName);
           await prefsForSub.setString(AppConstants.keySubscriptionEndDate, formattedEndDate);
+          final now = DateTime.now();
           final startOfDay = DateTime(now.year, now.month, now.day);
           final daysRemaining = subscriptionEndDate.difference(startOfDay).inDays;
           await prefs.setInt(AppConstants.keySubscriptionDaysRemaining, daysRemaining);
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Upgrade successful! You are now on $_currentSubscription'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          if (failedProcesses != null && failedProcesses.isNotEmpty) {
+            // Show report dialog to inform user about incomplete processes
+            _showSyncReportDialog(failedProcesses, completedProcesses);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Upgrade successful! You are now on $_currentSubscription'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
         }
+        return true;
       } else {
         throw Exception('Failed to sync company data');
       }
@@ -778,7 +1485,128 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           SnackBar(content: Text('Error finalizing upgrade: $e'), backgroundColor: Colors.red),
         );
       }
+      return false;
     }
+  }
+
+  void _showSyncReportDialog(List<dynamic> failedProcesses, List<dynamic>? completedProcesses) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange.shade800, size: 28),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Upgrade Sync Report',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Your subscription upgrade to $_currentSubscription was activated, but the following item(s) could not complete syncing:',
+                    style: const TextStyle(fontSize: 14, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Incomplete Processes:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.red),
+                  ),
+                  const SizedBox(height: 6),
+                  ...failedProcesses.map((proc) {
+                    final String name = (proc is Map && proc['process'] != null) ? proc['process'].toString() : proc.toString();
+                    final String? err = (proc is Map && proc['error'] != null) ? proc['error'].toString() : null;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.cancel, color: Colors.red.shade700, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  name,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
+                                ),
+                                if (err != null && err.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text(
+                                      err,
+                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  if (completedProcesses != null && completedProcesses.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Successfully Completed:',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.green),
+                    ),
+                    const SizedBox(height: 6),
+                    ...completedProcesses.map((proc) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.green.shade700, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                proc.toString(),
+                                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade700,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('OK, Got it'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _initiatePayment() async {
@@ -786,7 +1614,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       _isLoading = true; // Set loading to true
     });
 
-    final selectedPlan = _availableSubscriptions.firstWhere((sub) => sub['name'] == _selectedSubscription);
+    Map<String, dynamic>? plan;
+    for (final sub in _availableSubscriptions) {
+      if (sub['name'] == _selectedSubscription) {
+        plan = Map<String, dynamic>.from(sub);
+        break;
+      }
+    }
+    final selectedPlan = plan ?? (_availableSubscriptions.isNotEmpty
+        ? Map<String, dynamic>.from(_availableSubscriptions.first)
+        : <String, dynamic>{'name': _selectedSubscription, 'price': 2.00});
     final amount = selectedPlan['price'];
     final clientCorrelator = const Uuid().v4();
 
@@ -857,20 +1694,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             final SharedPreferences prefs = await SharedPreferences.getInstance();
             await prefs.setString(AppConstants.keySelectedSubscription, _selectedSubscription!);
 
-            DateTime now = DateTime.now();
-            DateTime subscriptionEndDate;
             final InventoryItem? subscriptionItem = selectedPlan['item'] as InventoryItem?;
-
-            if (subscriptionItem?.renewalInterval == 'MONTHLY') {
-              subscriptionEndDate = DateTime(now.year, now.month + 1, now.day);
-            } else if (subscriptionItem?.renewalInterval == 'ANNUALLY') {
-              subscriptionEndDate = DateTime(now.year + 1, now.month, now.day);
-            } else if (subscriptionItem?.renewalInterval == 'DAILY') {
-              subscriptionEndDate = now.add(const Duration(days: 1));
-            } else {
-              // Default to 1 month if interval is not specified or unknown
-              subscriptionEndDate = DateTime(now.year, now.month + 1, now.day);
-            }
+            final DateTime subscriptionEndDate = _calculateIncreasedRenewalDate(
+              currentExpiry: _tryParseDate(_renewalDate ?? prefs.getString(AppConstants.keySubscriptionEndDate)),
+              serverDate: _tryParseDate(selectedPlan['renewalDate']),
+              interval: subscriptionItem?.renewalInterval,
+            );
 
             final DateFormat formatter = DateFormat('yyyy-MM-dd');
             final String formattedEndDate = formatter.format(subscriptionEndDate);
@@ -888,10 +1717,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               active: true,
             );
 
+            final now = DateTime.now();
             final startOfDay = DateTime(now.year, now.month, now.day);
             final daysRemaining = subscriptionEndDate.difference(startOfDay).inDays;
             await prefs.setInt(AppConstants.keySubscriptionDaysRemaining, daysRemaining);
             await prefs.setString(AppConstants.keySubscriptions, jsonEncode(currentSubscription.toJson()));
+            await prefs.setString(AppConstants.keyOfflineSubscriptions, jsonEncode([currentSubscription.toJson()]));
 
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -962,12 +1793,73 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         backgroundColor: AppTheme.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppTheme.nearlyBlack),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.vpn_key_outlined, color: AppTheme.vimbikaBlue),
+            tooltip: 'Redeem Key',
+            onPressed: _showRedeemKeyDialog,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_hasPendingUpgrade)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.amber.shade700, width: 1.5),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green.shade700, size: 24),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'EcoCash Payment Confirmed!',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Your EcoCash payment for ${_pendingUpgradePlan?['name'] ?? 'Pro Plan'} was received successfully. The upgrade was interrupted before finishing account setup. You do not need to pay again.',
+                      style: const TextStyle(fontSize: 13, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _isLoading || _isOffline ? null : _resumePendingUpgrade,
+                        icon: _isLoading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.arrow_forward),
+                        label: Text(_isLoading ? 'Completing Upgrade...' : 'Complete Upgrade Now'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange.shade800,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             if (_isOffline)
               Container(
                 width: double.infinity,
@@ -1027,6 +1919,43 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: AppTheme.vimbikaBlue.withAlpha(40)),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.vimbikaBlue.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.vpn_key_rounded, color: AppTheme.vimbikaBlue),
+                ),
+                title: const Text(
+                  'Have a License Key?',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+                subtitle: const Text(
+                  'Redeem a voucher or license code',
+                  style: TextStyle(fontSize: 12, color: AppTheme.grey),
+                ),
+                trailing: ElevatedButton(
+                  onPressed: _isOffline ? null : _showRedeemKeyDialog,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.vimbikaBlue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  ),
+                  child: const Text('Redeem', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ),
             const SizedBox(height: 24),
             const Text(
               'Available Plans',
@@ -1060,6 +1989,23 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         'Make Payment & Switch Plan',
                         style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                       ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: OutlinedButton.icon(
+                onPressed: _isOffline ? null : _showRedeemKeyDialog,
+                icon: const Icon(Icons.vpn_key_rounded, color: AppTheme.vimbikaBlue),
+                label: const Text(
+                  'Redeem License Key',
+                  style: TextStyle(color: AppTheme.vimbikaBlue, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppTheme.vimbikaBlue),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
             ),
             const SizedBox(height: 16),

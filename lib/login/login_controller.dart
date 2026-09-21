@@ -20,6 +20,7 @@ import '../screens/offline/settings/subscription_screen.dart';
 import '../screens/online/select_company_branch_screen.dart';
 import '../signup_screen.dart';
 import 'package:vimbika_pro/services/sale_sync_service.dart';
+import 'forgot_password_screen.dart';
 
 class LoginController extends ChangeNotifier {
   final TextEditingController identifierController = TextEditingController();
@@ -441,6 +442,13 @@ class LoginController extends ChangeNotifier {
     );
   }
 
+
+  void navigateToForgotPassword(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+    );
+  }
 
   void navigateToCreateCompany(BuildContext context) async {
     final Company? company = await CompanyService().getCompanyFromLocalStorage();

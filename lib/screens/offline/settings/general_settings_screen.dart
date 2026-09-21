@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:vimbika_pro/app_constants/app_theme.dart';
 import 'package:vimbika_pro/app_constants/app_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vimbika_pro/model/product_feature.dart';
 import 'package:vimbika_pro/services/printer_service.dart';
 
 class GeneralSettingsScreen extends StatefulWidget {
@@ -13,6 +15,8 @@ class GeneralSettingsScreen extends StatefulWidget {
 
 class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
   bool _allowOutOfStockSales = false;
+  bool _enableLoyalCustomers = true;
+  bool _showPicturesOnPos = true;
   bool _isPriceInclusiveTax = true;
   bool _useKOT = false;
   bool _isLoading = true;
@@ -27,8 +31,26 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
   Future<void> _loadSettings() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await _printerService.init();
+
+    bool loyalCustomers = true;
+    if (prefs.containsKey(AppConstants.keyEnableLoyalCustomers)) {
+      loyalCustomers = prefs.getBool(AppConstants.keyEnableLoyalCustomers) ?? true;
+    } else {
+      final String? companySettingsJson = prefs.getString(AppConstants.keyCompanySettings);
+      if (companySettingsJson != null && companySettingsJson.isNotEmpty) {
+        try {
+          final ProductFeature productFeature = ProductFeature.fromJson(jsonDecode(companySettingsJson));
+          loyalCustomers = productFeature.enableLoyalCustomers ?? productFeature.enableLoyalCustomer ?? true;
+        } catch (e) {
+          debugPrint('Error parsing companySettings in GeneralSettingsScreen: $e');
+        }
+      }
+    }
+
     setState(() {
       _allowOutOfStockSales = prefs.getBool(AppConstants.keyAllowOutOfStockSales) ?? false;
+      _enableLoyalCustomers = loyalCustomers;
+      _showPicturesOnPos = prefs.getBool(AppConstants.keyShowPicturesOnPos) ?? true;
       _isPriceInclusiveTax = prefs.getBool(AppConstants.keyIsPriceInclusiveTax) ?? true;
       _useKOT = prefs.getBool(AppConstants.keyUseKOT) ?? false;
       _isLoading = false;
@@ -40,6 +62,35 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
     await prefs.setBool(AppConstants.keyAllowOutOfStockSales, value);
     setState(() {
       _allowOutOfStockSales = value;
+    });
+  }
+
+  Future<void> _toggleEnableLoyalCustomers(bool value) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(AppConstants.keyEnableLoyalCustomers, value);
+
+    final String? companySettingsJson = prefs.getString(AppConstants.keyCompanySettings);
+    if (companySettingsJson != null && companySettingsJson.isNotEmpty) {
+      try {
+        final Map<String, dynamic> map = jsonDecode(companySettingsJson);
+        map['enableLoyalCustomers'] = value;
+        map['enableLoyalCustomer'] = value;
+        await prefs.setString(AppConstants.keyCompanySettings, jsonEncode(map));
+      } catch (e) {
+        debugPrint('Error updating companySettings JSON: $e');
+      }
+    }
+
+    setState(() {
+      _enableLoyalCustomers = value;
+    });
+  }
+
+  Future<void> _toggleShowPicturesOnPos(bool value) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(AppConstants.keyShowPicturesOnPos, value);
+    setState(() {
+      _showPicturesOnPos = value;
     });
   }
 
@@ -111,6 +162,18 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
                   subtitle: 'Permit items to be sold even when the recorded quantity is zero or less.',
                   value: _allowOutOfStockSales,
                   onChanged: _toggleOutOfStock,
+                ),
+                _buildSwitchTile(
+                  title: 'Loyal Customers',
+                  subtitle: 'When disabled, customers cannot buy on credit more than they have in their account.',
+                  value: _enableLoyalCustomers,
+                  onChanged: _toggleEnableLoyalCustomers,
+                ),
+                _buildSwitchTile(
+                  title: 'Show Pictures on POS Items',
+                  subtitle: 'When disabled, POS item tiles will show name and price only.',
+                  value: _showPicturesOnPos,
+                  onChanged: _toggleShowPicturesOnPos,
                 ),
                 _buildSwitchTile(
                   title: 'Do you charge tax?',

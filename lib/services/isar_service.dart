@@ -22,11 +22,13 @@ import 'package:vimbika_pro/model/supplier.dart';
 class IsarService {
   static final IsarService _instance = IsarService._internal();
   factory IsarService() => _instance;
-  IsarService._internal() {
-    db = openDB();
-  }
+  IsarService._internal();
 
-  late Future<Isar> db;
+  Future<Isar>? _dbFuture;
+  Future<Isar> get db {
+    _dbFuture ??= openDB();
+    return _dbFuture!;
+  }
 
   Future<Isar> openDB() async {
     if (Isar.instanceNames.isEmpty) {
@@ -382,6 +384,34 @@ class IsarService {
         }
         isar.paymentReceiveds.putSync(p);
       }
+    });
+  }
+
+  Future<void> clearAllData() async {
+    final isar = await db;
+    isar.writeTxnSync(() {
+      isar.clearSync();
+    });
+  }
+
+  Future<void> clearSalesAndTransactions() async {
+    final isar = await db;
+    isar.writeTxnSync(() {
+      isar.sales.clearSync();
+      isar.saleItems.clearSync();
+      isar.paymentReceiveds.clearSync();
+    });
+  }
+
+  Future<void> clearInventoryData() async {
+    final isar = await db;
+    isar.writeTxnSync(() {
+      isar.inventoryItems.clearSync();
+      isar.branchStocks.clearSync();
+      isar.categorys.clearSync();
+      isar.units.clearSync();
+      isar.taxs.clearSync();
+      isar.suppliers.clearSync();
     });
   }
 }

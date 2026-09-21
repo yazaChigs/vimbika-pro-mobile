@@ -66,6 +66,8 @@ class Sale {
   String? referenceNumber;
   String? shiftReference;
   String? ticketName;
+  @ignore
+  String? ticketComment;
   String? amtToAcc;
   String? customerAccBankType;
   double? amountPaid;
@@ -97,6 +99,7 @@ class Sale {
     this.referenceNumber,
     this.shiftReference,
     this.ticketName,
+    this.ticketComment,
     this.amtToAcc,
     this.customerAccBankType,
     this.amountPaid,
@@ -165,6 +168,7 @@ class Sale {
       'referenceNumber',
       'shiftReference',
       'ticketName',
+      'ticketComment',
       'amtToAcc',
       'customerAccBankType',
       'receiptQrCode',
@@ -180,6 +184,7 @@ class Sale {
       json['kotNumber'] = int.tryParse(json['kotNumber'] as String);
     }
     final sale = _$SaleFromJson(json);
+    sale.ticketComment = json['ticketComment']?.toString();
     if (json['branch'] != null) {
       sale.branch.value =
           Branch.fromJson(json['branch'] as Map<String, dynamic>);
@@ -248,6 +253,7 @@ class Sale {
     json['baseCurrency'] = baseCurrency.value?.toJson();
 
     json['items'] = allItems.map((item) => item.toJson()).toList();
+    json['ticketComment'] = ticketComment;
 
     if (customer.isAttached) {
       customer.loadSync();
@@ -281,6 +287,7 @@ class Sale {
     String? referenceNumber,
     String? shiftReference,
     String? ticketName,
+    String? ticketComment,
     String? amtToAcc,
     String? customerAccBankType,
     double? amountPaid,
@@ -320,6 +327,7 @@ class Sale {
       referenceNumber: referenceNumber ?? this.referenceNumber,
       shiftReference: shiftReference ?? this.shiftReference,
       ticketName: ticketName ?? this.ticketName,
+      ticketComment: ticketComment ?? this.ticketComment,
       amtToAcc: amtToAcc ?? this.amtToAcc,
       customerAccBankType: customerAccBankType ?? this.customerAccBankType,
       amountPaid: amountPaid ?? this.amountPaid,
@@ -360,16 +368,6 @@ class Sale {
 }
 
 // Custom converter functions
-IsarLinks<SaleItem> _saleItemsFromJson(List<dynamic>? json) {
-  final links = IsarLinks<SaleItem>();
-  if (json != null) {
-    final items =
-        json.map((i) => SaleItem.fromJson(i as Map<String, dynamic>)).toList();
-    links.addAll(items);
-  }
-  return links;
-}
-
 List<Map<String, dynamic>> _saleItemsToJson(IsarLinks<SaleItem> items) {
   if (items.isAttached) {
     items.loadSync();
@@ -382,13 +380,4 @@ List<Map<String, dynamic>> _paymentsToJson(IsarLinks<PaymentReceived> payments) 
     payments.loadSync();
   }
   return payments.map((p) => p.toJson()).toList();
-}
-
-IsarLinks<PaymentReceived> _paymentsFromJson(List<dynamic> json) {
-  final links = IsarLinks<PaymentReceived>();
-  final payments = json
-      .map((p) => PaymentReceived.fromJson(p as Map<String, dynamic>))
-      .toList();
-  links.addAll(payments);
-  return links;
 }

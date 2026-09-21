@@ -287,7 +287,7 @@ class POSScreen extends StatelessWidget {
               crossAxisCount: crossAxisCount,
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
-              childAspectRatio: 0.9,
+              childAspectRatio: controller.showPictures ? 0.9 : (isSmallScreen ? 1.1 : 1.3),
             ),
             itemCount: filteredStocks.length,
             itemBuilder: (context, index) {
@@ -298,24 +298,39 @@ class POSScreen extends StatelessWidget {
                 child: Card(
                   elevation: 2,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(child: Container(decoration: BoxDecoration(color: AppTheme.vimbikaBlue.withAlpha(20), borderRadius: const BorderRadius.vertical(top: Radius.circular(12))), child: Icon(product.isService ? Icons.room_service_outlined : Icons.inventory_2_outlined, color: AppTheme.vimbikaBlue, size: 24))),
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  child: controller.showPictures
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text(product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                            Text('${controller.selectedCurrency?.symbol ?? ''}${(product.sellingPrice * (controller.selectedCurrency?.rate ?? 1.0)).toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.vimbikaBlue, fontWeight: FontWeight.bold, fontSize: 12)),
-                            if (!controller.allowOutOfStockSales) // Conditionally display stock
-                              Text(product.isService ? 'Service' : 'In Stock: ${stock.stock.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: product.isService ? Colors.green : (stock.stock <= 0 ? Colors.red : AppTheme.vimbikaBlue))),
+                            Expanded(child: Container(decoration: BoxDecoration(color: AppTheme.vimbikaBlue.withAlpha(20), borderRadius: const BorderRadius.vertical(top: Radius.circular(12))), child: Icon(product.isService ? Icons.room_service_outlined : Icons.inventory_2_outlined, color: AppTheme.vimbikaBlue, size: 24))),
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                  Text('${controller.selectedCurrency?.symbol ?? ''}${(product.sellingPrice * (controller.selectedCurrency?.rate ?? 1.0)).toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.vimbikaBlue, fontWeight: FontWeight.bold, fontSize: 12)),
+                                  if (!controller.allowOutOfStockSales) // Conditionally display stock
+                                    Text(product.isService ? 'Service' : 'In Stock: ${stock.stock.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: product.isService ? Colors.green : (stock.stock <= 0 ? Colors.red : AppTheme.vimbikaBlue))),
+                                ],
+                              ),
+                            ),
                           ],
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              const SizedBox(height: 4),
+                              Text('${controller.selectedCurrency?.symbol ?? ''}${(product.sellingPrice * (controller.selectedCurrency?.rate ?? 1.0)).toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.vimbikaBlue, fontWeight: FontWeight.bold, fontSize: 12)),
+                              if (!controller.allowOutOfStockSales) // Conditionally display stock
+                                Text(product.isService ? 'Service' : 'In Stock: ${stock.stock.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: product.isService ? Colors.green : (stock.stock <= 0 ? Colors.red : AppTheme.vimbikaBlue))),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
                 ),
               );
             },
@@ -484,6 +499,24 @@ class POSScreen extends StatelessWidget {
                               'Qty: ',
                               style: TextStyle(fontSize: 12, color: AppTheme.grey),
                             ),
+                            InkWell(
+                              onTap: () {
+                                final currentQty = item.quantity;
+                                if (currentQty > 1) {
+                                  controller.updateCartItemDetails(controller.cart.length - 1 - index, quantity: currentQty - 1);
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.remove, size: 18, color: AppTheme.nearlyBlack),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
                             SizedBox(
                               width: 35,
                               height: 16,
@@ -507,6 +540,22 @@ class POSScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 4),
+                            InkWell(
+                              onTap: () {
+                                final currentQty = item.quantity;
+                                controller.updateCartItemDetails(controller.cart.length - 1 - index, quantity: currentQty + 1);
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.add, size: 18, color: AppTheme.nearlyBlack),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
                             Expanded(
                               child: Text(
                                 '${controller.selectedCurrency?.symbol ?? ''}${(item.sellingPrice * rate).toStringAsFixed(2)} '
@@ -517,7 +566,7 @@ class POSScreen extends StatelessWidget {
                               ),
                             ),
                             PopupMenuButton<String>(
-                              icon: const Icon(Icons.edit, size: 18, color: AppTheme.vimbikaBlue),
+                              icon: const Icon(Icons.edit, size: 20, color: AppTheme.vimbikaBlue),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                               itemBuilder: (context) => [
@@ -542,7 +591,7 @@ class POSScreen extends StatelessWidget {
                               },
                             ),
                             IconButton(
-                              icon: const Icon(Icons.close, size: 18, color: Colors.red),
+                              icon: const Icon(Icons.close, size: 20, color: Colors.red),
                               onPressed: () => controller.removeFromCart(controller.cart.length - 1 - index),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
@@ -821,6 +870,7 @@ class POSScreen extends StatelessWidget {
         children: [
           Expanded(
             child: Autocomplete<Customer>(
+              key: ValueKey(controller.selectedCustomer?.id ?? controller.selectedCustomer?.name ?? ''),
               initialValue: TextEditingValue(text: controller.selectedCustomer?.name ?? ''),
               displayStringForOption: (customer) => customer.name,
               optionsBuilder: (TextEditingValue textEditingValue) {
@@ -934,7 +984,7 @@ class POSScreen extends StatelessWidget {
             onPressed: () async {
               final Customer? newCustomer = await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddCustomerScreen()));
               if (context.mounted && newCustomer != null) {
-                controller.clearPOSScreen(newCustomer: newCustomer); // Pass the new customer
+                await controller.onCustomerCreated(newCustomer);
               }
             },
             icon: const Icon(Icons.person_add_alt_1, color: AppTheme.vimbikaBlue),
@@ -946,7 +996,6 @@ class POSScreen extends StatelessWidget {
 
   void _showHeldSalesDialog(BuildContext context, POSScreenController controller) async {
     final List<Sale> heldSales = await controller.retrieveHeldSales();
-    print('Held Sales: ${heldSales.last.heldItems.length}');
     if (!context.mounted) return; // Add this check
 
     showDialog(
@@ -971,7 +1020,12 @@ class POSScreen extends StatelessWidget {
                     child: ExpansionTile(
                       tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), // Reduced padding
                       title: Text('Sale for ${sale.ticketName ?? 'Guest'}', style: const TextStyle(fontSize: 14)), // Reduced font size
-                      subtitle: Text('Items: ${sale.heldItems.length}, Total: $displaySymbol${(sale.ticketTotal).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)), // Reduced font size
+                      subtitle: Text(
+                        (sale.ticketComment != null && sale.ticketComment!.isNotEmpty)
+                            ? '${sale.ticketComment} • Items: ${sale.heldItems.length}, Total: $displaySymbol${(sale.ticketTotal).toStringAsFixed(2)}'
+                            : 'Items: ${sale.heldItems.length}, Total: $displaySymbol${(sale.ticketTotal).toStringAsFixed(2)}',
+                        style: const TextStyle(fontSize: 12),
+                      ), // Reduced font size
                       children: [
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0), // Reduced padding
@@ -1267,7 +1321,7 @@ class __CalculatorDialogState extends State<_CalculatorDialog> {
 
   void _buttonPressed(String buttonText) {
     setState(() {
-      if (buttonText == "CLEAR") {
+      if (buttonText == "CLR") {
         _resetCalculator();
       } else if (buttonText == "+" || buttonText == "-" || buttonText == "×" || buttonText == "÷") {
         if (_currentNumber.isNotEmpty) {
@@ -1394,7 +1448,7 @@ class __CalculatorDialogState extends State<_CalculatorDialog> {
                   children: [
                     _buildButton("."),
                     _buildButton("0"),
-                    _buildButton("CLEAR", buttonColor: Colors.red, textColor: Colors.white),
+                    _buildButton("CLR", buttonColor: Colors.red, textColor: Colors.white),
                     _buildButton("+", buttonColor: Colors.orange, textColor: Colors.white, isSelected: _operator == "+"),
                   ],
                 ),

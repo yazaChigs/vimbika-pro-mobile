@@ -25,4 +25,9 @@ class EcocashService {
     final responseStr = await _client.get('/payments/ecocash/status/$clientCorrelator');
     return jsonDecode(responseStr);
   }
+
+  Future<Map<String, dynamic>> verifyPayment(String clientCorrelator) async {
+    final responseStr = await _client.get('/payments/ecocash/verify/$clientCorrelator');
+    return jsonDecode(responseStr);
+  }
 }

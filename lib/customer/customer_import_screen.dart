@@ -18,6 +18,12 @@ class CustomerImportScreen extends BaseImportScreen {
             'Phone Number',
             'Address',
           ],
+          sampleRow: const [
+            'John Doe',
+            'john@example.com',
+            '0771234567',
+            '123 Main St, Harare',
+          ],
         );
 
   @override

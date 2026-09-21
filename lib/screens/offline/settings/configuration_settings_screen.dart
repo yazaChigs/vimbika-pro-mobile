@@ -14,6 +14,7 @@ import '../../../customer/customer_import_screen.dart';
 import '../../../supplier/supplier_import_screen.dart';
 import 'branch_management_screen.dart';
 import 'company_profile_screen.dart';
+import 'clear_data_screen.dart';
 
 class ConfigurationSettingsScreen extends StatefulWidget {
   const ConfigurationSettingsScreen({super.key});
@@ -198,6 +199,19 @@ class _ConfigurationSettingsScreenState extends State<ConfigurationSettingsScree
               );
             },
           ),
+          const Divider(height: 32),
+          _buildConfigItem(
+            context,
+            icon: Icons.delete_outline,
+            title: 'Clear Data',
+            subtitle: 'Reset storage, cache, or transaction data',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ClearDataScreen()),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -224,30 +238,34 @@ class _ConfigurationSettingsScreenState extends State<ConfigurationSettingsScree
           ),
         ],
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppTheme.vimbikaBlue.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.vimbikaBlue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: AppTheme.vimbikaBlue),
           ),
-          child: Icon(icon, color: AppTheme.vimbikaBlue),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.darkText,
+          title: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.darkText,
+            ),
           ),
+          subtitle: Text(
+            subtitle,
+            style: const TextStyle(fontSize: 14, color: AppTheme.grey),
+          ),
+          trailing: const Icon(Icons.chevron_right, color: AppTheme.grey),
+          onTap: onTap,
         ),
-        subtitle: Text(
-          subtitle,
-          style: const TextStyle(fontSize: 14, color: AppTheme.grey),
-        ),
-        trailing: const Icon(Icons.chevron_right, color: AppTheme.grey),
-        onTap: onTap,
       ),
     );
   }

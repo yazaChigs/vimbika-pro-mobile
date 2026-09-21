@@ -7,6 +7,7 @@ class ProductFeature extends BaseNameEntity {
   bool? showPricingExcludingTax;
   bool? enableDiscounts;
   bool? enableLoyalCustomer;
+  bool? enableLoyalCustomers;
   bool? useProduction;
   bool? sellNilItems;
   bool? showPriceOnDelivery;
@@ -37,6 +38,7 @@ class ProductFeature extends BaseNameEntity {
     this.showPricingExcludingTax,
     this.enableDiscounts,
     this.enableLoyalCustomer,
+    this.enableLoyalCustomers,
     this.useProduction,
     this.sellNilItems,
     this.showPriceOnDelivery,
@@ -77,7 +79,8 @@ class ProductFeature extends BaseNameEntity {
       specifyProductDepartment: json['specifyProductDepartment'],
       showPricingExcludingTax: json['showPricingExcludingTax'],
       enableDiscounts: json['enableDiscounts'],
-      enableLoyalCustomer: json['enableLoyalCustomer'],
+      enableLoyalCustomer: json['enableLoyalCustomer'] ?? json['enableLoyalCustomers'],
+      enableLoyalCustomers: json['enableLoyalCustomers'] ?? json['enableLoyalCustomer'],
       useProduction: json['useProduction'],
       sellNilItems: json['sellNilItems'],
       showPriceOnDelivery: json['showPriceOnDelivery'],
@@ -110,7 +113,8 @@ class ProductFeature extends BaseNameEntity {
       'specifyProductDepartment': specifyProductDepartment,
       'showPricingExcludingTax': showPricingExcludingTax,
       'enableDiscounts': enableDiscounts,
-      'enableLoyalCustomer': enableLoyalCustomer,
+      'enableLoyalCustomer': enableLoyalCustomer ?? enableLoyalCustomers,
+      'enableLoyalCustomers': enableLoyalCustomers ?? enableLoyalCustomer,
       'useProduction': useProduction,
       'sellNilItems': sellNilItems,
       'showPriceOnDelivery': showPriceOnDelivery,

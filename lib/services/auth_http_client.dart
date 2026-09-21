@@ -13,10 +13,10 @@ class AuthenticatedHttpClient extends http.BaseClient {
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    request.headers.putIfAbsent('Content-Type', () => "application/json");
     // intercept each call and add the Authorization header if token is available
     _inMemoryToken = await _loadTokenFromSharedPreference();
     if (_inMemoryToken.isNotEmpty) {
-      request.headers['Content-Type'] = "application/json";
       request.headers.putIfAbsent('Authorization', () => "Bearer " + _inMemoryToken);
     }
 

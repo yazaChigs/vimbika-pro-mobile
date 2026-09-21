@@ -9,6 +9,7 @@ import 'package:vimbika_pro/services/sale_sync_service.dart';
 import 'login/login_screen.dart';
 import 'model/homelist.dart';
 import 'package:vimbika_pro/services/default_data_service.dart';
+import 'package:vimbika_pro/screens/offline/settings/subscription_screen.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({Key? key}) : super(key: key);
@@ -47,6 +48,18 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                 "Your subscription will expire in $daysRemaining days. Please renew to avoid service interruption."),
             backgroundColor: Colors.redAccent,
             duration: const Duration(seconds: 10),
+            action: SnackBarAction(
+              label: 'Renew',
+              textColor: Colors.white,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SubscriptionScreen(),
+                  ),
+                );
+              },
+            ),
           ),
         );
       }

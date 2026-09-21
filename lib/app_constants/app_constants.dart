@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 class AppConstants {
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   static const String appName = 'Vimbika Business';
-  static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
+  // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
   // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.africa/vimbika-africa/api";
-  // static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
+  static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
   // static const VIMBIKA_BACKEND_URL = "https://mashwede.vimbika.africa/mashwede/api";
-  //     static const VIMBIKA_BACKEND_URL = "http://192.168.0.11:8080/vimbika-pro/api"; //Vimbika
+  //     static const VIMBIKA_BACKEND_URL = "http://192.168.50.115:8080/vimbika-pro/api"; //Vimbika
       // static const VIMBIKA_BACKEND_URL = "http://192.168.1.99:8080/vimbika-pro/api";
           // static const VIMBIKA_BACKEND_URL = "http://192.168.1.148:8080/vimbika-pro/api";
   // static const VIMBIKA_BACKEND_URL = "http://172.20.10.4:8080/vimbika-pro/api";
@@ -35,6 +35,9 @@ class AppConstants {
   static const String keySubscriptionDaysRemaining = 'subscription_days_remaining'; // Added for subscription days remaining
   static const String keySelectedSubscription = 'selected_subscription'; // Added
   static const String keySubscriptionEndDate = 'subscription_end_date'; // Added
+  static const String keyPendingUpgradeCorrelator = 'pending_upgrade_correlator';
+  static const String keyPendingUpgradePlan = 'pending_upgrade_plan';
+  static const String keyPendingUpgradePaid = 'pending_upgrade_paid';
   static const String keyConfig = 'config';
   static const String keyUnsyncedClosedShift = 'unsynced_closed_shift'; // Added';
 
@@ -81,6 +84,8 @@ class AppConstants {
   static const String keyLastKOTNumber = 'last_kot_number';
   // Application Settings
   static const String keyAllowOutOfStockSales = 'allow_out_of_stock_sales';
+  static const String keyEnableLoyalCustomers = 'enable_loyal_customers';
+  static const String keyShowPicturesOnPos = 'show_pictures_on_pos';
   static const String keyIsOfflineMode = 'is_offline_mode';
   static const String keyIsPriceInclusiveTax = 'is_price_inclusive_tax'; // Added this
   static const String keyUseKOT = 'use_kot';

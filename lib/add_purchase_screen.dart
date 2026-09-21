@@ -122,9 +122,21 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
   double get _amountPaidConverted => _payments.fold(0, (sum, item) => sum + item.amount);
   double get _balanceDueConverted => _grandTotalConverted - _amountPaidConverted;
 
+  double _getAddedQuantity(InventoryItem item) {
+    final index = _cartItems.indexWhere((i) =>
+        (i.inventoryItem?.id != null && item.id != null && i.inventoryItem?.id == item.id) ||
+        (i.inventoryItem?.name.toLowerCase() == item.name.toLowerCase()));
+    if (index != -1) {
+      return _cartItems[index].quantity;
+    }
+    return 0.0;
+  }
+
   void _addItemToCart(InventoryItem item) {
     setState(() {
-      final existingIndex = _cartItems.indexWhere((i) => i.inventoryItem?.id != null && item.id != null && i.inventoryItem?.id == item.id);
+      final existingIndex = _cartItems.indexWhere((i) =>
+          (i.inventoryItem?.id != null && item.id != null && i.inventoryItem?.id == item.id) ||
+          (i.inventoryItem?.name.toLowerCase() == item.name.toLowerCase()));
       final taxPercent = item.purchaseTax.value?.taxPercentage ?? 0.0;
       if (existingIndex != -1) {
         final existingItem = _cartItems[existingIndex];
@@ -272,7 +284,6 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
                     },
                   );
                 }).toList(),
-                const SizedBox(height: 16),
                 TextField(
                   controller: amountController,
                   decoration: const InputDecoration(labelText: 'Amount'),
@@ -330,7 +341,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please add items to the purchase')));
       return;
     }
-    if (_selectedStatus == 'Complete' && _payments.isEmpty) {
+    if (_selectedStatus == 'Complete' && _grandTotalBase > 0 && _payments.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please add at least one payment for a completed purchase')));
       return;
@@ -798,6 +809,11 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
               .where((item) => item.name.toLowerCase().contains(searchQuery.toLowerCase()))
               .toList();
 
+          final double totalQuantityAdded = _cartItems.fold<double>(0.0, (sum, item) => sum + item.quantity);
+          final String formattedTotalQty = totalQuantityAdded % 1 == 0
+              ? totalQuantityAdded.toInt().toString()
+              : totalQuantityAdded.toStringAsFixed(1);
+
           return Padding(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -807,7 +823,38 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
               height: MediaQuery.of(context).size.height * 0.7,
               child: Column(
                 children: [
-                  const Text('Select Item', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Text('Select Item', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          if (totalQuantityAdded > 0) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppTheme.vimbikaBlue,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '$formattedTotalQty added',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
                   TextField(
                     decoration: InputDecoration(
@@ -832,17 +879,55 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
                             itemCount: filteredItems.length,
                             itemBuilder: (context, index) {
                               final item = filteredItems[index];
+                              final addedQty = _getAddedQuantity(item);
+                              final bool hasAdded = addedQty > 0;
+                              final String formattedQty = addedQty % 1 == 0
+                                  ? addedQty.toInt().toString()
+                                  : addedQty.toStringAsFixed(1);
+
                               return ListTile(
                                 title: Text(item.name),
-                                subtitle: Text('Current Stock: ${item.availableItems}'),
-                                trailing: const Icon(Icons.add_circle_outline),
-            onTap: () {
-              _addItemToCart(item);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Added ${item.name} to purchase'), duration: const Duration(seconds: 1)),
-              );
-              // Navigator.pop(context); // Don't close the picker automatically
-            },
+                                subtitle: Text(
+                                  hasAdded
+                                      ? 'Current Stock: ${item.availableItems} • Added: $formattedQty'
+                                      : 'Current Stock: ${item.availableItems}',
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (hasAdded)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        margin: const EdgeInsets.only(right: 8),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.vimbikaBlue.withAlpha((255 * 0.12).round()),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: AppTheme.vimbikaBlue.withAlpha((255 * 0.3).round())),
+                                        ),
+                                        child: Text(
+                                          '$formattedQty added',
+                                          style: const TextStyle(
+                                            color: AppTheme.vimbikaBlue,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    Icon(
+                                      hasAdded ? Icons.add_circle : Icons.add_circle_outline,
+                                      color: hasAdded ? AppTheme.vimbikaBlue : null,
+                                    ),
+                                  ],
+                                ),
+                                onTap: () {
+                                  setModalState(() {
+                                    _addItemToCart(item);
+                                  });
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Added ${item.name} to purchase'), duration: const Duration(seconds: 1)),
+                                  );
+                                  // Navigator.pop(context); // Don't close the picker automatically
+                                },
                               );
                             },
                           ),

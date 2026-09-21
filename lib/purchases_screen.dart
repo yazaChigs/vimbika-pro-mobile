@@ -16,6 +16,7 @@ import 'package:vimbika_pro/services/purchase_service.dart';
 import 'package:vimbika_pro/services/inventory_item_service.dart';
 import 'package:vimbika_pro/services/payments_service.dart'; // Assuming this handles payment types
 import 'package:vimbika_pro/services/supplier_service.dart'; // Import SupplierService
+import 'package:vimbika_pro/supplier/supplier_management_screen.dart';
 
 class PurchasesScreen extends StatefulWidget {
   const PurchasesScreen({super.key});
@@ -164,6 +165,17 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: AppTheme.nearlyBlack),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.local_shipping_outlined),
+            tooltip: 'Suppliers',
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SupplierManagementScreen()),
+              );
+              _loadData();
+            },
+          ),
           IconButton(
             icon: Icon(_showFilters ? Icons.filter_list_off : Icons.filter_list),
             onPressed: () {

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -18,6 +17,7 @@ import 'package:vimbika_pro/model/branch.dart';
 import 'package:vimbika_pro/model/bank.dart';
 import 'package:vimbika_pro/model/category.dart' as model;
 import 'package:vimbika_pro/model/customer_currency_amount.dart';
+import 'package:vimbika_pro/model/product_feature.dart';
 import 'package:vimbika_pro/model/mobile_pos_shift.dart';
 import 'package:vimbika_pro/model/mobile_shift_currency_amount.dart';
 import 'package:vimbika_pro/services/branch_stock_service.dart';
@@ -32,6 +32,7 @@ import 'package:vimbika_pro/services/bank_service.dart';
 import 'package:vimbika_pro/services/category_service.dart';
 import 'package:vimbika_pro/services/excel_export_service.dart';
 import 'package:vimbika_pro/services/isar_service.dart';
+import 'package:vimbika_pro/services/secondary_display_service.dart';
 
 /// Represents a pending update to a customer's balance, to be applied at sale completion.
 class PendingCustomerBalanceUpdate {
@@ -46,6 +47,89 @@ class PendingCustomerBalanceUpdate {
     required this.currency,
     required this.amountChange,
   });
+}
+
+class _HoldSaleDialog extends StatefulWidget {
+  final String initialName;
+  final String? initialDescription;
+
+  const _HoldSaleDialog({
+    Key? key,
+    required this.initialName,
+    this.initialDescription,
+  }) : super(key: key);
+
+  @override
+  State<_HoldSaleDialog> createState() => _HoldSaleDialogState();
+}
+
+class _HoldSaleDialogState extends State<_HoldSaleDialog> {
+  late final TextEditingController _ticketNameController;
+  late final TextEditingController _ticketDescriptionController;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticketNameController = TextEditingController(text: widget.initialName);
+    _ticketDescriptionController = TextEditingController(text: widget.initialDescription ?? '');
+  }
+
+  @override
+  void dispose() {
+    _ticketNameController.dispose();
+    _ticketDescriptionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Hold Sale as Ticket'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _ticketNameController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Ticket Name',
+                hintText: 'e.g., Customer A, Order #123',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _ticketDescriptionController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Description / Note',
+                hintText: 'e.g., Table 4, Notes...',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            FocusManager.instance.primaryFocus?.unfocus();
+            Navigator.of(context).pop(null);
+          },
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            FocusManager.instance.primaryFocus?.unfocus();
+            Navigator.of(context).pop({
+              'ticketName': _ticketNameController.text,
+              'ticketComment': _ticketDescriptionController.text,
+            });
+          },
+          child: const Text('Hold'),
+        ),
+      ],
+    );
+  }
 }
 
 class POSScreenController extends ChangeNotifier {
@@ -86,6 +170,8 @@ class POSScreenController extends ChangeNotifier {
   bool _isLoading = true;
   String _searchQuery = '';
   bool _allowOutOfStockSales = false;
+  bool _enableLoyalCustomers = true;
+  bool _showPictures = true;
   bool _useKOT = false;
   bool _isBarcodeSearchMode = false;
   final TextEditingController _searchController = TextEditingController();
@@ -105,6 +191,7 @@ class POSScreenController extends ChangeNotifier {
   int _heldSalesCount = 0;
   String? _heldSaleId;
   String? _ticketName; // New property for held sale ticket name
+  String? _ticketComment; // Property for held sale ticket description/comment
   bool _printReceiptForThisSale = false; // New setting for individual sale printing
   bool _fiscalizeThisSale = false; // New setting for individual sale fiscalisation
   bool _customerSelectFocus = true;
@@ -149,6 +236,10 @@ class POSScreenController extends ChangeNotifier {
   List<SaleItem> get cart => _cart;
   List<Currency> get currencies => _currencies;
   List<PaymentType> get paymentTypes => _paymentTypes;
+  set paymentTypes(List<PaymentType> value) {
+    _paymentTypes = value;
+    notifyListeners();
+  }
   List<Customer> get customers => _customers;
   List<model.Category> get categories => _categories;
 
@@ -161,6 +252,8 @@ class POSScreenController extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
   bool get allowOutOfStockSales => _allowOutOfStockSales;
+  bool get enableLoyalCustomers => _enableLoyalCustomers;
+  bool get showPictures => _showPictures;
   bool get useKOT => _useKOT;
   bool get isBarcodeSearchMode => _isBarcodeSearchMode;
   TextEditingController get searchController => _searchController;
@@ -176,6 +269,7 @@ class POSScreenController extends ChangeNotifier {
   bool get isProcessingSale => _isProcessingSale;
   int get heldSalesCount => _heldSalesCount;
   String? get ticketName => _ticketName; // Getter for ticket name
+  String? get ticketComment => _ticketComment; // Getter for ticket description/comment
   bool get printReceiptForThisSale => _printReceiptForThisSale; // Getter for new setting
   bool get fiscalizeThisSale => _fiscalizeThisSale; // Getter for new setting
   bool get isFiscalisationEnabled => _printerService.getFiscalisationEnabled();
@@ -209,6 +303,26 @@ class POSScreenController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Method to push live cart/totals to secondary customer display
+  void _updateSecondaryDisplay({double? change, String? statusMessage}) {
+    try {
+      final rate = _selectedCurrency?.rate ?? 1.0;
+      final totalDiscount = _cart.fold(0.0, (sum, item) => sum + item.discountAmount) * rate;
+      SecondaryDisplayService.instance.updateCart(
+        cartItems: _cart,
+        total: grandTotalConverted,
+        currency: _selectedCurrency?.symbol ?? _selectedCurrency?.name ?? 'USD',
+        change: change ?? (changeConverted > 0 ? changeConverted : 0.0),
+        subtotal: subTotalBase * rate,
+        tax: taxTotalBase * rate,
+        discount: totalDiscount,
+        statusMessage: statusMessage,
+      );
+    } catch (e) {
+      debugPrint('Error updating secondary display: $e');
+    }
+  }
+
   // Setters for updating state and notifying listeners
   set selectedCurrency(Currency? currency) {
     _selectedCurrency = currency;
@@ -216,6 +330,7 @@ class POSScreenController extends ChangeNotifier {
     _payments.clear();
     _pendingCustomerBalanceUpdates.clear(); // Clear pending balance updates
     _amountTenderedController.clear(); // Clear tendered amount controller
+    _updateSecondaryDisplay();
     notifyListeners();
   }
 
@@ -425,6 +540,20 @@ class POSScreenController extends ChangeNotifier {
       _selectedBranch = defaultBranch;
 
       _allowOutOfStockSales = prefs.getBool(AppConstants.keyAllowOutOfStockSales) ?? false;
+      _showPictures = prefs.getBool(AppConstants.keyShowPicturesOnPos) ?? true;
+      if (prefs.containsKey(AppConstants.keyEnableLoyalCustomers)) {
+        _enableLoyalCustomers = prefs.getBool(AppConstants.keyEnableLoyalCustomers) ?? true;
+      } else {
+        final String? companySettingsJson = prefs.getString(AppConstants.keyCompanySettings);
+        if (companySettingsJson != null && companySettingsJson.isNotEmpty) {
+          try {
+            final ProductFeature productFeature = ProductFeature.fromJson(jsonDecode(companySettingsJson));
+            _enableLoyalCustomers = productFeature.enableLoyalCustomers ?? productFeature.enableLoyalCustomer ?? true;
+          } catch (e) {
+            debugPrint('Error parsing companySettings in POS: $e');
+          }
+        }
+      }
       _useKOT = prefs.getBool(AppConstants.keyUseKOT) ?? false;
 
       if (_currencies.isNotEmpty) {
@@ -439,6 +568,7 @@ class POSScreenController extends ChangeNotifier {
       debugPrint("Error in _loadData: $e");
     } finally {
       _isLoading = false;
+      _updateSecondaryDisplay();
       notifyListeners();
     }
 
@@ -586,13 +716,12 @@ class POSScreenController extends ChangeNotifier {
       final banks = paymentType.allBanks;
       if (banks.isNotEmpty) {
         if(paymentType.name.toLowerCase().startsWith('cash')){
-          Bank? bank = banks.firstWhereOrNull((test)=>test.bankName!.toLowerCase().startsWith('cash'));
+          Bank? bank = banks.firstWhereOrNull((test) => test.bankName?.toLowerCase().startsWith('cash') ?? false);
           if(bank != null){
             return bank;
           }
         }
         for (Bank bank in banks) {
-          print('bank: ${bank.bankName}');
           if (bank.currency.value?.id == currency.id) {
             return bank;
           }
@@ -688,6 +817,7 @@ class POSScreenController extends ChangeNotifier {
 
   void _adjustPayments() {
     _recalculateAppliedAmounts();
+    _updateSecondaryDisplay();
   }
 
   Future<void> addToCart(BranchStock stock) async {
@@ -755,6 +885,7 @@ class POSScreenController extends ChangeNotifier {
       _cart.add(saleItem);
     }
     _amountTenderedController.clear(); // Clear tendered amount controller
+    _updateSecondaryDisplay();
     notifyListeners();
   }
 
@@ -772,6 +903,7 @@ class POSScreenController extends ChangeNotifier {
     _noteControllers.remove(itemId);
     _adjustPayments();
     _amountTenderedController.clear(); // Clear tendered amount controller
+    _updateSecondaryDisplay();
     notifyListeners();
   }
 
@@ -840,6 +972,7 @@ class POSScreenController extends ChangeNotifier {
     _cart[index].inventoryItem.value = product;
     _adjustPayments();
     _amountTenderedController.clear(); // Clear tendered amount controller
+    _updateSecondaryDisplay();
     notifyListeners();
   }
 
@@ -888,6 +1021,15 @@ class POSScreenController extends ChangeNotifier {
     });
   }
 
+  double getCustomerCurrencyBalance(Customer? customer, Currency? currency) {
+    if (customer == null || currency == null) return 0.0;
+    final cca = customer.currencyBalance.firstWhereOrNull(
+      (c) => (c.currency.value?.id != null && c.currency.value?.id == currency.id) ||
+             (c.currency.value?.name != null && c.currency.value?.name == currency.name),
+    );
+    return cca?.balance ?? 0.0;
+  }
+
   Future<void> payFromAccount(BuildContext context) async {
     if (grandTotalConverted <= 0) return;
     if (_selectedCustomer == null) {
@@ -908,6 +1050,34 @@ class POSScreenController extends ChangeNotifier {
           (pt) => pt.name == 'ACC-${_selectedCurrency?.name}' && (pt.currency.value == null || pt.currency.value?.id == _selectedCurrency?.id),
       orElse: () => PaymentType(id: 'acc_default', name: 'ACC-${_selectedCurrency?.name}', isCredit: true, currency: _selectedCurrency),
     );
+
+    if (!_enableLoyalCustomers) {
+      final customerBalance = getCustomerCurrencyBalance(_selectedCustomer, _selectedCurrency);
+      final existingCreditPaid = _payments
+          .where((p) => p.paymentType.value?.isCredit == true && p.paymentType.value?.name != accountPaymentType.name)
+          .fold(0.0, (sum, p) => sum + p.amount);
+      final remainingAllowed = customerBalance - existingCreditPaid;
+
+      if (remainingAllowed <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cannot pay from account: Loyal customer credit is disabled and customer has insufficient account balance (${_selectedCurrency?.symbol ?? ''}${customerBalance.toStringAsFixed(2)}).'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      if (balanceDueConverted > remainingAllowed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cannot buy on credit more than account balance. Available: ${_selectedCurrency?.symbol ?? ''}${remainingAllowed.toStringAsFixed(2)}.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
 
     // Check if this payment type already exists
     final existingPaymentIndex = _payments.indexWhere((p) => p.paymentType.value?.name == accountPaymentType.name);
@@ -990,26 +1160,18 @@ class POSScreenController extends ChangeNotifier {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
-                  height: 300.0,
-                  width: double.maxFinite,
-                  child: ListView(
-                    shrinkWrap: true,
-                    children: filteredPaymentTypes.map((paymentType) {
-                      return RadioListTile<PaymentType>(
-                        title: Text(paymentType.name),
-                        value: paymentType,
-                        groupValue: selectedPaymentType,
-                        onChanged: (PaymentType? newValue) {
-                          setDialogState(() {
-                            selectedPaymentType = newValue;
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                ...filteredPaymentTypes.map((paymentType) {
+                  return RadioListTile<PaymentType>(
+                    title: Text(paymentType.name),
+                    value: paymentType,
+                    groupValue: selectedPaymentType,
+                    onChanged: (PaymentType? newValue) {
+                      setDialogState(() {
+                        selectedPaymentType = newValue;
+                      });
+                    },
+                  );
+                }).toList(),
                 TextField(
                   controller: amountController,
                   decoration: const InputDecoration(labelText: 'Amount'),
@@ -1148,6 +1310,36 @@ class POSScreenController extends ChangeNotifier {
                   paymentForSale = 0;
                 }
 
+                if (selectedPaymentType?.isCredit == true && !_enableLoyalCustomers) {
+                  final customerBalance = getCustomerCurrencyBalance(_selectedCustomer, _selectedCurrency);
+                  final existingCreditPaid = _payments
+                      .where((p) => p.paymentType.value?.isCredit == true)
+                      .fold(0.0, (sum, p) => sum + p.amount);
+                  final remainingAllowed = customerBalance - existingCreditPaid;
+
+                  if (remainingAllowed <= 0) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Cannot pay on credit: Loyal customer credit is disabled and customer has insufficient account balance (${_selectedCurrency?.symbol ?? ''}${customerBalance.toStringAsFixed(2)}).'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (paymentForSale > remainingAllowed) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Cannot buy on credit more than account balance. Available: ${_selectedCurrency?.symbol ?? ''}${remainingAllowed.toStringAsFixed(2)}.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+                }
+
                 double overpayment = amt - paymentForSale;
                 double amountToCreditCustomer = 0;
 
@@ -1284,6 +1476,23 @@ class POSScreenController extends ChangeNotifier {
         return;
       }
 
+      if (!_enableLoyalCustomers && _payments.any((p) => p.paymentType.value?.isCredit == true)) {
+        final totalCredit = _payments
+            .where((p) => p.paymentType.value?.isCredit == true)
+            .fold(0.0, (sum, p) => sum + p.amount);
+        final customerBalance = getCustomerCurrencyBalance(_selectedCustomer, _selectedCurrency);
+        if (totalCredit > customerBalance) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Cannot complete sale: Credit amount (${_selectedCurrency?.symbol ?? ''}${totalCredit.toStringAsFixed(2)}) exceeds customer account balance (${_selectedCurrency?.symbol ?? ''}${customerBalance.toStringAsFixed(2)}).'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+
       final MobilePosShift? currentShift = await _getCurrentShift();
       if (currentShift == null || (currentShift.isShiftClosed ?? true)) {
         if (!context.mounted) return;
@@ -1369,6 +1578,7 @@ class POSScreenController extends ChangeNotifier {
           referenceNumber: generatedReference,
           shiftReference: currentShift.shiftReference,
           ticketName: _ticketName, // Include ticket name in the completed sale
+          ticketComment: _ticketComment,
           amtToAcc: totalAmtToAcc > 0 ? totalAmtToAcc.toStringAsFixed(2) : null,
           customerAccBankType:_payments.any((p)=>p.paymentType.value!.isCredit)?'ACC-${_selectedCurrency!.name}':'CASH-${_selectedCurrency!.name}',
           amountPaid: amountPaidConverted,
@@ -1455,6 +1665,7 @@ class POSScreenController extends ChangeNotifier {
 
       if (!context.mounted) return;
 
+      _updateSecondaryDisplay(change: change, statusMessage: 'Thank You for Your Business!');
       await clearPOSScreen();
     } finally {
       if (context.mounted) {
@@ -1590,6 +1801,15 @@ class POSScreenController extends ChangeNotifier {
     }
   }
 
+  Future<void> onCustomerCreated(Customer newCustomer) async {
+    _customers = await _customerService.getCustomersLocally();
+    final freshCustomer = _customers.firstWhereOrNull((c) => 
+      (newCustomer.id != null && c.id == newCustomer.id) ||
+      (c.name.toLowerCase() == newCustomer.name.toLowerCase())
+    ) ?? newCustomer;
+    selectedCustomer = freshCustomer;
+  }
+
   Future<void> clearPOSScreen({Customer? newCustomer}) async {
     _cart.clear();
     _payments.clear();
@@ -1598,6 +1818,7 @@ class POSScreenController extends ChangeNotifier {
     _selectedCustomer = newCustomer;
     _currentOrderKOTNumber = null;
     _ticketName = null;
+    _ticketComment = null;
     _heldSaleId = null;
     _amountTenderedController.clear();
     _disposeQuantityControllers();
@@ -1615,6 +1836,7 @@ class POSScreenController extends ChangeNotifier {
     }
     _printReceiptForThisSale = _printerService.getAlwaysPrintReceipt() && _printerService.isPrinterConfigured;
     _fiscalizeThisSale = _printerService.getFiscalisationEnabled() && _printerService.getAlwaysFiscalize();
+    _updateSecondaryDisplay(statusMessage: 'Welcome!');
     notifyListeners();
   }
 
@@ -1636,44 +1858,29 @@ class POSScreenController extends ChangeNotifier {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     List<Sale> heldSales = await retrieveHeldSales();
     final int nextTicketNumber = heldSales.length + 1;
-    final String suggestedTicketName = 'Ticket $nextTicketNumber';
+    final String suggestedTicketName = (_ticketName != null && _ticketName!.trim().isNotEmpty)
+        ? _ticketName!
+        : 'Ticket $nextTicketNumber';
+    final String? initialDescription = _ticketComment;
 
-    final TextEditingController ticketNameController = TextEditingController(text: suggestedTicketName);
+    if (!context.mounted) return;
+    final dynamic result = await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => _HoldSaleDialog(
+        initialName: suggestedTicketName,
+        initialDescription: initialDescription,
+      ),
+    );
 
     String? ticketName;
-    try {
-      ticketName = await showDialog<String>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Hold Sale as Ticket'),
-          content: TextField(
-            controller: ticketNameController,
-            decoration: const InputDecoration(
-              labelText: 'Ticket Name',
-              hintText: 'e.g., Customer A, Order #123',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                FocusScope.of(dialogContext).unfocus();
-                Navigator.pop(dialogContext, null); // Return null if cancelled
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                FocusScope.of(dialogContext).unfocus();
-                Navigator.pop(dialogContext, ticketNameController.text);
-              },
-              child: const Text('Hold'),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      ticketNameController.dispose();
+    String? ticketComment;
+
+    if (result is Map) {
+      ticketName = result['ticketName'] as String?;
+      ticketComment = result['ticketComment'] as String?;
+    } else if (result is String) {
+      ticketName = result;
     }
 
     if (ticketName == null || ticketName.trim().isEmpty) {
@@ -1700,8 +1907,8 @@ class POSScreenController extends ChangeNotifier {
     }
 
     final heldSale = Sale(
-      id: 'held_${DateTime.now().millisecondsSinceEpoch}',
-      kotNumber:  prefs.getInt(AppConstants.keyLastKOTNumber) ?? 0,
+      id: _heldSaleId ?? 'held_${DateTime.now().millisecondsSinceEpoch}',
+      kotNumber: _currentOrderKOTNumber ?? prefs.getInt(AppConstants.keyLastKOTNumber) ?? 0,
       createdByName: currentShift?.createdByName,
       cashierFullName: currentShift?.userFullName,
       timeIniated: DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.now()),
@@ -1709,9 +1916,13 @@ class POSScreenController extends ChangeNotifier {
       shiftReference: currentShift?.shiftReference,
       totalTaxAmount: taxTotalBase * exchangeRate,
       amountAfterDiscount: grandTotalConverted,
-      ticketName: ticketName,
+      ticketName: ticketName.trim(),
+      ticketComment: (ticketComment != null && ticketComment.trim().isNotEmpty) ? ticketComment.trim() : null,
       amountTendered: totalAmountTendered,
       heldItems: List<SaleItem>.from(_cart), // Store cart items in heldItems
+      heldCurrency: _selectedCurrency,
+      heldCustomer: _selectedCustomer,
+      heldBranch: _selectedBranch,
       totalDiscount: totalDiscount,
     );
     heldSale.customer.value = _selectedCustomer;
@@ -1724,12 +1935,13 @@ class POSScreenController extends ChangeNotifier {
 
     await prefs.setStringList(AppConstants.keyHeldSales, heldSales.map((s) => jsonEncode(s.toJson())).toList());
 
-    _ticketName = ticketName; // Set the controller's ticket name
+    _ticketName = ticketName.trim(); // Set the controller's ticket name
+    _ticketComment = (ticketComment != null && ticketComment.trim().isNotEmpty) ? ticketComment.trim() : null;
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Sale placed on hold as "$ticketName".'), backgroundColor: Colors.blue),
+      SnackBar(content: Text('Sale placed on hold as "${ticketName.trim()}".'), backgroundColor: Colors.blue),
     );
-    clearPOSScreen();
+    await clearPOSScreen();
     await _loadHeldSalesCount();
     notifyListeners();
   }
@@ -1749,9 +1961,11 @@ class POSScreenController extends ChangeNotifier {
     try {
       _cart.addAll(heldSale.heldItems); // Load items from heldItems
       _payments.addAll(heldSale.allPaymentTypes);
-      _selectedCustomer = heldSale.customer.value;
-      _selectedCurrency = heldSale.currency.value;
+      _selectedCustomer = heldSale.customer.value ?? heldSale.heldCustomer;
+      _selectedCurrency = heldSale.currency.value ?? heldSale.heldCurrency;
+      _selectedBranch = heldSale.branch.value ?? heldSale.heldBranch ?? _selectedBranch;
       _ticketName = heldSale.ticketName;
+      _ticketComment = heldSale.ticketComment;
       _heldSaleId = heldSale.id;
       _currentOrderKOTNumber = heldSale.kotNumber;
       _amountTenderedController.text = (heldSale.amountTendered ?? 0.0).toStringAsFixed(2);
@@ -1781,6 +1995,7 @@ class POSScreenController extends ChangeNotifier {
       _printReceiptForThisSale = _printerService.getAlwaysPrintReceipt() && _printerService.isPrinterConfigured;
     } finally {
       _isLoading = false;
+      _updateSecondaryDisplay();
       notifyListeners();
     }
   }
