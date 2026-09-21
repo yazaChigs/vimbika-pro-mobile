@@ -10,6 +10,7 @@ abstract class BaseImportScreen extends StatelessWidget {
   final String title;
   final String entityName;
   final List<String> columns;
+  final List<String>? sampleRow;
   final String templateFileName;
 
   const BaseImportScreen({
@@ -17,6 +18,7 @@ abstract class BaseImportScreen extends StatelessWidget {
     required this.title,
     required this.entityName,
     required this.columns,
+    this.sampleRow,
     required this.templateFileName,
   });
 
@@ -60,6 +62,14 @@ abstract class BaseImportScreen extends StatelessWidget {
       for (var i = 0; i < columns.length; i++) {
         var cell = sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
         cell.value = TextCellValue(columns[i]);
+      }
+
+      // Add Sample Row if provided
+      if (sampleRow != null) {
+        for (var i = 0; i < sampleRow!.length && i < columns.length; i++) {
+          var cell = sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 1));
+          cell.value = TextCellValue(sampleRow![i]);
+        }
       }
 
       final List<int>? fileBytes = excel.save();
