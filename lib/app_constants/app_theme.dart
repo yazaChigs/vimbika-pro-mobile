@@ -10,6 +10,7 @@ class AppTheme {
   static const Color grey = Color(0xFF3A5160);
   static const Color darkGrey = Color(0xFF313A44);
   static const Color vimbikaBlue = Color(0xFF4787CF);
+  static const Color primaryColor = vimbikaBlue;
 
   static const Color darkText = Color(0xFF253840);
   static const Color darkerText = Color(0xFF17262A);
