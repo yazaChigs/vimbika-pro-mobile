@@ -9,11 +9,11 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'login/login_screen.dart';
-import 'create_company_screen.dart';
 import 'navigation_home_screen.dart';
 import 'model/user_role.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:vimbika_pro/services/sale_sync_service.dart'; // Import Sync Service
+import 'package:vimbika_pro/services/secondary_display_service.dart';
+import 'package:vimbika_pro/rear/sunmi_lcd_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,13 +22,42 @@ void main() async {
   //   DeviceOrientation.portraitUp,
   //   DeviceOrientation.portraitDown,
   // ]);
-  
+
   final SharedPreferences prefs = await SharedPreferences.getInstance();
-  
+
   // Initialize default roles if they don't exist
   await _initializeDefaultRoles(prefs);
 
+  // Initialize secondary display if hardware supports it
+  SecondaryDisplayService.instance.initializeSecondaryDisplay();
+
   runApp(const MyApp(hasUser: false, hasCompany: false,));
+}
+
+@pragma('vm:entry-point')
+void secondaryDisplayMain() {
+  runApp(const MySecondApp());
+}
+
+class MySecondApp extends StatelessWidget {
+  const MySecondApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Vimbika POS Display',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        textTheme: AppTheme.textTheme,
+        platform: TargetPlatform.iOS,
+      ),
+      initialRoute: '/sunmi_lcd',
+      routes: {
+        '/sunmi_lcd': (context) => const SunmiLcdScreen(),
+      },
+    );
+  }
 }
 
 Future<void> _initializeDefaultRoles(SharedPreferences prefs) async {
@@ -41,7 +70,7 @@ Future<void> _initializeDefaultRoles(SharedPreferences prefs) async {
     final List<String> rolesJson = defaultRoles
         .map((role) => jsonEncode(role.toJson()))
         .toList();
-    
+
     await prefs.setStringList(AppConstants.keyUserRoles, rolesJson);
   }
 }
@@ -106,18 +135,18 @@ class _InitialRouteHandlerState extends State<InitialRouteHandler> {
     if (hasUser && hasLoggedIn) {
       // Navigate to their last used home screen (Online vs Offline)
       Navigator.pushReplacement(
-        context, 
-        MaterialPageRoute(
-          builder: (context) => isOffline 
-              ? NavigationHomeScreen() 
-              : const OnlineNavigationHomeScreen()
-        )
+          context,
+          MaterialPageRoute(
+              builder: (context) => isOffline
+                  ? NavigationHomeScreen()
+                  : const OnlineNavigationHomeScreen()
+          )
       );
     } else {
       // Default to login screen whether company/user exists or not
       Navigator.pushReplacement(
-        context, 
-        MaterialPageRoute(builder: (context) => const LoginScreen())
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen())
       );
     }
   }
