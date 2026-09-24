@@ -204,7 +204,7 @@ class _HomeDrawerState extends State<HomeDrawer> {
                                           base64Decode(_currentUser!.profilePicture!),
                                           fit: BoxFit.cover,
                                         )
-                                      : Image.asset('assets/images/userImage.png'),
+                                      : Image.asset('assets/images/logo.png'),
                             ),
                           ),
                         ),
