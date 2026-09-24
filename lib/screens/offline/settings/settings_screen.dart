@@ -226,18 +226,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       );
                     },
                   ),
-                  _buildSettingItem(
-                    icon: Icons.price_change_outlined,
-                    title: 'Bulk Price Adjustment',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => BulkPriceAdjustmentScreen(),
-                        ),
-                      );
-                    },
-                  ),
+                  if (_isOfflineMode)
+                    _buildSettingItem(
+                      icon: Icons.price_change_outlined,
+                      title: 'Bulk Price Adjustment',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BulkPriceAdjustmentScreen(),
+                          ),
+                        );
+                      },
+                    ),
                   if (!_isOfflineMode)
                     _buildSettingItem(
                       icon: Icons.refresh_outlined,
@@ -257,18 +258,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       },
                     ),
-                  _buildSettingItem(
-                    icon: Icons.card_membership,
-                    title: 'Subscription',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SubscriptionScreen(),
-                        ),
-                      );
-                    },
-                  ),
+                  if (_isOfflineMode)
+                    _buildSettingItem(
+                      icon: Icons.card_membership,
+                      title: 'Subscription',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubscriptionScreen(),
+                          ),
+                        );
+                      },
+                    ),
                   // _buildSettingItem(
                   //   icon: Icons.notifications_none,
                   //   title: 'Notifications',

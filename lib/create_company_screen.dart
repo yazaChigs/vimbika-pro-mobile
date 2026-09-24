@@ -45,8 +45,8 @@ class _CreateCompanyScreenState extends State<CreateCompanyScreen> {
       final company = Company(
         id: _uuid.v4(),
         name: _nameController.text,
-        address: _addressController.text.isNotEmpty ? _addressController.text : null,
-        phoneNumber: _phoneController.text.isNotEmpty ? _phoneController.text : null,
+        street: _addressController.text.isNotEmpty ? _addressController.text : null,
+        mobilePhone: _phoneController.text.isNotEmpty ? _phoneController.text : null,
         email: _emailController.text.isNotEmpty ? _emailController.text : null,
         website: _websiteController.text.isNotEmpty ? _websiteController.text : null,
       );
@@ -55,8 +55,8 @@ class _CreateCompanyScreenState extends State<CreateCompanyScreen> {
       final defaultBranch = Branch(
         id: _uuid.v4(),
         name: _branchNameController.text,
-        address: company.address,
-        phoneNumber: company.phoneNumber,
+        street: company.street,
+        contactNumber: company.mobilePhone,
         email: company.email,
       );
       defaultBranch.company.value = company;

@@ -9,8 +9,9 @@ class Branch extends BaseEntity {
   Id isarId = Isar.autoIncrement;
   String? name;
   String? description;
-  String? address;
-  String? phoneNumber;
+  String? street;
+  String? city;
+  String? contactNumber;
   String? email;
   final company = IsarLink<Company>();
 
@@ -23,8 +24,9 @@ class Branch extends BaseEntity {
     int? version,
     this.name,
     this.description,
-    this.address,
-    this.phoneNumber,
+    this.street,
+    this.city,
+    this.contactNumber,
     this.email,
   }) : super(
           id: id,
@@ -45,8 +47,9 @@ class Branch extends BaseEntity {
       version: json['version'] is int ? json['version'] : (json['version'] is num ? (json['version'] as num).toInt() : null),
       name: json['name']?.toString(),
       description: json['description']?.toString(),
-      address: json['address']?.toString(),
-      phoneNumber: json['phoneNumber']?.toString(),
+      street: json['street']?.toString(),
+      city: json['city']?.toString(),
+      contactNumber: json['contactNumber']?.toString(),
       email: json['email']?.toString(),
     );
 
@@ -67,8 +70,9 @@ class Branch extends BaseEntity {
       'version': version,
       'name': name,
       'description': description,
-      'address': address,
-      'phoneNumber': phoneNumber,
+      'street': street,
+      'city': city,
+      'contactNumber': contactNumber,
       'email': email,
       'company': company.isLoaded ? company.value?.toJson() : null,
     };

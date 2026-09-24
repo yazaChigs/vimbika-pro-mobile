@@ -48,18 +48,20 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                 "Your subscription will expire in $daysRemaining days. Please renew to avoid service interruption."),
             backgroundColor: Colors.redAccent,
             duration: const Duration(seconds: 10),
-            action: SnackBarAction(
-              label: 'Renew',
-              textColor: Colors.white,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const SubscriptionScreen(),
-                  ),
-                );
-              },
-            ),
+            action: isOfflineMode
+                ? SnackBarAction(
+                    label: 'Renew',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SubscriptionScreen(),
+                        ),
+                      );
+                    },
+                  )
+                : null,
           ),
         );
       }

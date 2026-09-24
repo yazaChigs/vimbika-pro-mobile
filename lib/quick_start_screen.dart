@@ -491,7 +491,7 @@ class _QuickStartScreenState extends State<QuickStartScreen> {
                     child: ListTile(
                       leading: const Icon(Icons.store, color: AppTheme.vimbikaBlue),
                       title: Text(_defaultBranch?.name ?? 'Main Branch'),
-                      subtitle: Text(_defaultBranch?.address ?? 'No address provided'),
+                      subtitle: Text(_defaultBranch?.street ?? 'No address provided'),
                     ),
                   ),
                   const SizedBox(height: 24),

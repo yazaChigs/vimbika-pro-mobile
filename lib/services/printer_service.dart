@@ -965,15 +965,18 @@ class PrinterService {
     }
 
     bytes += generator.text(sale.company.value?.name ?? "Vimbika Pro", styles: PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
-    if (sale.branch.value != null) {
-      bytes += generator.text(sale.branch.value!.name ?? "", styles: PosStyles(align: PosAlign.center));
-      bytes += generator.text(sale.branch.value!.address ?? "", styles: PosStyles(align: PosAlign.center));
+    if (sale.branch.value != null && sale.branch.value!.name != null && sale.branch.value!.name!.isNotEmpty) {
+      bytes += generator.text(sale.branch.value!.name!, styles: PosStyles(align: PosAlign.center));
+    }
+    final String bleAddress = _getReceiptAddress(sale);
+    if (bleAddress.isNotEmpty) {
+      bytes += generator.text(bleAddress, styles: PosStyles(align: PosAlign.center));
     }
 
-
-    // Company Phone Number
-    if (sale.company.value?.phoneNumber != null && sale.company.value!.phoneNumber!.isNotEmpty) {
-      bytes += generator.text("Tel: ${sale.company.value!.phoneNumber!}", styles: PosStyles(align: PosAlign.center));
+    // Company/Branch Phone Number
+    final String blePhone = _getReceiptPhone(sale);
+    if (blePhone.isNotEmpty) {
+      bytes += generator.text("Tel: $blePhone", styles: PosStyles(align: PosAlign.center));
     }
     // Company VAT Number (using description as placeholder if vatNumber missing)
     if (sale.company.value?.description != null && sale.company.value!.description!.isNotEmpty) {
@@ -1139,13 +1142,18 @@ class PrinterService {
       }
     }
     await SunmiPrinter.printText('\n${sale.company.value?.name??''}', style: SunmiStyle(fontSize: SunmiFontSize.XL, align: SunmiPrintAlign.CENTER, bold: true));
-    if (sale.branch.value != null) {
-      await SunmiPrinter.printText("${sale.branch.value!.name}\n${sale.branch.value!.address ?? ''}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    if (sale.branch.value != null && sale.branch.value!.name != null && sale.branch.value!.name!.isNotEmpty) {
+      await SunmiPrinter.printText("${sale.branch.value!.name}\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    }
+    final String sunmiAddress = _getReceiptAddress(sale);
+    if (sunmiAddress.isNotEmpty) {
+      await SunmiPrinter.printText("$sunmiAddress\n", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
 
     // Add company/branch contact details
-    if (sale.company.value?.phoneNumber != null && sale.company.value!.phoneNumber!.isNotEmpty) {
-      await SunmiPrinter.printText("Tel: ${sale.company.value!.phoneNumber!}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
+    final String sunmiPhone = _getReceiptPhone(sale);
+    if (sunmiPhone.isNotEmpty) {
+      await SunmiPrinter.printText("Tel: $sunmiPhone", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
     }
     if (sale.company.value?.description != null && sale.company.value!.description!.isNotEmpty) {
       await SunmiPrinter.printText("Info: ${sale.company.value!.description!}", style: SunmiStyle(align: SunmiPrintAlign.CENTER));
@@ -1296,14 +1304,18 @@ class PrinterService {
     }
 
     bytes += generator.text(sale.company.value?.name ?? "Vimbika Pro", styles: PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
-    if (sale.branch.value != null) {
-      bytes += generator.text(sale.branch.value!.name ?? "", styles: PosStyles(align: PosAlign.center));
-      bytes += generator.text(sale.branch.value!.address ?? "", styles: PosStyles(align: PosAlign.center));
+    if (sale.branch.value != null && sale.branch.value!.name != null && sale.branch.value!.name!.isNotEmpty) {
+      bytes += generator.text(sale.branch.value!.name!, styles: PosStyles(align: PosAlign.center));
+    }
+    final String usbAddress = _getReceiptAddress(sale);
+    if (usbAddress.isNotEmpty) {
+      bytes += generator.text(usbAddress, styles: PosStyles(align: PosAlign.center));
     }
 
-    // Company Phone Number
-    if (sale.company.value?.phoneNumber != null && sale.company.value!.phoneNumber!.isNotEmpty) {
-      bytes += generator.text("Tel: ${sale.company.value!.phoneNumber!}", styles: PosStyles(align: PosAlign.center));
+    // Company/Branch Phone Number
+    final String usbPhone = _getReceiptPhone(sale);
+    if (usbPhone.isNotEmpty) {
+      bytes += generator.text("Tel: $usbPhone", styles: PosStyles(align: PosAlign.center));
     }
     // Company VAT Number
     if (sale.company.value?.description != null && sale.company.value!.description!.isNotEmpty) {
@@ -1696,6 +1708,50 @@ class PrinterService {
     return '$left${' ' * spaces}$right';
   }
 
+  String _getReceiptAddress(Sale sale) {
+    final branch = sale.branch.value;
+    final company = sale.company.value;
+
+    if (branch != null) {
+      final bStreet = branch.street?.trim() ?? "";
+      final bCity = branch.city?.trim() ?? "";
+      if (bStreet.isNotEmpty && bCity.isNotEmpty) {
+        return bStreet.endsWith(',') ? "$bStreet $bCity" : "$bStreet, $bCity";
+      } else if (bStreet.isNotEmpty) {
+        return bStreet;
+      } else if (bCity.isNotEmpty) {
+        return bCity;
+      }
+    }
+
+    if (company != null) {
+      final cStreet = company.street?.trim() ?? "";
+      final cCity = company.city?.trim() ?? "";
+      if (cStreet.isNotEmpty && cCity.isNotEmpty) {
+        return cStreet.endsWith(',') ? "$cStreet $cCity" : "$cStreet, $cCity";
+      } else if (cStreet.isNotEmpty) {
+        return cStreet;
+      } else if (cCity.isNotEmpty) {
+        return cCity;
+      }
+    }
+
+    return "";
+  }
+
+  String _getReceiptPhone(Sale sale) {
+    final branch = sale.branch.value;
+    final company = sale.company.value;
+
+    if (branch != null && branch.contactNumber != null && branch.contactNumber!.trim().isNotEmpty) {
+      return branch.contactNumber!.trim();
+    }
+    if (company != null && company.mobilePhone != null && company.mobilePhone!.trim().isNotEmpty) {
+      return company.mobilePhone!.trim();
+    }
+    return "";
+  }
+
   // New methods for printing shift reports
   Future<void> printShiftSummary(MobilePosShift shift, List<Currency> availableCurrencies, Company? company) async {
     if (!_isConnected) {
@@ -1734,8 +1790,8 @@ class PrinterService {
     // Company Contact Details
     if (company != null) {
       buffer.writeln(_alignLeftRight('Company:', company.name ?? 'N/A'));
-      if (company.phoneNumber != null && company.phoneNumber!.isNotEmpty) {
-        buffer.writeln(_alignLeftRight('Tel:', company.phoneNumber!));
+      if (company.mobilePhone != null && company.mobilePhone!.isNotEmpty) {
+        buffer.writeln(_alignLeftRight('Tel:', company.mobilePhone!));
       }
       if (company.email != null && company.email!.isNotEmpty) {
         buffer.writeln(_alignLeftRight('Email:', company.email!));
@@ -1861,8 +1917,8 @@ class PrinterService {
     // Company Contact Details
     if (company != null) {
       buffer.writeln(_alignLeftRight('Company:', company.name ?? 'N/A'));
-      if (company.phoneNumber != null && company.phoneNumber!.isNotEmpty) {
-        buffer.writeln(_alignLeftRight('Tel:', company.phoneNumber!));
+      if (company.mobilePhone != null && company.mobilePhone!.isNotEmpty) {
+        buffer.writeln(_alignLeftRight('Tel:', company.mobilePhone!));
       }
       if (company.email != null && company.email!.isNotEmpty) {
         buffer.writeln(_alignLeftRight('Email:', company.email!));

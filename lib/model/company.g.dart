@@ -109,7 +109,7 @@ int _companyEstimateSize(
 ) {
   var bytesCount = offsets.last;
   {
-    final value = object.address;
+    final value = object.street;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
     }
@@ -169,7 +169,7 @@ int _companyEstimateSize(
     }
   }
   {
-    final value = object.phoneNumber;
+    final value = object.mobilePhone;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
     }
@@ -189,7 +189,7 @@ void _companySerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeString(offsets[0], object.address);
+  writer.writeString(offsets[0], object.street);
   writer.writeString(offsets[1], object.createdByName);
   writer.writeString(offsets[2], object.dateCreated);
   writer.writeString(offsets[3], object.dateModified);
@@ -200,7 +200,7 @@ void _companySerialize(
   writer.writeString(offsets[8], object.logo);
   writer.writeString(offsets[9], object.modifiedByName);
   writer.writeString(offsets[10], object.name);
-  writer.writeString(offsets[11], object.phoneNumber);
+  writer.writeString(offsets[11], object.mobilePhone);
   writer.writeLong(offsets[12], object.version);
   writer.writeString(offsets[13], object.website);
 }
@@ -212,7 +212,7 @@ Company _companyDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = Company(
-    address: reader.readStringOrNull(offsets[0]),
+    street: reader.readStringOrNull(offsets[0]),
     createdByName: reader.readStringOrNull(offsets[1]),
     dateCreated: reader.readStringOrNull(offsets[2]),
     dateModified: reader.readStringOrNull(offsets[3]),
@@ -222,7 +222,7 @@ Company _companyDeserialize(
     logo: reader.readStringOrNull(offsets[8]),
     modifiedByName: reader.readStringOrNull(offsets[9]),
     name: reader.readStringOrNull(offsets[10]),
-    phoneNumber: reader.readStringOrNull(offsets[11]),
+    mobilePhone: reader.readStringOrNull(offsets[11]),
     version: reader.readLongOrNull(offsets[12]),
     website: reader.readStringOrNull(offsets[13]),
   );

@@ -56,8 +56,8 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
       setState(() {
         _company = Company.fromJson(jsonDecode(companyJson));
         _nameController.text = _company?.name ?? '';
-        _addressController.text = _company?.address ?? '';
-        _phoneController.text = _company?.phoneNumber ?? '';
+        _addressController.text = _company?.street ?? '';
+        _phoneController.text = _company?.mobilePhone ?? '';
         _emailController.text = _company?.email ?? '';
         _websiteController.text = _company?.website ?? '';
         _isLoading = false;
@@ -82,8 +82,8 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
     final updatedCompany = Company(
       id: _company?.id,
       name: _nameController.text,
-      address: _addressController.text,
-      phoneNumber: _phoneController.text,
+      street: _addressController.text,
+      mobilePhone: _phoneController.text,
       email: _emailController.text,
       website: _websiteController.text,
     );

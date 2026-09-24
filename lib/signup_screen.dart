@@ -345,8 +345,8 @@ class _SignupScreenState extends State<SignupScreen> {
           id: company.id != null ? 'supplier_${company.id}' : _uuid.v4(),
           name: company.name ?? 'Default Supplier',
           email: company.email,
-          phoneNumber: company.phoneNumber,
-          address: company.address,
+          phoneNumber: company.mobilePhone,
+          address: company.street,
         );
         await prefs.setStringList(
           AppConstants.keyOfflineSuppliers,

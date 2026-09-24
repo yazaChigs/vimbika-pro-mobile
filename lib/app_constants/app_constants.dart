@@ -5,9 +5,9 @@ class AppConstants {
   static const String appName = 'Vimbika Business';
   // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.co.zw/vimbika-zw/api";
   // static const VIMBIKA_BACKEND_URL = "https://business.vimbika.africa/vimbika-africa/api";
-  static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
+  // static const VIMBIKA_BACKEND_URL = "https://demo.vimbika.africa/uat-vimbika/api";
   // static const VIMBIKA_BACKEND_URL = "https://mashwede.vimbika.africa/mashwede/api";
-  //     static const VIMBIKA_BACKEND_URL = "http://192.168.50.115:8080/vimbika-pro/api"; //Vimbika
+      static const VIMBIKA_BACKEND_URL = "http://192.168.50.116:8080/vimbika-pro/api"; //Vimbika
       // static const VIMBIKA_BACKEND_URL = "http://192.168.1.99:8080/vimbika-pro/api";
           // static const VIMBIKA_BACKEND_URL = "http://192.168.1.148:8080/vimbika-pro/api";
   // static const VIMBIKA_BACKEND_URL = "http://172.20.10.4:8080/vimbika-pro/api";

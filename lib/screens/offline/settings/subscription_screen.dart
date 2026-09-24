@@ -1298,8 +1298,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         id: company.id != null ? 'supplier_${company.id}' : const Uuid().v4(),
         name: company.name ?? '',
         email: company.email,
-        phoneNumber: company.phoneNumber,
-        address: company.address,
+        phoneNumber: company.mobilePhone,
+        address: company.street,
       );
 
       // Prepare Inventory Items from BranchStock

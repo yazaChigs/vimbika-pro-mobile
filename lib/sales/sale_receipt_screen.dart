@@ -1,11 +1,13 @@
 import 'dart:io';
 
-import 'package:vimbika_pro/services/default_data_service.dart';
-import 'package:vimbika_pro/services/printer_service.dart';
-import 'package:vimbika_pro/app_constants/app_theme.dart';
-import 'package:vimbika_pro/model/sale.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:vimbika_pro/app_constants/app_theme.dart';
+import 'package:vimbika_pro/model/sale.dart';
+import 'package:vimbika_pro/services/default_data_service.dart';
+import 'package:vimbika_pro/services/pdf_receipt_service.dart';
+import 'package:vimbika_pro/services/printer_service.dart';
 
 import '../app_constants/app_constants.dart';
 
@@ -28,8 +30,6 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
   }
 
   Future<void> _loadLogo() async {
-    print(widget.sale.allItems.map((item)=> item.toJson()));
-    print(widget.sale.allPaymentTypes.map((item)=> item.paymentType.value!.toJson()));
     if (widget.sale.company.value?.id != null) {
       final defaultDataService = DefaultDataService();
       final imageFile = await defaultDataService.getImage(widget.sale.company.value!.id!);
@@ -37,6 +37,115 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
         setState(() {
           _logoFile = imageFile;
         });
+      }
+    }
+  }
+
+  Future<void> _shareReceipt() async {
+    try {
+      final StringBuffer buffer = StringBuffer();
+      final companyName = widget.sale.company.value?.name ?? 'Vimbika';
+      final receiptNo = widget.sale.referenceNumber ?? widget.sale.posReference ?? '';
+      final dateStr = widget.sale.timeIniated != null
+          ? DateFormat(AppConstants.APP_DATE_TIME_FMT).format(DateTime.parse(widget.sale.timeIniated!))
+          : '';
+
+      buffer.writeln(companyName);
+      buffer.writeln('Official Sales Receipt');
+      buffer.writeln('--------------------------------');
+      if (dateStr.isNotEmpty) buffer.writeln('Date: $dateStr');
+      if (receiptNo.isNotEmpty) buffer.writeln('Receipt #: $receiptNo');
+
+      if (widget.sale.customer.value != null) {
+        buffer.writeln('Customer: ${widget.sale.customer.value!.name}');
+        if (widget.sale.customer.value!.mobilePhone != null && widget.sale.customer.value!.mobilePhone!.isNotEmpty) {
+          buffer.writeln('Phone: ${widget.sale.customer.value!.mobilePhone}');
+        }
+      }
+
+      buffer.writeln('--------------------------------');
+      buffer.writeln('ITEMS:');
+      for (final item in widget.sale.allItems) {
+        final itemName = item.inventoryItem.value?.name ?? 'Item';
+        final qty = item.quantity.toStringAsFixed(item.quantity.truncateToDouble() == item.quantity ? 0 : 2);
+        final total = item.total.toStringAsFixed(2);
+        buffer.writeln('- $itemName (x$qty): \$$total');
+      }
+
+      buffer.writeln('--------------------------------');
+      buffer.writeln('TOTAL: \$${widget.sale.grandTotal.toStringAsFixed(2)}');
+
+      if (widget.sale.allPaymentTypes.isNotEmpty) {
+        buffer.writeln('--------------------------------');
+        buffer.writeln('PAYMENT DETAILS:');
+        for (final p in widget.sale.allPaymentTypes) {
+          final method = p.paymentType.value?.name ?? 'Method';
+          final amount = p.amount.toStringAsFixed(2);
+          buffer.writeln('- $method: \$$amount');
+        }
+      }
+
+      buffer.writeln('--------------------------------');
+      buffer.writeln('Thank you for your business!');
+
+      final box = context.findRenderObject() as RenderBox?;
+      await Share.share(
+        buffer.toString(),
+        subject: 'Sales Receipt ${receiptNo.isNotEmpty ? '#$receiptNo' : ''}'.trim(),
+        sharePositionOrigin: box != null ? (box.localToGlobal(Offset.zero) & box.size) : null,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to share receipt: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _downloadPdf() async {
+    try {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Generating PDF receipt...'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+
+      final pdfService = PdfReceiptService();
+      final savedFile = await pdfService.saveReceiptPdfToStorage(widget.sale);
+
+      if (mounted) {
+        if (savedFile != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('PDF saved to: ${savedFile.path}'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Permission denied or failed to save PDF.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -57,8 +166,6 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
               final printerService = PrinterService();
               // Try to print
               try {
-                print(widget.sale.company.value!.toJson());
-                print(widget.sale.branch.value!.toJson());
                 // Ensure printer is initialized and connected if possible
                 await printerService.init();
                 if (printerService.isConnected) {
@@ -93,8 +200,14 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
           IconButton(
             icon: const Icon(Icons.share_outlined),
             onPressed: () {
-              print(widget.sale.allItems.map((item)=> item.toJson()));
-              // TODO: Implement PDF sharing/printing
+              _shareReceipt();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            tooltip: 'Download PDF',
+            onPressed: () {
+              _downloadPdf();
             },
           ),
         ],

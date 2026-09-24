@@ -89,8 +89,8 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
     }
 
     final nameController = TextEditingController(text: _defaultBranch?.name);
-    final addressController = TextEditingController(text: _defaultBranch?.address);
-    final phoneController = TextEditingController(text: _defaultBranch?.phoneNumber);
+    final addressController = TextEditingController(text: _defaultBranch?.street);
+    final phoneController = TextEditingController(text: _defaultBranch?.contactNumber);
 
     showDialog(
       context: context,
@@ -113,8 +113,8 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
               final branch = Branch(
                 id: _defaultBranch?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
                 name: nameController.text,
-                address: addressController.text,
-                phoneNumber: phoneController.text,
+                street: addressController.text,
+                contactNumber: phoneController.text,
               );
               if (_company != null) {
                 branch.company.value = _company;
@@ -185,9 +185,9 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                _buildDetailRow(Icons.location_on_outlined, _defaultBranch!.address ?? 'No address set'),
+                _buildDetailRow(Icons.location_on_outlined, _defaultBranch!.street ?? 'No address set'),
                 const SizedBox(height: 12),
-                _buildDetailRow(Icons.phone_outlined, _defaultBranch!.phoneNumber ?? 'No phone set'),
+                _buildDetailRow(Icons.phone_outlined, _defaultBranch!.contactNumber ?? 'No phone set'),
               ],
             ),
           ),

@@ -106,7 +106,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       bool matches = false;
       final String? userPhone = userToReset.phoneNumber?.trim().toLowerCase();
       final String? compName = _offlineCompany?.name?.trim().toLowerCase();
-      final String? compPhone = _offlineCompany?.phoneNumber?.trim().toLowerCase();
+      final String? compPhone = _offlineCompany?.mobilePhone?.trim().toLowerCase();
       final String? compEmail = _offlineCompany?.email?.trim().toLowerCase();
 
       if (userPhone != null && userPhone.isNotEmpty && (userPhone == securityDetail || securityDetail.contains(userPhone) || userPhone.contains(securityDetail))) {

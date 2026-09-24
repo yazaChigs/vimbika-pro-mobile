@@ -253,9 +253,9 @@ class BranchReportScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _buildDetailRow(Icons.location_on_outlined, "Address", branch.address ?? "No address provided"),
+          _buildDetailRow(Icons.location_on_outlined, "Address", branch.street ?? "No address provided"),
           const Divider(),
-          _buildDetailRow(Icons.phone_outlined, "Phone", branch.phoneNumber ?? "No phone number"),
+          _buildDetailRow(Icons.phone_outlined, "Phone", branch.contactNumber ?? "No phone number"),
           const Divider(),
           _buildDetailRow(Icons.email_outlined, "Email", branch.email ?? "No email provided"),
         ],

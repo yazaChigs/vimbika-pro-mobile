@@ -8,8 +8,9 @@ class Company extends BaseEntity {
   Id isarId = Isar.autoIncrement;
   String? name;
   String? description;
-  String? address;
-  String? phoneNumber;
+  String? street;
+  String? city;
+  String? mobilePhone;
   String? email;
   String? website;
   String? logo;
@@ -23,8 +24,9 @@ class Company extends BaseEntity {
     super.version,
     this.name,
     this.description,
-    this.address,
-    this.phoneNumber,
+    this.street,
+    this.city,
+    this.mobilePhone,
     this.email,
     this.website,
     this.logo,
@@ -39,8 +41,9 @@ class Company extends BaseEntity {
     int? version,
     String? name,
     String? description,
-    String? address,
-    String? phoneNumber,
+    String? street,
+    String? city,
+    String? mobilePhone,
     String? email,
     String? website,
     String? logo,
@@ -55,8 +58,9 @@ class Company extends BaseEntity {
       version: version ?? this.version,
       name: name ?? this.name,
       description: description ?? this.description,
-      address: address ?? this.address,
-      phoneNumber: phoneNumber ?? this.phoneNumber,
+      street: street ?? this.street,
+      city: city ?? this.street,
+      mobilePhone: mobilePhone ?? this.mobilePhone,
       email: email ?? this.email,
       website: website ?? this.website,
       logo: logo ?? this.logo,
@@ -73,8 +77,9 @@ class Company extends BaseEntity {
       version: json['version'] is int ? json['version'] : (json['version'] is num ? (json['version'] as num).toInt() : null),
       name: json['name']?.toString(),
       description: json['description']?.toString(),
-      address: json['address']?.toString(),
-      phoneNumber: json['phoneNumber']?.toString(),
+      street: json['street']?.toString(),
+      city: json['city']?.toString(),
+      mobilePhone: json['mobilePhone']?.toString(),
       email: json['email']?.toString(),
       website: json['website']?.toString(),
       logo: json['logo']?.toString(),
@@ -91,8 +96,9 @@ class Company extends BaseEntity {
       'version': version,
       'name': name,
       'description': description,
-      'address': address,
-      'phoneNumber': phoneNumber,
+      'street': street,
+      'city': city,
+      'mobilePhone': mobilePhone,
       'email': email,
       'website': website,
       'logo': logo,
